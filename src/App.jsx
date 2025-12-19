@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 
-/* ---------------- DOCK LIST ---------------- */
+/* ------------------ DOCK LIST ------------------ */
 const docks = [
   ...Array.from({ length: 7 }, (_, i) => i + 1),
   ...Array.from({ length: 21 }, (_, i) => i + 15),
@@ -9,42 +9,42 @@ const docks = [
   ...Array.from({ length: 7 }, (_, i) => i + 64),
 ];
 
+/* ================= APP ================= */
 export default function App() {
-  /* ---------------- STATE ---------------- */
   const [session, setSession] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // login
+  /* LOGIN */
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // dock state
+  /* CSR DOCK STATE */
   const [dockStatus, setDockStatus] = useState({});
 
-  // admin create csr
+  /* ADMIN: CREATE CSR */
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [createMsg, setCreateMsg] = useState("");
 
-  console.log("SESSION:", session);
-  console.log("ROLE:", role);
+  /* ADMIN: DOCK HISTORY */
+  const [dockHistory, setDockHistory] = useState([]);
 
-  /* ---------------- AUTH + ROLE LOAD ---------------- */
+  /* ------------------ AUTH LOAD ------------------ */
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
 
       if (data.session) {
-        const { data: profile, error } = await supabase
+        const { data: profile } = await supabase
           .from("profiles")
           .select("role")
           .eq("id", data.session.user.id)
           .single();
 
-        if (!error) setRole(profile?.role ?? null);
+        setRole(profile?.role ?? null);
       }
 
       setLoading(false);
@@ -72,28 +72,50 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  /* ---------------- LOAD DOCKS FOR ADMIN + CSR ---------------- */
+  /* ------------------ LOAD DOCKS (CSR) ------------------ */
   useEffect(() => {
-    if (!role) return;
+    if (role !== "csr") return;
 
     const loadDocks = async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("docks")
         .select("dock_number, status");
 
-      if (!error && data) {
-        const mapped = {};
-        data.forEach((d) => {
-          mapped[d.dock_number] = d.status;
-        });
-        setDockStatus(mapped);
-      }
+      const mapped = {};
+      data?.forEach((d) => {
+        mapped[d.dock_number] = d.status;
+      });
+
+      setDockStatus(mapped);
     };
 
     loadDocks();
   }, [role]);
 
-  /* ---------------- AUTH ACTIONS ---------------- */
+  /* ------------------ LOAD HISTORY (ADMIN) ------------------ */
+  useEffect(() => {
+    if (role !== "admin") return;
+
+    const loadHistory = async () => {
+      const { data } = await supabase
+        .from("dock_history")
+        .select(`
+          id,
+          dock_number,
+          status,
+          created_at,
+          profiles ( email )
+        `)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      setDockHistory(data || []);
+    };
+
+    loadHistory();
+  }, [role]);
+
+  /* ------------------ AUTH ACTIONS ------------------ */
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -112,7 +134,7 @@ export default function App() {
     setRole(null);
   };
 
-  /* ---------------- ADMIN CREATE CSR ---------------- */
+  /* ------------------ ADMIN CREATE CSR ------------------ */
   const handleCreateCSR = async (e) => {
     e.preventDefault();
     setCreateMsg("");
@@ -148,7 +170,7 @@ export default function App() {
     }
   };
 
-  /* ---------------- DOCK STATUS UPDATE ---------------- */
+  /* ------------------ CSR: CYCLE STATUS ------------------ */
   const cycleStatus = async (dock) => {
     const order = ["available", "assigned", "loading"];
     const current = dockStatus[dock] || "available";
@@ -160,6 +182,11 @@ export default function App() {
       dock_number: dock,
       status: next,
     });
+
+    await supabase.from("dock_history").insert({
+      dock_number: dock,
+      status: next,
+    });
   };
 
   const colorFor = (status) => {
@@ -168,47 +195,14 @@ export default function App() {
     return "#ef4444";
   };
 
-  /* ---------------- SHARED DOCK GRID ---------------- */
-  const renderDockGrid = (clickable) => (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))",
-        gap: 12,
-        marginTop: 20,
-      }}
-    >
-      {docks.map((dock) => (
-        <div
-          key={dock}
-          onClick={clickable ? () => cycleStatus(dock) : undefined}
-          style={{
-            padding: 16,
-            borderRadius: 8,
-            textAlign: "center",
-            cursor: clickable ? "pointer" : "default",
-            background: colorFor(dockStatus[dock]),
-            color: "white",
-            fontWeight: "bold",
-            opacity: clickable ? 1 : 0.85,
-          }}
-        >
-          Dock {dock}
-          <div style={{ fontSize: 12 }}>{dockStatus[dock]}</div>
-        </div>
-      ))}
-    </div>
-  );
+  /* ------------------ UI ------------------ */
+  if (loading) return <p style={{ padding: 40 }}>Loading...</p>;
 
-  /* ---------------- UI ---------------- */
-  if (loading) return <p style={{ padding: 40 }}>Loading…</p>;
-
+  /* LOGIN */
   if (!session) {
     return (
       <div style={{ padding: 40, maxWidth: 400, margin: "0 auto" }}>
         <h1>307 Check-In</h1>
-        <h2>Login</h2>
-
         <form onSubmit={handleLogin}>
           <input
             type="email"
@@ -218,7 +212,6 @@ export default function App() {
             required
             style={{ width: "100%", padding: 8, marginBottom: 10 }}
           />
-
           <input
             type="password"
             placeholder="Password"
@@ -227,68 +220,100 @@ export default function App() {
             required
             style={{ width: "100%", padding: 8, marginBottom: 10 }}
           />
-
           {error && <p style={{ color: "red" }}>{error}</p>}
-
           <button style={{ width: "100%", padding: 10 }}>Login</button>
         </form>
       </div>
     );
   }
 
-  /* ---------------- ADMIN ---------------- */
+  /* ------------------ ADMIN ------------------ */
   if (role === "admin") {
     return (
       <div style={{ padding: 40 }}>
-        <h1>CSR Dashboard (Admin)</h1>
+        <h1>Admin Dashboard</h1>
         <button onClick={handleLogout}>Log out</button>
 
-        <p style={{ marginTop: 10, color: "#555" }}>
-          Read-only dock status view
-        </p>
-
-        {renderDockGrid(false)}
-
-        <h2 style={{ marginTop: 30 }}>Create CSR User</h2>
-
+        <h2>Create CSR</h2>
         <form onSubmit={handleCreateCSR}>
           <input
             placeholder="Email"
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
             required
-            style={{ padding: 8, marginBottom: 10 }}
           />
           <input
             placeholder="Temp Password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             required
-            style={{ padding: 8, marginBottom: 10 }}
           />
-          <button>Create CSR</button>
+          <button>Create</button>
         </form>
-
         {createMsg && <p>{createMsg}</p>}
+
+        <h2 style={{ marginTop: 30 }}>Dock History</h2>
+        <table border="1" cellPadding="6">
+          <thead>
+            <tr>
+              <th>Dock</th>
+              <th>Status</th>
+              <th>CSR</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {dockHistory.map((h) => (
+              <tr key={h.id}>
+                <td>{h.dock_number}</td>
+                <td>{h.status}</td>
+                <td>{h.profiles?.email}</td>
+                <td>{new Date(h.created_at).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }
 
-  /* ---------------- CSR ---------------- */
+  /* ------------------ CSR ------------------ */
   if (role === "csr") {
     return (
       <div style={{ padding: 40 }}>
         <h1>CSR Dock Dashboard</h1>
         <button onClick={handleLogout}>Log out</button>
 
-        {renderDockGrid(true)}
-
-        <p style={{ marginTop: 20 }}>
-          Click a dock to cycle status: Available → Assigned → Loading
-        </p>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))",
+            gap: 12,
+            marginTop: 20,
+          }}
+        >
+          {docks.map((dock) => (
+            <div
+              key={dock}
+              onClick={() => cycleStatus(dock)}
+              style={{
+                padding: 16,
+                borderRadius: 8,
+                textAlign: "center",
+                cursor: "pointer",
+                background: colorFor(dockStatus[dock]),
+                color: "white",
+                fontWeight: "bold",
+              }}
+            >
+              Dock {dock}
+              <div style={{ fontSize: 12 }}>{dockStatus[dock]}</div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
-  return <p style={{ padding: 40 }}>Checking permissions…</p>;
+  return <p>Access denied</p>;
 }
