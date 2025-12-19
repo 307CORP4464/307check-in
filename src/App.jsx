@@ -40,6 +40,19 @@ export default function App() {
           .single();
 
         setRole(profile?.role ?? null);
+        if (profile?.role === "csr") {
+  const { data } = await supabase
+    .from("docks")
+    .select("dock_number, status");
+
+  const mapped = {};
+  data.forEach((d) => {
+    mapped[d.dock_number] = d.status;
+  });
+
+  setDockStatus(mapped);
+}
+
       }
 
       setLoading(false);
