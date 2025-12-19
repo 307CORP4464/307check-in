@@ -89,6 +89,40 @@ export default function App() {
     loadDocks();
   }, [role]);
 
+  // ---------- REALTIME DOCK UPDATES ----------
+const channelRef = useRef(null);
+
+useEffect(() => {
+  if (!session) return;
+
+  channelRef.current = supabase
+    .channel("realtime-docks")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "docks",
+      },
+      (payload) => {
+        const { dock_number, status } = payload.new || {};
+        if (!dock_number) return;
+
+        setDockStatus((prev) => ({
+          ...prev,
+          [dock_number]: status,
+        }));
+      }
+    )
+    .subscribe();
+
+  return () => {
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
+  };
+}, [session]);
+
   /* ---------- Login ---------- */
   const handleLogin = async (e) => {
     e.preventDefault();
