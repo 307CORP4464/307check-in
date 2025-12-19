@@ -1,202 +1,190 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 
-/* ---------- PICKUP FORMATS ---------- */
-const pickupFormats = {
-  "Tate & Lyle": {
-    regex: /^(2\d{6}|8\d{7}|44\d{8})$/,
-    hint:
-      "• 7 digits starting with 2\n• 8 digits starting with 8\n• OR 10 digits starting with 44",
-  },
-  Primient: {
-    regex: /^(4\d{6}|8\d{7})$/,
-    hint: "• 7 digits starting with 4\n• OR 8 digits starting with 8",
-  },
-  ADM: {
-    regex: /^\d{6}$/,
-    hint: "• 6 digits",
-  },
-  "Solutions Direct": {
-    regex: /^TLNA-SO-00\d{6}$/,
-    hint: "• Format: TLNA-SO-00XXXXXX",
-  },
-};
+/* ---------------- CONSTANTS ---------------- */
 
-export default function DriverCheckIn() {
-  const [customer, setCustomer] = useState("");
-  const [pickup, setPickup] = useState("");
-  const [carrier, setCarrier] = useState("");
+const TRAILER_LENGTHS = ["48", "53", "Box"];
+
+const STATES = [
+  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
+  "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
+  "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
+  "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
+];
+
+export default function App() {
+  const [session, setSession] = useState(null);
+  const [role, setRole] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  /* -------- LOGIN -------- */
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  /* -------- DRIVER CHECK-IN -------- */
+  const [pickupNumber, setPickupNumber] = useState("");
+  const [carrierName, setCarrierName] = useState("");
   const [trailerNumber, setTrailerNumber] = useState("");
   const [trailerLength, setTrailerLength] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
+  const [deliveryCity, setDeliveryCity] = useState("");
+  const [deliveryState, setDeliveryState] = useState("");
   const [driverName, setDriverName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [msg, setMsg] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [driverPhone, setDriverPhone] = useState("");
+  const [submitMsg, setSubmitMsg] = useState("");
 
-  const isValidPickup =
-    customer &&
-    pickupFormats[customer] &&
-    pickupFormats[customer].regex.test(pickup);
+  /* ---------------- AUTH ---------------- */
 
-  const submit = async (e) => {
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+
+      if (data.session) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", data.session.user.id)
+          .single();
+
+        setRole(profile?.role ?? null);
+      }
+
+      setLoading(false);
+    };
+
+    load();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        setRole(null);
+
+        if (session) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", session.user.id)
+            .single();
+
+          setRole(profile?.role ?? null);
+        }
+      }
+    );
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  /* ---------------- DRIVER SUBMIT ---------------- */
+
+  const handleDriverSubmit = async (e) => {
     e.preventDefault();
-    setMsg("");
-
-    if (
-      !customer ||
-      !pickup ||
-      !carrier ||
-      !trailerNumber ||
-      !trailerLength ||
-      !city ||
-      !state ||
-      !driverName ||
-      !phone
-    ) {
-      setMsg("❌ Please fill out all required fields.");
-      return;
-    }
-
-    if (!isValidPickup) {
-      setMsg("❌ Invalid pickup number format.");
-      return;
-    }
-
-    setLoading(true);
+    setSubmitMsg("");
 
     const { error } = await supabase.from("driver_checkins").insert({
-      customer,
-      pickup_number: pickup,
-      carrier_name: carrier,
+      pickup_number: pickupNumber,
+      carrier_name: carrierName,
       trailer_number: trailerNumber,
-      trailer_length: Number(trailerLength),
-      delivery_city: city,
-      delivery_state: state,
+      trailer_length: trailerLength,
+      delivery_city: deliveryCity,
+      delivery_state: deliveryState,
       driver_name: driverName,
-      driver_phone: phone,
+      driver_phone: driverPhone,
       status: "waiting",
     });
 
     if (error) {
-      setMsg(error.message);
+      setSubmitMsg(error.message);
     } else {
-      setMsg("✅ Check-in successful. Please wait for dock assignment.");
-      setCustomer("");
-      setPickup("");
-      setCarrier("");
+      setSubmitMsg("✅ Check-in successful");
+      setPickupNumber("");
+      setCarrierName("");
       setTrailerNumber("");
       setTrailerLength("");
-      setCity("");
-      setState("");
+      setDeliveryCity("");
+      setDeliveryState("");
       setDriverName("");
-      setPhone("");
+      setDriverPhone("");
     }
-
-    setLoading(false);
   };
 
-  return (
-    <div style={{ padding: 40, maxWidth: 500, margin: "0 auto" }}>
-      <h1>Driver Check-In</h1>
+  /* ---------------- UI ---------------- */
 
-      <form onSubmit={submit} style={{ display: "grid", gap: 10 }}>
-        {/* CUSTOMER */}
-        <select
-          value={customer}
-          onChange={(e) => setCustomer(e.target.value)}
-          required
-        >
-          <option value="">Select Customer</option>
-          {Object.keys(pickupFormats).map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
+  if (loading) return <p style={{ padding: 40 }}>Loading…</p>;
 
-        {/* PICKUP NUMBER */}
-        <div>
+  // LOGIN
+  if (!session && window.location.pathname !== "/check-in") {
+    return (
+      <div style={{ padding: 40, maxWidth: 400, margin: "0 auto" }}>
+        <h1>307 Check-In</h1>
+        <h2>Login</h2>
+
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) setError(error.message);
+        }}>
           <input
-            placeholder="Pickup Number *"
-            value={pickup}
-            onChange={(e) => setPickup(e.target.value)}
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
+            style={{ width: "100%", padding: 8, marginBottom: 10 }}
           />
-          {customer && (
-            <pre
-              style={{
-                fontSize: 12,
-                color: isValidPickup ? "#555" : "#dc2626",
-                whiteSpace: "pre-wrap",
-                marginTop: 4,
-              }}
-            >
-              {pickupFormats[customer].hint}
-            </pre>
-          )}
-        </div>
 
-        {/* CARRIER */}
-        <input
-          placeholder="Carrier Name *"
-          value={carrier}
-          onChange={(e) => setCarrier(e.target.value)}
-          required
-        />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            style={{ width: "100%", padding: 8, marginBottom: 10 }}
+          />
 
-        {/* TRAILER NUMBER */}
-        <input
-          placeholder="Trailer Number *"
-          value={trailerNumber}
-          onChange={(e) => setTrailerNumber(e.target.value)}
-          required
-        />
+          {error && <p style={{ color: "red" }}>{error}</p>}
 
-        {/* TRAILER LENGTH */}
-        <select
-          value={trailerLength}
-          onChange={(e) => setTrailerLength(e.target.value)}
-          required
-        >
-          <option value="">Trailer Length *</option>
-          <option value="20">20'</option>
-          <option value="40">40'</option>
-        </select>
+          <button style={{ width: "100%", padding: 10 }}>Login</button>
+        </form>
+      </div>
+    );
+  }
 
-        {/* DELIVERY */}
-        <input
-          placeholder="Delivery City *"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-          required
-        />
-        <input
-          placeholder="Delivery State *"
-          value={state}
-          onChange={(e) => setState(e.target.value)}
-          required
-        />
+  /* ---------------- DRIVER CHECK-IN PAGE ---------------- */
 
-        {/* DRIVER */}
-        <input
-          placeholder="Driver Name *"
-          value={driverName}
-          onChange={(e) => setDriverName(e.target.value)}
-          required
-        />
-        <input
-          placeholder="Driver Phone Number *"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          required
-        />
+  if (window.location.pathname === "/check-in") {
+    return (
+      <div style={{ padding: 40, maxWidth: 500, margin: "0 auto" }}>
+        <h1>Driver Check-In</h1>
 
-        <button disabled={loading}>
-          {loading ? "Submitting…" : "Check In"}
-        </button>
-      </form>
+        <form onSubmit={handleDriverSubmit}>
+          <input placeholder="Pick Up Number" value={pickupNumber} onChange={(e) => setPickupNumber(e.target.value)} required />
+          <input placeholder="Carrier Name" value={carrierName} onChange={(e) => setCarrierName(e.target.value)} required />
+          <input placeholder="Trailer Number" value={trailerNumber} onChange={(e) => setTrailerNumber(e.target.value)} required />
 
-      {msg && <p style={{ marginTop: 10 }}>{msg}</p>}
-    </div>
-  );
+          <select value={trailerLength} onChange={(e) => setTrailerLength(e.target.value)} required>
+            <option value="">Trailer Length</option>
+            {TRAILER_LENGTHS.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+
+          <input placeholder="Delivery City" value={deliveryCity} onChange={(e) => setDeliveryCity(e.target.value)} required />
+
+          <select value={deliveryState} onChange={(e) => setDeliveryState(e.target.value)} required>
+            <option value="">Delivery State</option>
+            {STATES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+
+          <input placeholder="Driver Name" value={driverName} onChange={(e) => setDriverName(e.target.value)} required />
+          <input placeholder="Driver Phone" value={driverPhone} onChange={(e) => setDriverPhone(e.target.value)} required />
+
+          <button style={{ marginTop: 10 }}>Submit Check-In</button>
+        </form>
+
+        {submitMsg && <p>{submitMsg}</p>}
+      </div>
+    );
+  }
+
+  return <p>Access denied</p>;
 }
