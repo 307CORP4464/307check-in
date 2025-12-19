@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 
-/* ---------------- DOCK LIST ---------------- */
+// Build dock list
 const docks = [
   ...Array.from({ length: 7 }, (_, i) => i + 1),
   ...Array.from({ length: 21 }, (_, i) => i + 15),
@@ -10,32 +10,37 @@ const docks = [
 ];
 
 export default function App() {
-  /* ---------------- STATE ---------------- */
   const [session, setSession] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // login
+  // Login
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // docks
+  // Dock status
   const [dockStatus, setDockStatus] = useState({});
 
-  // admin create CSR
+  // ADMIN: create CSR
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [createMsg, setCreateMsg] = useState("");
 
-  /* ---------------- AUTH LOAD ---------------- */
+  /* -------------------- AUTH + ROLE -------------------- */
   useEffect(() => {
     const init = async () => {
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
 
       if (data.session) {
-        await loadRole(data.session.user.id);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", data.session.user.id)
+          .single();
+
+        setRole(profile?.role ?? null);
       }
 
       setLoading(false);
@@ -49,7 +54,13 @@ export default function App() {
         setRole(null);
 
         if (session) {
-          await loadRole(session.user.id);
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", session.user.id)
+            .single();
+
+          setRole(profile?.role ?? null);
         }
       }
     );
@@ -57,27 +68,17 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  /* ---------------- LOAD ROLE ---------------- */
-  const loadRole = async (userId) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .single();
-
-    if (!error) setRole(data.role);
-  };
-
-  /* ---------------- LOAD DOCKS (CSR) ---------------- */
+  /* -------------------- LOAD DOCKS + REALTIME -------------------- */
   useEffect(() => {
     if (role !== "csr") return;
 
+    // Initial load
     const loadDocks = async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("docks")
         .select("dock_number, status");
 
-      if (!error && data) {
+      if (data) {
         const mapped = {};
         data.forEach((d) => {
           mapped[d.dock_number] = d.status;
@@ -87,9 +88,31 @@ export default function App() {
     };
 
     loadDocks();
+
+    // Realtime subscription
+    const channel = supabase
+      .channel("docks-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "docks" },
+        (payload) => {
+          const dock = payload.new.dock_number;
+          const status = payload.new.status;
+
+          setDockStatus((prev) => ({
+            ...prev,
+            [dock]: status,
+          }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [role]);
 
-  /* ---------------- AUTH ACTIONS ---------------- */
+  /* -------------------- ACTIONS -------------------- */
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -108,7 +131,6 @@ export default function App() {
     setRole(null);
   };
 
-  /* ---------------- ADMIN CREATE CSR ---------------- */
   const handleCreateCSR = async (e) => {
     e.preventDefault();
     setCreateMsg("");
@@ -136,37 +158,27 @@ export default function App() {
     const data = await res.json();
 
     if (!res.ok) {
-      setCreateMsg(data.error || "Failed to create CSR");
+      setCreateMsg(data.error || "Failed to create user");
     } else {
-      setCreateMsg("✅ CSR created");
+      setCreateMsg("✅ CSR user created");
       setNewEmail("");
       setNewPassword("");
     }
   };
 
-  /* ---------------- DOCK STATUS ---------------- */
   const cycleStatus = async (dock) => {
     const order = ["available", "assigned", "loading"];
     const current = dockStatus[dock] || "available";
     const next = order[(order.indexOf(current) + 1) % order.length];
 
-    // update UI
+    // Optimistic UI
     setDockStatus((prev) => ({ ...prev, [dock]: next }));
 
-    // persist dock status
+    // Persist
     await supabase.from("docks").upsert({
       dock_number: dock,
       status: next,
     });
-
-    // release dock when set back to available
-    if (next === "available") {
-      await supabase
-        .from("dock_assignments")
-        .update({ active: false })
-        .eq("dock_number", dock)
-        .eq("active", true);
-    }
   };
 
   const colorFor = (status) => {
@@ -175,8 +187,8 @@ export default function App() {
     return "#ef4444";
   };
 
-  /* ---------------- UI ---------------- */
-  if (loading) return <p style={{ padding: 40 }}>Loading…</p>;
+  /* -------------------- UI -------------------- */
+  if (loading) return <p style={{ padding: 40 }}>Loading...</p>;
 
   // LOGIN
   if (!session) {
@@ -219,7 +231,7 @@ export default function App() {
         <h1>Admin Dashboard</h1>
         <button onClick={handleLogout}>Log out</button>
 
-        <h2 style={{ marginTop: 20 }}>Create CSR</h2>
+        <h2 style={{ marginTop: 20 }}>Create CSR User</h2>
 
         <form onSubmit={handleCreateCSR}>
           <input
@@ -274,9 +286,7 @@ export default function App() {
               }}
             >
               Dock {dock}
-              <div style={{ fontSize: 12 }}>
-                {dockStatus[dock] || "available"}
-              </div>
+              <div style={{ fontSize: 12 }}>{dockStatus[dock]}</div>
             </div>
           ))}
         </div>
