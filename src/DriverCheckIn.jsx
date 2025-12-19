@@ -25,10 +25,13 @@ const pickupFormats = {
 export default function DriverCheckIn() {
   const [customer, setCustomer] = useState("");
   const [pickup, setPickup] = useState("");
-  const [trailer, setTrailer] = useState("");
-  const [phone, setPhone] = useState("");
+  const [carrier, setCarrier] = useState("");
+  const [trailerNumber, setTrailerNumber] = useState("");
+  const [trailerLength, setTrailerLength] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
+  const [driverName, setDriverName] = useState("");
+  const [phone, setPhone] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -41,13 +44,23 @@ export default function DriverCheckIn() {
     e.preventDefault();
     setMsg("");
 
-    if (!customer || !pickup || !phone || !city || !state) {
+    if (
+      !customer ||
+      !pickup ||
+      !carrier ||
+      !trailerNumber ||
+      !trailerLength ||
+      !city ||
+      !state ||
+      !driverName ||
+      !phone
+    ) {
       setMsg("❌ Please fill out all required fields.");
       return;
     }
 
     if (!isValidPickup) {
-      setMsg("❌ Pickup number format is invalid.");
+      setMsg("❌ Invalid pickup number format.");
       return;
     }
 
@@ -56,23 +69,29 @@ export default function DriverCheckIn() {
     const { error } = await supabase.from("driver_checkins").insert({
       customer,
       pickup_number: pickup,
-      trailer_length: Number(trailer),
-      phone,
-      city,
-      state,
+      carrier_name: carrier,
+      trailer_number: trailerNumber,
+      trailer_length: Number(trailerLength),
+      delivery_city: city,
+      delivery_state: state,
+      driver_name: driverName,
+      driver_phone: phone,
       status: "waiting",
     });
 
     if (error) {
       setMsg(error.message);
     } else {
-      setMsg("✅ Check-in successful. Please wait for assignment.");
+      setMsg("✅ Check-in successful. Please wait for dock assignment.");
       setCustomer("");
       setPickup("");
-      setTrailer("");
-      setPhone("");
+      setCarrier("");
+      setTrailerNumber("");
+      setTrailerLength("");
       setCity("");
       setState("");
+      setDriverName("");
+      setPhone("");
     }
 
     setLoading(false);
@@ -95,7 +114,7 @@ export default function DriverCheckIn() {
           ))}
         </select>
 
-        {/* PICKUP */}
+        {/* PICKUP NUMBER */}
         <div>
           <input
             placeholder="Pickup Number *"
@@ -117,10 +136,26 @@ export default function DriverCheckIn() {
           )}
         </div>
 
-        {/* TRAILER */}
+        {/* CARRIER */}
+        <input
+          placeholder="Carrier Name *"
+          value={carrier}
+          onChange={(e) => setCarrier(e.target.value)}
+          required
+        />
+
+        {/* TRAILER NUMBER */}
+        <input
+          placeholder="Trailer Number *"
+          value={trailerNumber}
+          onChange={(e) => setTrailerNumber(e.target.value)}
+          required
+        />
+
+        {/* TRAILER LENGTH */}
         <select
-          value={trailer}
-          onChange={(e) => setTrailer(e.target.value)}
+          value={trailerLength}
+          onChange={(e) => setTrailerLength(e.target.value)}
           required
         >
           <option value="">Trailer Length *</option>
@@ -128,15 +163,7 @@ export default function DriverCheckIn() {
           <option value="40">40'</option>
         </select>
 
-        {/* PHONE */}
-        <input
-          placeholder="Phone Number *"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          required
-        />
-
-        {/* CITY / STATE */}
+        {/* DELIVERY */}
         <input
           placeholder="Delivery City *"
           value={city}
@@ -147,6 +174,20 @@ export default function DriverCheckIn() {
           placeholder="Delivery State *"
           value={state}
           onChange={(e) => setState(e.target.value)}
+          required
+        />
+
+        {/* DRIVER */}
+        <input
+          placeholder="Driver Name *"
+          value={driverName}
+          onChange={(e) => setDriverName(e.target.value)}
+          required
+        />
+        <input
+          placeholder="Driver Phone Number *"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
           required
         />
 
