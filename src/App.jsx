@@ -1,32 +1,34 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 
-// Build dock list
+/* ---------------- DOCK LIST ---------------- */
 const docks = [
-  ...Array.from({ length: 7 }, (_, i) => i + 1),
-  ...Array.from({ length: 21 }, (_, i) => i + 15),
-  ...Array.from({ length: 11 }, (_, i) => i + 49),
-  ...Array.from({ length: 7 }, (_, i) => i + 64),
+  ...Array.from({ length: 7 }, (_, i) => i + 1),   // 1–7
+  ...Array.from({ length: 21 }, (_, i) => i + 15), // 15–35
+  ...Array.from({ length: 11 }, (_, i) => i + 49), // 49–59
+  ...Array.from({ length: 7 }, (_, i) => i + 64),  // 64–70
 ];
 
 export default function App() {
+  /* ---------------- STATE ---------------- */
   const [session, setSession] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // login
+  // Login
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // dock status (CSR)
+  // Dock status
   const [dockStatus, setDockStatus] = useState({});
 
-  // admin create csr
+  // Admin create CSR
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [createMsg, setCreateMsg] = useState("");
 
+  /* ---------------- LOAD SESSION ---------------- */
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase.auth.getSession();
@@ -80,6 +82,7 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  /* ---------------- AUTH ---------------- */
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -98,6 +101,7 @@ export default function App() {
     setRole(null);
   };
 
+  /* ---------------- ADMIN: CREATE CSR ---------------- */
   const handleCreateCSR = async (e) => {
     e.preventDefault();
     setCreateMsg("");
@@ -133,23 +137,20 @@ export default function App() {
     }
   };
 
+  /* ---------------- DOCK STATUS ---------------- */
   const cycleStatus = async (dock) => {
-  const order = ["available", "assigned", "loading"];
-  const current = dockStatus[dock] || "available";
-  const next = order[(order.indexOf(current) + 1) % order.length];
+    const order = ["available", "assigned", "loading"];
+    const current = dockStatus[dock] || "available";
+    const next = order[(order.indexOf(current) + 1) % order.length];
 
-  // update UI immediately
-  setDockStatus({ ...dockStatus, [dock]: next });
+    // update UI immediately
+    setDockStatus((prev) => ({ ...prev, [dock]: next }));
 
-  // save to Supabase
-  await supabase
-    .from("docks")
-    .upsert({
+    // persist to Supabase
+    await supabase.from("docks").upsert({
       dock_number: dock,
       status: next,
     });
-};
-
   };
 
   const colorFor = (status) => {
@@ -158,7 +159,8 @@ export default function App() {
     return "#ef4444";
   };
 
-  if (loading) return <p style={{ padding: 40 }}>Loading...</p>;
+  /* ---------------- UI ---------------- */
+  if (loading) return <p style={{ padding: 40 }}>Loading…</p>;
 
   // LOGIN
   if (!session) {
@@ -194,11 +196,11 @@ export default function App() {
     );
   }
 
-  // ADMIN
+  // ADMIN DASHBOARD
   if (role === "admin") {
     return (
       <div style={{ padding: 40 }}>
-        <h1>Admin Dashboard</h1>
+        <h1>CSR Dashboard (Admin)</h1>
         <button onClick={handleLogout}>Log out</button>
 
         <h2 style={{ marginTop: 20 }}>Create CSR User</h2>
@@ -226,7 +228,7 @@ export default function App() {
     );
   }
 
-  // CSR
+  // CSR DASHBOARD
   if (role === "csr") {
     return (
       <div style={{ padding: 40 }}>
@@ -262,7 +264,7 @@ export default function App() {
         </div>
 
         <p style={{ marginTop: 20 }}>
-          Click a dock to cycle status: Available → Assigned → Loading
+          Click a dock to cycle: Available → Assigned → Loading
         </p>
       </div>
     );
