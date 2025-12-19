@@ -273,5 +273,5 @@ export default function App() {
     );
   }
 
-  return <p>Access denied</p>;
+  return <p>Checking permissions…</p>;
 }
