@@ -20,9 +20,7 @@ export default function App() {
   const [error, setError] = useState("");
 
   // dock status (CSR)
-  const [dockStatus, setDockStatus] = useState(
-    Object.fromEntries(docks.map((d) => [d, "available"]))
-  );
+  const [dockStatus, setDockStatus] = useState({});
 
   // admin create csr
   const [newEmail, setNewEmail] = useState("");
