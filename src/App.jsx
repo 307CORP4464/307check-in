@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 
+console.log("SESSION:", session);
+console.log("ROLE:", role);
+
 // Build dock list
 const docks = [
   ...Array.from({ length: 7 }, (_, i) => i + 1),
