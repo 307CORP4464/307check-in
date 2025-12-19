@@ -21,6 +21,7 @@ export default function App() {
 
   // Dock status (CSR)
   const [dockStatus, setDockStatus] = useState({});
+  const [driverQueue, setDriverQueue] = useState([]);
 
   // Admin create CSR
   const [newEmail, setNewEmail] = useState("");
@@ -97,6 +98,20 @@ export default function App() {
     };
 
     loadDocks();
+
+    const loadDriverQueue = async () => {
+      const { data, error } = await supabase
+        .from("driver_checkins")
+        .select("*")
+        .eq("status", "waiting")
+        .order("created_at", { ascending: true });
+
+      if (!error && data) {
+        setDriverQueue(data);
+      }
+    };
+
+    loadDriverQueue();
   }, [role]);
 
   const handleLogin = async (e) => {
@@ -173,6 +188,12 @@ export default function App() {
 
   const handleDriverCheckIn = async (e) => {
     e.preventDefault();
+    // Pick-up number validation
+    if (!pickupNumber || !/^[A-Za-z0-9]+$/.test(pickupNumber)) {
+      setError("Invalid Pickup Number. Please enter a valid pick-up number.");
+      return;
+    }
+
     const { data: { user } } = await supabase.auth.getSession();
 
     const { error } = await supabase
@@ -188,6 +209,7 @@ export default function App() {
           driver_name: driverName,
           driver_phone: driverPhone,
           csr_id: user.id,
+          status: "waiting", // Set to waiting initially
           appointment_time: new Date().toISOString(),
         },
       ]);
@@ -205,6 +227,7 @@ export default function App() {
       setState("");
       setDriverName("");
       setDriverPhone("");
+      setError(""); // Clear error message
     }
   };
 
@@ -286,6 +309,7 @@ export default function App() {
         <h2 style={{ marginTop: 20 }}>Driver Check-In</h2>
 
         <form onSubmit={handleDriverCheckIn}>
+          {error && <p style={{ color: "red" }}>{error}</p>}
           <input
             type="text"
             placeholder="Pickup Number"
@@ -335,9 +359,7 @@ export default function App() {
             required
             style={{ padding: 8, marginBottom: 10 }}
           >
-            {/* Add list of state codes */}
             <option value="">Select State</option>
-            {/* Example state codes */}
             <option value="CA">CA</option>
             <option value="TX">TX</option>
             <option value="NY">NY</option>
@@ -360,6 +382,30 @@ export default function App() {
           />
           <button>Check-In Driver</button>
         </form>
+
+        <h2 style={{ marginTop: 20 }}>Driver Queue</h2>
+        <table style={{ width: "100%", marginTop: 20 }}>
+          <thead>
+            <tr>
+              <th>Pickup Number</th>
+              <th>Carrier Name</th>
+              <th>Trailer Number</th>
+              <th>Driver Name</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {driverQueue.map((driver) => (
+              <tr key={driver.id}>
+                <td>{driver.pickup_number}</td>
+                <td>{driver.carrier_name}</td>
+                <td>{driver.trailer_number}</td>
+                <td>{driver.driver_name}</td>
+                <td>{driver.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }
