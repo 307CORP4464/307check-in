@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 
+// Build dock list
 const docks = [
   ...Array.from({ length: 7 }, (_, i) => i + 1),
   ...Array.from({ length: 21 }, (_, i) => i + 15),
@@ -12,17 +13,31 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [waitingDrivers, setWaitingDrivers] = useState([]);
-  const [appointmentTimes, setAppointmentTimes] = useState({});
-  const [driverData, setDriverData] = useState([]);
+
+  // Login
+  const [email, setEmail] = useState("");  // Correctly initialized email
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // Appointment time options
-  const appointmentOptions = [
-    "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", 
-    "13:00", "14:00", "15:00", "16:00", "17:00"
-  ];
+  // Dock status (CSR)
+  const [dockStatus, setDockStatus] = useState({});
 
+  // Admin create CSR
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [createMsg, setCreateMsg] = useState("");
+
+  // Driver check-in fields
+  const [pickupNumber, setPickupNumber] = useState("");
+  const [carrierName, setCarrierName] = useState("");
+  const [trailerNumber, setTrailerNumber] = useState("");
+  const [trailerLength, setTrailerLength] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [driverName, setDriverName] = useState("");
+  const [driverPhone, setDriverPhone] = useState("");
+
+  // INITIAL LOAD + AUTH STATE
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase.auth.getSession();
@@ -63,21 +78,25 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  // 🔴 IMPORTANT FIX: LOAD DOCKS WHEN CSR ROLE IS SET
   useEffect(() => {
-    if (role === "csr") {
-      const loadDrivers = async () => {
-        const { data, error } = await supabase
-          .from("driver_checkins")
-          .select("*")
-          .eq("status", "waiting");
+    if (role !== "csr") return;
 
-        if (!error && data) {
-          setWaitingDrivers(data);
-        }
-      };
+    const loadDocks = async () => {
+      const { data, error } = await supabase
+        .from("docks")
+        .select("dock_number, status");
 
-      loadDrivers();
-    }
+      if (!error && data) {
+        const mapped = {};
+        data.forEach((d) => {
+          mapped[d.dock_number] = d.status;
+        });
+        setDockStatus(mapped);
+      }
+    };
+
+    loadDocks();
   }, [role]);
 
   const handleLogin = async (e) => {
@@ -98,41 +117,100 @@ export default function App() {
     setRole(null);
   };
 
-  const assignDriver = async (driver, dock) => {
-    const appt = appointmentTimes[driver.id];
-    if (!appt) {
-      alert("Select appointment time first");
-      return;
+  const handleCreateCSR = async (e) => {
+    e.preventDefault();
+    setCreateMsg("");
+
+    const { data: { session } } = await supabase.auth.getSession();
+
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smart-service`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          email: newEmail,
+          password: newPassword,
+          role: "csr",
+        }),
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setCreateMsg(data.error || "Failed to create user");
+    } else {
+      setCreateMsg("✅ CSR user created");
+      setNewEmail("");
+      setNewPassword("");
     }
+  };
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+  const cycleStatus = async (dock) => {
+    const order = ["available", "assigned", "loading"];
+    const current = dockStatus[dock] || "available";
+    const next = order[(order.indexOf(current) + 1) % order.length];
 
-    // 1️⃣ Update driver_checkins status
-    await supabase
-      .from("driver_checkins")
-      .update({
-        status: "assigned",
-        assigned_dock: dock,
-        appointment_time: appt,
-      })
-      .eq("id", driver.id);
+    // update UI immediately
+    setDockStatus({ ...dockStatus, [dock]: next });
 
-    // 2️⃣ Insert history log (APPEND ONLY)
-    await supabase.from("dock_history").insert({
+    // persist to Supabase
+    await supabase.from("docks").upsert({
       dock_number: dock,
-      pickup_number: driver.pickup_number,
-      csr_id: session.user.id,
-      appointment_time: appt,
+      status: next,
     });
+  };
 
-    // 3️⃣ Remove from waiting queue
-    setWaitingDrivers(waitingDrivers.filter((d) => d.id !== driver.id));
+  const colorFor = (status) => {
+    if (status === "available") return "#22c55e";
+    if (status === "assigned") return "#eab308";
+    return "#ef4444";
+  };
+
+  const handleDriverCheckIn = async (e) => {
+    e.preventDefault();
+    const { data: { user } } = await supabase.auth.getSession();
+
+    const { error } = await supabase
+      .from("driver_checkins")
+      .insert([
+        {
+          pickup_number: pickupNumber,
+          carrier_name: carrierName,
+          trailer_number: trailerNumber,
+          trailer_length: trailerLength,
+          city: city,
+          state: state,
+          driver_name: driverName,
+          driver_phone: driverPhone,
+          csr_id: user.id,
+          appointment_time: new Date().toISOString(),
+        },
+      ]);
+
+    if (error) {
+      console.log("Error during driver check-in:", error.message);
+    } else {
+      console.log("Driver check-in successful!");
+      // Clear the form fields after submission
+      setPickupNumber("");
+      setCarrierName("");
+      setTrailerNumber("");
+      setTrailerLength("");
+      setCity("");
+      setState("");
+      setDriverName("");
+      setDriverPhone("");
+    }
   };
 
   if (loading) return <p style={{ padding: 40 }}>Loading...</p>;
 
+  // LOGIN
   if (!session) {
     return (
       <div style={{ padding: 40, maxWidth: 400, margin: "0 auto" }}>
@@ -166,10 +244,11 @@ export default function App() {
     );
   }
 
+  // ADMIN
   if (role === "admin") {
     return (
       <div style={{ padding: 40 }}>
-        <h1>Admin Dashboard</h1>
+        <h1>CSR Dashboard (Admin)</h1>
         <button onClick={handleLogout}>Log out</button>
 
         <h2 style={{ marginTop: 20 }}>Create CSR User</h2>
@@ -197,66 +276,90 @@ export default function App() {
     );
   }
 
+  // CSR
   if (role === "csr") {
     return (
       <div style={{ padding: 40 }}>
         <h1>CSR Dashboard</h1>
         <button onClick={handleLogout}>Log out</button>
 
-        <h2 style={{ marginTop: 20 }}>Driver Check-Ins</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Pickup Number</th>
-              <th>Carrier Name</th>
-              <th>Trailer Number</th>
-              <th>Trailer Length</th>
-              <th>City/State</th>
-              <th>Driver Name</th>
-              <th>Driver Phone</th>
-              <th>Appt Time</th>
-              <th>Assign Dock</th>
-            </tr>
-          </thead>
-          <tbody>
-            {waitingDrivers.map((driver) => (
-              <tr key={driver.id}>
-                <td>{driver.pickup_number}</td>
-                <td>{driver.carrier_name}</td>
-                <td>{driver.trailer_number}</td>
-                <td>{driver.trailer_length}</td>
-                <td>{driver.city}, {driver.state}</td>
-                <td>{driver.driver_name}</td>
-                <td>{driver.driver_phone}</td>
-                <td>
-                  <select
-                    value={appointmentTimes[driver.id] || ""}
-                    onChange={(e) =>
-                      setAppointmentTimes({
-                        ...appointmentTimes,
-                        [driver.id]: e.target.value,
-                      })
-                    }
-                  >
-                    <option value="">Time</option>
-                    {appointmentOptions.map((time) => (
-                      <option key={time} value={time}>
-                        {time}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <button
-                    onClick={() => assignDriver(driver, docks[0])} // Example dock, replace with proper dock
-                  >
-                    Assign Dock
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <h2 style={{ marginTop: 20 }}>Driver Check-In</h2>
+
+        <form onSubmit={handleDriverCheckIn}>
+          <input
+            type="text"
+            placeholder="Pickup Number"
+            value={pickupNumber}
+            onChange={(e) => setPickupNumber(e.target.value)}
+            required
+            style={{ padding: 8, marginBottom: 10 }}
+          />
+          <input
+            type="text"
+            placeholder="Carrier Name"
+            value={carrierName}
+            onChange={(e) => setCarrierName(e.target.value)}
+            required
+            style={{ padding: 8, marginBottom: 10 }}
+          />
+          <input
+            type="text"
+            placeholder="Trailer Number"
+            value={trailerNumber}
+            onChange={(e) => setTrailerNumber(e.target.value)}
+            required
+            style={{ padding: 8, marginBottom: 10 }}
+          />
+          <select
+            value={trailerLength}
+            onChange={(e) => setTrailerLength(e.target.value)}
+            required
+            style={{ padding: 8, marginBottom: 10 }}
+          >
+            <option value="">Select Trailer Length</option>
+            <option value="48">48</option>
+            <option value="53">53</option>
+            <option value="box">Box</option>
+          </select>
+          <input
+            type="text"
+            placeholder="City"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            required
+            style={{ padding: 8, marginBottom: 10 }}
+          />
+          <select
+            value={state}
+            onChange={(e) => setState(e.target.value)}
+            required
+            style={{ padding: 8, marginBottom: 10 }}
+          >
+            {/* Add list of state codes */}
+            <option value="">Select State</option>
+            {/* Example state codes */}
+            <option value="CA">CA</option>
+            <option value="TX">TX</option>
+            <option value="NY">NY</option>
+          </select>
+          <input
+            type="text"
+            placeholder="Driver Name"
+            value={driverName}
+            onChange={(e) => setDriverName(e.target.value)}
+            required
+            style={{ padding: 8, marginBottom: 10 }}
+          />
+          <input
+            type="text"
+            placeholder="Driver Phone"
+            value={driverPhone}
+            onChange={(e) => setDriverPhone(e.target.value)}
+            required
+            style={{ padding: 8, marginBottom: 10 }}
+          />
+          <button>Check-In Driver</button>
+        </form>
       </div>
     );
   }
