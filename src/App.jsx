@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 
-console.log("SESSION:", session);
-console.log("ROLE:", role);
-
 // Build dock list
 const docks = [
   ...Array.from({ length: 7 }, (_, i) => i + 1),
@@ -22,13 +19,16 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // dock status (CSR)
+  // CSR dock status
   const [dockStatus, setDockStatus] = useState({});
 
   // admin create csr
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [createMsg, setCreateMsg] = useState("");
+
+  console.log("SESSION:", session);
+  console.log("ROLE:", role);
 
   // INITIAL LOAD + AUTH STATE
   useEffect(() => {
@@ -71,7 +71,7 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // 🔴 IMPORTANT FIX: LOAD DOCKS WHEN CSR ROLE IS SET
+  // LOAD DOCKS ONCE CSR ROLE IS CONFIRMED
   useEffect(() => {
     if (role !== "csr") return;
 
@@ -150,10 +150,8 @@ export default function App() {
     const current = dockStatus[dock] || "available";
     const next = order[(order.indexOf(current) + 1) % order.length];
 
-    // update UI immediately
-    setDockStatus({ ...dockStatus, [dock]: next });
+    setDockStatus((prev) => ({ ...prev, [dock]: next }));
 
-    // persist to Supabase
     await supabase.from("docks").upsert({
       dock_number: dock,
       status: next,
@@ -166,7 +164,7 @@ export default function App() {
     return "#ef4444";
   };
 
-  if (loading) return <p style={{ padding: 40 }}>Loading...</p>;
+  if (loading) return <p style={{ padding: 40 }}>Loading…</p>;
 
   // LOGIN
   if (!session) {
@@ -206,7 +204,7 @@ export default function App() {
   if (role === "admin") {
     return (
       <div style={{ padding: 40 }}>
-        <h1>CSR Dashboard (Admin)</h1>
+        <h1>Admin Dashboard</h1>
         <button onClick={handleLogout}>Log out</button>
 
         <h2 style={{ marginTop: 20 }}>Create CSR User</h2>
@@ -234,7 +232,7 @@ export default function App() {
     );
   }
 
-  // CSR DASHBOARD
+  // CSR
   if (role === "csr") {
     return (
       <div style={{ padding: 40 }}>
@@ -270,11 +268,11 @@ export default function App() {
         </div>
 
         <p style={{ marginTop: 20 }}>
-          Click a dock to cycle status: Available → Assigned → Loading
+          Click a dock to cycle: Available → Assigned → Loading
         </p>
       </div>
     );
   }
 
-  return <p>Checking permissions…</p>;
+  return <p style={{ padding: 40 }}>Checking permissions…</p>;
 }
