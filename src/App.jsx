@@ -3,6 +3,10 @@ import { supabase } from "./lib/supabase";
 
 export default function App() {
   const [session, setSession] = useState(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   // Keep user logged in
   useEffect(() => {
@@ -21,20 +25,47 @@ export default function App() {
     };
   }, []);
 
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setError(error.message);
+    }
+
+    setLoading(false);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+  };
+
   return (
-    <div style={{ padding: "40px", fontFamily: "sans-serif" }}>
+    <div
+      style={{
+        padding: "40px",
+        fontFamily: "sans-serif",
+        maxWidth: 400,
+        margin: "0 auto",
+      }}
+    >
       <h1>307 Check-In</h1>
-      <p>Deployment successful 🎉</p>
 
       {session ? (
-        <div>
+        <>
           <p>
             Logged in as <strong>{session.user.email}</strong>
           </p>
-        </div>
+
+          <button onClick={handleLogout}>Log out</button>
+        </>
       ) : (
-        <p>Not logged in</p>
-      )}
-    </div>
-  );
-}
+        <form onSubmit={handleLogin}>
+          <h2>Login</h2>
