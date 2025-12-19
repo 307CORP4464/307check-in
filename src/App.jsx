@@ -1,7 +1,7 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabase";
 
-/* ---------- Dock List ---------- */
+/* ---------------- DOCK LIST ---------------- */
 const docks = [
   ...Array.from({ length: 7 }, (_, i) => i + 1),
   ...Array.from({ length: 21 }, (_, i) => i + 15),
@@ -10,44 +10,38 @@ const docks = [
 ];
 
 export default function App() {
-  /* ---------- Auth ---------- */
+  /* ---------------- STATE ---------------- */
   const [session, setSession] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  /* ---------- Login ---------- */
+  // login
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  /* ---------- Dock State ---------- */
+  // docks
   const [dockStatus, setDockStatus] = useState({});
 
-  /* ---------- Admin Create CSR ---------- */
+  // admin create CSR
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [createMsg, setCreateMsg] = useState("");
 
-  /* ---------- Initial Load + Auth ---------- */
+  /* ---------------- AUTH LOAD ---------------- */
   useEffect(() => {
-    const loadSession = async () => {
+    const init = async () => {
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
 
       if (data.session) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", data.session.user.id)
-          .single();
-
-        setRole(profile?.role ?? null);
+        await loadRole(data.session.user.id);
       }
 
       setLoading(false);
     };
 
-    loadSession();
+    init();
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
@@ -55,13 +49,7 @@ export default function App() {
         setRole(null);
 
         if (session) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", session.user.id)
-            .single();
-
-          setRole(profile?.role ?? null);
+          await loadRole(session.user.id);
         }
       }
     );
@@ -69,61 +57,39 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  /* ---------- Load Docks for CSR ---------- */
+  /* ---------------- LOAD ROLE ---------------- */
+  const loadRole = async (userId) => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .single();
+
+    if (!error) setRole(data.role);
+  };
+
+  /* ---------------- LOAD DOCKS (CSR) ---------------- */
   useEffect(() => {
     if (role !== "csr") return;
 
     const loadDocks = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("docks")
         .select("dock_number, status");
 
-      const mapped = {};
-      data?.forEach((d) => {
-        mapped[d.dock_number] = d.status;
-      });
-
-      setDockStatus(mapped);
+      if (!error && data) {
+        const mapped = {};
+        data.forEach((d) => {
+          mapped[d.dock_number] = d.status;
+        });
+        setDockStatus(mapped);
+      }
     };
 
     loadDocks();
   }, [role]);
 
-  // ---------- REALTIME DOCK UPDATES ----------
-const channelRef = useRef(null);
-
-useEffect(() => {
-  if (!session) return;
-
-  channelRef.current = supabase
-    .channel("realtime-docks")
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "docks",
-      },
-      (payload) => {
-        const { dock_number, status } = payload.new || {};
-        if (!dock_number) return;
-
-        setDockStatus((prev) => ({
-          ...prev,
-          [dock_number]: status,
-        }));
-      }
-    )
-    .subscribe();
-
-  return () => {
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-    }
-  };
-}, [session]);
-
-  /* ---------- Login ---------- */
+  /* ---------------- AUTH ACTIONS ---------------- */
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -142,7 +108,7 @@ useEffect(() => {
     setRole(null);
   };
 
-  /* ---------- Admin Create CSR ---------- */
+  /* ---------------- ADMIN CREATE CSR ---------------- */
   const handleCreateCSR = async (e) => {
     e.preventDefault();
     setCreateMsg("");
@@ -170,44 +136,37 @@ useEffect(() => {
     const data = await res.json();
 
     if (!res.ok) {
-      setCreateMsg(data.error || "Failed to create user");
+      setCreateMsg(data.error || "Failed to create CSR");
     } else {
-      setCreateMsg("✅ CSR user created");
+      setCreateMsg("✅ CSR created");
       setNewEmail("");
       setNewPassword("");
     }
   };
 
-  /* ---------- SAFE Dock Status Change ---------- */
+  /* ---------------- DOCK STATUS ---------------- */
   const cycleStatus = async (dock) => {
     const order = ["available", "assigned", "loading"];
     const current = dockStatus[dock] || "available";
     const next = order[(order.indexOf(current) + 1) % order.length];
 
-    // AVAILABLE → ASSIGNED must be atomic
-    if (current === "available") {
-      const { data } = await supabase.rpc("claim_dock", {
-        p_dock: dock,
-        p_status: next,
-      });
-
-      if (!data) {
-        alert("❌ Dock already claimed by another CSR");
-        return;
-      }
-    } else {
-      await supabase
-        .from("docks")
-        .update({ status: next })
-        .eq("dock_number", dock);
-
-      await supabase.from("dock_history").insert({
-        dock_number: dock,
-        status: next,
-      });
-    }
-
+    // update UI
     setDockStatus((prev) => ({ ...prev, [dock]: next }));
+
+    // persist dock status
+    await supabase.from("docks").upsert({
+      dock_number: dock,
+      status: next,
+    });
+
+    // release dock when set back to available
+    if (next === "available") {
+      await supabase
+        .from("dock_assignments")
+        .update({ active: false })
+        .eq("dock_number", dock)
+        .eq("active", true);
+    }
   };
 
   const colorFor = (status) => {
@@ -216,10 +175,10 @@ useEffect(() => {
     return "#ef4444";
   };
 
-  /* ---------- UI ---------- */
+  /* ---------------- UI ---------------- */
   if (loading) return <p style={{ padding: 40 }}>Loading…</p>;
 
-  /* ---------- LOGIN ---------- */
+  // LOGIN
   if (!session) {
     return (
       <div style={{ padding: 40, maxWidth: 400, margin: "0 auto" }}>
@@ -253,14 +212,14 @@ useEffect(() => {
     );
   }
 
-  /* ---------- ADMIN ---------- */
+  // ADMIN
   if (role === "admin") {
     return (
       <div style={{ padding: 40 }}>
-        <h1>CSR Dashboard (Admin)</h1>
+        <h1>Admin Dashboard</h1>
         <button onClick={handleLogout}>Log out</button>
 
-        <h2 style={{ marginTop: 20 }}>Create CSR User</h2>
+        <h2 style={{ marginTop: 20 }}>Create CSR</h2>
 
         <form onSubmit={handleCreateCSR}>
           <input
@@ -285,7 +244,7 @@ useEffect(() => {
     );
   }
 
-  /* ---------- CSR ---------- */
+  // CSR
   if (role === "csr") {
     return (
       <div style={{ padding: 40 }}>
@@ -315,14 +274,12 @@ useEffect(() => {
               }}
             >
               Dock {dock}
-              <div style={{ fontSize: 12 }}>{dockStatus[dock]}</div>
+              <div style={{ fontSize: 12 }}>
+                {dockStatus[dock] || "available"}
+              </div>
             </div>
           ))}
         </div>
-
-        <p style={{ marginTop: 20 }}>
-          Click a dock to cycle: Available → Assigned → Loading
-        </p>
       </div>
     );
   }
