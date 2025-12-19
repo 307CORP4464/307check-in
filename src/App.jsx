@@ -40,19 +40,19 @@ export default function App() {
           .single();
 
         setRole(profile?.role ?? null);
+
         if (profile?.role === "csr") {
-  const { data } = await supabase
-    .from("docks")
-    .select("dock_number, status");
+          const { data: docksData } = await supabase
+            .from("docks")
+            .select("dock_number, status");
 
-  const mapped = {};
-  data.forEach((d) => {
-    mapped[d.dock_number] = d.status;
-  });
+          const mapped = {};
+          docksData?.forEach((d) => {
+            mapped[d.dock_number] = d.status;
+          });
 
-  setDockStatus(mapped);
-}
-
+          setDockStatus(mapped);
+        }
       }
 
       setLoading(false);
@@ -102,7 +102,9 @@ export default function App() {
     e.preventDefault();
     setCreateMsg("");
 
-    const token = (await supabase.auth.getSession()).data.session.access_token;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
     const res = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/smart-service`,
@@ -110,7 +112,7 @@ export default function App() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           email: newEmail,
@@ -133,7 +135,7 @@ export default function App() {
 
   const cycleStatus = (dock) => {
     const order = ["available", "assigned", "loading"];
-    const current = dockStatus[dock];
+    const current = dockStatus[dock] || "available";
     const next = order[(order.indexOf(current) + 1) % order.length];
 
     setDockStatus({ ...dockStatus, [dock]: next });
@@ -185,7 +187,7 @@ export default function App() {
   if (role === "admin") {
     return (
       <div style={{ padding: 40 }}>
-        <h1>CSR Dashboard (Admin)</h1>
+        <h1>Admin Dashboard</h1>
         <button onClick={handleLogout}>Log out</button>
 
         <h2 style={{ marginTop: 20 }}>Create CSR User</h2>
@@ -213,7 +215,7 @@ export default function App() {
     );
   }
 
-  // CSR DASHBOARD
+  // CSR
   if (role === "csr") {
     return (
       <div style={{ padding: 40 }}>
