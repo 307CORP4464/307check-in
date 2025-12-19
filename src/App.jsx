@@ -133,12 +133,23 @@ export default function App() {
     }
   };
 
-  const cycleStatus = (dock) => {
-    const order = ["available", "assigned", "loading"];
-    const current = dockStatus[dock] || "available";
-    const next = order[(order.indexOf(current) + 1) % order.length];
+  const cycleStatus = async (dock) => {
+  const order = ["available", "assigned", "loading"];
+  const current = dockStatus[dock] || "available";
+  const next = order[(order.indexOf(current) + 1) % order.length];
 
-    setDockStatus({ ...dockStatus, [dock]: next });
+  // update UI immediately
+  setDockStatus({ ...dockStatus, [dock]: next });
+
+  // save to Supabase
+  await supabase
+    .from("docks")
+    .upsert({
+      dock_number: dock,
+      status: next,
+    });
+};
+
   };
 
   const colorFor = (status) => {
