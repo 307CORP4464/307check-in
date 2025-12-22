@@ -1,0 +1,19 @@
+# 307 Warehouse Check-In System
+
+Driver check-in system for 307 warehouse.
+
+## Features
+- Driver check-in form
+- CSR dashboard for managing check-ins
+- Real-time updates with Supabase
+
+## Tech Stack
+- Next.js 14
+- TypeScript
+- Supabase
+- Tailwind CSS
+- Vercel
+
+## Getting Started
+
+1. Install dependencies:
