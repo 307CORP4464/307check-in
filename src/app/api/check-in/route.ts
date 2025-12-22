@@ -1,5 +1,3 @@
-// src/app/api/check-in/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { checkInFormSchema } from '@/lib/validations';
