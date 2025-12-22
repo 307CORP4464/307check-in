@@ -1,5 +1,3 @@
-// src/app/page.tsx
-
 import Link from 'next/link';
 import { Truck, Users } from 'lucide-react';
 
