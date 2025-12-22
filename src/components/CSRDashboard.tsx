@@ -16,7 +16,15 @@ export default function CSRDashboard() {
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
+    useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      setError('Supabase not configured');
+      setLoading(false);
+      return;
+    }
     fetchCheckIns();
+  }, []);
+    
     
     // Subscribe to real-time updates
     const subscription = supabase
