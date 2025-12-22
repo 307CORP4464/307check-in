@@ -1,5 +1,3 @@
-// src/types/index.ts
-
 export interface CheckIn {
   id: string;
   pickup_number: string;
