@@ -37,7 +37,7 @@ export default function App() {
 
   // Not logged in → redirect to login page (root)
   if (!session) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   // Logged in but no role
