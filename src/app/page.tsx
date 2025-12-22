@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -13,7 +15,7 @@ export default function Home() {
 
         <div className="grid md:grid-cols-2 gap-8">
           {/* Driver Portal */}
-          <a href="/check-in" className="block">
+          <Link href="/check-in">
             <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-shadow cursor-pointer border-2 border-transparent hover:border-blue-500">
               <div className="flex flex-col items-center text-center">
                 <div className="bg-blue-100 p-6 rounded-full mb-6">
@@ -27,10 +29,10 @@ export default function Home() {
                 </p>
               </div>
             </div>
-          </a>
+          </Link>
 
           {/* CSR Portal */}
-          <a href="/dashboard" className="block">
+          <Link href="/dashboard">
             <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-shadow cursor-pointer border-2 border-transparent hover:border-blue-500">
               <div className="flex flex-col items-center text-center">
                 <div className="bg-indigo-100 p-6 rounded-full mb-6">
@@ -44,7 +46,7 @@ export default function Home() {
                 </p>
               </div>
             </div>
-          </a>
+          </Link>
         </div>
       </div>
     </div>
