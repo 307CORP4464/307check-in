@@ -21,18 +21,9 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  if (loading) {
-    return (
-      <div style={{ padding: 40 }}>
-        <h2>Loading app...</h2>
-      </div>
-    );
-  }
+  if (loading) return <div style={{ padding: 40 }}>Loading app...</div>;
 
-  if (!session) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!session) return <Navigate to="/login" replace />;
 
-  // 🔑 THIS IS WHAT WAS MISSING
   return <Outlet />;
 }
