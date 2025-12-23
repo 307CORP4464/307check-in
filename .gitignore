@@ -1,19 +1,34 @@
-# 307 Warehouse Check-In System
+# dependencies
+node_modules
+/.pnp
+.pnp.js
 
-Driver check-in system for 307 warehouse.
+# testing
+/coverage
 
-## Features
-- Driver check-in form
-- CSR dashboard for managing check-ins
-- Real-time updates with Supabase
+# next.js
+/.next/
+/out/
 
-## Tech Stack
-- Next.js 14
-- TypeScript
-- Supabase
-- Tailwind CSS
-- Vercel
+# production
+/build
 
-## Getting Started
+# misc
+.DS_Store
+*.pem
 
-1. Install dependencies:
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+.env
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
