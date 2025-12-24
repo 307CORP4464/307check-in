@@ -94,7 +94,10 @@ export default function CSRDashboard() {
   };
 
   const assignDock = async () => {
-    if (!selectedCheckIn || !dockNumber) return;
+    if (!selectedCheckIn || !dockNumber) {
+      alert('Please select a dock number');
+      return;
+    }
 
     try {
       const { getSupabase } = await import('@/lib/supabase');
@@ -160,7 +163,7 @@ export default function CSRDashboard() {
           </div>
           <button
             onClick={fetchCheckIns}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <RefreshCw size={16} />
             Refresh
@@ -223,6 +226,9 @@ export default function CSRDashboard() {
                     Carrier
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Trailer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Driver
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -240,57 +246,74 @@ export default function CSRDashboard() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {checkIns.map((checkIn) => (
-                  <tr key={checkIn.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {format(new Date(checkIn.check_in_time), 'h:mm a')}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {checkIn.pickup_number}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {checkIn.carrier_name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div>{checkIn.driver_name}</div>
-                      <div className="text-gray-500">{checkIn.driver_phone}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {checkIn.destination_city}, {checkIn.destination_state}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {checkIn.dock_number || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <StatusBadge status={checkIn.status} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            setSelectedCheckIn(checkIn);
-                            setDockNumber(checkIn.dock_number || '');
-                            setNotes(checkIn.notes || '');
-                          }}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          Assign
-                        </button>
-                        <select
-                          value={checkIn.status}
-                          onChange={(e) => updateStatus(checkIn.id, e.target.value as CheckInStatus)}
-                          className="text-sm border border-gray-300 rounded px-2 py-1"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="assigned">Assigned</option>
-                          <option value="loading">Loading</option>
-                          <option value="completed">Completed</option>
-                          <option value="departed">Departed</option>
-                        </select>
-                      </div>
+                {checkIns.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
+                      No check-ins today. Drivers can check in at the driver portal.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  checkIns.map((checkIn) => (
+                    <tr key={checkIn.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {format(new Date(checkIn.check_in_time), 'h:mm a')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {checkIn.pickup_number}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {checkIn.carrier_name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {checkIn.trailer_number}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div>{checkIn.driver_name}</div>
+                        <div className="text-gray-500">{checkIn.driver_phone}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {checkIn.destination_city}, {checkIn.destination_state}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {checkIn.dock_number ? (
+                          <span className="font-semibold text-blue-600">
+                            {checkIn.dock_number}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <StatusBadge status={checkIn.status} />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedCheckIn(checkIn);
+                              setDockNumber(checkIn.dock_number || '');
+                              setNotes(checkIn.notes || '');
+                            }}
+                            className="text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            {checkIn.dock_number ? 'Edit' : 'Assign'}
+                          </button>
+                          <select
+                            value={checkIn.status}
+                            onChange={(e) => updateStatus(checkIn.id, e.target.value as CheckInStatus)}
+                            className="text-sm border border-gray-300 rounded px-2 py-1"
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="assigned">Assigned</option>
+                            <option value="loading">Loading</option>
+                            <option value="completed">Completed</option>
+                            <option value="departed">Departed</option>
+                          </select>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -299,25 +322,58 @@ export default function CSRDashboard() {
         {/* Assign Dock Modal */}
         {selectedCheckIn && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full">
-              <h3 className="text-xl font-bold mb-4">Assign Dock</h3>
+            <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+              <h3 className="text-xl font-bold mb-4 text-gray-900">
+                {selectedCheckIn.dock_number ? 'Edit Dock Assignment' : 'Assign Dock'}
+              </h3>
               <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-600">Pickup Number</p>
-                  <p className="font-semibold">{selectedCheckIn.pickup_number}</p>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Pickup Number</p>
+                      <p className="font-semibold text-gray-900">{selectedCheckIn.pickup_number}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Trailer</p>
+                      <p className="font-semibold text-gray-900">{selectedCheckIn.trailer_number}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Carrier</p>
+                      <p className="font-medium text-gray-900">{selectedCheckIn.carrier_name}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Driver</p>
+                      <p className="font-medium text-gray-900">{selectedCheckIn.driver_name}</p>
+                    </div>
+                  </div>
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Dock Number
+                    Dock Number <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={dockNumber}
                     onChange={(e) => setDockNumber(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    placeholder="e.g., A-1"
-                  />
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Select a dock...</option>
+                    <option value="A-1">Dock A-1</option>
+                    <option value="A-2">Dock A-2</option>
+                    <option value="A-3">Dock A-3</option>
+                    <option value="A-4">Dock A-4</option>
+                    <option value="B-1">Dock B-1</option>
+                    <option value="B-2">Dock B-2</option>
+                    <option value="B-3">Dock B-3</option>
+                    <option value="B-4">Dock B-4</option>
+                    <option value="C-1">Dock C-1</option>
+                    <option value="C-2">Dock C-2</option>
+                    <option value="C-3">Dock C-3</option>
+                    <option value="C-4">Dock C-4</option>
+                  </select>
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Notes (Optional)
@@ -325,17 +381,19 @@ export default function CSRDashboard() {
                   <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows={3}
-                    placeholder="Add any notes..."
+                    placeholder="Add any special instructions or notes..."
                   />
                 </div>
-                <div className="flex gap-3">
+
+                <div className="flex gap-3 pt-2">
                   <button
                     onClick={assignDock}
-                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
+                    disabled={!dockNumber}
+                    className="flex-1 bg-blue-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    Assign
+                    {selectedCheckIn.dock_number ? 'Update Dock' : 'Assign Dock'}
                   </button>
                   <button
                     onClick={() => {
@@ -343,7 +401,7 @@ export default function CSRDashboard() {
                       setDockNumber('');
                       setNotes('');
                     }}
-                    className="flex-1 bg-gray-200 text-gray-800 py-2 rounded-lg hover:bg-gray-300"
+                    className="flex-1 bg-gray-200 text-gray-800 py-2.5 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors"
                   >
                     Cancel
                   </button>
