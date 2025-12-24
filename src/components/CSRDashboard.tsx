@@ -3,8 +3,12 @@
 import { useEffect, useState } from 'react';
 import { CheckIn, CheckInStatus } from '@/types';
 import { format, parseISO, isBefore, differenceInMinutes } from 'date-fns';
-import { RefreshCw, Clock, Truck, Package, CheckCircle, AlertCircle } from 'lucide-react';
+import { formatInTimeZone } from 'date-fns-tz';
+import { RefreshCw, Clock, Truck, Package, CheckCircle, LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import StatusBadge from './StatusBadge';
+
+const TIMEZONE = 'America/Indiana/Indianapolis';
 
 export default function CSRDashboard() {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
@@ -15,6 +19,7 @@ export default function CSRDashboard() {
   const [appointmentTime, setAppointmentTime] = useState('');
   const [notes, setNotes] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
+  const router = useRouter();
 
   // Update current time every minute for live dwell time
   useEffect(() => {
@@ -30,7 +35,6 @@ export default function CSRDashboard() {
     const slots = [];
     for (let hour = 8; hour <= 15; hour++) {
       for (let minute of [0, 30]) {
-        // Stop after 3:30 PM (15:30)
         if (hour === 15 && minute === 30) {
           const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
           const display = format(new Date(`2000-01-01T${time}`), 'h:mm a');
@@ -50,7 +54,6 @@ export default function CSRDashboard() {
   const timeSlots = generateTimeSlots();
 
   useEffect(() => {
-    // Check if Supabase is configured
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
       setError('Supabase not configured');
       setLoading(false);
@@ -59,7 +62,6 @@ export default function CSRDashboard() {
     
     fetchCheckIns();
     
-    // Subscribe to real-time updates
     const setupSubscription = async () => {
       try {
         const { getSupabase } = await import('@/lib/supabase');
@@ -138,10 +140,9 @@ export default function CSRDashboard() {
       const { getSupabase } = await import('@/lib/supabase');
       const supabase = getSupabase();
 
-      // Combine today's date with selected time
       let appointmentDateTime = null;
       if (appointmentTime) {
-        const today = format(new Date(), 'yyyy-MM-dd');
+        const today = formatInTimeZone(new Date(), TIMEZONE, 'yyyy-MM-dd');
         appointmentDateTime = `${today}T${appointmentTime}:00`;
       }
       
@@ -168,7 +169,11 @@ export default function CSRDashboard() {
     }
   };
 
-  // Check if driver arrived early (before appointment time)
+  const handleLogout = () => {
+    sessionStorage.removeItem('csr_auth');
+    router.push('/dashboard/login');
+  };
+
   const isEarlyArrival = (checkIn: CheckIn) => {
     if (!checkIn.appointment_time) return false;
     const checkInTime = parseISO(checkIn.check_in_time);
@@ -176,23 +181,12 @@ export default function CSRDashboard() {
     return isBefore(checkInTime, appointmentTime);
   };
 
-  // Calculate dwell time in minutes
   const calculateDwellTime = (checkIn: CheckIn) => {
-    // If departed, use completion time
-    if (checkIn.status === 'departed' || checkIn.status === 'completed') {
-      // For now, use current time. You could add a 'departed_time' field to track exact departure
-      const checkInTime = parseISO(checkIn.check_in_time);
-      const dwellMinutes = differenceInMinutes(currentTime, checkInTime);
-      return formatDwellTime(dwellMinutes);
-    }
-    
-    // For active loads, calculate from check-in time to now
     const checkInTime = parseISO(checkIn.check_in_time);
     const dwellMinutes = differenceInMinutes(currentTime, checkInTime);
     return formatDwellTime(dwellMinutes);
   };
 
-  // Format dwell time as hours and minutes
   const formatDwellTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -203,16 +197,12 @@ export default function CSRDashboard() {
     return `${hours}h ${mins}m`;
   };
 
-  // Get color for dwell time based on duration
   const getDwellTimeColor = (checkIn: CheckIn) => {
     const checkInTime = parseISO(checkIn.check_in_time);
     const dwellMinutes = differenceInMinutes(currentTime, checkInTime);
     
-    // Green: under 1 hour
     if (dwellMinutes < 60) return 'text-green-600 font-semibold';
-    // Yellow: 1-2 hours
     if (dwellMinutes < 120) return 'text-yellow-600 font-semibold';
-    // Red: over 2 hours
     return 'text-red-600 font-semibold';
   };
 
@@ -245,59 +235,62 @@ export default function CSRDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">CSR Dashboard</h1>
-            <p className="text-gray-600 mt-1">
-              {format(new Date(), 'EEEE, MMMM d, yyyy')}
-            </p>
+        {/* Header with compact stats */}
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">CSR Dashboard</h1>
+              <p className="text-sm text-gray-600">
+                {formatInTimeZone(new Date(), TIMEZONE, 'EEEE, MMMM d, yyyy - h:mm a zzz')}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={fetchCheckIns}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <RefreshCw size={16} />
+                Refresh
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                <LogOut size={16} />
+                Logout
+              </button>
+            </div>
           </div>
-          <button
-            onClick={fetchCheckIns}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <RefreshCw size={16} />
-            Refresh
-          </button>
-        </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="flex items-center justify-between">
+          {/* Compact Stats in One Line */}
+          <div className="flex gap-6">
+            <div className="flex items-center gap-2">
+              <Clock className="text-yellow-600" size={20} />
               <div>
-                <p className="text-sm text-gray-600">Pending</p>
-                <p className="text-3xl font-bold text-yellow-600">{stats.pending}</p>
+                <span className="text-sm text-gray-600">Pending: </span>
+                <span className="text-lg font-bold text-yellow-600">{stats.pending}</span>
               </div>
-              <Clock className="text-yellow-600" size={32} />
             </div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Package className="text-blue-600" size={20} />
               <div>
-                <p className="text-sm text-gray-600">Assigned</p>
-                <p className="text-3xl font-bold text-blue-600">{stats.assigned}</p>
+                <span className="text-sm text-gray-600">Assigned: </span>
+                <span className="text-lg font-bold text-blue-600">{stats.assigned}</span>
               </div>
-              <Package className="text-blue-600" size={32} />
             </div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Truck className="text-purple-600" size={20} />
               <div>
-                <p className="text-sm text-gray-600">Loading</p>
-                <p className="text-3xl font-bold text-purple-600">{stats.loading}</p>
+                <span className="text-sm text-gray-600">Loading: </span>
+                <span className="text-lg font-bold text-purple-600">{stats.loading}</span>
               </div>
-              <Truck className="text-purple-600" size={32} />
             </div>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="text-green-600" size={20} />
               <div>
-                <p className="text-sm text-gray-600">Completed</p>
-                <p className="text-3xl font-bold text-green-600">{stats.completed}</p>
+                <span className="text-sm text-gray-600">Completed: </span>
+                <span className="text-lg font-bold text-green-600">{stats.completed}</span>
               </div>
-              <CheckCircle className="text-green-600" size={32} />
             </div>
           </div>
         </div>
@@ -354,7 +347,7 @@ export default function CSRDashboard() {
                   checkIns.map((checkIn) => (
                     <tr key={checkIn.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {format(new Date(checkIn.check_in_time), 'h:mm a')}
+                        {formatInTimeZone(parseISO(checkIn.check_in_time), TIMEZONE, 'h:mm a')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {checkIn.pickup_number}
@@ -379,7 +372,7 @@ export default function CSRDashboard() {
                               ? 'bg-green-100 text-green-800'
                               : 'bg-gray-100 text-gray-800'
                           }`}>
-                            {format(parseISO(checkIn.appointment_time), 'h:mm a')}
+                            {formatInTimeZone(parseISO(checkIn.appointment_time), TIMEZONE, 'h:mm a')}
                           </span>
                         ) : (
                           <span className="text-gray-400">Not set</span>
@@ -410,7 +403,7 @@ export default function CSRDashboard() {
                               setDockNumber(checkIn.dock_number || '');
                               setAppointmentTime(
                                 checkIn.appointment_time 
-                                  ? format(parseISO(checkIn.appointment_time), 'HH:mm')
+                                  ? formatInTimeZone(parseISO(checkIn.appointment_time), TIMEZONE, 'HH:mm')
                                   : ''
                               );
                               setNotes(checkIn.notes || '');
@@ -470,7 +463,7 @@ export default function CSRDashboard() {
                       <p className="text-xs text-gray-500 uppercase tracking-wide">Checked In</p>
                       <div className="flex items-center gap-2">
                         <p className="font-medium text-gray-900">
-                          {format(new Date(selectedCheckIn.check_in_time), 'h:mm a')}
+                          {formatInTimeZone(parseISO(selectedCheckIn.check_in_time), TIMEZONE, 'h:mm a')}
                         </p>
                         {isEarlyArrival(selectedCheckIn) && (
                           <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
@@ -493,8 +486,7 @@ export default function CSRDashboard() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   >
-                    <option value="">Select a dock...</option>
-                   <option value="1">Dock 1</option>
+                  <option value="1">Dock 1</option>
                     <option value="2">Dock 2</option>
                     <option value="3">Dock 3</option>
                     <option value="4">Dock 4</option>
@@ -557,57 +549,4 @@ export default function CSRDashboard() {
                     value={appointmentTime}
                     onChange={(e) => setAppointmentTime(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">No appointment time</option>
-                    {timeSlots.map((slot) => (
-                      <option key={slot.value} value={slot.value}>
-                        {slot.display}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Set if driver had a scheduled appointment
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Notes (Optional)
-                  </label>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    rows={3}
-                    placeholder="Add any special instructions or notes..."
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={assignDock}
-                    disabled={!dockNumber}
-                    className="flex-1 bg-blue-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {selectedCheckIn.dock_number ? 'Update' : 'Assign Dock'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedCheckIn(null);
-                      setDockNumber('');
-                      setAppointmentTime('');
-                      setNotes('');
-                    }}
-                    className="flex-1 bg-gray-200 text-gray-800 py-2.5 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+                  >**
