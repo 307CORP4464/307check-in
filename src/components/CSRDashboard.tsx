@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { CheckIn, CheckInStatus } from '@/types';
-import { format } from 'date-fns';
-import { RefreshCw, Clock, Truck, Package, CheckCircle } from 'lucide-react';
+import { format, parseISO, isBefore } from 'date-fns';
+import { RefreshCw, Clock, Truck, Package, CheckCircle, AlertCircle } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 
 export default function CSRDashboard() {
@@ -12,7 +12,24 @@ export default function CSRDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [selectedCheckIn, setSelectedCheckIn] = useState<CheckIn | null>(null);
   const [dockNumber, setDockNumber] = useState('');
+  const [appointmentTime, setAppointmentTime] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Generate appointment time options (6 AM to 6 PM in 30-minute intervals)
+  const generateTimeSlots = () => {
+    const slots = [];
+    for (let hour = 6; hour <= 18; hour++) {
+      for (let minute of [0, 30]) {
+        if (hour === 18 && minute === 30) break; // Stop at 6:00 PM
+        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        const display = format(new Date(`2000-01-01T${time}`), 'h:mm a');
+        slots.push({ value: time, display });
+      }
+    }
+    return slots;
+  };
+
+  const timeSlots = generateTimeSlots();
 
   useEffect(() => {
     // Check if Supabase is configured
@@ -102,11 +119,19 @@ export default function CSRDashboard() {
     try {
       const { getSupabase } = await import('@/lib/supabase');
       const supabase = getSupabase();
+
+      // Combine today's date with selected time
+      let appointmentDateTime = null;
+      if (appointmentTime) {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        appointmentDateTime = `${today}T${appointmentTime}:00`;
+      }
       
       const { error } = await supabase
         .from('check_ins')
         .update({ 
           dock_number: dockNumber,
+          appointment_time: appointmentDateTime,
           status: 'assigned',
           notes: notes || selectedCheckIn.notes
         })
@@ -116,12 +141,21 @@ export default function CSRDashboard() {
       
       setSelectedCheckIn(null);
       setDockNumber('');
+      setAppointmentTime('');
       setNotes('');
       fetchCheckIns();
     } catch (error) {
       console.error('Error assigning dock:', error);
       alert('Failed to assign dock');
     }
+  };
+
+  // Check if driver arrived early
+  const isEarlyArrival = (checkIn: CheckIn) => {
+    if (!checkIn.appointment_time) return false;
+    const checkInTime = parseISO(checkIn.check_in_time);
+    const appointmentTime = parseISO(checkIn.appointment_time);
+    return isBefore(checkInTime, appointmentTime);
   };
 
   const stats = {
@@ -235,6 +269,9 @@ export default function CSRDashboard() {
                     Destination
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Appt Time
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Dock
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -248,15 +285,24 @@ export default function CSRDashboard() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {checkIns.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={10} className="px-6 py-8 text-center text-gray-500">
                       No check-ins today. Drivers can check in at the driver portal.
                     </td>
                   </tr>
                 ) : (
                   checkIns.map((checkIn) => (
                     <tr key={checkIn.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {format(new Date(checkIn.check_in_time), 'h:mm a')}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <div className="flex items-center gap-2">
+                          {isEarlyArrival(checkIn) && (
+                            <span className="flex items-center gap-1 text-green-600" title="Arrived early">
+                              <CheckCircle size={16} />
+                            </span>
+                          )}
+                          <span className="text-gray-900">
+                            {format(new Date(checkIn.check_in_time), 'h:mm a')}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {checkIn.pickup_number}
@@ -273,6 +319,22 @@ export default function CSRDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {checkIn.destination_city}, {checkIn.destination_state}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {checkIn.appointment_time ? (
+                          <div>
+                            <div className="text-gray-900 font-medium">
+                              {format(parseISO(checkIn.appointment_time), 'h:mm a')}
+                            </div>
+                            {isEarlyArrival(checkIn) && (
+                              <div className="text-xs text-green-600 font-medium">
+                                Early ✓
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">Not set</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {checkIn.dock_number ? (
@@ -292,6 +354,11 @@ export default function CSRDashboard() {
                             onClick={() => {
                               setSelectedCheckIn(checkIn);
                               setDockNumber(checkIn.dock_number || '');
+                              setAppointmentTime(
+                                checkIn.appointment_time 
+                                  ? format(parseISO(checkIn.appointment_time), 'HH:mm')
+                                  : ''
+                              );
                               setNotes(checkIn.notes || '');
                             }}
                             className="text-blue-600 hover:text-blue-800 font-medium"
@@ -324,7 +391,7 @@ export default function CSRDashboard() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
               <h3 className="text-xl font-bold mb-4 text-gray-900">
-                {selectedCheckIn.dock_number ? 'Edit Dock Assignment' : 'Assign Dock'}
+                {selectedCheckIn.dock_number ? 'Edit Assignment' : 'Assign Dock'}
               </h3>
               <div className="space-y-4">
                 <div className="bg-gray-50 p-4 rounded-lg">
@@ -344,6 +411,20 @@ export default function CSRDashboard() {
                     <div>
                       <p className="text-xs text-gray-500 uppercase tracking-wide">Driver</p>
                       <p className="font-medium text-gray-900">{selectedCheckIn.driver_name}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-xs text-gray-500 uppercase tracking-wide">Checked In</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-gray-900">
+                          {format(new Date(selectedCheckIn.check_in_time), 'h:mm a')}
+                        </p>
+                        {isEarlyArrival(selectedCheckIn) && (
+                          <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
+                            <CheckCircle size={14} />
+                            Early Arrival
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -411,8 +492,29 @@ export default function CSRDashboard() {
                     <option value="68">Dock 68</option>
                     <option value="69">Dock 69</option>
                     <option value="70">Dock 70</option>
-                    
+
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Appointment Time (Optional)
+                  </label>
+                  <select
+                    value={appointmentTime}
+                    onChange={(e) => setAppointmentTime(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">No appointment time</option>
+                    {timeSlots.map((slot) => (
+                      <option key={slot.value} value={slot.value}>
+                        {slot.display}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Set if driver had a scheduled appointment
+                  </p>
                 </div>
 
                 <div>
@@ -434,12 +536,13 @@ export default function CSRDashboard() {
                     disabled={!dockNumber}
                     className="flex-1 bg-blue-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    {selectedCheckIn.dock_number ? 'Update Dock' : 'Assign Dock'}
+                    {selectedCheckIn.dock_number ? 'Update' : 'Assign Dock'}
                   </button>
                   <button
                     onClick={() => {
                       setSelectedCheckIn(null);
                       setDockNumber('');
+                      setAppointmentTime('');
                       setNotes('');
                     }}
                     className="flex-1 bg-gray-200 text-gray-800 py-2.5 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors"
