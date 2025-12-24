@@ -18,9 +18,9 @@ export default function CSRDashboard() {
   // Generate appointment time options (6 AM to 6 PM in 30-minute intervals)
   const generateTimeSlots = () => {
     const slots = [];
-    for (let hour = 6; hour <= 18; hour++) {
+    for (let hour = 8; hour <= 1530; hour++) {
       for (let minute of [0, 30]) {
-        if (hour === 18 && minute === 30) break; // Stop at 6:00 PM
+        if (hour === 15 && minute === 30) break; // Stop at 15:30 PM
         const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
         const display = format(new Date(`2000-01-01T${time}`), 'h:mm a');
         slots.push({ value: time, display });
