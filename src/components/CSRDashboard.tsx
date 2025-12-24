@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { CheckIn, CheckInStatus } from '@/types';
-import { format, parseISO, isBefore } from 'date-fns';
+import { format, parseISO, isBefore, differenceInMinutes } from 'date-fns';
 import { RefreshCw, Clock, Truck, Package, CheckCircle, AlertCircle } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 
@@ -14,29 +14,38 @@ export default function CSRDashboard() {
   const [dockNumber, setDockNumber] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
   const [notes, setNotes] = useState('');
+  const [currentTime, setCurrentTime] = useState(new Date());
 
- // Generate appointment time options (8 AM to 3:30 PM in 30-minute intervals)
-const generateTimeSlots = () => {
-  const slots = [];
-  for (let hour = 8; hour <= 15; hour++) {
-    for (let minute of [0, 30]) {
-      // Stop after 3:30 PM (15:30)
-      if (hour === 15 && minute === 30) {
+  // Update current time every minute for live dwell time
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Generate appointment time options (8 AM to 3:30 PM in 30-minute intervals)
+  const generateTimeSlots = () => {
+    const slots = [];
+    for (let hour = 8; hour <= 15; hour++) {
+      for (let minute of [0, 30]) {
+        // Stop after 3:30 PM (15:30)
+        if (hour === 15 && minute === 30) {
+          const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+          const display = format(new Date(`2000-01-01T${time}`), 'h:mm a');
+          slots.push({ value: time, display });
+          break;
+        }
+        if (hour > 15) break;
+        
         const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
         const display = format(new Date(`2000-01-01T${time}`), 'h:mm a');
         slots.push({ value: time, display });
-        break;
       }
-      if (hour > 15) break;
-      
-      const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-      const display = format(new Date(`2000-01-01T${time}`), 'h:mm a');
-      slots.push({ value: time, display });
     }
-  }
-  return slots;
-};
-
+    return slots;
+  };
 
   const timeSlots = generateTimeSlots();
 
@@ -159,12 +168,52 @@ const generateTimeSlots = () => {
     }
   };
 
-  // Check if driver arrived early
+  // Check if driver arrived early (before appointment time)
   const isEarlyArrival = (checkIn: CheckIn) => {
     if (!checkIn.appointment_time) return false;
     const checkInTime = parseISO(checkIn.check_in_time);
     const appointmentTime = parseISO(checkIn.appointment_time);
     return isBefore(checkInTime, appointmentTime);
+  };
+
+  // Calculate dwell time in minutes
+  const calculateDwellTime = (checkIn: CheckIn) => {
+    // If departed, use completion time
+    if (checkIn.status === 'departed' || checkIn.status === 'completed') {
+      // For now, use current time. You could add a 'departed_time' field to track exact departure
+      const checkInTime = parseISO(checkIn.check_in_time);
+      const dwellMinutes = differenceInMinutes(currentTime, checkInTime);
+      return formatDwellTime(dwellMinutes);
+    }
+    
+    // For active loads, calculate from check-in time to now
+    const checkInTime = parseISO(checkIn.check_in_time);
+    const dwellMinutes = differenceInMinutes(currentTime, checkInTime);
+    return formatDwellTime(dwellMinutes);
+  };
+
+  // Format dwell time as hours and minutes
+  const formatDwellTime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    
+    if (hours === 0) {
+      return `${mins}m`;
+    }
+    return `${hours}h ${mins}m`;
+  };
+
+  // Get color for dwell time based on duration
+  const getDwellTimeColor = (checkIn: CheckIn) => {
+    const checkInTime = parseISO(checkIn.check_in_time);
+    const dwellMinutes = differenceInMinutes(currentTime, checkInTime);
+    
+    // Green: under 1 hour
+    if (dwellMinutes < 60) return 'text-green-600 font-semibold';
+    // Yellow: 1-2 hours
+    if (dwellMinutes < 120) return 'text-yellow-600 font-semibold';
+    // Red: over 2 hours
+    return 'text-red-600 font-semibold';
   };
 
   const stats = {
@@ -260,7 +309,7 @@ const generateTimeSlots = () => {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Time
+                    Check-In Time
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Pickup #
@@ -281,6 +330,9 @@ const generateTimeSlots = () => {
                     Appt Time
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Dwell Time
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Dock
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -294,24 +346,15 @@ const generateTimeSlots = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {checkIns.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={11} className="px-6 py-8 text-center text-gray-500">
                       No check-ins today. Drivers can check in at the driver portal.
                     </td>
                   </tr>
                 ) : (
                   checkIns.map((checkIn) => (
                     <tr key={checkIn.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex items-center gap-2">
-                          {isEarlyArrival(checkIn) && (
-                            <span className="flex items-center gap-1 text-green-600" title="Arrived early">
-                              <CheckCircle size={16} />
-                            </span>
-                          )}
-                          <span className="text-gray-900">
-                            {format(new Date(checkIn.check_in_time), 'h:mm a')}
-                          </span>
-                        </div>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {format(new Date(checkIn.check_in_time), 'h:mm a')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {checkIn.pickup_number}
@@ -331,19 +374,21 @@ const generateTimeSlots = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {checkIn.appointment_time ? (
-                          <div>
-                            <div className="text-gray-900 font-medium">
-                              {format(parseISO(checkIn.appointment_time), 'h:mm a')}
-                            </div>
-                            {isEarlyArrival(checkIn) && (
-                              <div className="text-xs text-green-600 font-medium">
-                                Early ✓
-                              </div>
-                            )}
-                          </div>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            isEarlyArrival(checkIn)
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {format(parseISO(checkIn.appointment_time), 'h:mm a')}
+                          </span>
                         ) : (
                           <span className="text-gray-400">Not set</span>
                         )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className={getDwellTimeColor(checkIn)}>
+                          {calculateDwellTime(checkIn)}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {checkIn.dock_number ? (
@@ -449,7 +494,7 @@ const generateTimeSlots = () => {
                     required
                   >
                     <option value="">Select a dock...</option>
-                    <option value="1">Dock 1</option>
+                   <option value="1">Dock 1</option>
                     <option value="2">Dock 2</option>
                     <option value="3">Dock 3</option>
                     <option value="4">Dock 4</option>
@@ -501,7 +546,6 @@ const generateTimeSlots = () => {
                     <option value="68">Dock 68</option>
                     <option value="69">Dock 69</option>
                     <option value="70">Dock 70</option>
-
                   </select>
                 </div>
 
