@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
-    "@supabase/supabase-js": "^2.39.8",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.45.4",
     "date-fns-tz": "^2.0.0",
     "lucide-react": "^0.303.0",
     "next": "^14.2.35",
