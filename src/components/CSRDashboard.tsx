@@ -173,10 +173,11 @@ export default function CSRDashboard() {
     }
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('csr_auth');
-    router.push('/dashboard/login');
-  };
+ const handleLogout = async () => {
+  const { signOut } = await import('@/lib/auth');
+  await signOut();
+  router.push('/dashboard/login');
+};
 
   const isEarlyArrival = (checkIn: CheckIn) => {
     if (!checkIn.appointment_time) return false;
