@@ -1,42 +1,28 @@
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
+  const supabase = createMiddlewareClient({ req, res });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return req.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          res.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-        },
-        remove(name: string, options: CookieOptions) {
-          res.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
-        },
-      },
-    }
-  );
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  // Refresh session if expired
-  await supabase.auth.getUser();
+  // If no session and trying to access protected routes, redirect to login
+  if (!session && req.nextUrl.pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/login', req.url));
+  }
+
+  // If session exists and trying to access login/signup, redirect to dashboard
+  if (session && (req.nextUrl.pathname === '/login' || req.nextUrl.pathname === '/signup')) {
+    return NextResponse.redirect(new URL('/dashboard', req.url));
+  }
 
   return res;
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/dashboard/:path*', '/login', '/signup'],
 };
