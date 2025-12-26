@@ -91,7 +91,7 @@ export default function DailyLog() {
     const headers = [
       'Appointment Time',
       'Check-in Time',
-      'PU#',
+      'Pickup Number',
       'Carrier Name',
       'Trailer Number',
       'Driver Name',
@@ -105,7 +105,7 @@ export default function DailyLog() {
     const rows = checkIns.map(ci => [
       ci.appointment_time ? format(parseISO(ci.appointment_time), 'yyyy-MM-dd HH:mm') : '',
       format(parseISO(ci.check_in_time), 'yyyy-MM-dd HH:mm'),
-      ci.pu_number || '',
+      ci.pickup_number || '',
       ci.carrier_name || '',
       ci.trailer_number || '',
       ci.driver_name || '',
