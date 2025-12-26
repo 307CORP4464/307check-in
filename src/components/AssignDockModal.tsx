@@ -30,17 +30,30 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
+  // Generate dock options: 1-70 and "Ramp"
+  const dockOptions = [
+    'Ramp',
+    ...Array.from({ length: 70 }, (_, i) => (i + 1).toString())
+  ];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
+      // Convert appointmentTime to ISO format if provided
+      const appointmentTimeISO = appointmentTime 
+        ? new Date(appointmentTime).toISOString() 
+        : null;
+
       const { error: updateError } = await supabase
         .from('check_ins')
         .update({
           dock_number: dockNumber,
-          appointment_time: appointmentTime || null,
+          appointment_time: appointmentTimeISO,
+          status: 'checked_in', // Change status from pending to checked_in
+          start_time: new Date().toISOString(), // Set start time when assigned
         })
         .eq('id', checkIn.id);
 
@@ -99,14 +112,19 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
             <label className="block text-gray-700 text-sm font-bold mb-2">
               Dock/Door Number *
             </label>
-            <input
-              type="text"
+            <select
               value={dockNumber}
               onChange={(e) => setDockNumber(e.target.value)}
               className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g., D-101, Door 5"
               required
-            />
+            >
+              <option value="">Select Dock/Door</option>
+              {dockOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option === 'Ramp' ? 'Ramp' : `Dock ${option}`}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="mb-6">
