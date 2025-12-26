@@ -201,7 +201,7 @@ export default function CSRDashboard() {
     const checkInTime = parseISO(checkIn.check_in_time);
     const dwellMinutes = differenceInMinutes(currentTime, checkInTime);
     
-    if (dwellMinutes < 60) return 'text-green-600 font-semibold';
+    if (dwellMinutes < 60) return 'text-red-600 font-semibold';
     if (dwellMinutes < 120) return 'text-yellow-600 font-semibold';
     return 'text-red-600 font-semibold';
   };
@@ -293,7 +293,7 @@ export default function CSRDashboard() {
             </div>
           </div>
         </div>
-        }
+        
         {/* Check-ins Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
