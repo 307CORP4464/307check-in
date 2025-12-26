@@ -58,7 +58,7 @@ export default function DriverCheckInForm() {
             driver_phone: formData.driverPhone,
             carrier_name: formData.carrierName,
             trailer_number: formData.trailerNumber,
-            pu_number: formData.puNumber,
+            pickup_number: formData.puNumber,
             company: formData.company,
             purpose: formData.purpose,
             check_in_time: new Date().toISOString(),
@@ -75,7 +75,7 @@ export default function DriverCheckInForm() {
         driverPhone: '',
         carrierName: '',
         trailerNumber: '',
-        puNumber: '',
+        pickupNumber: '',
         company: '',
         purpose: '',
       });
@@ -184,10 +184,10 @@ export default function DriverCheckInForm() {
             />
           </div>
 
-          {/* PU Number */}
+          {/* Pickup Number */}
           <div>
             <label htmlFor="puNumber" className="block text-sm font-medium text-gray-700 mb-2">
-              PU# (Pickup Number) <span className="text-red-500">*</span>
+              Pickup Number (Pickup Number) <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
