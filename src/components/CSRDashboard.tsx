@@ -53,7 +53,6 @@ export default function CSRDashboard() {
 
   const timeSlots = generateTimeSlots();
 
-  // MOVE fetchCheckIns HERE - BEFORE the useEffect that calls it
   const fetchCheckIns = async () => {
     try {
       const { getSupabase } = await import('@/lib/supabase');
@@ -117,34 +116,8 @@ export default function CSRDashboard() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Rest of your code stays the same...
-  const updateStatus = async (id: string, status: CheckInStatus) => {
-    // ... existing code
-  };
-
-  const fetchCheckIns = async () => {
-    try {
-      const { getSupabase } = await import('@/lib/supabase');
-      const supabase = getSupabase();
-      
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const { data, error } = await supabase
-        .from('check_ins')
-        .select('*')
-        .gte('check_in_time', today.toISOString())
-        .order('check_in_time', { ascending: false });
-
-      if (error) throw error;
-      setCheckIns(data || []);
-    } catch (error) {
-      console.error('Error fetching check-ins:', error);
-      setError('Failed to load check-ins');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // DELETE LINES 119-163 - These are duplicates!
+  // Keep only the functions below:
 
   const updateStatus = async (id: string, status: CheckInStatus) => {
     try {
@@ -203,6 +176,9 @@ export default function CSRDashboard() {
     }
   };
 
+  // ... rest of your code continues
+
+  
   const handleLogout = () => {
     sessionStorage.removeItem('csr_auth');
     router.push('/dashboard/login');
