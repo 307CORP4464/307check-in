@@ -140,7 +140,6 @@ export default function DailyLog() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
@@ -168,9 +167,7 @@ export default function DailyLog() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto p-4">
-        {/* Date Filter and Actions */}
         <div className="bg-white rounded-lg shadow p-4 mb-6">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             <div className="flex items-center gap-3">
@@ -200,7 +197,6 @@ export default function DailyLog() {
           </div>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-gray-600 text-sm font-medium">Total Check-ins</h3>
@@ -220,14 +216,12 @@ export default function DailyLog() {
           </div>
         </div>
 
-        {/* Error Message */}
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             {error}
           </div>
         )}
 
-        {/* Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             {checkIns.length === 0 ? (
@@ -245,7 +239,7 @@ export default function DailyLog() {
                       Check-in Time
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      PU#
+                      Pickup Number
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Carrier Name
@@ -283,7 +277,7 @@ export default function DailyLog() {
                         {format(parseISO(ci.check_in_time), 'HH:mm')}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                        {ci.pu_number || '-'}
+                        {ci.pickup_number || '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                         {ci.carrier_name || '-'}
@@ -331,3 +325,4 @@ export default function DailyLog() {
     </div>
   );
 }
+
