@@ -28,6 +28,18 @@ export default function CSRDashboard() {
   const [userEmail, setUserEmail] = useState<string>('');
   const [selectedCheckIn, setSelectedCheckIn] = useState<CheckIn | null>(null);
   const [isCheckOutModalOpen, setIsCheckOutModalOpen] = useState(false);
+  const [selectedForDock, setSelectedForDock] = useState<CheckIn | null>(null);
+const [isDockModalOpen, setIsDockModalOpen] = useState(false);
+
+// Add this function
+const handleAssignDock = (checkIn: CheckIn) => {
+  setSelectedForDock(checkIn);
+  setIsDockModalOpen(true);
+};
+
+const handleDockAssignSuccess = () => {
+  fetchCheckIns(); // Refresh the list
+};
 
   // Fetch user info
   useEffect(() => {
