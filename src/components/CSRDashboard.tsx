@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 
@@ -17,7 +17,10 @@ interface CheckIn {
 
 export default function CSRDashboard() {
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +38,7 @@ export default function CSRDashboard() {
       }
     };
     getUser();
-  }, [supabase]);
+  }, []);
 
   // Fetch check-ins
   useEffect(() => {
@@ -56,7 +59,7 @@ export default function CSRDashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase]);
+  }, []);
 
   const fetchCheckIns = async () => {
     try {
