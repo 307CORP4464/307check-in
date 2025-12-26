@@ -271,7 +271,7 @@ export default function DailyLog() {
                   {checkIns.map((ci) => (
                     <tr key={ci.id} className="hover:bg-gray-50">
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ci.appointment_time ? format(parseISO(ci.appointment_time), 'HH:mm') : '-'}
+                        {ci.appointment_time ? format(parseISO(ci.appointment_time), 'MM/dd HH:mm') : '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                         {format(parseISO(ci.check_in_time), 'HH:mm')}
