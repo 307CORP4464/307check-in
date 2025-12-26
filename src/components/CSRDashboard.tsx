@@ -18,7 +18,7 @@ interface CheckIn {
   carrier_name?: string;
   trailer_number?: string;
   purpose?: string;
-  pu_number?: string;
+  pickup_number?: string;
   dock_number?: string;
   appointment_time?: string | null;
   start_time?: string | null;
@@ -206,7 +206,7 @@ export default function CSRDashboard() {
                       Check-in Time
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      PU#
+                      Pickup Number
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Driver Name
@@ -241,7 +241,7 @@ export default function CSRDashboard() {
                           {format(parseISO(ci.check_in_time), 'HH:mm')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                          {ci.pu_number || '-'}
+                          {ci.pickup_number || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {ci.driver_name || '-'}
