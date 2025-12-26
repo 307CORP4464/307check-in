@@ -261,7 +261,7 @@ export default function CSRDashboard() {
               </button>
             </div>
           </div>
-
+)
           {/* Compact Stats in One Line */}
           <div className="flex gap-6">
             <div className="flex items-center gap-2">
