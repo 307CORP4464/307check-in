@@ -20,8 +20,15 @@ export default function CSRDashboard() {
   const [notes, setNotes] = useState<string>('');
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const router = useRouter();
-
-  // Assign modal visibility is driven by selectedCheckIn truthiness
+  const hanfleLogout = async () => {
+    try{
+      await aupabase.auth.signOut();
+      router.push('/login');
+      router.refresh();
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
 
   // Update current time every minute for live dwell time
   useEffect(() => {
