@@ -293,7 +293,7 @@ export default function CSRDashboard() {
             </div>
           </div>
         </div>
-
+        }
         {/* Check-ins Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
