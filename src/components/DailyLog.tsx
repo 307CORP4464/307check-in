@@ -12,10 +12,16 @@ interface CheckIn {
   check_out_time?: string | null;
   status: string;
   driver_name?: string;
+  driver_phone?: string;
   company?: string;
+  carrier_name?: string;
+  trailer_number?: string;
   purpose?: string;
+  pu_number?: string;
   dock_number?: string;
   appointment_time?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
 }
 
 export default function DailyLog() {
@@ -33,7 +39,6 @@ export default function DailyLog() {
     format(new Date(), 'yyyy-MM-dd')
   );
 
-  // Fetch user info
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -46,7 +51,6 @@ export default function DailyLog() {
     getUser();
   }, [supabase, router]);
 
-  // Fetch check-ins for selected date
   useEffect(() => {
     fetchCheckInsForDate();
   }, [selectedDate, supabase]);
@@ -83,46 +87,32 @@ export default function DailyLog() {
     }
   };
 
-  const calculateDwellTime = (checkIn: CheckIn): string => {
-    if (!checkIn.check_out_time) return 'Still checked in';
-    
-    const start = parseISO(checkIn.check_in_time);
-    const end = parseISO(checkIn.check_out_time);
-    const minutes = Math.floor((end.getTime() - start.getTime()) / 1000 / 60);
-    
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    
-    if (hours > 0) {
-      return `${hours}h ${mins}m`;
-    }
-    return `${mins}m`;
-  };
-
   const exportToCSV = () => {
     const headers = [
-      'Check-in ID',
-      'Driver Name',
-      'Company',
-      'Purpose',
-      'Dock Number',
-      'Check-in Time',
-      'Check-out Time',
-      'Dwell Time',
       'Appointment Time',
+      'Check-in Time',
+      'PU#',
+      'Carrier Name',
+      'Trailer Number',
+      'Driver Name',
+      'Driver Phone',
+      'Dock Number',
+      'Start Time',
+      'End Time',
       'Status'
     ];
 
     const rows = checkIns.map(ci => [
-      ci.id.slice(0, 8),
-      ci.driver_name || '',
-      ci.company || '',
-      ci.purpose || '',
-      ci.dock_number || '',
-      format(parseISO(ci.check_in_time), 'yyyy-MM-dd HH:mm'),
-      ci.check_out_time ? format(parseISO(ci.check_out_time), 'yyyy-MM-dd HH:mm') : '',
-      calculateDwellTime(ci),
       ci.appointment_time ? format(parseISO(ci.appointment_time), 'yyyy-MM-dd HH:mm') : '',
+      format(parseISO(ci.check_in_time), 'yyyy-MM-dd HH:mm'),
+      ci.pu_number || '',
+      ci.carrier_name || '',
+      ci.trailer_number || '',
+      ci.driver_name || '',
+      ci.driver_phone || '',
+      ci.dock_number || '',
+      ci.start_time ? format(parseISO(ci.start_time), 'yyyy-MM-dd HH:mm') : '',
+      ci.end_time ? format(parseISO(ci.end_time), 'yyyy-MM-dd HH:mm') : ci.check_out_time ? format(parseISO(ci.check_out_time), 'yyyy-MM-dd HH:mm') : '',
       ci.status
     ]);
 
@@ -248,28 +238,37 @@ export default function DailyLog() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Check-in ID
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Appointment Time
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Driver
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Company
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Dock
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Check-in Time
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Check-out Time
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      PU#
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Dwell Time
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Carrier Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Trailer Number
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Driver Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Driver Phone
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Dock Number
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Start Time
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      End Time
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                   </tr>
@@ -277,28 +276,42 @@ export default function DailyLog() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {checkIns.map((ci) => (
                     <tr key={ci.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        #{ci.id.slice(0, 8)}
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {ci.appointment_time ? format(parseISO(ci.appointment_time), 'HH:mm') : '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ci.driver_name || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ci.company || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ci.dock_number || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                         {format(parseISO(ci.check_in_time), 'HH:mm')}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ci.check_out_time ? format(parseISO(ci.check_out_time), 'HH:mm') : '-'}
+                      <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                        {ci.pu_number || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {calculateDwellTime(ci)}
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {ci.carrier_name || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {ci.trailer_number || '-'}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {ci.driver_name || '-'}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {ci.driver_phone || '-'}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {ci.dock_number || '-'}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {ci.start_time ? format(parseISO(ci.start_time), 'HH:mm') : '-'}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {ci.end_time 
+                          ? format(parseISO(ci.end_time), 'HH:mm')
+                          : ci.check_out_time 
+                            ? format(parseISO(ci.check_out_time), 'HH:mm')
+                            : '-'
+                        }
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                           ci.status === 'checked_in' 
                             ? 'bg-green-100 text-green-800' 
