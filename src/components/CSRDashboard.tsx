@@ -293,21 +293,14 @@ export default function CSRDashboard() {
             </div>
           </div>
         </div>
-        
-        {/* Check-ins Table */}
+               {/* Check-ins Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Check-In Time
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Pickup #
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Carrier
+                    Time
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Trailer
@@ -316,16 +309,16 @@ export default function CSRDashboard() {
                     Driver
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Destination
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Appt Time
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Dwell Time
+                    Carrier
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Dock
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Appointment
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Dwell Time
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -338,6 +331,13 @@ export default function CSRDashboard() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {checkIns.length === 0 ? (
                   <tr>
+                    <td colSpan={9} className="px-6 py-4 text-center text-gray-500">
+                      No check-ins today
+                    </td>
+                  </tr>
+                ) : (
+ 
+
                     <td colSpan={11} className="px-6 py-8 text-center text-gray-500">
                       No check-ins today. Drivers can check in at the driver portal.
                     </td>
