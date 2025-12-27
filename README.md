@@ -5,6 +5,7 @@ Driver check-in system for 307 warehouse. Inbound and Outbound.
 ## Features
 - Driver check-in form
 - CSR dashboard for managing check-ins
+- Daily Log of all checked in. 
 - Real-time updates with Supabase
 
 ## Tech Stack
