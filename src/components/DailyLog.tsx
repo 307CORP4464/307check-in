@@ -306,17 +306,14 @@ export default function DailyLog() {
                         }
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-    ci.status === 'checked_in' 
-      ? 'bg-green-100 text-green-800' 
-      : ci.status === 'checked_out'
-        ? 'bg-gray-100 text-gray-800'
-        : 'bg-orange-100 text-orange-800'
-  }`}>
-    {ci.status === 'checked_in' ? 'CHECKED IN' : ci.status === 'checked_out' ? 'CHECKED OUT' : 'PENDING'}
-  </span>
-</td>
-
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          ci.status === 'checked_in' 
+                            ? 'bg-green-100 text-green-800' 
+                            : ci.status === 'checked_out'
+                              ? 'bg-gray-100 text-gray-800'
+                              : 'bg-orange-100 text-orange-800'
+                        }`}>
+                          {ci.status === 'checked_in' ? 'CHECKED IN' : ci.status === 'checked_out' ? 'CHECKED OUT' : 'PENDING'}
                         </span>
                       </td>
                     </tr>
