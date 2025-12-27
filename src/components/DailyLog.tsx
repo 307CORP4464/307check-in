@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
-import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
-import { utcToZonedTime, format as formatTz } from 'date-fns-tz';
+import { format, parseISO } from 'date-fns';
+import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
 import Link from 'next/link';
 import StatusChangeModal from './StatusChangeModal';
 
@@ -47,9 +47,15 @@ export default function DailyLog() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<string>(
-    format(new Date(), 'yyyy-MM-dd')
-  );
+  
+  // Get current date in Indianapolis timezone
+  const getCurrentDateInIndianapolis = () => {
+    const now = new Date();
+    const indianapolisDate = utcToZonedTime(now, TIMEZONE);
+    return format(indianapolisDate, 'yyyy-MM-dd');
+  };
+
+  const [selectedDate, setSelectedDate] = useState<string>(getCurrentDateInIndianapolis());
   const [selectedForStatusChange, setSelectedForStatusChange] = useState<CheckIn | null>(null);
   const [isStatusChangeModalOpen, setIsStatusChangeModalOpen] = useState(false);
 
@@ -72,14 +78,16 @@ export default function DailyLog() {
   const fetchCheckInsForDate = async () => {
     try {
       setLoading(true);
-      const startDate = startOfDay(new Date(selectedDate)).toISOString();
-      const endDate = endOfDay(new Date(selectedDate)).toISOString();
+      
+      // Convert selected date to Indianapolis timezone, then to UTC for querying
+      const startOfDayIndy = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
+      const endOfDayIndy = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
 
       const { data, error } = await supabase
         .from('check_ins')
         .select('*')
-        .gte('check_in_time', startDate)
-        .lte('check_in_time', endDate)
+        .gte('check_in_time', startOfDayIndy.toISOString())
+        .lte('check_in_time', endOfDayIndy.toISOString())
         .order('check_in_time', { ascending: false });
 
       if (error) throw error;
@@ -210,7 +218,7 @@ export default function DailyLog() {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => setSelectedDate(format(new Date(), 'yyyy-MM-dd'))}
+                onClick={() => setSelectedDate(getCurrentDateInIndianapolis())}
                 className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
               >
                 Today
@@ -255,7 +263,7 @@ export default function DailyLog() {
           <div className="overflow-x-auto">
             {checkIns.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
-                No check-ins found for {format(new Date(selectedDate), 'MMMM dd, yyyy')}
+                No check-ins found for {format(parseISO(selectedDate + 'T00:00:00'), 'MMMM dd, yyyy')}
               </div>
             ) : (
               <table className="min-w-full divide-y divide-gray-200">
@@ -321,7 +329,7 @@ export default function DailyLog() {
                         {ci.appointment_time ? formatTimeInIndianapolis(ci.appointment_time, 'MM/dd HH:mm') : '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatTimeInIndianapolis(ci.check_in_time)}
+                        {formatTimeInIndianapolis(ci.check_in_time, 'MM/dd HH:mm')}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                         {ci.pickup_number || '-'}
