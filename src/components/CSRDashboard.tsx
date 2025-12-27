@@ -4,11 +4,18 @@ import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import { format, parseISO, differenceInMinutes } from 'date-fns';
-import { formatInTimeZone } from 'date-fns-tz';
+import { utcToZonedTime } from 'date-fns-tz';
 import Link from 'next/link';
 import AssignDockModal from './AssignDockModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
+
+// Helper function to format times in Indianapolis timezone
+const formatTimeInIndianapolis = (isoString: string, formatString: string = 'HH:mm'): string => {
+  const utcDate = parseISO(isoString);
+  const zonedDate = utcToZonedTime(utcDate, TIMEZONE);
+  return format(zonedDate, formatString);
+};
 
 interface CheckIn {
   id: string;
@@ -146,7 +153,7 @@ export default function CSRDashboard() {
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">CSR Dashboard - Pending Check-ins (Indianapolis Time)</h1>
+              <h1 className="text-2xl font-bold text-gray-900">CSR Dashboard - Pending Check-ins (EST/EDT)</h1>
               {userEmail && (
                 <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
               )}
@@ -256,7 +263,7 @@ export default function CSRDashboard() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatInTimeZone(parseISO(ci.check_in_time), TIMEZONE, 'HH:mm')}
+                          {formatTimeInIndianapolis(ci.check_in_time)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                           {ci.pickup_number || '-'}
