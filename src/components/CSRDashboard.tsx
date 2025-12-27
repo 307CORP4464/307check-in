@@ -7,6 +7,8 @@ import { differenceInMinutes } from 'date-fns';
 import Link from 'next/link';
 import AssignDockModal from './AssignDockModal';
 
+const TIMEZONE = 'America/New_York';
+
 const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
   const date = new Date(isoString);
   
