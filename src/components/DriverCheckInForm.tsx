@@ -13,6 +13,7 @@ interface FormData {
   pickupNumber: string;
   loadType: 'inbound' | 'outbound';
   destinationCity: string;
+  destinationState: string;
 }
 
 export default function DriverCheckInForm() {
@@ -31,6 +32,7 @@ export default function DriverCheckInForm() {
     pickupNumber: '',
     loadType: 'inbound',
     destinationCity: '',
+    destinationState: '',
   });
 
   const [loading, setLoading] = useState(false);
@@ -38,25 +40,24 @@ export default function DriverCheckInForm() {
   const [success, setSuccess] = useState(false);
   const [pickupError, setPickupError] = useState<string | null>(null);
 
+  const usStates = [
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+  ];
+
   const validatePickupNumber = (value: string): boolean => {
-    // Remove spaces and convert to uppercase
     const cleaned = value.replace(/\s/g, '').toUpperCase();
     
-    // Patterns:
-    // 2xxxxxx (7 digits starting with 2)
-    // 4xxxxxx (7 digits starting with 4)
-    // 44xxxxxxxx (10 digits starting with 44)
-    // 8xxxxxxx (8 digits starting with 8)
-    // TLNA-SO-00xxxx (TLNA-SO-00 followed by 4 digits)
-    // xxxxxx (any 6 digits)
-    
     const patterns = [
-      /^2\d{6}$/,           // 2xxxxxx
-      /^4\d{6}$/,           // 4xxxxxx
-      /^44\d{8}$/,          // 44xxxxxxxx
-      /^8\d{7}$/,           // 8xxxxxxx
-      /^TLNA-SO-00\d{4}$/,  // TLNA-SO-00xxxx
-      /^\d{6}$/             // xxxxxx
+      /^2\d{6}$/,
+      /^4\d{6}$/,
+      /^44\d{8}$/,
+      /^8\d{7}$/,
+      /^TLNA-SO-00\d{4}$/,
+      /^\d{6}$/
     ];
     
     return patterns.some(pattern => pattern.test(cleaned));
@@ -69,7 +70,6 @@ export default function DriverCheckInForm() {
       [name]: value
     }));
 
-    // Validate pickup number on change
     if (name === 'pickupNumber') {
       if (value && !validatePickupNumber(value)) {
         setPickupError('Invalid format. Must match: 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 8xxxxxxx, TLNA-SO-00xxxx, or xxxxxx');
@@ -85,7 +85,6 @@ export default function DriverCheckInForm() {
     setError(null);
     setSuccess(false);
 
-    // Validate pickup number before submitting
     if (!validatePickupNumber(formData.pickupNumber)) {
       setError('Invalid pickup number format');
       setLoading(false);
@@ -105,6 +104,7 @@ export default function DriverCheckInForm() {
             pickup_number: formData.pickupNumber,
             load_type: formData.loadType,
             destination_city: formData.destinationCity,
+            destination_state: formData.destinationState,
             check_in_time: new Date().toISOString(),
             status: 'pending',
           }
@@ -123,6 +123,7 @@ export default function DriverCheckInForm() {
         pickupNumber: '',
         loadType: 'inbound',
         destinationCity: '',
+        destinationState: '',
       });
       setPickupError(null);
 
@@ -294,21 +295,42 @@ export default function DriverCheckInForm() {
             )}
           </div>
 
-          {/* Destination City */}
-          <div>
-            <label htmlFor="destinationCity" className="block text-sm font-medium text-gray-700 mb-2">
-              Destination City <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="destinationCity"
-              name="destinationCity"
-              value={formData.destinationCity}
-              onChange={handleInputChange}
-              required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Enter destination city"
-            />
+          {/* Destination City and State in a grid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="destinationCity" className="block text-sm font-medium text-gray-700 mb-2">
+                Destination City <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="destinationCity"
+                name="destinationCity"
+                value={formData.destinationCity}
+                onChange={handleInputChange}
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter city"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="destinationState" className="block text-sm font-medium text-gray-700 mb-2">
+                State <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="destinationState"
+                name="destinationState"
+                value={formData.destinationState}
+                onChange={handleInputChange}
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select state</option>
+                {usStates.map(state => (
+                  <option key={state} value={state}>{state}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Submit Button */}
