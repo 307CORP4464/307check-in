@@ -3,48 +3,33 @@
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
-import { format, parseISO, differenceInMinutes } from 'date-fns';
-import { utcToZonedTime } from 'date-fns-tz';
+import { differenceInMinutes } from 'date-fns';
 import Link from 'next/link';
 import AssignDockModal from './AssignDockModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
-// Helper function to format times in Indianapolis timezone
-const formatTimeInIndianapolis = (isoString: string, formatString: string = 'HH:mm'): string => {
-  try {
-    const date = new Date(isoString);
-    // Convert to Indianapolis timezone string
-    const options: Intl.DateTimeFormatOptions = {
+// Simple, reliable timezone conversion using browser API
+const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
+  const date = new Date(isoString);
+  
+  if (includeDate) {
+    return date.toLocaleString('en-US', {
       timeZone: TIMEZONE,
+      month: '2-digit',
+      day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
-    };
-    
-    if (formatString === 'MM/dd HH:mm') {
-      options.month = '2-digit';
-      options.day = '2-digit';
-    }
-    
-    const formatter = new Intl.DateTimeFormat('en-US', options);
-    const parts = formatter.formatToParts(date);
-    
-    if (formatString === 'MM/dd HH:mm') {
-      const month = parts.find(p => p.type === 'month')?.value;
-      const day = parts.find(p => p.type === 'day')?.value;
-      const hour = parts.find(p => p.type === 'hour')?.value;
-      const minute = parts.find(p => p.type === 'minute')?.value;
-      return `${month}/${day} ${hour}:${minute}`;
-    } else {
-      const hour = parts.find(p => p.type === 'hour')?.value;
-      const minute = parts.find(p => p.type === 'minute')?.value;
-      return `${hour}:${minute}`;
-    }
-  } catch (e) {
-    console.error('Error formatting time:', e);
-    return '-';
+    }).replace(',', '');
   }
+  
+  return date.toLocaleString('en-US', {
+    timeZone: TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
 };
 
 interface CheckIn {
@@ -63,6 +48,8 @@ interface CheckIn {
   appointment_time?: string | null;
   start_time?: string | null;
   end_time?: string | null;
+  destination_city?: string;
+  destination_state?: string;
 }
 
 export default function CSRDashboard() {
@@ -146,7 +133,7 @@ export default function CSRDashboard() {
   };
 
   const calculateWaitTime = (checkIn: CheckIn): string => {
-    const start = parseISO(checkIn.check_in_time);
+    const start = new Date(checkIn.check_in_time);
     const now = new Date();
     const minutes = differenceInMinutes(now, start);
     
@@ -160,7 +147,7 @@ export default function CSRDashboard() {
   };
 
   const getWaitTimeColor = (checkIn: CheckIn): string => {
-    const start = parseISO(checkIn.check_in_time);
+    const start = new Date(checkIn.check_in_time);
     const now = new Date();
     const minutes = differenceInMinutes(now, start);
     
@@ -267,6 +254,9 @@ export default function CSRDashboard() {
                       Trailer Length
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Destination
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Wait Time
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -313,6 +303,12 @@ export default function CSRDashboard() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {ci.trailer_length || '-'}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {ci.destination_city && ci.destination_state 
+                            ? `${ci.destination_city}, ${ci.destination_state}`
+                            : '-'
+                          }
+                        </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${waitTimeColor}`}>
                           {waitTime}
                         </td>
@@ -326,7 +322,7 @@ export default function CSRDashboard() {
                             onClick={() => handleAssignDock(ci)}
                             className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
                           >
-                            {ci.dock_number ? 'Update' : 'Assign'}
+                            Assign
                           </button>
                         </td>
                       </tr>
