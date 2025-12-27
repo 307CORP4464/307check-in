@@ -7,9 +7,8 @@ import { differenceInMinutes } from 'date-fns';
 import Link from 'next/link';
 import AssignDockModal from './AssignDockModal';
 
-const TIMEZONE = 'America/New_York'; // Indianapolis follows Eastern Time
+const TIMEZONE = 'America/New_York';
 
-// Convert UTC time to EST/EDT
 const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
   try {
     const date = new Date(isoString);
@@ -97,7 +96,25 @@ export default function CSRDashboard() {
       supabase.removeChannel(channel);
     };
   }, [supabase]);
-      
+
+  const fetchCheckIns = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('check_ins')
+        .select('*')
+        .eq('status', 'pending')
+        .order('check_in_time', { ascending: false });
+
+      if (error) throw error;
+      setCheckIns(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
@@ -234,7 +251,7 @@ export default function CSRDashboard() {
                       Carrier
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Trailer #
+                      Trailer Number
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Trailer Length
