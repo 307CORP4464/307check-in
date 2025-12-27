@@ -227,7 +227,7 @@ export default function DriverCheckInForm() {
             </select>
           </div>
 
-          {/* PU Number */}
+          {/* Pickup Number */}
           <div>
             <label htmlFor="pickupNumber" className="block text-sm font-medium text-gray-700 mb-2">
               Pickup Number <span className="text-red-500">*</span>
@@ -240,7 +240,7 @@ export default function DriverCheckInForm() {
               onChange={handleInputChange}
               required
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="e.g., PU12345 or 123456"
+              placeholder="e.g., 2xxxxxx, 4xxxxxx, 8xxxxxxx, TLNA-SO-00XXXX or XXXXXX"
             />
             <p className="mt-1 text-sm text-gray-500">Format: PU12345 or 123456</p>
           </div>
