@@ -182,17 +182,7 @@ export default function CSRDashboard() {
   }
 return (
   <div className="min-h-screen bg-gray-50">
-    {/* DEBUG - Remove after testing */}
-    <div className="bg-yellow-200 p-4 text-center">
-      <p>TEST: UTC Now: {new Date().toISOString()}</p>
-      <p>TEST: UTC Time: {new Date().getUTCHours()}:{new Date().getUTCMinutes()}</p>
-      <p>TEST: EST calculation: {new Date().getUTCHours() - 5}:{new Date().getUTCMinutes()}</p>
-      <p>TEST: Sample DB time: 2025-01-09T20:00:36.252Z converts to: {formatTimeInIndianapolis('2025-01-09T20:00:36.252Z')}</p>
-    </div>
-    
     <div className="bg-white border-b shadow-sm">
-
-  
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div>
