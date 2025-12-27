@@ -16,16 +16,10 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
   const utcMonth = date.getUTCMonth() + 1;
   const utcDay = date.getUTCDate();
   
-  // Determine if we're in EST (UTC-5) or EDT (UTC-4)
-  // DST in US: Second Sunday in March to First Sunday in November
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth();
+  // EST is UTC-5 (we're in January, so EST not EDT)
+  const offset = -5;
   
-  // Simple DST check: March-October likely EDT, Nov-Feb likely EST
-  const isDST = month >= 2 && month <= 9; // March (2) through October (9)
-  const offset = isDST ? -4 : -5;
-  
-  // Calculate EST/EDT time
+  // Calculate EST time
   let estHours = utcHours + offset;
   let estDay = utcDay;
   let estMonth = utcMonth;
