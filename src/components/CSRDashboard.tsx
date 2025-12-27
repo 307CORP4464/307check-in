@@ -98,16 +98,6 @@ export default function CSRDashboard() {
     };
   }, [supabase]);
       
-      // Debug: Log first check-in time
-      if (data && data.length > 0) {
-        const firstCheckIn = data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
-console.log('First check-in UTC:', firstCheckIn.check_in_time);
-console.log('Converted to EST:', formatTimeInIndianapolis(firstCheckIn.check_in_time));
-
-      }
-      
-
-
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
