@@ -20,9 +20,7 @@ interface AssignDockModalProps {
 export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignDockModalProps) {
   const [dockNumber, setDockNumber] = useState(checkIn.dock_number || '');
   const [appointmentTime, setAppointmentTime] = useState(
-    checkIn.appointment_time 
-      ? new Date(checkIn.appointment_time).toISOString().slice(0, 16) 
-      : ''
+    checkIn.appointment_time || ''
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,21 +35,36 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
     ...Array.from({ length: 70 }, (_, i) => (i + 1).toString())
   ];
 
+  const appointmentOptions = [
+    { value: '0800', label: '08:00' },
+    { value: '0900', label: '09:00' },
+    { value: '0930', label: '09:30' },
+    { value: '1000', label: '10:00' },
+    { value: '1030', label: '10:30' },
+    { value: '1100', label: '11:00' },
+    { value: '1230', label: '12:30' },
+    { value: '1300', label: '13:00' },
+    { value: '1330', label: '13:30' },
+    { value: '1400', label: '14:00' },
+    { value: '1430', label: '14:30' },
+    { value: '1500', label: '15:00' },
+    { value: '1550', label: '15:50' },
+    { value: 'work_in', label: 'Work In' },
+    { value: 'paid_to_load', label: 'Paid to Load' },
+    { value: 'paid_charge_customer', label: 'Paid - Charge Customer' },
+  ];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const appointmentTimeISO = appointmentTime 
-        ? new Date(appointmentTime).toISOString() 
-        : null;
-
       const { error: updateError } = await supabase
         .from('check_ins')
         .update({
           dock_number: dockNumber,
-          appointment_time: appointmentTimeISO,
+          appointment_time: appointmentTime || null,
           status: 'checked_in',
           start_time: new Date().toISOString(),
         })
@@ -137,12 +150,18 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
             <label className="block text-gray-700 text-sm font-bold mb-2">
               Appointment Time (Optional)
             </label>
-            <input
-              type="datetime-local"
+            <select
               value={appointmentTime}
               onChange={(e) => setAppointmentTime(e.target.value)}
               className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            >
+              <option value="">No Appointment</option>
+              {appointmentOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex gap-3">
