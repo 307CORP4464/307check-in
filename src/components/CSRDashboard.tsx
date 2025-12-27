@@ -7,29 +7,32 @@ import { differenceInMinutes } from 'date-fns';
 import Link from 'next/link';
 import AssignDockModal from './AssignDockModal';
 
-const TIMEZONE = 'America/Indiana/Indianapolis';
+const TIMEZONE = 'America/New_York'; // Indianapolis follows Eastern Time
 
-// Simple, reliable timezone conversion using browser API
+// Convert UTC time to EST/EDT
 const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
-  const date = new Date(isoString);
-  
-  if (includeDate) {
-    return date.toLocaleString('en-US', {
+  try {
+    const date = new Date(isoString);
+    
+    const options: Intl.DateTimeFormatOptions = {
       timeZone: TIMEZONE,
-      month: '2-digit',
-      day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
-    }).replace(',', '');
+    };
+    
+    if (includeDate) {
+      options.month = '2-digit';
+      options.day = '2-digit';
+      options.year = 'numeric';
+    }
+    
+    const formatted = new Intl.DateTimeFormat('en-US', options).format(date);
+    return formatted;
+  } catch (e) {
+    console.error('Time formatting error:', e, isoString);
+    return isoString;
   }
-  
-  return date.toLocaleString('en-US', {
-    timeZone: TIMEZONE,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  });
 };
 
 interface CheckIn {
@@ -105,6 +108,13 @@ export default function CSRDashboard() {
         .order('check_in_time', { ascending: false });
 
       if (error) throw error;
+      
+      // Debug: Log first check-in time
+      if (data && data.length > 0) {
+        console.log('First check-in UTC:', data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.check_in_time);
+        console.log('Converted to EST:', formatTimeInIndianapolis(data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.check_in_time));
+      }
+      
       setCheckIns(data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -174,6 +184,7 @@ export default function CSRDashboard() {
               {userEmail && (
                 <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
               )}
+              <p className="text-xs text-gray-500">Current time: {formatTimeInIndianapolis(new Date().toISOString())}</p>
             </div>
             <div className="flex gap-3">
               <Link
@@ -233,7 +244,7 @@ export default function CSRDashboard() {
                       Type
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Check-in Time
+                      Check-in Time (EST)
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Pickup Number
