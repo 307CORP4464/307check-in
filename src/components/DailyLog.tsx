@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClientComponentClient } from '@supabase/ssr';
 import { zonedTimeToUtc, utcToZonedTime, format } from 'date-fns-tz';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
