@@ -2,357 +2,212 @@
 
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { useRouter } from 'next/navigation';
-import { differenceInMinutes } from 'date-fns';
-import Link from 'next/link';
-import AssignDockModal from './AssignDockModal';
+import { zonedTimeToUtc, utcToZonedTime, format } from 'date-fns-tz';
 
-const TIMEZONE = 'America/New_York';
-
-const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
-  try {
-    const date = new Date(isoString);
-    
-    // Get the UTC timestamp in milliseconds
-    const utcMs = date.getTime();
-    
-    // EST offset is -5 hours = -5 * 60 * 60 * 1000 milliseconds
-    const estOffsetMs = -5 * 60 * 60 * 1000;
-    
-    // Create EST date
-    const estDate = new Date(utcMs + estOffsetMs);
-    
-    // Extract components from EST date
-    const hours = String(estDate.getUTCHours()).padStart(2, '0');
-    const minutes = String(estDate.getUTCMinutes()).padStart(2, '0');
-    
-    if (includeDate) {
-      const month = String(estDate.getUTCMonth() + 1).padStart(2, '0');
-      const day = String(estDate.getUTCDate()).padStart(2, '0');
-      return `${month}/${day} ${hours}:${minutes}`;
-    }
-    
-    return `${hours}:${minutes}`;
-  } catch (e) {
-    console.error('Time conversion error:', e, isoString);
-    return isoString;
-  }
-};
+const TIMEZONE = 'America/Indiana/Indianapolis';
 
 interface CheckIn {
   id: string;
+  user_id: string;
   check_in_time: string;
-  check_out_time?: string | null;
-  status: string;
-  driver_name?: string;
-  driver_phone?: string;
-  carrier_name?: string;
-  trailer_number?: string;
-  trailer_length?: string;
-  load_type?: 'inbound' | 'outbound';
-  pickup_number?: string;
-  dock_number?: string;
-  appointment_time?: string | null;
-  start_time?: string | null;
-  end_time?: string | null;
-  destination_city?: string;
-  destination_state?: string;
+  user_name?: string;
+  email?: string;
+  status?: string;
 }
 
-export default function CSRDashboard() {
-  const router = useRouter();
+export default function DailyLog() {
+  const [selectedDate, setSelectedDate] = useState<string>(
+    format(utcToZonedTime(new Date(), TIMEZONE), 'yyyy-MM-dd', { timeZone: TIMEZONE })
+  );
+  const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Create Supabase client
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
-  
-  const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string>('');
-  const [selectedForDock, setSelectedForDock] = useState<CheckIn | null>(null);
-  const [isDockModalOpen, setIsDockModalOpen] = useState(false);
-
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserEmail(user.email || '');
-      }
-    };
-    getUser();
-  }, [supabase]);
 
   useEffect(() => {
     fetchCheckIns();
-    
-    const channel = supabase
-      .channel('check_ins_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'check_ins' },
-        () => {
-          fetchCheckIns();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase]);
+  }, [selectedDate]);
 
   const fetchCheckIns = async () => {
     try {
       setLoading(true);
+      setError(null);
+
+      // Create start and end of day in Indiana timezone
+      const startOfDayIndy = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
+      const endOfDayIndy = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
+
       const { data, error } = await supabase
         .from('check_ins')
         .select('*')
-        .eq('status', 'pending')
+        .gte('check_in_time', startOfDayIndy.toISOString())
+        .lte('check_in_time', endOfDayIndy.toISOString())
         .order('check_in_time', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
+
       setCheckIns(data || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Error fetching check-ins:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch check-ins');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      router.push('/login');
-      router.refresh();
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
+  const formatCheckInTime = (utcTime: string) => {
+    const zonedTime = utcToZonedTime(new Date(utcTime), TIMEZONE);
+    return format(zonedTime, 'HH:mm:ss', { timeZone: TIMEZONE });
   };
 
-  const handleAssignDock = (checkIn: CheckIn) => {
-    setSelectedForDock(checkIn);
-    setIsDockModalOpen(true);
+  const formatCheckInDateTime = (utcTime: string) => {
+    const zonedTime = utcToZonedTime(new Date(utcTime), TIMEZONE);
+    return format(zonedTime, 'MMM dd, yyyy HH:mm:ss', { timeZone: TIMEZONE });
   };
 
-  const handleDockAssignSuccess = () => {
-    fetchCheckIns();
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedDate(e.target.value);
   };
 
-  const calculateWaitTime = (checkIn: CheckIn): string => {
-    const start = new Date(checkIn.check_in_time);
-    const now = new Date();
-    const minutes = differenceInMinutes(now, start);
-    
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    
-    if (hours > 0) {
-      return `${hours}h ${mins}m`;
-    }
-    return `${mins}m`;
+  const handleToday = () => {
+    const today = format(utcToZonedTime(new Date(), TIMEZONE), 'yyyy-MM-dd', { timeZone: TIMEZONE });
+    setSelectedDate(today);
   };
-
-  const getWaitTimeColor = (checkIn: CheckIn): string => {
-    const start = new Date(checkIn.check_in_time);
-    const now = new Date();
-    const minutes = differenceInMinutes(now, start);
-    
-    if (minutes < 15) return 'text-green-600';
-    if (minutes < 30) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">CSR Dashboard - Pending Check-ins (EST)</h1>
-              {userEmail && (
-                <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
-              )}
-              <p className="text-xs text-gray-500">Current time: {formatTimeInIndianapolis(new Date().toISOString())}</p>
-            </div>
-            <div className="flex gap-3">
-              <Link
-                href="/logs"
-                className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors font-medium"
-              >
-                View Logs
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors font-medium"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="container mx-auto p-6 max-w-6xl">
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h1 className="text-3xl font-bold mb-6 text-gray-800">Daily Check-In Log</h1>
 
-      <div className="max-w-7xl mx-auto p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-gray-600 text-sm font-medium">Pending Check-ins</h3>
-            <p className="text-3xl font-bold mt-2 text-orange-600">{checkIns.length}</p>
+        {/* Date Selection */}
+        <div className="mb-6 flex gap-4 items-center">
+          <div className="flex-1">
+            <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-2">
+              Select Date
+            </label>
+            <input
+              type="date"
+              id="date"
+              value={selectedDate}
+              onChange={handleDateChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-gray-600 text-sm font-medium">Awaiting Assignment</h3>
-            <p className="text-3xl font-bold mt-2 text-blue-600">
-              {checkIns.filter(ci => !ci.dock_number).length}
-            </p>
-          </div>
+          <button
+            onClick={handleToday}
+            className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Today
+          </button>
+          <button
+            onClick={fetchCheckIns}
+            className="mt-6 px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+            disabled={loading}
+          >
+            {loading ? 'Loading...' : 'Refresh'}
+          </button>
         </div>
 
+        {/* Error Message */}
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-800">{error}</p>
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-4 border-b">
-            <h2 className="text-xl font-bold">Pending Assignments</h2>
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            <p className="mt-2 text-gray-600">Loading check-ins...</p>
           </div>
-          
-          {checkIns.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <div className="text-6xl mb-4">✓</div>
-              <p className="text-xl">No pending check-ins</p>
-              <p className="text-sm mt-2">All check-ins have been processed</p>
+        )}
+
+        {/* Check-Ins Table */}
+        {!loading && (
+          <>
+            <div className="mb-4">
+              <p className="text-gray-600">
+                Showing {checkIns.length} check-in{checkIns.length !== 1 ? 's' : ''} for{' '}
+                <span className="font-semibold">
+                  {format(new Date(selectedDate), 'MMMM dd, yyyy')}
+                </span>
+              </p>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Check-in Time (EST)
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Pickup Number
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Driver Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Driver Phone
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Carrier
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Trailer Number
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Trailer Length
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Destination
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Wait Time
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Dock
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {checkIns.map((ci) => {
-                    const waitTime = calculateWaitTime(ci);
-                    const waitTimeColor = getWaitTimeColor(ci);
-                    return (
-                      <tr key={ci.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-bold rounded ${
-                            ci.load_type === 'inbound' 
-                              ? 'bg-blue-100 text-blue-800' 
-                              : 'bg-green-100 text-green-800'
-                          }`}>
-                            {ci.load_type === 'inbound' ? 'I' : 'O'}
-                          </span>
+
+            {checkIns.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-md">
+                <p className="text-gray-500 text-lg">No check-ins found for this date.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        #
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Check-In Time
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {checkIns.map((checkIn, index) => (
+                      <tr key={checkIn.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {index + 1}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {checkIn.user_name || 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {checkIn.email || 'N/A'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatTimeInIndianapolis(ci.check_in_time)}
+                          <div className="font-semibold">
+                            {formatCheckInTime(checkIn.check_in_time)}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {formatCheckInDateTime(checkIn.check_in_time)}
+                          </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                          {ci.pickup_number || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ci.driver_name || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ci.driver_phone || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ci.carrier_name || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ci.trailer_number || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ci.trailer_length || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ci.destination_city && ci.destination_state 
-                            ? `${ci.destination_city}, ${ci.destination_state}`
-                            : '-'
-                          }
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${waitTimeColor}`}>
-                          {waitTime}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ci.dock_number || (
-                            <span className="text-orange-600 font-medium">Not Assigned</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() => handleAssignDock(ci)}
-                            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              checkIn.status === 'present'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}
                           >
-                            Assign
-                          </button>
+                            {checkIn.status || 'Checked In'}
+                          </span>
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
       </div>
-
-      {isDockModalOpen && selectedForDock && (
-        <AssignDockModal
-          checkIn={selectedForDock}
-          onClose={() => {
-            setIsDockModalOpen(false);
-            setSelectedForDock(null);
-          }}
-          onSuccess={handleDockAssignSuccess}
-        />
-      )}
     </div>
   );
 }
