@@ -97,17 +97,6 @@ export default function CSRDashboard() {
       supabase.removeChannel(channel);
     };
   }, [supabase]);
-
-  const fetchCheckIns = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('check_ins')
-        .select('*')
-        .eq('status', 'pending')
-        .order('check_in_time', { ascending: false });
-
-      if (error) throw error;
       
       // Debug: Log first check-in time
       if (data && data.length > 0) {
@@ -117,13 +106,7 @@ console.log('Converted to EST:', formatTimeInIndianapolis(firstCheckIn.check_in_
 
       }
       
-      setCheckIns(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const handleLogout = async () => {
     try {
