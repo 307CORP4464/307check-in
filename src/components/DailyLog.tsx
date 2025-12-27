@@ -4,49 +4,36 @@ import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
-import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
+import { zonedTimeToUtc } from 'date-fns-tz';
 import Link from 'next/link';
 import StatusChangeModal from './StatusChangeModal';
 
-const TIMEZONE = 'America/Indiana/Indianapolis';
+const TIMEZONE = 'America/New_York';
 
-// Helper function to format times in Indianapolis timezone
-const formatTimeInIndianapolis = (isoString: string, formatString: string = 'HH:mm'): string => {
+// Convert UTC time to EST/EDT
+const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
   try {
-    const date = new Date(isoString);
-    // Convert to Indianapolis timezone string
+    const utcDate = new Date(isoString);
+    
+    // Convert to local Indianapolis time string
     const options: Intl.DateTimeFormatOptions = {
       timeZone: TIMEZONE,
+      hour12: false,
+      ...(includeDate && {
+        month: '2-digit',
+        day: '2-digit',
+      }),
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false
     };
     
-    if (formatString === 'MM/dd HH:mm') {
-      options.month = '2-digit';
-      options.day = '2-digit';
-    }
-    
     const formatter = new Intl.DateTimeFormat('en-US', options);
-    const parts = formatter.formatToParts(date);
-    
-    if (formatString === 'MM/dd HH:mm') {
-      const month = parts.find(p => p.type === 'month')?.value;
-      const day = parts.find(p => p.type === 'day')?.value;
-      const hour = parts.find(p => p.type === 'hour')?.value;
-      const minute = parts.find(p => p.type === 'minute')?.value;
-      return `${month}/${day} ${hour}:${minute}`;
-    } else {
-      const hour = parts.find(p => p.type === 'hour')?.value;
-      const minute = parts.find(p => p.type === 'minute')?.value;
-      return `${hour}:${minute}`;
-    }
+    return formatter.format(utcDate);
   } catch (e) {
-    console.error('Error formatting time:', e);
+    console.error('Time formatting error:', e);
     return '-';
   }
 };
-
 
 interface CheckIn {
   id: string;
@@ -65,6 +52,8 @@ interface CheckIn {
   start_time?: string | null;
   end_time?: string | null;
   notes?: string;
+  destination_city?: string;
+  destination_state?: string;
 }
 
 export default function DailyLog() {
@@ -82,8 +71,17 @@ export default function DailyLog() {
   // Get current date in Indianapolis timezone
   const getCurrentDateInIndianapolis = () => {
     const now = new Date();
-    const indianapolisDate = utcToZonedTime(now, TIMEZONE);
-    return format(indianapolisDate, 'yyyy-MM-dd');
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    const parts = formatter.formatToParts(now);
+    const year = parts.find(p => p.type === 'year')?.value;
+    const month = parts.find(p => p.type === 'month')?.value;
+    const day = parts.find(p => p.type === 'day')?.value;
+    return `${year}-${month}-${day}`;
   };
 
   const [selectedDate, setSelectedDate] = useState<string>(getCurrentDateInIndianapolis());
@@ -160,6 +158,7 @@ export default function DailyLog() {
       'Trailer Length',
       'Driver Name',
       'Driver Phone',
+      'Destination',
       'Dock Number',
       'Start Time',
       'End Time',
@@ -169,17 +168,18 @@ export default function DailyLog() {
 
     const rows = checkIns.map(ci => [
       ci.load_type === 'inbound' ? 'I' : 'O',
-      ci.appointment_time ? formatTimeInIndianapolis(ci.appointment_time, 'yyyy-MM-dd HH:mm') : '',
-      formatTimeInIndianapolis(ci.check_in_time, 'yyyy-MM-dd HH:mm'),
+      ci.appointment_time ? formatTimeInIndianapolis(ci.appointment_time, true) : '',
+      formatTimeInIndianapolis(ci.check_in_time, true),
       ci.pickup_number || '',
       ci.carrier_name || '',
       ci.trailer_number || '',
       ci.trailer_length || '',
       ci.driver_name || '',
       ci.driver_phone || '',
+      ci.destination_city && ci.destination_state ? `${ci.destination_city}, ${ci.destination_state}` : '',
       ci.dock_number || '',
-      ci.start_time ? formatTimeInIndianapolis(ci.start_time, 'yyyy-MM-dd HH:mm') : '',
-      ci.end_time ? formatTimeInIndianapolis(ci.end_time, 'yyyy-MM-dd HH:mm') : ci.check_out_time ? formatTimeInIndianapolis(ci.check_out_time, 'yyyy-MM-dd HH:mm') : '',
+      ci.start_time ? formatTimeInIndianapolis(ci.start_time, true) : '',
+      ci.end_time ? formatTimeInIndianapolis(ci.end_time, true) : ci.check_out_time ? formatTimeInIndianapolis(ci.check_out_time, true) : '',
       ci.status,
       ci.notes || ''
     ]);
@@ -216,6 +216,7 @@ export default function DailyLog() {
               {userEmail && (
                 <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
               )}
+              <p className="text-xs text-gray-500">Current time: {formatTimeInIndianapolis(new Date().toISOString())}</p>
             </div>
             <div className="flex gap-3">
               <Link
@@ -307,7 +308,7 @@ export default function DailyLog() {
                       Appointment Time
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Check-in Time
+                      Check-in Time (EST)
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Pickup Number
@@ -326,6 +327,9 @@ export default function DailyLog() {
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Driver Phone
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Destination
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Dock Number
@@ -357,10 +361,10 @@ export default function DailyLog() {
                         </span>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ci.appointment_time ? formatTimeInIndianapolis(ci.appointment_time, 'MM/dd HH:mm') : '-'}
+                        {ci.appointment_time ? formatTimeInIndianapolis(ci.appointment_time, true) : '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatTimeInIndianapolis(ci.check_in_time, 'MM/dd HH:mm')}
+                        {formatTimeInIndianapolis(ci.check_in_time, true)}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                         {ci.pickup_number || '-'}
@@ -379,6 +383,12 @@ export default function DailyLog() {
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                         {ci.driver_phone || '-'}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {ci.destination_city && ci.destination_state 
+                          ? `${ci.destination_city}, ${ci.destination_state}`
+                          : '-'
+                        }
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                         {ci.dock_number || '-'}
