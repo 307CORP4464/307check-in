@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
@@ -8,7 +7,7 @@ import { zonedTimeToUtc } from 'date-fns-tz';
 import Link from 'next/link';
 import StatusChangeModal from './StatusChangeModal';
 
-const TIMEZONE = 'America/New_York';
+const TIMEZONE = 'America/Indiana/Indianapolis';
 
 // Convert UTC time to EST/EDT
 const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
@@ -33,6 +32,25 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
     console.error('Time formatting error:', e);
     return '-';
   }
+};
+
+// Format appointment time (which is stored as a string like "0900" or "work_in")
+const formatAppointmentTime = (appointmentTime: string | null): string => {
+  if (!appointmentTime) return 'N/A';
+  
+  // Handle special appointment types
+  if (appointmentTime === 'work_in') return 'Work In';
+  if (appointmentTime === 'paid_to_load') return 'Paid to Load';
+  if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
+  
+  // Format time strings like "0900" to "09:00"
+  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
+    const hours = appointmentTime.substring(0, 2);
+    const minutes = appointmentTime.substring(2, 4);
+    return `${hours}:${minutes}`;
+  }
+  
+  return appointmentTime;
 };
 
 interface CheckIn {
@@ -151,7 +169,7 @@ export default function DailyLog() {
     const headers = [
       'Type',
       'Appointment Time',
-      'Check-in Time',
+      'Check-in Time (EST)',
       'Pickup Number',
       'Carrier Name',
       'Trailer Number',
@@ -168,7 +186,7 @@ export default function DailyLog() {
 
     const rows = checkIns.map(ci => [
       ci.load_type === 'inbound' ? 'I' : 'O',
-      ci.appointment_time ? formatTimeInIndianapolis(ci.appointment_time, true) : '',
+      formatAppointmentTime(ci.appointment_time),
       formatTimeInIndianapolis(ci.check_in_time, true),
       ci.pickup_number || '',
       ci.carrier_name || '',
@@ -212,7 +230,7 @@ export default function DailyLog() {
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Daily Check-in Log (EST/EDT)</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Daily Check-in Log (EST)</h1>
               {userEmail && (
                 <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
               )}
@@ -295,135 +313,71 @@ export default function DailyLog() {
           <div className="overflow-x-auto">
             {checkIns.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
-                No check-ins found for {format(parseISO(selectedDate + 'T00:00:00'), 'MMMM dd, yyyy')}
+                No check-ins found for {format(parseISO(selectedDate), 'MMMM d, yyyy')}
               </div>
             ) : (
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Appointment Time
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Check-in Time (EST)
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Pickup Number
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Carrier Name
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Trailer Number
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Trailer Length
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Driver Name
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Driver Phone
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Destination
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Dock Number
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Start Time
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      End Time
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment Time</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-in Time (EST)</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pickup Number</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carrier</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dock</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {checkIns.map((ci) => (
-                    <tr key={ci.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap text-sm">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-bold rounded ${
-                          ci.load_type === 'inbound' 
+                  {checkIns.map((checkIn) => (
+                    <tr key={checkIn.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${
+                          checkIn.load_type === 'inbound' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {checkIn.load_type === 'inbound' ? 'I' : 'O'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatAppointmentTime(checkIn.appointment_time)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatTimeInIndianapolis(checkIn.check_in_time, true)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {checkIn.pickup_number || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {checkIn.carrier_name || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {checkIn.trailer_number ? `${checkIn.trailer_number}${checkIn.trailer_length ? ` (${checkIn.trailer_length}')` : ''}` : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {checkIn.driver_name || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {checkIn.dock_number || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          checkIn.status === 'checked_out' 
                             ? 'bg-blue-100 text-blue-800' 
                             : 'bg-green-100 text-green-800'
                         }`}>
-                          {ci.load_type === 'inbound' ? 'I' : 'O'}
+                          {checkIn.status === 'checked_out' ? 'Checked Out' : 'Checked In'}
                         </span>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ci.appointment_time ? formatTimeInIndianapolis(ci.appointment_time, true) : '-'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatTimeInIndianapolis(ci.check_in_time, true)}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                        {ci.pickup_number || '-'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ci.carrier_name || '-'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ci.trailer_number || '-'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ci.trailer_length || '-'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ci.driver_name || '-'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ci.driver_phone || '-'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ci.destination_city && ci.destination_state 
-                          ? `${ci.destination_city}, ${ci.destination_state}`
-                          : '-'
-                        }
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ci.dock_number || '-'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ci.start_time ? formatTimeInIndianapolis(ci.start_time) : '-'}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ci.end_time 
-                          ? formatTimeInIndianapolis(ci.end_time)
-                          : ci.check_out_time 
-                            ? formatTimeInIndianapolis(ci.check_out_time)
-                            : '-'
-                        }
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          ci.status === 'checked_in' 
-                            ? 'bg-green-100 text-green-800' 
-                            : ci.status === 'checked_out'
-                              ? 'bg-gray-100 text-gray-800'
-                              : 'bg-orange-100 text-orange-800'
-                        }`}>
-                          {ci.status === 'checked_in' ? 'CHECKED IN' : ci.status === 'checked_out' ? 'CHECKED OUT' : 'PENDING'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm">
-                        {ci.status === 'checked_in' && (
-                          <button
-                            onClick={() => handleStatusChange(ci)}
-                            className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-xs"
-                          >
-                            Change Status
-                          </button>
-                        )}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button
+                          onClick={() => handleStatusChange(checkIn)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          View/Edit
+                        </button>
                       </td>
                     </tr>
                   ))}
