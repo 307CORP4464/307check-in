@@ -13,6 +13,12 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
   try {
     const date = new Date(isoString);
     
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      console.error('Invalid date:', isoString);
+      return 'Invalid Date';
+    }
+    
     const options: Intl.DateTimeFormatOptions = {
       timeZone: TIMEZONE,
       hour: '2-digit',
@@ -21,18 +27,29 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
     };
     
     if (includeDate) {
+      options.year = 'numeric';
       options.month = '2-digit';
       options.day = '2-digit';
-      options.year = 'numeric';
     }
     
-    const formatted = new Intl.DateTimeFormat('en-US', options).format(date);
+    const formatter = new Intl.DateTimeFormat('en-US', options);
+    const formatted = formatter.format(date);
+    
+    // Log for debugging (remove after testing)
+    console.log('Formatting:', {
+      input: isoString,
+      parsed: date.toISOString(),
+      formatted: formatted,
+      timezone: TIMEZONE
+    });
+    
     return formatted;
   } catch (e) {
     console.error('Time formatting error:', e, isoString);
     return isoString;
   }
 };
+
 
 interface CheckIn {
   id: string;
