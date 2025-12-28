@@ -146,21 +146,26 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
 
           <div className="mb-6">
             <label className="block text-gray-700 text-sm font-bold mb-2">
-              Appointment Time (Optional)
-            </label>
-            <select
-              value={appointmentTime}
-              onChange={(e) => setAppointmentTime(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">No Appointment</option>
-              {appointmentOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+<div className="mb-6">
+  <label className="block text-gray-700 text-sm font-bold mb-2">
+    Appointment Time <span className="text-red-500">*</span>
+  </label>
+  <select
+    value={appointmentTime}
+    onChange={(e) => setAppointmentTime(e.target.value)}
+    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+    required
+  >
+    <option value="">Select an appointment time</option>
+    {appointmentOptions.map((option) => (
+      <option key={option.value} value={option.value}>
+        {option.label}
+      </option>
+    ))}
+  </select>
+</div>
+
+              
 
           <div className="flex gap-3">
             <button
