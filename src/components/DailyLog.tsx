@@ -35,7 +35,8 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
 };
 
 // Format appointment time (which is stored as a string like "0900" or "work_in")
-const formatAppointmentTime = (appointmentTime: string | null): string => {
+const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
+
   if (!appointmentTime) return 'N/A';
   
   // Handle special appointment types
