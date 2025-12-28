@@ -36,7 +36,6 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
 
 // Format appointment time (which is stored as a string like "0900" or "work_in")
 const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
-
   if (!appointmentTime) return 'N/A';
   
   // Handle special appointment types
@@ -52,6 +51,42 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   }
   
   return appointmentTime;
+};
+
+// Check if driver checked in on time (within 15 minutes of appointment)
+const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
+  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'paid_to_load' || appointmentTime === 'paid_charge_customer') {
+    return true; // Special appointments are always considered "on time"
+  }
+
+  // Parse appointment time (e.g., "0900" = 9:00 AM)
+  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
+    const appointmentHour = parseInt(appointmentTime.substring(0, 2));
+    const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
+    
+    const checkInDate = new Date(checkInTime);
+    
+    // Get check-in time in Indianapolis timezone
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: TIMEZONE,
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false
+    });
+    
+    const timeString = formatter.format(checkInDate);
+    const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
+    
+    // Convert both to minutes for easier comparison
+    const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
+    const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
+    
+    // Allow 15 minutes early or 15 minutes late
+    const difference = checkInTotalMinutes - appointmentTotalMinutes;
+    return difference >= -15 && difference <= 15;
+  }
+  
+  return true;
 };
 
 interface CheckIn {
@@ -342,8 +377,14 @@ export default function DailyLog() {
                           {checkIn.load_type === 'inbound' ? 'I' : 'O'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatAppointmentTime(checkIn.appointment_time)}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          isOnTime(checkIn.check_in_time, checkIn.appointment_time)
+                            ? 'bg-green-100 text-green-800 ring-2 ring-green-300'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {formatAppointmentTime(checkIn.appointment_time)}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatTimeInIndianapolis(checkIn.check_in_time, true)}
@@ -357,8 +398,11 @@ export default function DailyLog() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {checkIn.trailer_number ? `${checkIn.trailer_number}${checkIn.trailer_length ? ` (${checkIn.trailer_length}')` : ''}` : '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {checkIn.driver_name || '-'}
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        <div className="font-medium">{checkIn.driver_name || '-'}</div>
+                        {checkIn.driver_phone && (
+                          <div className="text-gray-500 text-xs mt-1">{checkIn.driver_phone}</div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {checkIn.dock_number || '-'}
