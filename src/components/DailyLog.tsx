@@ -1,134 +1,134 @@
 'use client';
-import { useState, useEffect } from 'react';
+
+import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { useRouter } from 'next/navigation';
-import { format, parseISO } from 'date-fns';
+import { startOfDay, endOfDay } from 'date-fns';
 import { zonedTimeToUtc } from 'date-fns-tz';
-import Link from 'next/link';
-import StatusChangeModal from './StatusChangeModal';
+import { saveAs } from 'file-saver';
 
-const TIMEZONE = 'America/New_York';
+const TIMEZONE = 'America/Indiana/Indianapolis';
 
-// Convert UTC time to EST/EDT
-const formatTimeInEastern = (isoString: string, includeDate: boolean = false): string => {
+const formatTimeInIndianapolis = (isoString: string | null | undefined): string => {
+  if (!isoString) return '-';
   try {
-    const utcDate = new Date(isoString);
-    
-    // Convert to local Eastern time string
-    const options: Intl.DateTimeFormatOptions = {
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return 'Invalid Date';
+
+    return new Intl.DateTimeFormat('en-US', {
       timeZone: TIMEZONE,
-      hour12: false,
-      ...(includeDate && {
-        month: '2-digit',
-        day: '2-digit',
-      }),
       hour: '2-digit',
       minute: '2-digit',
-    };
-    
-    const formatter = new Intl.DateTimeFormat('en-US', options);
-    return formatter.format(utcDate);
-  } catch (e) {
-    console.error('Time formatting error:', e);
-    return '-';
-  }
-};
-
-// Format appointment time (which is stored as a string like "0900" or "work_in")
-const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
-  if (!appointmentTime) return 'N/A';
-  
-  // Handle special appointment types
-  if (appointmentTime === 'work_in') return 'Work In';
-  if (appointmentTime === 'paid_to_load') return 'Paid to Load';
-  if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
-  
-  // Format time strings like "0900" to "09:00"
-  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-    const hours = appointmentTime.substring(0, 2);
-    const minutes = appointmentTime.substring(2, 4);
-    return `${hours}:${minutes}`;
-  }
-  
-  return appointmentTime;
-};
-
-// Check if driver checked in on time (within 15 minutes of appointment)
-const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
-  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'paid_to_load' || appointmentTime === 'paid_charge_customer') {
-    return true; // Special appointments are always considered "on time"
-  }
-
-  // Parse appointment time (e.g., "0900" = 9:00 AM)
-  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-    const appointmentHour = parseInt(appointmentTime.substring(0, 2));
-    const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
-    
-    const checkInDate = new Date(checkInTime);
-    
-    // Get check-in time in Eastern timezone
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      hour: 'numeric',
-      minute: 'numeric',
       hour12: false
-    });
-    
-    const timeString = formatter.format(checkInDate);
-    const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
-    
-    // Convert both to minutes for easier comparison
-    const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-    const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
-    
-    // Allow 15 minutes early or 15 minutes late
-    const difference = checkInTotalMinutes - appointmentTotalMinutes;
-    return difference >= -15 && difference <= 15;
+    }).format(date);
+  } catch (e) {
+    console.error('Error formatting time', e);
+    return isoString;
   }
-  
-  return true;
 };
-
-interface CheckIn {
-  id: string;
-  check_in_time: string;
-  check_out_time?: string | null;
-  status: string;
-  driver_name?: string;
-  driver_phone?: string;
-  carrier_name?: string;
-  trailer_number?: string;
-  trailer_length?: string;
-  load_type?: 'inbound' | 'outbound';
-  pickup_number?: string;
-  dock_number?: string;
-  appointment_time?: string | null;
-  start_time?: string | null;
-  end_time?: string | null;
-  notes?: string;
-  destination_city?: string;
-  destination_state?: string;
-}
 
 export default function DailyLog() {
-  const router = useRouter();
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
-
-  const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string>('');
   
-  // Get current date in Eastern timezone
-  const getCurrentDateInEastern = () => {
+  useEffect(() => {
+    fetchLogs();
+  }, []);
+
+  const fetchLogs = async () => {
+    try {
+      setLoading(true);
+      const today = getCurrentDateInIndianapolis();
+      const start = zonedTimeToUtc(startOfDay(today), TIMEZONE);
+      const end = zonedTimeToUtc(endOfDay(today), TIMEZONE);
+
+      const { data, error } = await supabase
+        .from('check_ins')
+        .select('*')
+        .gte('check_in_time', start.toISOString())
+        .lte('check_in_time', end.toISOString())
+        .order('check_in_time', { ascending: false });
+
+      if (error) throw error;
+      setLogs(data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getCurrentDateInIndianapolis = () => {
     const now = new Date();
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      year: 'numeric',
-      month: '2-digit',
+    // convert to Indiana timezone by using toLocaleString and parsing back to Date
+    const s = now.toLocaleString('en-US', { timeZone: TIMEZONE });
+    return new Date(s);
+  };
+
+  const exportToCSV = () => {
+    const rows = [
+      ['Check-in Time (EST/EDT)', 'Driver', 'Pickup Number', 'Carrier', 'Trailer']
+    ];
+
+    logs.forEach((l) => {
+      rows.push([
+        formatTimeInIndianapolis(l.check_in_time),
+        l.driver_name || '-',
+        l.pickup_number || '-',
+        l.carrier_name || '-',
+        l.trailer_number || '-'
+      ]);
+    });
+
+    const csvContent = rows.map((r) => r.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, `daily-log-${new Date().toISOString()}.csv`);
+  };
+
+  if (loading) return <div className="p-4">Loading...</div>;
+
+  return (
+    <div className="p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold">Daily Check-ins (EST/EDT)</h2>
+        <button
+          onClick={exportToCSV}
+          className="bg-blue-500 text-white px-4 py-2 rounded"
+        >
+          Export CSV
+        </button>
+      </div>
+
+      <div className="overflow-x-auto bg-white rounded shadow">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time (EST/EDT)</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pickup</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carrier</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {logs.map((l) => (
+              <tr key={l.id}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatTimeInIndianapolis(l.check_in_time)}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{l.driver_name || '-'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{l.pickup_number || '-'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{l.carrier_name || '-'}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{l.trailer_number || '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
       day: '2-digit'
     });
     const parts = formatter.formatToParts(now);
