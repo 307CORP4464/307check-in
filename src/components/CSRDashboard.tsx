@@ -7,8 +7,6 @@ import { differenceInMinutes } from 'date-fns';
 import Link from 'next/link';
 import AssignDockModal from './AssignDockModal';
 
-const TIMEZONE = 'America/New_York';
-
 const formatTimeInEastern = (isoString: string, includeDate: boolean = false): string => {
   try {
     let input = isoString?.trim() || '';
