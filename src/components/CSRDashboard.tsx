@@ -11,7 +11,18 @@ const TIMEZONE = 'America/New_York';
 
 const formatTimeInEastern = (isoString: string, includeDate: boolean = false): string => {
   try {
-    const date = new Date(isoString);
+    let input = isoString?.trim() || '';
+
+    // If the timestamp string has no timezone info, normalize it to UTC by
+    // replacing the space with 'T' (if present) and appending 'Z'. This
+    // prevents the Date constructor from interpreting the value inconsistently
+    // across environments.
+    if (input && !/[Zz]|[+\-]\d{2}:?\d{2}$/.test(input)) {
+      if (input.includes(' ')) input = input.replace(' ', 'T');
+      if (!input.endsWith('Z')) input = input + 'Z';
+    }
+
+    const date = new Date(input);
 
     if (isNaN(date.getTime())) {
       console.error('Invalid date:', isoString);
@@ -24,331 +35,367 @@ const formatTimeInEastern = (isoString: string, includeDate: boolean = false): s
       minute: '2-digit',
       hour12: false,
       timeZoneName: 'short'
-    };
+    'use client';
 
-    if (includeDate) {
-      options.year = 'numeric';
-      options.month = '2-digit';
-      options.day = '2-digit';
-    }
+    import { useState, useEffect } from 'react';
+    import { createBrowserClient } from '@supabase/ssr';
+    import { useRouter } from 'next/navigation';
+    import { differenceInMinutes } from 'date-fns';
+    import Link from 'next/link';
+    import AssignDockModal from './AssignDockModal';
 
-    const formatter = new Intl.DateTimeFormat('en-US', options);
-    return formatter.format(date);
-  } catch (e) {
-    console.error('Time formatting error:', e, isoString);
-    return isoString;
-  }
-};
+    const TIMEZONE = 'America/Indiana/Indianapolis';
 
-
-interface CheckIn {
-  id: string;
-  check_in_time: string;
-  check_out_time?: string | null;
-  status: string;
-  driver_name?: string;
-  driver_phone?: string;
-  carrier_name?: string;
-  trailer_number?: string;
-  trailer_length?: string;
-  load_type?: 'inbound' | 'outbound';
-  pickup_number?: string;
-  dock_number?: string;
-  appointment_time?: string | null;
-  start_time?: string | null;
-  end_time?: string | null;
-  destination_city?: string;
-  destination_state?: string;
-}
-
-export default function CSRDashboard() {
-  const router = useRouter();
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-  
-  const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string>('');
-  const [selectedForDock, setSelectedForDock] = useState<CheckIn | null>(null);
-  const [isDockModalOpen, setIsDockModalOpen] = useState(false);
-
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserEmail(user.email || '');
+    const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
+      try {
+        const date = new Date(isoString);
+    
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+          console.error('Invalid date:', isoString);
+          return 'Invalid Date';
+        }
+    
+        const options: Intl.DateTimeFormatOptions = {
+          timeZone: TIMEZONE,
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        };
+    
+        if (includeDate) {
+          options.year = 'numeric';
+          options.month = '2-digit';
+          options.day = '2-digit';
+        }
+    
+        const formatter = new Intl.DateTimeFormat('en-US', options);
+        const formatted = formatter.format(date);
+    
+        // Log for debugging (remove after testing)
+        console.log('Formatting:', {
+          input: isoString,
+          parsed: date.toISOString(),
+          formatted: formatted,
+          timezone: TIMEZONE
+        });
+    
+        return formatted;
+      } catch (e) {
+        console.error('Time formatting error:', e, isoString);
+        return isoString;
       }
     };
-    getUser();
-  }, [supabase]);
 
-  useEffect(() => {
-    fetchCheckIns();
+
+    interface CheckIn {
+      id: string;
+      check_in_time: string;
+      check_out_time?: string | null;
+      status: string;
+      driver_name?: string;
+      driver_phone?: string;
+      carrier_name?: string;
+      trailer_number?: string;
+      trailer_length?: string;
+      load_type?: 'inbound' | 'outbound';
+      pickup_number?: string;
+      dock_number?: string;
+      appointment_time?: string | null;
+      start_time?: string | null;
+      end_time?: string | null;
+      destination_city?: string;
+      destination_state?: string;
+    }
+
+    export default function CSRDashboard() {
+      const router = useRouter();
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+  
+      const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState<string | null>(null);
+      const [userEmail, setUserEmail] = useState<string>('');
+      const [selectedForDock, setSelectedForDock] = useState<CheckIn | null>(null);
+      const [isDockModalOpen, setIsDockModalOpen] = useState(false);
+
+      useEffect(() => {
+        const getUser = async () => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            setUserEmail(user.email || '');
+          }
+        };
+        getUser();
+      }, [supabase]);
+
+      useEffect(() => {
+        fetchCheckIns();
     
-    const channel = supabase
-      .channel('check_ins_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'check_ins' },
-        () => {
-          fetchCheckIns();
+        const channel = supabase
+          .channel('check_ins_changes')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'check_ins' },
+            () => {
+              fetchCheckIns();
+            }
+          )
+          .subscribe();
+
+        return () => {
+          supabase.removeChannel(channel);
+        };
+      }, [supabase]);
+
+      const fetchCheckIns = async () => {
+        try {
+          setLoading(true);
+          const { data, error } = await supabase
+            .from('check_ins')
+            .select('*')
+            .eq('status', 'pending')
+            .order('check_in_time', { ascending: false });
+
+          if (error) throw error;
+          setCheckIns(data || []);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'An error occurred');
+        } finally {
+          setLoading(false);
         }
-      )
-      .subscribe();
+      };
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase]);
+      const handleLogout = async () => {
+        try {
+          await supabase.auth.signOut();
+          router.push('/login');
+          router.refresh();
+        } catch (error) {
+          console.error('Error logging out:', error);
+        }
+      };
 
-  const fetchCheckIns = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('check_ins')
-        .select('*')
-        .eq('status', 'pending')
-        .order('check_in_time', { ascending: false });
+      const handleAssignDock = (checkIn: CheckIn) => {
+        setSelectedForDock(checkIn);
+        setIsDockModalOpen(true);
+      };
 
-      if (error) throw error;
-      setCheckIns(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
+      const handleDockAssignSuccess = () => {
+        fetchCheckIns();
+      };
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      router.push('/login');
-      router.refresh();
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
-  };
-
-  const handleAssignDock = (checkIn: CheckIn) => {
-    setSelectedForDock(checkIn);
-    setIsDockModalOpen(true);
-  };
-
-  const handleDockAssignSuccess = () => {
-    fetchCheckIns();
-  };
-
-  const calculateWaitTime = (checkIn: CheckIn): string => {
-    const start = new Date(checkIn.check_in_time);
-    const now = new Date();
-    const minutes = differenceInMinutes(now, start);
+      const calculateWaitTime = (checkIn: CheckIn): string => {
+        const start = new Date(checkIn.check_in_time);
+        const now = new Date();
+        const minutes = differenceInMinutes(now, start);
     
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
     
-    if (hours > 0) {
-      return `${hours}h ${mins}m`;
-    }
-    return `${mins}m`;
-  };
+        if (hours > 0) {
+          return `${hours}h ${mins}m`;
+        }
+        return `${mins}m`;
+      };
 
-  const getWaitTimeColor = (checkIn: CheckIn): string => {
-    const start = new Date(checkIn.check_in_time);
-    const now = new Date();
-    const minutes = differenceInMinutes(now, start);
+      const getWaitTimeColor = (checkIn: CheckIn): string => {
+        const start = new Date(checkIn.check_in_time);
+        const now = new Date();
+        const minutes = differenceInMinutes(now, start);
     
-    if (minutes < 15) return 'text-green-600';
-    if (minutes < 30) return 'text-yellow-600';
-    return 'text-red-600';
-  };
+        if (minutes < 15) return 'text-green-600';
+        if (minutes < 30) return 'text-yellow-600';
+        return 'text-red-600';
+      };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
-      </div>
-    );
-  }
+      if (loading) {
+        return (
+          <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="text-xl">Loading...</div>
+          </div>
+        );
+      }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">CSR Dashboard - Pending Check-ins (EST/EDT)</h1>
-              {userEmail && (
-                <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
-              )}
-              <p className="text-xs text-gray-500">Current time: {formatTimeInEastern(new Date().toISOString())}</p>
-            </div>
-            <div className="flex gap-3">
-              <Link
-                href="/logs"
-                className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors font-medium"
-              >
-                View Logs
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors font-medium"
-              >
-                Logout
-              </button>
+      return (
+        <div className="min-h-screen bg-gray-50">
+          <div className="bg-white border-b shadow-sm">
+            <div className="max-w-7xl mx-auto px-4 py-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">CSR Dashboard - Pending Check-ins (EST/EDT)</h1>
+                  {userEmail && (
+                    <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
+                  )}
+                  <p className="text-xs text-gray-500">Current time: {formatTimeInIndianapolis(new Date().toISOString())}</p>
+                </div>
+                <div className="flex gap-3">
+                  <Link
+                    href="/logs"
+                    className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors font-medium"
+                  >
+                    View Logs
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors font-medium"
+                  >
+                    Logout
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-gray-600 text-sm font-medium">Pending Check-ins</h3>
-            <p className="text-3xl font-bold mt-2 text-orange-600">{checkIns.length}</p>
-          </div>
-        </div>
+          <div className="max-w-7xl mx-auto p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="bg-white p-6 rounded-lg shadow">
+                <h3 className="text-gray-600 text-sm font-medium">Pending Check-ins</h3>
+                <p className="text-3xl font-bold mt-2 text-orange-600">{checkIns.length}</p>
+              </div>
+            </div>
 
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                {error}
+              </div>
+            )}
 
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-4 border-b">
-            <h2 className="text-xl font-bold">Pending Assignments</h2>
-          </div>
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-4 border-b">
+                <h2 className="text-xl font-bold">Pending Assignments</h2>
+              </div>
           
-          {checkIns.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <div className="text-6xl mb-4">✓</div>
-              <p className="text-xl">No pending check-ins</p>
-              <p className="text-sm mt-2">All check-ins have been processed</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Check-in Time (EST)
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Pickup Number
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Driver Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Driver Phone
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Carrier
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Trailer Number
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Trailer Length
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Destination
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Wait Time
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Dock
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {checkIns.map((ci) => {
-                    const waitTime = calculateWaitTime(ci);
-                    const waitTimeColor = getWaitTimeColor(ci);
-                    return (
-                      <tr key={ci.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-bold rounded ${
-                            ci.load_type === 'inbound' 
-                              ? 'bg-blue-100 text-blue-800' 
-                              : 'bg-green-100 text-green-800'
-                          }`}>
-                            {ci.load_type === 'inbound' ? 'I' : 'O'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatTimeInEastern(ci.check_in_time)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                          {ci.pickup_number || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ci.driver_name || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ci.driver_phone || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ci.carrier_name || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ci.trailer_number || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ci.trailer_length || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ci.destination_city && ci.destination_state 
-                            ? `${ci.destination_city}, ${ci.destination_state}`
-                            : '-'
-                          }
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${waitTimeColor}`}>
-                          {waitTime}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ci.dock_number || (
-                            <span className="text-orange-600 font-medium">Not Assigned</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() => handleAssignDock(ci)}
-                            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                          >
-                            Assign
-                          </button>
-                        </td>
+              {checkIns.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  <div className="text-6xl mb-4">✓</div>
+                  <p className="text-xl">No pending check-ins</p>
+                  <p className="text-sm mt-2">All check-ins have been processed</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Type
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Check-in Time (EST/EDT)
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Pickup Number
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Driver Name
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Driver Phone
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Carrier
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Trailer Number
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Trailer Length
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Destination
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Wait Time
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Dock
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Action
+                        </th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {checkIns.map((ci) => {
+                        const waitTime = calculateWaitTime(ci);
+                        const waitTimeColor = getWaitTimeColor(ci);
+                        return (
+                          <tr key={ci.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <span className={`px-2 py-1 inline-flex text-xs leading-5 font-bold rounded ${
+                                ci.load_type === 'inbound' 
+                                  ? 'bg-blue-100 text-blue-800' 
+                                  : 'bg-green-100 text-green-800'
+                              }`}>
+                                {ci.load_type === 'inbound' ? 'I' : 'O'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {formatTimeInIndianapolis(ci.check_in_time)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                              {ci.pickup_number || '-'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {ci.driver_name || '-'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {ci.driver_phone || '-'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {ci.carrier_name || '-'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {ci.trailer_number || '-'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {ci.trailer_length || '-'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {ci.destination_city && ci.destination_state 
+                                ? `${ci.destination_city}, ${ci.destination_state}`
+                                : '-'
+                              }
+                            </td>
+                            <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${waitTimeColor}`}>
+                              {waitTime}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {ci.dock_number || (
+                                <span className="text-orange-600 font-medium">Not Assigned</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <button
+                                onClick={() => handleAssignDock(ci)}
+                                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                              >
+                                Assign
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
+          </div>
+
+          {isDockModalOpen && selectedForDock && (
+            <AssignDockModal
+              checkIn={selectedForDock}
+              onClose={() => {
+                setIsDockModalOpen(false);
+                setSelectedForDock(null);
+              }}
+              onSuccess={handleDockAssignSuccess}
+            />
           )}
         </div>
-      </div>
-
-      {isDockModalOpen && selectedForDock && (
-        <AssignDockModal
-          checkIn={selectedForDock}
-          onClose={() => {
-            setIsDockModalOpen(false);
-            setSelectedForDock(null);
-          }}
-          onSuccess={handleDockAssignSuccess}
-        />
-      )}
-    </div>
-  );
-}
+      );
+    }
