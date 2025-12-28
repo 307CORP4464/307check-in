@@ -105,9 +105,7 @@ export default function DriverCheckInForm() {
             load_type: formData.loadType,
             destination_city: formData.destinationCity,
             destination_state: formData.destinationState,
-            check_in_time: new Date().toLocaleString('en-US', { 
-            timeZone: 'America/Indiana/Indianapolis' 
-            }),
+            check_in_time: new Date().toISOString(),
             status: 'pending',
           }
         ])
