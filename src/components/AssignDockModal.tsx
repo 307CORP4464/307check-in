@@ -16,7 +16,7 @@ interface AssignDockModalProps {
     trailer_length?: string;
     delivery_city?: string;
     delivery_state?: string;
-    start_time?: string; // check-in time
+    check_in_time?: string | null; // Changed from start_time
   };
   onClose: () => void;
   onSuccess: () => void;
@@ -62,7 +62,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
     return option ? option.label : time;
   };
 
-  const formatCheckInTime = (t?: string) => {
+  const formatCheckInTime = (t?: string | null) => {
     if (!t) return '';
     try {
       const d = new Date(t);
@@ -72,14 +72,13 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
     }
   };
 
-  // Simple on-time logic: consider "on time" if start_time exists and is <= appointment_time
-  // If either field missing, we can't mark on time; show Not On Time only if we have both times and start_time > appointment_time
+  // Simple on-time logic: consider "on time" if check_in_time exists and is <= appointment_time
   const isOnTime = (): boolean | null => {
-    const { appointment_time, start_time } = checkIn;
-    if (!appointment_time || !start_time) return null;
+    const { appointment_time, check_in_time } = checkIn;
+    if (!appointment_time || !check_in_time) return null;
     const appt = new Date(appointment_time).getTime();
-    const start = new Date(start_time).getTime();
-    return start <= appt;
+    const checkIn = new Date(check_in_time).getTime();
+    return checkIn <= appt;
   };
 
   const printReceipt = () => {
@@ -240,7 +239,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
             </div>
             <div class="row">
               <span class="label">Check-in Time</span>
-              <span class="value">${formatCheckInTime(checkIn.start_time)}</span>
+              <span class="value">${formatCheckInTime(checkIn.check_in_time)}</span>
             </div>
             <div class="row">
               <span class="label">Status</span>
