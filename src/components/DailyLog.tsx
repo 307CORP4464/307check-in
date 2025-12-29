@@ -414,9 +414,10 @@ export default function DailyLog() {
                           {ci.pickup_number || 'N/A'}
                         </td>
                         <td className="px-3 py-3 whitespace-nowrap text-sm">
-                          <div className="text-gray-900 font-medium">{ci.driver_name || 'N/A'}</div>
-                          <div className="text-gray-500">{formatPhoneNumber(ci.driver_phone)}</div>
-                          <div className="text-gray-500 text-xs">{ci.carrier_name || 'N/A'}</div>
+                          <div className="text-gray-900 text-xs">{ci.carrier_name || 'N/A'}</div>
+                          <div className="text-gray-700 font-medium">{ci.driver_name || 'N/A'}</div>
+                          <div className="text-gray-700">{formatPhoneNumber(ci.driver_phone)}</div>
+                          
                         </td>
                         <td className="px-3 py-3 whitespace-nowrap text-sm">
                           <div className="text-gray-900">{ci.trailer_number || 'N/A'}</div>
