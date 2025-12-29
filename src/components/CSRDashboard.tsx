@@ -281,9 +281,6 @@ export default function CSRDashboard() {
                           </span>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {ci.appointment_time ? formatTimeInIndianapolis(ci.appointment_time) : 'N/A'}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                           {formatTimeInIndianapolis(ci.check_in_time)}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm">
