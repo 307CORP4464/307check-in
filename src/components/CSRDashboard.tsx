@@ -8,20 +8,6 @@ import Link from 'next/link';
 import AssignDockModal from './AssignDockModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
-const formatPhoneNumber = (phone: string | undefined): string => {
-  if (!phone) return 'N/A';
-  
-  // Remove all non-numeric characters
-  const cleaned = phone.replace(/\D/g, '');
-  
-  // Check if we have 10 digits
-  if (cleaned.length === 10) {
-    return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
-  }
-  
-  // Return original if format doesn't match
-  return phone;
-};
 
 const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
   try {
@@ -60,6 +46,19 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
     console.error('Time formatting error:', e, isoString);
     return isoString;
   }
+};
+
+// Add this phone formatting function
+const formatPhoneNumber = (phone: string | undefined): string => {
+  if (!phone) return 'N/A';
+  
+  const cleaned = phone.replace(/\D/g, '');
+  
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+  }
+  
+  return phone;
 };
 
 interface CheckIn {
@@ -298,40 +297,33 @@ export default function CSRDashboard() {
                           {formatTimeInIndianapolis(ci.check_in_time)}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          <span className="font-bold text-gray-900">
-                            {ci.pickup_number || 'N/A'}
-                          </span>
+                          <span className="font-medium text-gray-900">{ci.pickup_number || 'N/A'}</span>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm">
-  <div className="text-gray-900 font-medium">{ci.driver_name || 'N/A'}</div>
-  <div className="text-gray-500">{formatPhoneNumber(ci.driver_phone)}</div>
-  <div className="text-gray-500 text-xs">{ci.carrier_name || 'N/A'}</div>
-</td>
-
-                          </div>
+                          <div className="text-gray-900 font-medium">{ci.driver_name || 'N/A'}</div>
+                          <div className="text-gray-500">{formatPhoneNumber(ci.driver_phone)}</div>
+                          <div className="text-gray-500 text-xs">{ci.carrier_name || 'N/A'}</div>
                         </td>
-                        <td className="px-4 py-4 text-sm">
-                          <div className="space-y-0.5">
-                            <div className="text-gray-900">{ci.trailer_number || 'N/A'}</div>
-                            <div className="text-gray-500 text-xs">
-                              {ci.trailer_length || 'N/A'}
-                            </div>
-                          </div>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm">
+                          <div className="text-gray-900">{ci.trailer_number || 'N/A'}</div>
+                          <div className="text-gray-500 text-xs">{ci.trailer_length || 'N/A'}</div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                           {ci.destination_city && ci.destination_state 
-                            ? `${ci.destination_city}, ${ci.destination_state}` 
+                            ? `${ci.destination_city}, ${ci.destination_state}`
                             : 'N/A'}
                         </td>
-                        <td className={`px-4 py-4 whitespace-nowrap text-sm font-semibold ${waitTimeColor}`}>
-                          {waitTime}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm">
+                          <span className={`font-semibold ${waitTimeColor}`}>
+                            {waitTime}
+                          </span>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                        <td className="px-4 py-4 whitespace-nowrap text-center text-sm">
                           <button
                             onClick={() => handleAssignDock(ci)}
-                            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm"
+                            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors font-medium"
                           >
-                            Assign
+                            Assign Dock
                           </button>
                         </td>
                       </tr>
