@@ -387,13 +387,13 @@ export default function DailyLog() {
                           {checkIn.load_type === 'inbound' ? 'I' : 'O'}
                         </span>
                       </td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatAppointmentTime(checkIn.appointment_time)}
-                      </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm">
-                        <div className={`${!onTime ? 'text-red-600 font-semibold' : 'text-gray-900'}`}>
-                          {formatTimeInIndianapolis(checkIn.check_in_time)}
+                        <div className={`${onTime ? 'text-green-600 font-semibold' : 'text-gray-900'}`}>
+                          {formatAppointmentTime(checkIn.appointment_time)}
                         </div>
+                      </td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatTimeInIndianapolis(checkIn.check_in_time)}
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                         {checkIn.end_time 
