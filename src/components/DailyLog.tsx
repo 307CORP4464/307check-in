@@ -163,7 +163,6 @@ interface CheckIn {
   pickup_number?: string;
   dock_number?: string;
   appointment_time?: string | null;
-  start_time?: string | null;
   end_time?: string | null;
   notes?: string;
   destination_city?: string;
@@ -260,9 +259,9 @@ export default function DailyLog() {
 
   const getStatusBadgeColor = (status: string): string => {
     const statusLower = status.toLowerCase();
-    if (statusLower === 'completed') return 'bg-green-500 text-white';
+    if (statusLower === 'completed') return 'bg-grey-500 text-white';
     if (statusLower === 'pending') return 'bg-yellow-500 text-white';
-    if (statusLower === 'checked_in') return 'bg-purple-500 text-white';
+    if (statusLower === 'checked_in') return 'bg-green-500 text-white';
     return 'bg-gray-500 text-white';
   };
 
@@ -327,46 +326,40 @@ export default function DailyLog() {
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Check In Time
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Driver Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Phone
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Carrier
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Trailer
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Type
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Pickup #
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Dock
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Appointment
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Start Time
+                    Check In Time
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     End Time
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Detention
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Pickup #
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Destination
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Driver Info
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Trailer Info
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Dock
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Notes
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -389,13 +382,9 @@ export default function DailyLog() {
                           {formatTimeInIndianapolis(checkIn.check_in_time)}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900">
-                          {checkIn.driver_name || 'N/A'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {formatPhoneNumber(checkIn.driver_phone)}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
                           {checkIn.carrier_name || 'N/A'}
+                          {checkIn.driver_name || 'N/A'}
+                          {formatPhoneNumber(checkIn.driver_phone)}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900">
                           {checkIn.trailer_number || 'N/A'}
@@ -407,7 +396,7 @@ export default function DailyLog() {
                               ? 'bg-blue-100 text-blue-800' 
                               : 'bg-orange-100 text-orange-800'
                           }`}>
-                            {checkIn.load_type === 'inbound' ? 'Inbound' : 'Outbound'}
+                            {checkIn.load_type === 'inbound' ? 'I' : 'O'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-900">
