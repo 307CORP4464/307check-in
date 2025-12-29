@@ -224,14 +224,15 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
           </div>
           ` : ''}
 
-          ${(checkIn.delivery_city || checkIn.delivery_state) ? `
-<div class="section">
+          <div class="section">
   <div class="row">
     <span class="label">Destination</span>
-    <span class="value">${checkIn.delivery_city ?? ''}${checkIn.delivery_city && checkIn.delivery_state ? ', ' : ''}${checkIn.delivery_state ?? ''}</span>
+    <span class="value">
+      ${ (checkIn.delivery_city ?? '') + (checkIn.delivery_city && checkIn.delivery_state ? ', ' : '') + (checkIn.delivery_state ?? '') }
+    </span>
   </div>
 </div>
-` : ''}
+
 
           <div class="section">
             ${checkIn.carrier_name ? `
