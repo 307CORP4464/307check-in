@@ -103,16 +103,16 @@ const calculateDetention = (checkIn: CheckIn): string => {
     return '-';
   }
 
-  const endTime = new Date(checkIn.end_time);
-  const standardMinutes = 120;
-  let detentionMinutes = 0;
-
   // Handle special appointment types - they don't get detention
   if (checkIn.appointment_time === 'work_in' || 
       checkIn.appointment_time === 'paid_to_load' || 
       checkIn.appointment_time === 'paid_charge_customer') {
     return '-';
   }
+
+  const endTime = new Date(checkIn.end_time);
+  const standardMinutes = 120;
+  let detentionMinutes = 0;
 
   // Handle regular appointment times (4-digit format like "0800")
   if (checkIn.appointment_time.length === 4 && /^\d{4}$/.test(checkIn.appointment_time)) {
@@ -162,36 +162,8 @@ const calculateDetention = (checkIn: CheckIn): string => {
   return `${minutes}m`;
 };
 
-
     
-    const parts = formatter.formatToParts(checkInDate);
-    const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
-    const month = parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1;
-    const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
-    
-    appointmentDate.setFullYear(year, month, day);
-    appointmentDate.setHours(appointmentHour, appointmentMinute, 0, 0);
-    
-    const timeSinceAppointmentMs = endTime.getTime() - appointmentDate.getTime();
-    const minutesSinceAppointment = Math.floor(timeSinceAppointmentMs / (1000 * 60));
-    
-    detentionMinutes = Math.max(0, minutesSinceAppointment - standardMinutes);
-  } else {
-    detentionMinutes = Math.max(0, actualMinutes - standardMinutes);
-  }
   
-  if (detentionMinutes === 0) {
-    return 'None';
-  }
-  
-  const hours = Math.floor(detentionMinutes / 60);
-  const minutes = detentionMinutes % 60;
-  
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-  return `${minutes}m`;
-};
 
 interface CheckIn {
   id: string;
