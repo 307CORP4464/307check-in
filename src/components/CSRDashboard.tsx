@@ -297,7 +297,7 @@ export default function CSRDashboard() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatTimeInIndianapolis(ci.check_in_time)}
+                          {formatTimeInIndianapolis(new Date().toISOString())}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                           {ci.pickup_number || '-'}
