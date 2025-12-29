@@ -225,13 +225,13 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
           ` : ''}
 
       <div class="section">
-            ${checkIn.delivery_city ? `
+            ${checkIn.destination_city ? `
             <div class="row">
               <span class="label">Destination City</span>
               <span class="value">${checkIn.destination_city}</span>
             </div>
             ` : ''}
-             ${checkIn.delivery_state ? `
+             ${checkIn.destination_state ? `
             <div class="row">
               <span class="label">Destination State</span>
               <span class="value">${checkIn.destination_state}</span>
