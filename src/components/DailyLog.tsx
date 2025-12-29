@@ -290,7 +290,7 @@ export default function DailyLog() {
   const completedCheckIns = checkIns.filter(ci => {
     const statusLower = ci.status.toLowerCase();
     return statusLower !== 'checked_in' && statusLower !== 'pending';
-  }).count;
+  }).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
