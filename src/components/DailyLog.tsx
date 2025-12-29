@@ -202,10 +202,10 @@ export default function DailyLog() {
       'Check-in Time (EST)',
       'Pickup Number',
       'Carrier Name',
-      'Trailer Number',
-      'Trailer Length',
       'Driver Name',
       'Driver Phone',
+      'Trailer Number',
+      'Trailer Length',
       'Destination',
       'Dock Number',
       'Start Time',
@@ -220,10 +220,10 @@ export default function DailyLog() {
       formatTimeInIndianapolis(ci.check_in_time, true),
       ci.pickup_number || '',
       ci.carrier_name || '',
-      ci.trailer_number || '',
-      ci.trailer_length || '',
       ci.driver_name || '',
       ci.driver_phone || '',
+      ci.trailer_number || '',
+      ci.trailer_length || '',
       ci.destination_city && ci.destination_state ? `${ci.destination_city}, ${ci.destination_state}` : '',
       ci.dock_number || '',
       ci.start_time ? formatTimeInIndianapolis(ci.start_time, true) : '',
@@ -255,7 +255,11 @@ export default function DailyLog() {
   }
 
   const totalCheckIns = checkIns.length;
-  const completedCheckIns = checkIns.filter(ci => ci.status === 'completed').length;
+  // Count all statuses except "checked_in" or "pending" as completed
+  const completedCheckIns = checkIns.filter(ci => {
+    const statusLower = ci.status.toLowerCase();
+    return statusLower !== 'checked_in' && statusLower !== 'pending';
+  }).length;
   const inProgressCheckIns = checkIns.filter(ci => ci.status === 'in_progress').length;
 
   return (
@@ -305,8 +309,12 @@ export default function DailyLog() {
               <p className="text-2xl font-bold text-blue-900">{totalCheckIns}</p>
             </div>
             <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-sm text-green-600 font-medium">Completed</p>
+              <p className="text-sm text-green-600 font-medium">Completed (All except Checked In)</p>
               <p className="text-2xl font-bold text-green-900">{completedCheckIns}</p>
+            </div>
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <p className="text-sm text-yellow-600 font-medium">In Progress</p>
+              <p className="text-2xl font-bold text-yellow-900">{inProgressCheckIns}</p>
             </div>
           </div>
         </div>
@@ -333,10 +341,8 @@ export default function DailyLog() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment Time</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-in Time</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pickup #</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carrier</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carrier / Driver Info</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer Info</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destination</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dock</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -351,7 +357,7 @@ export default function DailyLog() {
                       <tr key={checkIn.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full font-semibold text-xs ${
-                            checkIn.load_type === 'inbound' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                            checkIn.load_type === 'inbound' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
                           }`}>
                             {checkIn.load_type === 'inbound' ? 'I' : 'O'}
                           </span>
@@ -360,7 +366,7 @@ export default function DailyLog() {
                           <span className={`font-medium px-3 py-1 rounded-md ${
                             onTime 
                               ? 'bg-green-100 text-green-800 border-2 border-green-500' 
-                              : 'bg-grey-100 text-grey-800 border-2 border-grey-500'
+                              : 'bg-red-100 text-red-800 border-2 border-red-500'
                           }`}>
                             {formatAppointmentTime(checkIn.appointment_time)}
                           </span>
@@ -368,20 +374,32 @@ export default function DailyLog() {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                           {formatTimeInIndianapolis(checkIn.check_in_time)}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{checkIn.pickup_number || '-'}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{checkIn.carrier_name || '-'}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                          {checkIn.trailer_number || '-'}
-                          {checkIn.trailer_length && ` (${checkIn.trailer_length}')`}
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
+                          {checkIn.pickup_number || '-'}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{checkIn.driver_name || '-'}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{checkIn.driver_phone || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{checkIn.carrier_name || '-'}</span>
+                            <span className="text-xs text-gray-600">{checkIn.driver_name || '-'}</span>
+                            <span className="text-xs text-gray-600">{checkIn.driver_phone || '-'}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{checkIn.trailer_number || '-'}</span>
+                            {checkIn.trailer_length && (
+                              <span className="text-xs text-gray-600">{checkIn.trailer_length}'</span>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                           {checkIn.destination_city && checkIn.destination_state 
                             ? `${checkIn.destination_city}, ${checkIn.destination_state}`
                             : '-'}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{checkIn.dock_number || '-'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
+                          {checkIn.dock_number || '-'}
+                        </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeColor(checkIn.status)}`}>
                             {checkIn.status.replace('_', ' ')}
