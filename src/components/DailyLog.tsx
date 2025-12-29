@@ -92,13 +92,13 @@ const isOnTime = (checkInTime: string, appointmentTime: string | null | undefine
 };
 
 const calculateDetention = (checkIn: CheckIn): string => {
-  if (!checkIn.start_time || !checkIn.end_time) {
+  if (!checkIn.appointment_time || !checkIn.end_time) {
     return '-';
   }
 
   const endTime = new Date(checkIn.end_time);
   
-  const differenceMs = endTime.getTime() - startTime.getTime();
+  const differenceMs = endTime.getTime() - appointmentTime.getTime();
   const actualMinutes = Math.floor(differenceMs / (1000 * 60));
   
   const standardMinutes = 120;
