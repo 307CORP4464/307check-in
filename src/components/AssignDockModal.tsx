@@ -72,7 +72,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
     }
   };
 
-  // Simple on-time logic: consider "on time" if check_in_time exists and is <= appointment_time
   const isOnTime = (): boolean | null => {
     const { appointment_time, check_in_time } = checkIn;
     if (!appointment_time || !check_in_time) return null;
@@ -90,7 +89,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
 
     const currentDate = new Date().toLocaleString();
     const dockDisplay = dockNumber === 'Ramp' ? 'Ramp' : `Dock ${dockNumber}`;
-
     const onTimeFlag = isOnTime();
     const appointmentStatus = onTimeFlag === null ? '' : onTimeFlag ? 'MADE' : 'MISSED';
 
@@ -143,15 +141,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
 
             .value {
               text-align: right;
-            }
-
-            .highlight {
-              background-color: #ffeb3b;
-              padding: 8px;
-              margin: 10px 0 6px;
-              border: 2px solid #000;
-              text-align: center;
-              font-weight: bold;
             }
 
             .pickup-box {
@@ -300,7 +289,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
     printWindow.document.write(receiptHTML);
     printWindow.document.close();
 
-    // Auto-print after a short delay
     setTimeout(() => {
       printWindow.print();
     }, 250);
@@ -330,9 +318,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
 
       if (updateError) throw updateError;
 
-      // Print receipt after successful assignment
       printReceipt();
-
       onSuccess();
       onClose();
     } catch (err) {
@@ -357,3 +343,68 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
             </svg>
           </button>
         </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Dock Number
+            </label>
+            <select
+              value={dockNumber}
+              onChange={(e) => setDockNumber(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            >
+              <option value="">Select Dock</option>
+              {dockOptions.map((dock) => (
+                <option key={dock} value={dock}>
+                  {dock === 'Ramp' ? 'Ramp' : `Dock ${dock}`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Appointment Time
+            </label>
+            <select
+              value={appointmentTime}
+              onChange={(e) => setAppointmentTime(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            >
+              <option value="">Select Time</option>
+              {appointmentOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {error && (
+            <div className="text-red-600 text-sm">{error}</div>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? 'Assigning...' : 'Assign & Print'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
