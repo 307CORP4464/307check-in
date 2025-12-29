@@ -92,32 +92,74 @@ const isOnTime = (checkInTime: string, appointmentTime: string | null | undefine
 };
 
 const calculateDetention = (checkIn: CheckIn): string => {
+  // Check if we have the necessary data
   if (!checkIn.appointment_time || !checkIn.end_time) {
     return '-';
   }
 
+  // Only calculate detention if driver was on time
+  if (!isOnTime(checkIn.check_in_time, checkIn.appointment_time)) {
+    return '-';
+  }
+
   const endTime = new Date(checkIn.end_time);
-  
-  const differenceMs = endTime.getTime() - appointmentTime.getTime();
-  const actualMinutes = Math.floor(differenceMs / (1000 * 60));
-  
   const standardMinutes = 120;
-  
   let detentionMinutes = 0;
 
-  if (checkIn.appointment_time && checkIn.appointment_time.length === 4 && /^\d{4}$/.test(checkIn.appointment_time)) {
+  // Handle regular appointment times (4-digit format like "0800")
+  if (checkIn.appointment_time.length === 4 && /^\d{4}$/.test(checkIn.appointment_time)) {
     const appointmentHour = parseInt(checkIn.appointment_time.substring(0, 2));
     const appointmentMinute = parseInt(checkIn.appointment_time.substring(2, 4));
     
     const checkInDate = new Date(checkIn.check_in_time);
-    const appointmentDate = new Date(checkInDate);
     
+    // Get the date parts in Indianapolis timezone
     const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: TIMEZONE,
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
     });
+    
+    const parts = formatter.formatToParts(checkInDate);
+    const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+    const month = parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1;
+    const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
+    
+    // Create appointment date object
+    const appointmentDate = new Date(checkInDate);
+    appointmentDate.setFullYear(year, month, day);
+    appointmentDate.setHours(appointmentHour, appointmentMinute, 0, 0);
+    
+    // Calculate time since appointment
+    const timeSinceAppointmentMs = endTime.getTime() - appointmentDate.getTime();
+    const minutesSinceAppointment = Math.floor(timeSinceAppointmentMs / (1000 * 60));
+    
+    // Detention is any time over 2 hours (120 minutes) from appointment time
+    detentionMinutes = Math.max(0, minutesSinceAppointment - standardMinutes);
+  } 
+  // Handle special appointment types - they don't get detention
+  else if (checkIn.appointment_time === 'work_in' || 
+           checkIn.appointment_time === 'paid_to_load' || 
+           checkIn.appointment_time === 'paid_charge_customer') {
+    return '-';
+  }
+  
+  // If no detention time
+  if (detentionMinutes === 0) {
+    return 'None';
+  }
+  
+  // Format the detention time
+  const hours = Math.floor(detentionMinutes / 60);
+  const minutes = detentionMinutes % 60;
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  return `${minutes}m`;
+};
+
     
     const parts = formatter.formatToParts(checkInDate);
     const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
