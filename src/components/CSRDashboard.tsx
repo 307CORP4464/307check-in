@@ -261,11 +261,8 @@ export default function CSRDashboard() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Carrier
                     </th>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {checkIn.trailer_number ? `${checkIn.trailer_number}${checkIn.trailer_length ? ` (${checkIn.trailer_length}')` : ''}` : '-'}
-                      </td>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Trailer Length
+                      Trailer
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Destination
@@ -311,11 +308,8 @@ export default function CSRDashboard() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {ci.carrier_name || '-'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ci.trailer_number || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {ci.trailer_length || '-'}
+                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {checkIn.trailer_number ? `${checkIn.trailer_number}${checkIn.trailer_length ? ` (${checkIn.trailer_length}')`
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {ci.destination_city && ci.destination_state 
