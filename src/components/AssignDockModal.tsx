@@ -92,6 +92,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
     const dockDisplay = dockNumber === 'Ramp' ? 'Ramp' : `Dock ${dockNumber}`;
 
     const onTimeFlag = isOnTime();
+    const appointmentStatus = onTimeFlag === null ? '' : onTimeFlag ? 'MADE' : 'MISSED';
 
     const receiptHTML = `
       <!DOCTYPE html>
@@ -104,7 +105,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
               .no-print { display: none; }
             }
             body {
-              font-family: 'Ariel', monospace;
+              font-family: 'Arial', monospace;
               padding: 20px;
               max-width: 420px;
               margin: 0 auto;
@@ -153,6 +154,42 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
               font-weight: bold;
             }
 
+            .pickup-box {
+              background-color: #ffeb3b;
+              padding: 12px;
+              margin: 10px 0 6px;
+              border: 2px solid #000;
+              text-align: center;
+            }
+
+            .pickup-box .pickup-number {
+              font-size: 18px;
+              font-weight: bold;
+              margin-bottom: 4px;
+            }
+
+            .pickup-box .dock-number {
+              font-size: 16px;
+              font-weight: bold;
+            }
+
+            .appointment-status {
+              display: inline-block;
+              padding: 4px 8px;
+              font-weight: bold;
+              border-radius: 4px;
+            }
+
+            .appointment-status.made {
+              background-color: #4CAF50;
+              color: white;
+            }
+
+            .appointment-status.missed {
+              background-color: #f44336;
+              color: white;
+            }
+
             .bold {
               font-weight: bold;
             }
@@ -172,6 +209,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
               border: none;
               border-radius: 4px;
               font-size: 14px;
+              cursor: pointer;
             }
           </style>
         </head>
@@ -181,7 +219,30 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
             <div>${currentDate}</div>
           </div>
 
-          <div class="highlight">Pickup Number: ${checkIn.pickup_number ?? ''} ${checkIn.dock_number ?? ''}</div>
+          <div class="pickup-box">
+            <div class="pickup-number">Pickup #: ${checkIn.pickup_number ?? 'N/A'}</div>
+            <div class="dock-number">${dockDisplay}</div>
+          </div>
+
+          ${appointmentStatus ? `
+          <div class="section">
+            <div class="row">
+              <span class="label">Appointment Status</span>
+              <span class="value">
+                <span class="appointment-status ${appointmentStatus.toLowerCase()}">${appointmentStatus}</span>
+              </span>
+            </div>
+          </div>
+          ` : ''}
+
+          ${checkIn.delivery_city || checkIn.delivery_state ? `
+          <div class="section">
+            <div class="row">
+              <span class="label">Destination</span>
+              <span class="value bold">${checkIn.delivery_city ?? ''}${checkIn.delivery_city && checkIn.delivery_state ? ', ' : ''}${checkIn.delivery_state ?? ''}</span>
+            </div>
+          </div>
+          ` : ''}
 
           <div class="section">
             ${checkIn.carrier_name ? `
@@ -189,47 +250,31 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
               <span class="label">Carrier</span>
               <span class="value">${checkIn.carrier_name}</span>
             </div>
-            ` : ''
-            }
+            ` : ''}
             ${checkIn.driver_name ? `
             <div class="row">
               <span class="label">Driver</span>
               <span class="value">${checkIn.driver_name}</span>
             </div>
-            ` : ''
-            }
+            ` : ''}
             ${checkIn.driver_phone ? `
             <div class="row">
               <span class="label">Driver Phone</span>
               <span class="value">${checkIn.driver_phone}</span>
             </div>
-            ` : ''
-            }
+            ` : ''}
             ${checkIn.trailer_number ? `
             <div class="row">
               <span class="label">Trailer Number</span>
               <span class="value">${checkIn.trailer_number}</span>
             </div>
-            ` : ''
-            }
+            ` : ''}
             ${checkIn.trailer_length ? `
             <div class="row">
               <span class="label">Trailer Length</span>
               <span class="value">${checkIn.trailer_length}</span>
             </div>
-            ` : ''
-            }
-            ${checkIn.delivery_city || checkIn.delivery_state ? `
-            <div class="row">
-              <span class="label">Delivery City</span>
-              <span class="value">${checkIn.delivery_city ?? ''}</span>
-            </div>
-            <div class="row">
-              <span class="label">Delivery State</span>
-              <span class="value">${checkIn.delivery_state ?? ''}</span>
-            </div>
-            ` : ''
-            }
+            ` : ''}
           </div>
 
           <div class="section">
@@ -240,10 +285,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
             <div class="row">
               <span class="label">Check-in Time</span>
               <span class="value">${formatCheckInTime(checkIn.check_in_time)}</span>
-            </div>
-            <div class="row">
-              <span class="label">Made Appointment</span>
-              <span class="value">${onTimeFlag === null ? '' : onTimeFlag ? '<span class="bold">Yes On Time</span>' : 'No Missed Appt'}</span>
             </div>
           </div>
 
@@ -316,94 +357,3 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
             </svg>
           </button>
         </div>
-
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
-
-        <div className="mb-4 p-3 bg-gray-50 rounded">
-          <p className="text-sm text-gray-600">Check-in ID:</p>
-          <p className="font-semibold">#{checkIn.id.slice(0, 8)}</p>
-          {checkIn.pickup_number && (
-            <>
-              <p className="text-sm text-gray-600 mt-2">Pickup Number:</p>
-              <p className="font-semibold">{checkIn.pickup_number}</p>
-            </>
-          )}
-          {checkIn.driver_name && (
-            <>
-              <p className="text-sm text-gray-600 mt-2">Driver:</p>
-              <p className="font-semibold">{checkIn.driver_name}</p>
-            </>
-          )}
-          {checkIn.carrier_name && (
-            <>
-              <p className="text-sm text-gray-600 mt-2">Carrier:</p>
-              <p className="font-semibold">{checkIn.carrier_name}</p>
-            </>
-          )}
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Dock/Door Number *
-            </label>
-            <select
-              value={dockNumber}
-              onChange={(e) => setDockNumber(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="">Select Dock/Door</option>
-              {dockOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option === 'Ramp' ? 'Ramp' : `Dock ${option}`}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Appointment Time <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={appointmentTime}
-              onChange={(e) => setAppointmentTime(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="">Select an appointment time</option>
-              {appointmentOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400 font-medium"
-            >
-              {loading ? 'Assigning...' : 'Assign'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 font-medium"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
