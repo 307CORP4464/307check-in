@@ -80,6 +80,7 @@ const isOnTime = (checkInTime: string, appointmentTime: string | null | undefine
 
 // Calculate detention time in minutes
 const calculateDetention = (checkIn: CheckIn): string => {
+  // Must have both start and end times
   if (!checkIn.start_time || !checkIn.end_time) {
     return '-';
   }
@@ -87,11 +88,66 @@ const calculateDetention = (checkIn: CheckIn): string => {
   const startTime = new Date(checkIn.start_time);
   const endTime = new Date(checkIn.end_time);
   
-  const differenceMs = endTime.getTime() - appointmentTime.getTime();
-  const differenceMinutes = Math.floor(differenceMs / (1000 * 60));
+  // Calculate actual time spent (in minutes)
+  const differenceMs = endTime.getTime() - startTime.getTime();
+  const actualMinutes = Math.floor(differenceMs / (1000 * 60));
   
-  // Assuming standard load/unload time is 2 hours (120 minutes)
-  const detentionMinutes = Math.max(0, differenceMinutes - 120);
+  // Standard load/unload time is 2 hours (120 minutes)
+  const standardMinutes = 120;
+  
+  let detentionMinutes = 0;
+
+  // If driver arrived on time and has appointment time
+  if (checkIn.appointment_time && isOnTime(checkIn.check_in_time, checkIn.appointment_time)) {
+    // Parse appointment time (format: "1430" = 14:30)
+    const appointmentTime = checkIn.appointment_time;
+    
+    // Skip special appointment types
+    if (appointmentTime === 'work_in' || 
+        appointmentTime === 'paid_to_load' || 
+        appointmentTime === 'paid_charge_customer') {
+      detentionMinutes = Math.max(0, actualMinutes - standardMinutes);
+    } 
+    // Handle regular appointment time (HHMM format)
+    else if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
+      const appointmentHour = parseInt(appointmentTime.substring(0, 2));
+      const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
+      
+      // Create appointment date using the check-in date
+      const checkInDate = new Date(checkIn.check_in_time);
+      const appointmentDate = new Date(checkInDate);
+      
+      // Convert appointment time to Indianapolis timezone
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: TIMEZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      
+      const parts = formatter.formatToParts(checkInDate);
+      const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+      const month = parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1;
+      const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
+      
+      // Set appointment time in Indianapolis timezone
+      appointmentDate.setFullYear(year, month, day);
+      appointmentDate.setHours(appointmentHour, appointmentMinute, 0, 0);
+      
+      // Calculate time from appointment to end time
+      const timeSinceAppointmentMs = endTime.getTime() - appointmentDate.getTime();
+      const minutesSinceAppointment = Math.floor(timeSinceAppointmentMs / (1000 * 60));
+      
+      // Detention is anything over 2 hours from appointment time
+      detentionMinutes = Math.max(0, minutesSinceAppointment - standardMinutes);
+    } else {
+      // Unknown appointment format, fall back to start time
+      detentionMinutes = Math.max(0, actualMinutes - standardMinutes);
+    }
+  } else {
+    // Driver was late or no appointment - calculate from start_time
+    detentionMinutes = Math.max(0, actualMinutes - standardMinutes);
+  }
   
   if (detentionMinutes === 0) {
     return 'None';
@@ -105,6 +161,7 @@ const calculateDetention = (checkIn: CheckIn): string => {
   }
   return `${minutes}m`;
 };
+
 
 interface CheckIn {
   id: string;
