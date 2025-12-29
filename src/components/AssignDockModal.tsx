@@ -104,7 +104,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
               .no-print { display: none; }
             }
             body {
-              font-family: 'Courier New', monospace;
+              font-family: 'Ariel', monospace;
               padding: 20px;
               max-width: 420px;
               margin: 0 auto;
@@ -182,6 +182,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
           </div>
 
           <div class="highlight">Pickup: ${checkIn.pickup_number ?? ''}</div>
+          <div class="highlight">Pickup: ${checkIn.dock_number ?? ''}</div>
 
           <div class="section">
             ${checkIn.carrier_name ? `
@@ -242,8 +243,8 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
               <span class="value">${formatCheckInTime(checkIn.check_in_time)}</span>
             </div>
             <div class="row">
-              <span class="label">Status</span>
-              <span class="value">${onTimeFlag === null ? '' : onTimeFlag ? '<span class="bold">On Time</span>' : 'Not On Time'}</span>
+              <span class="label">Made Appointment</span>
+              <span class="value">${onTimeFlag === null ? '' : onTimeFlag ? '<span class="bold">Yes On Time</span>' : 'No Missed Appt'}</span>
             </div>
           </div>
 
