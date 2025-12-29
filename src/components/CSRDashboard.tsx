@@ -80,7 +80,6 @@ export default function CSRDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [selectedForDock, setSelectedForDock] = useState<CheckIn | null>(null);
-  const [isDockModalOpen, setIsDockModalOpen] = useState(false);
 
   useEffect(() => {
     const getUser = async () => {
@@ -141,11 +140,11 @@ export default function CSRDashboard() {
 
   const handleAssignDock = (checkIn: CheckIn) => {
     setSelectedForDock(checkIn);
-    setIsDockModalOpen(true);
   };
 
   const handleDockAssignSuccess = () => {
     fetchCheckIns();
+    setSelectedForDock(null);
   };
 
   const calculateWaitTime = (checkIn: CheckIn): string => {
@@ -303,7 +302,7 @@ export default function CSRDashboard() {
                             </span>
                             {ci.trailer_length && (
                               <span className="text-gray-500 text-xs">
-                                {ci.trailer_length}'
+                                {ci.trailer_length}&apos;
                               </span>
                             )}
                           </div>
@@ -342,14 +341,10 @@ export default function CSRDashboard() {
         </div>
       </div>
 
-      {isDockModalOpen && selectedForDock && (
+      {selectedForDock && (
         <AssignDockModal
           checkIn={selectedForDock}
-          isOpen={isDockModalOpen}
-          onClose={() => {
-            setIsDockModalOpen(false);
-            setSelectedForDock(null);
-          }}
+          onClose={() => setSelectedForDock(null)}
           onSuccess={handleDockAssignSuccess}
         />
       )}
