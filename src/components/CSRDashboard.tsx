@@ -8,6 +8,20 @@ import Link from 'next/link';
 import AssignDockModal from './AssignDockModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
+const formatPhoneNumber = (phone: string | undefined): string => {
+  if (!phone) return 'N/A';
+  
+  // Remove all non-numeric characters
+  const cleaned = phone.replace(/\D/g, '');
+  
+  // Check if we have 10 digits
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+  }
+  
+  // Return original if format doesn't match
+  return phone;
+};
 
 const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
   try {
@@ -288,18 +302,12 @@ export default function CSRDashboard() {
                             {ci.pickup_number || 'N/A'}
                           </span>
                         </td>
-                        <td className="px-4 py-4 text-sm">
-                          <div className="space-y-0.5">
-                            <div className="text-gray-900">{ci.carrier_name || 'N/A'}</div>
-                            <div className="text-gray-500 text-xs">
-                              {ci.driver_name || 'N/A'}
-                              
-                            </div>
-                            {ci.driver_phone && (
-                              <div className="text-gray-500 text-xs">
-                                {ci.driver_phone}&apos;
-                              </div>
-                            )}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm">
+  <div className="text-gray-900 font-medium">{ci.driver_name || 'N/A'}</div>
+  <div className="text-gray-500">{formatPhoneNumber(ci.driver_phone)}</div>
+  <div className="text-gray-500 text-xs">{ci.carrier_name || 'N/A'}</div>
+</td>
+
                           </div>
                         </td>
                         <td className="px-4 py-4 text-sm">
