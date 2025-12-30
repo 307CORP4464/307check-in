@@ -6,6 +6,90 @@ import { zonedTimeToUtc } from 'date-fns-tz';
 import Link from 'next/link';
 import StatusChangeModal from './StatusChangeModal';
 
+// src/components/DailyLog.tsx
+
+// Add these type definitions at the top
+interface DailyLogEntryType {
+  id: string;
+  time: string;
+  location: string;
+  notes: string;
+  driverId?: string;
+  timestamp?: string;
+}
+
+interface DailyLogEntryProps {
+  entry: DailyLogEntryType;
+  isEditable: boolean;
+}
+
+// Update the component with proper types (around line 48)
+const DailyLogEntry: React.FC<DailyLogEntryProps> = ({ entry, isEditable }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedEntry, setEditedEntry] = useState<DailyLogEntryType>(entry);
+
+  const handleUpdate = async () => {
+    try {
+      const response = await fetch(`/api/daily-log/${entry.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editedEntry),
+      });
+
+      if (!response.ok) throw new Error('Failed to update');
+      
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating log entry:', error);
+    }
+  };
+
+  return (
+    <tr>
+      {isEditing ? (
+        <>
+          <td>
+            <input 
+              value={editedEntry.time} 
+              onChange={(e) => setEditedEntry({...editedEntry, time: e.target.value})} 
+            />
+          </td>
+          <td>
+            <input 
+              value={editedEntry.location} 
+              onChange={(e) => setEditedEntry({...editedEntry, location: e.target.value})} 
+            />
+          </td>
+          <td>
+            <input 
+              value={editedEntry.notes} 
+              onChange={(e) => setEditedEntry({...editedEntry, notes: e.target.value})} 
+            />
+          </td>
+          <td>
+            <button onClick={handleUpdate}>Save</button>
+            <button onClick={() => setIsEditing(false)}>Cancel</button>
+          </td>
+        </>
+      ) : (
+        <>
+          <td>{entry.time}</td>
+          <td>{entry.location}</td>
+          <td>{entry.notes}</td>
+          <td>
+            {isEditable && <button onClick={() => setIsEditing(true)}>Edit</button>}
+          </td>
+        </>
+      )}
+    </tr>
+  );
+};
+
+
+
+
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
 const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
