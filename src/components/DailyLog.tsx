@@ -311,12 +311,13 @@ export default function DailyLog() {
               >
                 Back to Dashboard
                 <Link 
-  href="/tracking"
-  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
->
-  View Tracking Reports
-</Link>
-
+                  button
+              href="/tracking"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+                >
+              </Link>
+          
+                  View Tracking Reports
               </Link>
               <button
                 onClick={handleLogout}
