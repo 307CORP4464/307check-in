@@ -7,6 +7,75 @@ import { differenceInMinutes } from 'date-fns';
 import Link from 'next/link';
 import AssignDockModal from './AssignDockModal';
 
+
+// src/components/CSRDashboard.tsx
+
+// Add these type definitions at the top of the file
+interface Driver {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  status: string;
+  location: string;
+}
+
+interface DriverEntryEditProps {
+  driver: Driver;
+  onSave: (data: Driver) => void;
+  onCancel: () => void;
+}
+
+// Update the component with proper types
+const DriverEntryEdit: React.FC<DriverEntryEditProps> = ({ driver, onSave, onCancel }) => {
+  const [editedData, setEditedData] = useState<Driver>({
+    id: driver.id,
+    name: driver.name,
+    phone: driver.phone,
+    email: driver.email,
+    status: driver.status,
+    location: driver.location
+  });
+
+  const handleSave = async () => {
+    try {
+      const response = await fetch(`/api/drivers/${driver.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editedData),
+      });
+      
+      if (!response.ok) throw new Error('Failed to update');
+      
+      onSave(editedData);
+    } catch (error) {
+      console.error('Error updating driver info:', error);
+    }
+  };
+
+  return (
+    <div className="driver-edit-form">
+      <input
+        value={editedData.name}
+        onChange={(e) => setEditedData({...editedData, name: e.target.value})}
+      />
+      <input
+        value={editedData.phone}
+        onChange={(e) => setEditedData({...editedData, phone: e.target.value})}
+      />
+      <input
+        value={editedData.email}
+        onChange={(e) => setEditedData({...editedData, email: e.target.value})}
+      />
+      <button onClick={handleSave}>Save</button>
+      <button onClick={onCancel}>Cancel</button>
+    </div>
+  );
+};
+
+
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
 const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
