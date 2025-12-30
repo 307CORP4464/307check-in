@@ -38,7 +38,7 @@ const formatPhoneNumber = (phone: string | undefined): string => {
   const cleaned = phone.replace(/\D/g, '');
   
   if (cleaned.length === 10) {
-    return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+    return `(${cleaned.slice(0, 3)})${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
   }
   
   return phone;
@@ -48,7 +48,7 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   if (!appointmentTime) return 'N/A';
   
   if (appointmentTime === 'work_in') return 'Work In';
-  if (appointmentTime === 'paid_to_load') return 'Paid to Load';
+  if (appointmentTime === 'paid_to_load') return 'Paid - No Appt';
   if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
   
   if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
@@ -91,6 +91,15 @@ const isOnTime = (checkInTime: string, appointmentTime: string | null | undefine
   return false;
 };
 
+const getAppointmentTimeColor = (checkInTime: string, appointmentTime: string | null | undefined): string => {
+  // Grey for special appointment types
+  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'paid_to_load' || appointmentTime === 'paid_charge_customer') {
+    return 'text-gray-500';
+  }
+  
+  // Green if on time, grey if missed
+  return isOnTime(checkInTime, appointmentTime) ? 'text-green-600 font-semibold' : 'text-gray-500';
+};
 
 const calculateDetention = (checkIn: CheckIn): string => {
   // Check if we have the necessary data
@@ -147,23 +156,14 @@ const calculateDetention = (checkIn: CheckIn): string => {
     detentionMinutes = Math.max(0, minutesSinceAppointment - standardMinutes);
   }
   
-  // If no detention time
+  // If no detention time or less than 2 hours total
   if (detentionMinutes === 0) {
-    return 'None';
+    return '-';
   }
   
-  // Format the detention time
-  const hours = Math.floor(detentionMinutes / 60);
-  const minutes = detentionMinutes % 60;
-  
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-  return `${minutes}m`;
+  // Only show minutes
+  return `${detentionMinutes} min`;
 };
-
-    
-  
 
 interface CheckIn {
   id: string;
@@ -276,9 +276,9 @@ export default function DailyLog() {
 
   const getStatusBadgeColor = (status: string): string => {
     const statusLower = status.toLowerCase();
-    if (statusLower === 'completed') return 'bg-grey-500 text-white';
+    if (statusLower === 'completed') return 'bg-gray-500 text-white';
     if (statusLower === 'pending') return 'bg-yellow-500 text-white';
-    if (statusLower === 'checked_in') return 'bg-green-500 text-white';
+    if (statusLower === 'checked_in') return 'bg-purple-500 text-white';
     return 'bg-gray-500 text-white';
   };
 
@@ -301,7 +301,7 @@ export default function DailyLog() {
         <div className="max-w-[1800px] mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Daily Check-in Log</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Daily Activity Log</h1>
               <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
             </div>
             <div className="flex gap-3">
@@ -351,23 +351,23 @@ export default function DailyLog() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Type
                   </th>
-                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Appointment
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Appointment Time
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Check In Time
+                    Check-In Time
                   </th>
-                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     End Time
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Detention
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Pickup #
+                    Pickup Number
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Destination
@@ -379,7 +379,7 @@ export default function DailyLog() {
                     Trailer Info
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Dock
+                    Dock Number
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -395,77 +395,110 @@ export default function DailyLog() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {checkIns.length === 0 ? (
                   <tr>
-                    <td colSpan={17} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={13} className="px-4 py-8 text-center text-gray-500">
                       No check-ins found for this date
                     </td>
                   </tr>
                 ) : (
                   checkIns.map((checkIn) => (
-                    <tr 
-                      key={checkIn.id} 
-                      className={`hover:bg-gray-50 ${
-                        isOnTime(checkIn.check_in_time, checkIn.appointment_time) 
-                          ? 'bg-green-50' 
-                          : ''
-                      }`}
-                    >
+                    <tr key={checkIn.id} className="hover:bg-gray-50">
+                      {/* Type */}
                       <td className="px-4 py-3 text-sm">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold text-white ${
                           checkIn.load_type === 'inbound' 
-                            ? 'bg-blue-100 text-blue-800' 
-                            : 'bg-orange-100 text-orange-800'
+                            ? 'bg-blue-500' 
+                            : 'bg-orange-500'
                         }`}>
                           {checkIn.load_type === 'inbound' ? 'I' : 'O'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {checkIn.carrier_name || 'N/A'}
-                        {checkIn.driver_name || 'N/A'}
-                        {formatPhoneNumber(checkIn.driver_phone)}
+
+                      {/* Appointment Time */}
+                      <td className={`px-4 py-3 text-sm ${getAppointmentTimeColor(checkIn.check_in_time, checkIn.appointment_time)}`}>
+                        {formatAppointmentTime(checkIn.appointment_time)}
                       </td>
+
+                      {/* Check-In Time */}
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {checkIn.trailer_number || 'N/A'}
-                        {checkIn.trailer_length && ` (${checkIn.trailer_length}')`}
+                        {formatTimeInIndianapolis(checkIn.check_in_time)}
                       </td>
+
+                      {/* End Time */}
                       <td className="px-4 py-3 text-sm text-gray-900">
+                        {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time) : '-'}
+                      </td>
+
+                      {/* Detention */}
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {calculateDetention(checkIn)}
+                      </td>
+
+                      {/* Pickup Number */}
+                      <td className="px-4 py-3 text-sm font-bold text-gray-900">
                         {checkIn.pickup_number || 'N/A'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {checkIn.dock_number || 'N/A'}
-                      </td>
+
+                      {/* Destination */}
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {checkIn.destination_city && checkIn.destination_state
                           ? `${checkIn.destination_city}, ${checkIn.destination_state}`
                           : 'N/A'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {formatAppointmentTime(checkIn.appointment_time)}
+
+                      {/* Driver Info - Stacked */}
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex flex-col gap-1">
+                          <div className="font-bold text-gray-900">
+                            {checkIn.carrier_name || 'N/A'}
+                          </div>
+                          <div className="text-gray-700">
+                            {checkIn.driver_name || 'N/A'}
+                          </div>
+                          <div className="text-gray-600">
+                            {formatPhoneNumber(checkIn.driver_phone)}
+                          </div>
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {formatTimeInIndianapolis(checkIn.check_in_time)}
+
+                      {/* Trailer Info - Stacked */}
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex flex-col gap-1">
+                          <div className="text-gray-900">
+                            {checkIn.trailer_number || 'N/A'}
+                          </div>
+                          <div className="text-gray-600">
+                            {checkIn.trailer_length || 'N/A'}
+                          </div>
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {checkIn.start_time ? formatTimeInIndianapolis(checkIn.start_time) : '-'}
+
+                      {/* Dock Number */}
+                      <td className="px-4 py-3 text-sm font-bold text-gray-900">
+                        {checkIn.dock_number || 'N/A'}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time) : '-'}
+
+                      {/* Status */}
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(checkIn.status)}`}>
+                          {getStatusLabel(checkIn.status)}
+                        </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {checkIn.check_out_time ? formatTimeInIndianapolis(checkIn.check_out_time) : '-'}
+
+                      {/* Notes */}
+                      <td className="px-4 py-3 text-sm text-gray-900 max-w-xs">
+                        <div className="truncate" title={checkIn.notes || ''}>
+                          {checkIn.notes || '-'}
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {calculateDetention(checkIn)}
-                      </td>
+
+                      {/* Actions */}
                       <td className="px-4 py-3 text-sm">
                         <button
                           onClick={() => handleStatusChange(checkIn)}
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(checkIn.status)} hover:opacity-80 transition-opacity cursor-pointer`}
+                          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs font-medium"
                         >
-                          {getStatusLabel(checkIn.status)}
+                          Update
                         </button>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate">
-                        {checkIn.notes || '-'}
                       </td>
                     </tr>
                   ))
