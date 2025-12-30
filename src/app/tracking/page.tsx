@@ -278,7 +278,7 @@ export default function Tracking() {
         const dockCounts: { [key: string]: number } = {};
         checkIns.forEach(checkIn => {
           if (checkIn.dock_number) {
-            dockCounts[checkIn.dock_number] = (dockCounts[checkIn.dock_number] || 0) + 5;
+            dockCounts[checkIn.dock_number] = (dockCounts[checkIn.dock_number] || 0) + 1;
           }
         });
 
