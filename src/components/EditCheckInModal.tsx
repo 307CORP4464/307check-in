@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 
 interface EditCheckInModalProps {
@@ -101,7 +101,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess }: EditCh
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Load Type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Load Type *
@@ -118,7 +117,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess }: EditCh
               </select>
             </div>
 
-            {/* Reference Number */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Reference Number
@@ -132,7 +130,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess }: EditCh
               />
             </div>
 
-            {/* Driver Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Driver Name *
@@ -147,7 +144,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess }: EditCh
               />
             </div>
 
-            {/* Driver Phone */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Driver Phone *
@@ -162,7 +158,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess }: EditCh
               />
             </div>
 
-            {/* Carrier Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Carrier Name
@@ -176,7 +171,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess }: EditCh
               />
             </div>
 
-            {/* Trailer Number */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Trailer Number
@@ -190,7 +184,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess }: EditCh
               />
             </div>
 
-            {/* Trailer Length */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Trailer Length
@@ -207,7 +200,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess }: EditCh
               </select>
             </div>
 
-            {/* Appointment Time */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Appointment Time
@@ -235,7 +227,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess }: EditCh
               </select>
             </div>
 
-            {/* Destination City */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Destination City
@@ -249,7 +240,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess }: EditCh
               />
             </div>
 
-            {/* Destination State */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Destination State
@@ -265,7 +255,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess }: EditCh
             </div>
           </div>
 
-          {/* Notes */}
           <div className="mt-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Notes
