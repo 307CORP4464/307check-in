@@ -61,6 +61,43 @@ const formatPhoneNumber = (phone: string | undefined): string => {
   return phone;
 };
 
+// Add edit functionality to driver entries
+const DriverEntryEdit = ({ driver, onSave, onCancel }) => {
+  const [editedData, setEditedData] = useState({
+    name: driver.name,
+    phone: driver.phone,
+    email: driver.email,
+    status: driver.status,
+    location: driver.location
+  });
+
+  const handleSave = async () => {
+    try {
+      await updateDriverInfo(driver.id, editedData);
+      onSave(editedData);
+    } catch (error) {
+      console.error('Error updating driver info:', error);
+    }
+  };
+
+  return (
+    <div className="driver-edit-form">
+      <input
+        value={editedData.name}
+        onChange={(e) => setEditedData({...editedData, name: e.target.value})}
+      />
+      <input
+        value={editedData.phone}
+        onChange={(e) => setEditedData({...editedData, phone: e.target.value})}
+      />
+      {/* Add more fields as needed */}
+      <button onClick={handleSave}>Save</button>
+      <button onClick={onCancel}>Cancel</button>
+    </div>
+  );
+};
+
+
 interface CheckIn {
   id: string;
   check_in_time: string;
