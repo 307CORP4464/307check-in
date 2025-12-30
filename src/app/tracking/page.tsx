@@ -139,8 +139,8 @@ export default function TrackingPage() {
 
     const entries = Object.entries(data)
     const sortedData = entries.sort((a, b) => {
-      const valueA = a.at(1) || 0
-      const valueB = b.at(1) || 0
+      const valueA = Number(a.at(1)) || 0
+      const valueB = Number(b.at(1)) || 0
       return valueB - valueA
     })
     const maxValue = Math.max(...Object.values(data))
@@ -148,8 +148,8 @@ export default function TrackingPage() {
     return (
       <div className="bar-chart">
         {sortedData.map((item) => {
-          const label = item.at(0) || ''
-          const value = item.at(1) || 0
+          const label = String(item.at(0) || '')
+          const value = Number(item.at(1)) || 0
           const percentage = (value / maxValue) * 100
           return (
             <div key={label} className="bar-item">
