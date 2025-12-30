@@ -72,7 +72,7 @@ interface CheckIn {
   trailer_number?: string;
   trailer_length?: string;
   load_type?: 'inbound' | 'outbound';
-  pickup_number?: string;
+  reference_number?: string;
   dock_number?: string;
   appointment_time?: string | null;
   start_time?: string | null;
@@ -259,7 +259,7 @@ export default function CSRDashboard() {
                       Check-in Time
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Pickup Number
+                      Reference Number
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Driver Info
@@ -297,7 +297,7 @@ export default function CSRDashboard() {
                           {formatTimeInIndianapolis(ci.check_in_time)}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          <span className="font-medium text-gray-900">{ci.pickup_number || 'N/A'}</span>
+                          <span className="font-medium text-gray-900">{ci.reference_number || 'N/A'}</span>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm">
                           <div className="text-gray-900 font-medium">{ci.carrier_name || 'N/A'}</div>
