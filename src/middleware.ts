@@ -54,6 +54,15 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+const protectedRoutes = [
+  '/dashboard',
+  '/logs',
+  '/tracking',
+  '/dock-status', // Add this line
+  '/check-in'
+];
+
+  
   const {
     data: { user },
   } = await supabase.auth.getUser();
