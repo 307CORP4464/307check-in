@@ -61,7 +61,7 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
 };
 
 const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
-  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'paid_to_load' || appointmentTime === 'paid_charge_customer') {
+  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'paid_to_load' || appointmentTime === 'paid_charge_customer' || appointmentTime === 'LTL') {
     return false;
   }
 
@@ -102,7 +102,8 @@ const calculateDetention = (checkIn: CheckIn): string => {
 
   if (checkIn.appointment_time === 'work_in' || 
       checkIn.appointment_time === 'paid_to_load' || 
-      checkIn.appointment_time === 'paid_charge_customer') {
+      checkIn.appointment_time === 'paid_charge_customer'
+     checkIn.appointment_time === 'LTL' ) {
     return '-';
   }
 
