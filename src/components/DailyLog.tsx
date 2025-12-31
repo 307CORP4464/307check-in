@@ -299,39 +299,38 @@ export default function DailyLog() {
     );
   }
 
-    return (
-    <div className="min-h-screen bg-gray-50">
-
-<div className="bg-white shadow">
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-    <div className="flex justify-between items-center">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Daily Check-In Log</h1>
-        <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
-      </div>
-      <div className="flex gap-3">
-        <Link
-          href="/trending"
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-        >
-          Trending
-        </Link>
-        <Link
-          href="/check-in"
-          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-        >
-          Check In
-        </Link>
-        <button
-          onClick={handleLogout}
-          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-        >
-          Logout
-        </button>
+  return (
+  <div className="min-h-screen bg-gray-50">
+    <div className="bg-white shadow">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Daily Check-In Log</h1>
+            <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
+          </div>
+          <div className="flex gap-3">
+            <Link
+              href="/trending"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Trending
+            </Link>
+            <Link
+              href="/check-in"
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+            >
+              Check In
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
           {/* Date Picker and Stats */}
           <div className="mt-4 flex items-center justify-between">
