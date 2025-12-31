@@ -16,7 +16,7 @@ interface DockInfo {
   status: 'available' | 'in-use' | 'blocked';
   orders: Array<{
     reference_number: string;
-    trailer_nunber: string;
+    trailer_number: string;
   }>;
 }
 
