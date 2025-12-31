@@ -125,23 +125,23 @@ export default function CSRDashboard() {
     };
   }, [supabase]);
 
-  const fetchCheckIns = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('check_ins')
-        .select('*')
-        .eq('status', 'pending')
-        .order('check_in_time', { ascending: false });
+ const fetchCheckIns = async () => {
+  setLoading(true);
+  try {
+    const { data, error } = await supabase
+      .from('daily_log')
+      .select('*')  // Change this line to select all fields
+      .order('check_in_time', { ascending: false });
 
-      if (error) throw error;
-      setCheckIns(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
+    if (error) throw error;
+    setCheckIns(data || []);
+  } catch (error) {
+    console.error('Error fetching check-ins:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleLogout = async () => {
     try {
