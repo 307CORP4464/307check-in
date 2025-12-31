@@ -148,6 +148,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess }: EditCh
                 <option value="work_in">Work In</option>
                 <option value="paid_to_load">Paid - No Appt</option>
                 <option value="paid_charge_customer">Paid - Charge Customer</option>
+                <option value='LTL">LTL</option>
                 <option value="0700">07:00</option>
                 <option value="0800">08:00</option>
                 <option value="0900">09:00</option>
@@ -241,6 +242,10 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess }: EditCh
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select...</option>
+                <option value="Box">Box Truck'</option>
+                <option value="20">28'</option>
+                <option value="40">40'</option>
+                <option value="45">45'</option>
                 <option value="48">48'</option>
                 <option value="53">53'</option>
               </select>
