@@ -291,13 +291,14 @@ export default function DailyLog() {
   const activeCheckIns = checkIns.filter(c => c.status.toLowerCase() === 'checked_in' || c.status.toLowerCase() === 'pending').length;
   const completedCheckIns = checkIns.filter(c => c.status.toLowerCase() === 'completed' || c.status.toLowerCase() === 'checked_out').length;
 
-  if (loading) {
+    if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-xl">Loading...</div>
       </div>
     );
   }
+
 
   return (
   <div className="min-h-screen bg-gray-50">
