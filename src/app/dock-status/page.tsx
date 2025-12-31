@@ -1,586 +1,284 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import Link from 'next/link';
+import { CheckIn } from '@/types';
 
-interface OrderInfo {
-  id: string;
-  po_number: string;
-  driver_name: string;
-  status: string;
-  check_in_time: string;
+interface AssignDockModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  logEntry: CheckIn;
+  onSuccess: () => void;
 }
 
-interface DockStatus {
+interface DockInfo {
   dock_number: string;
-  status: 'available' | 'in-use' | 'double-booked' | 'blocked';
-  orders: OrderInfo[];
-  is_manually_blocked: boolean;
-  blocked_reason?: string;
+  status: 'available' | 'in-use' | 'blocked';
+  orders: Array<{
+    reference_number: string;
+    trailer_number: string;
+  }>;
 }
 
-const TOTAL_DOCKS = 70;
-
-export default function DockStatusPage() {
-  const [dockStatuses, setDockStatuses] = useState<DockStatus[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showBlockModal, setShowBlockModal] = useState(false);
-  const [selectedDock, setSelectedDock] = useState<string | null>(null);
-  const [blockReason, setBlockReason] = useState('');
-  const [filter, setFilter] = useState<'all' | 'available' | 'in-use' | 'double-booked' | 'blocked'>('all');
-  const [currentTime, setCurrentTime] = useState(new Date());
+export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }: AssignDockModalProps) {
+  const [dockNumber, setDockNumber] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [dockInfo, setDockInfo] = useState<DockInfo | null>(null);
+  const [showWarning, setShowWarning] = useState(false);
+  const [checkingDock, setCheckingDock] = useState(false);
 
   useEffect(() => {
-    // Update time every second
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    initializeDocks();
-    
-    // Set up real-time subscription
-    const channel = supabase
-      .channel('dock-status-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'daily_log'
-        },
-        () => {
-          initializeDocks();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const initializeDocks = async () => {
-    setLoading(true);
-    
-    // Step 1: Create all 70 docks with default status
-    const allDocks: DockStatus[] = [];
-    
-    for (let i = 1; i <= TOTAL_DOCKS; i++) {
-      allDocks.push({
-        dock_number: i.toString(),
-        status: 'available',
-        orders: [],
-        is_manually_blocked: false,
-        blocked_reason: undefined
-      });
+    if (dockNumber && dockNumber.length > 0) {
+      checkDockStatus(dockNumber);
+    } else {
+      setDockInfo(null);
+      setShowWarning(false);
     }
+  }, [dockNumber]);
 
-    // Step 2: Get blocked docks from localStorage
-    if (typeof window !== 'undefined') {
-      try {
+  const checkDockStatus = async (dock: string) => {
+    setCheckingDock(true);
+    try {
+      // Check if dock is blocked
+      if (typeof window !== 'undefined') {
         const blockedStr = localStorage.getItem('blocked_docks');
         if (blockedStr) {
           const blocked = JSON.parse(blockedStr);
-          Object.keys(blocked).forEach(dockNum => {
-            const dockIndex = parseInt(dockNum) - 1;
-            if (dockIndex >= 0 && dockIndex < TOTAL_DOCKS) {
-              allDocks[dockIndex].status = 'blocked';
-              allDocks[dockIndex].is_manually_blocked = true;
-              allDocks[dockIndex].blocked_reason = blocked[dockNum].reason;
-            }
-          });
+          if (blocked[dock]) {
+            setDockInfo({
+              dock_number: dock,
+              status: 'blocked',
+              orders: []
+            });
+            setShowWarning(true);
+            setCheckingDock(false);
+            return;
+          }
         }
-      } catch (error) {
-        console.error('Error loading blocked docks:', error);
       }
-    }
 
-    // Step 3: Fetch active orders from daily_log
-    try {
-      const { data: logs, error } = await supabase
+      // Check for existing orders on this dock
+      const { data: existingOrders, error } = await supabase
         .from('daily_log')
-        .select('*')
+        .select('reference_number, trailer_number')
+        .eq('dock_number', dock)
         .neq('status', 'complete');
 
-      if (error) {
-        console.error('Supabase error:', error);
-      }
+      if (error) throw error;
 
-      // Step 4: Assign orders to docks
-      if (logs && logs.length > 0) {
-        logs.forEach((log) => {
-          if (log.dock_number) {
-            const dockNum = parseInt(log.dock_number);
-            const dockIndex = dockNum - 1;
-            
-            if (dockIndex >= 0 && dockIndex < TOTAL_DOCKS) {
-              const dock = allDocks[dockIndex];
-              
-              // Only add orders if not manually blocked
-              if (!dock.is_manually_blocked) {
-                dock.orders.push({
-                  id: log.id,
-                  po_number: log.po_number,
-                  driver_name: log.driver_name,
-                  status: log.status,
-                  check_in_time: log.check_in_time
-                });
-
-                // Update status based on order count
-                if (dock.orders.length === 1) {
-                  dock.status = 'in-use';
-                } else if (dock.orders.length > 1) {
-                  dock.status = 'double-booked';
-                }
-              }
-            }
-          }
+      if (existingOrders && existingOrders.length > 0) {
+        setDockInfo({
+          dock_number: dock,
+          status: 'in-use',
+          orders: existingOrders
         });
+        setShowWarning(true);
+      } else {
+        setDockInfo({
+          dock_number: dock,
+          status: 'available',
+          orders: []
+        });
+        setShowWarning(false);
       }
     } catch (error) {
-      console.error('Error fetching logs:', error);
+      console.error('Error checking dock status:', error);
     }
-
-    console.log('Initialized docks:', allDocks.length);
-    setDockStatuses(allDocks);
-    setLoading(false);
+    setCheckingDock(false);
   };
 
-  const handleBlockDock = (dockNumber: string) => {
-    setSelectedDock(dockNumber);
-    const dock = dockStatuses.find(d => d.dock_number === dockNumber);
-    setBlockReason(dock?.blocked_reason || '');
-    setShowBlockModal(true);
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  const handleUnblockDock = (dockNumber: string) => {
-    if (typeof window === 'undefined') return;
-    
-    try {
-      const blockedStr = localStorage.getItem('blocked_docks');
-      const blocked = blockedStr ? JSON.parse(blockedStr) : {};
-      delete blocked[dockNumber];
-      localStorage.setItem('blocked_docks', JSON.stringify(blocked));
-      initializeDocks();
-    } catch (error) {
-      console.error('Error unblocking dock:', error);
-    }
-  };
-
-  const submitBlockDock = () => {
-    if (!selectedDock || !blockReason.trim()) {
-      alert('Please enter a reason for blocking this dock');
+    if (!dockNumber.trim()) {
+      alert('Please enter a dock number');
       return;
     }
 
-    if (typeof window === 'undefined') return;
+    // If dock is blocked, don't allow assignment
+    if (dockInfo?.status === 'blocked') {
+      alert('This dock is currently blocked and cannot accept new assignments. Please choose a different dock or unblock it from the Dock Status page.');
+      return;
+    }
+
+    // If dock is in use, require confirmation
+    if (showWarning && dockInfo?.status === 'in-use') {
+      const confirmDouble = window.confirm(
+        `⚠️ WARNING: Dock ${dockNumber} is already in use!\n\n` +
+        `Current orders on this dock:\n` +
+        dockInfo.orders.map(o => `• Ref: ${o.reference_number} - Trailer: ${o.trailer_number}`).join('\n') +
+        `\n\nAssigning another order will create a DOUBLE BOOKING.\n\n` +
+        `Do you want to proceed with double booking this dock?`
+      );
+
+      if (!confirmDouble) {
+        return;
+      }
+    }
+
+    setLoading(true);
 
     try {
-      const blockedStr = localStorage.getItem('blocked_docks');
-      const blocked = blockedStr ? JSON.parse(blockedStr) : {};
-      blocked[selectedDock] = { reason: blockReason.trim() };
-      localStorage.setItem('blocked_docks', JSON.stringify(blocked));
-      
-      setShowBlockModal(false);
-      setSelectedDock(null);
-      setBlockReason('');
-      initializeDocks();
+      const { error } = await supabase
+        .from('daily_log')
+        .update({ 
+          dock_number: dockNumber.trim(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', logEntry.id);
+
+      if (error) throw error;
+
+      onSuccess();
+      onClose();
+      setDockNumber('');
+      setDockInfo(null);
+      setShowWarning(false);
     } catch (error) {
-      console.error('Error blocking dock:', error);
+      console.error('Error assigning dock:', error);
+      alert('Failed to assign dock. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'available':
-        return 'bg-green-100 text-green-800';
-      case 'in-use':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'double-booked':
-        return 'bg-red-100 text-red-800';
-      case 'blocked':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'available':
-        return '✓';
-      case 'in-use':
-        return '●';
-      case 'double-booked':
-        return '⚠';
-      case 'blocked':
-        return '🚫';
-      default:
-        return '';
-    }
-  };
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      second: '2-digit',
-      hour12: true 
-    });
-  };
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long',
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric'
-    });
-  };
-
-  const filteredDocks = filter === 'all' 
-    ? dockStatuses 
-    : dockStatuses.filter(dock => dock.status === filter);
-
-  const stats = {
-    available: dockStatuses.filter(d => d.status === 'available').length,
-    inUse: dockStatuses.filter(d => d.status === 'in-use').length,
-    doubleBooked: dockStatuses.filter(d => d.status === 'double-booked').length,
-    blocked: dockStatuses.filter(d => d.status === 'blocked').length,
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        {/* Custom Header - LOADING STATE */}
-        <header className="bg-white shadow-md border-b-4 border-blue-600">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="text-3xl font-bold text-blue-600">🚚</div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Dock Status Monitor</h1>
-                  <p className="text-sm text-gray-600">Loading...</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Link 
-                  href="/logs"
-                  className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium shadow-lg"
-                >
-                  📋 Daily Logs
-                </Link>
-                <Link 
-                  href="/dashboard"
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg"
-                >
-                  ← Dashboard
-                </Link>
-              </div>
-            </div>
-          </div>
-        </header>
-        
-        <div className="flex items-center justify-center h-96">
-          <div className="text-gray-600">Loading dock statuses...</div>
-        </div>
-      </div>
-    );
-  }
+  if (!isOpen) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Custom Header */}
-      <header className="bg-white shadow-md border-b-4 border-blue-600 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="text-3xl font-bold text-blue-600">🚚</div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Dock Status Monitor</h1>
-                <p className="text-sm text-gray-600">
-                  {formatDate(currentTime)} • {formatTime(currentTime)}
-                </p>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Assign Dock
+        </h3>
+
+        <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+          <div className="text-sm text-gray-700">
+            <p className="font-medium">Reference #: {logEntry.reference_number}</p>
+            <p>Trailer #: {logEntry.trailer_number}</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Dock Number *
+            </label>
+            <input
+              type="text"
+              value={dockNumber}
+              onChange={(e) => setDockNumber(e.target.value)}
+              placeholder="Enter dock number (1-70)"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+              autoFocus
+            />
+            {checkingDock && (
+              <p className="mt-1 text-xs text-gray-500">Checking dock status...</p>
+            )}
+          </div>
+
+          {/* Dock Status Indicator */}
+          {dockInfo && !checkingDock && (
+            <div className={`mb-4 p-3 rounded-lg border-2 ${
+              dockInfo.status === 'available' 
+                ? 'bg-green-50 border-green-300' 
+                : dockInfo.status === 'blocked'
+                ? 'bg-gray-50 border-gray-400'
+                : 'bg-yellow-50 border-yellow-300'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">
+                  {dockInfo.status === 'available' ? '✓' : dockInfo.status === 'blocked' ? '🚫' : '⚠'}
+                </span>
+                <span className={`font-semibold ${
+                  dockInfo.status === 'available' 
+                    ? 'text-green-800' 
+                    : dockInfo.status === 'blocked'
+                    ? 'text-gray-800'
+                    : 'text-yellow-800'
+                }`}>
+                  Dock {dockInfo.dock_number} - {dockInfo.status.toUpperCase().replace('-', ' ')}
+                </span>
               </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              {/* Refresh Button */}
-              <button
-                onClick={() => initializeDocks()}
-                className="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium shadow"
-                title="Refresh Data"
-              >
-                🔄 Refresh
-              </button>
               
-              {/* Daily Logs Button */}
-              <Link 
-                href="/logs"
-                className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium shadow-lg"
-              >
-                📋 Daily Logs
-              </Link>
+              {dockInfo.status === 'available' && (
+                <p className="text-sm text-green-700">
+                  This dock is available for assignment.
+                </p>
+              )}
               
-              {/* Back to Dashboard Button */}
-              <Link 
-                href="/dashboard"
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg"
-              >
-                ← Dashboard
-              </Link>
+              {dockInfo.status === 'blocked' && (
+                <div>
+                  <p className="text-sm text-gray-700 font-medium mb-1">
+                    ⚠️ This dock is currently blocked and cannot accept assignments.
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    Please unblock it from the Dock Status page or choose a different dock.
+                  </p>
+                </div>
+              )}
+              
+              {dockInfo.status === 'in-use' && (
+                <div>
+                  <p className="text-sm text-yellow-800 font-medium mb-2">
+                    ⚠️ Warning: This dock already has active orders!
+                  </p>
+                  <div className="text-xs text-yellow-700 space-y-1">
+                    {dockInfo.orders.map((order, idx) => (
+                      <div key={idx} className="bg-white bg-opacity-50 p-2 rounded">
+                        <span className="font-medium">Ref #: {order.reference_number}</span>
+                        <br />
+                        <span>Trailer #: {order.trailer_number}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-yellow-800 mt-2 font-medium">
+                    Assigning this order will create a DOUBLE BOOKING.
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
-          {/* Quick Stats Bar */}
-          <div className="mt-4 grid grid-cols-4 gap-3">
-            <div className="bg-green-50 rounded-lg p-3 border-l-4 border-green-500">
-              <div className="text-xl font-bold text-green-700">{stats.available}</div>
-              <div className="text-xs text-green-600 font-medium">Available</div>
-            </div>
-            <div className="bg-yellow-50 rounded-lg p-3 border-l-4 border-yellow-500">
-              <div className="text-xl font-bold text-yellow-700">{stats.inUse}</div>
-              <div className="text-xs text-yellow-600 font-medium">In Use</div>
-            </div>
-            <div className="bg-red-50 rounded-lg p-3 border-l-4 border-red-500">
-              <div className="text-xl font-bold text-red-700">{stats.doubleBooked}</div>
-              <div className="text-xs text-red-600 font-medium">Double Booked</div>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3 border-l-4 border-gray-500">
-              <div className="text-xl font-bold text-gray-700">{stats.blocked}</div>
-              <div className="text-xs text-gray-600 font-medium">Blocked</div>
-            </div>
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={loading || dockInfo?.status === 'blocked'}
+              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                dockInfo?.status === 'blocked'
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : showWarning && dockInfo?.status === 'in-use'
+                  ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+            >
+              {loading ? 'Assigning...' : 
+               showWarning && dockInfo?.status === 'in-use' ? 'Confirm Double Book' : 
+               'Assign Dock'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
           </div>
-        </div>
-      </header>
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <p className="text-gray-600">
-            Real-time dock availability and assignments (Docks 1-70)
+        </form>
+
+        {/* Help Text */}
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <p className="text-xs text-gray-500">
+            💡 <span className="font-medium">Tip:</span> Check the{' '}
+            <a href="/dock-status" target="_blank" className="text-blue-600 hover:underline">
+              Dock Status page
+            </a>{' '}
+            to see all available docks in real-time.
           </p>
-          <p className="mt-1 text-sm text-gray-500">
-            Showing {dockStatuses.length} total docks • Last updated: {formatTime(currentTime)}
-          </p>
-        </div>
-
-        {/* Filter Buttons */}
-        <div className="mb-6 flex gap-2 flex-wrap">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'all'
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-100 shadow'
-            }`}
-          >
-            All Docks ({dockStatuses.length})
-          </button>
-          <button
-            onClick={() => setFilter('available')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'available'
-                ? 'bg-green-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-100 shadow'
-            }`}
-          >
-            ✓ Available ({stats.available})
-          </button>
-          <button
-            onClick={() => setFilter('in-use')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'in-use'
-                ? 'bg-yellow-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-100 shadow'
-            }`}
-          >
-            ● In Use ({stats.inUse})
-          </button>
-          <button
-            onClick={() => setFilter('double-booked')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'double-booked'
-                ? 'bg-red-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-100 shadow'
-            }`}
-          >
-            ⚠ Double Booked ({stats.doubleBooked})
-          </button>
-          <button
-            onClick={() => setFilter('blocked')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'blocked'
-                ? 'bg-gray-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-100 shadow'
-            }`}
-          >
-            🚫 Blocked ({stats.blocked})
-          </button>
-        </div>
-
-        {/* Complete Dock List Table */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 border-b border-blue-800">
-            <h2 className="text-xl font-semibold text-white">
-              Complete Dock Status List
-            </h2>
-          </div>
-          
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Dock #
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Active Orders
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Details
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredDocks.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                      No docks match the current filter
-                    </td>
-                  </tr>
-                ) : (
-                  filteredDocks.map((dock) => (
-                    <tr 
-                      key={dock.dock_number} 
-                      className={
-                        dock.status === 'double-booked' 
-                          ? 'bg-red-50' 
-                          : dock.status === 'blocked'
-                          ? 'bg-gray-50'
-                          : ''
-                      }
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                        Dock {dock.dock_number}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(dock.status)}`}
-                        >
-                          <span>{getStatusIcon(dock.status)}</span>
-                          <span>{dock.status.replace('-', ' ').toUpperCase()}</span>
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {dock.is_manually_blocked ? (
-                          <span className="text-gray-500 italic">Blocked</span>
-                        ) : (
-                          <span className="font-semibold">{dock.orders.length}</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {dock.is_manually_blocked ? (
-                          <div className="text-gray-700">
-                            <span className="font-medium">Reason: </span>
-                            {dock.blocked_reason}
-                          </div>
-                        ) : dock.orders.length > 0 ? (
-                          <div className="space-y-1">
-                            {dock.orders.map((order) => (
-                              <div key={order.id} className="text-xs">
-                                <span className="font-medium">PO: {order.po_number}</span> - {order.driver_name}
-                                <span className="ml-2 text-gray-400 capitalize">({order.status})</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">No active orders</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {dock.is_manually_blocked ? (
-                          <button
-                            onClick={() => handleUnblockDock(dock.dock_number)}
-                            className="inline-flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-md hover:bg-green-200 font-medium transition-colors"
-                          >
-                            ✓ Unblock
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleBlockDock(dock.dock_number)}
-                            className="inline-flex items-center px-3 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 font-medium transition-colors"
-                          >
-                            🚫 Block
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
         </div>
       </div>
-
-      {/* Block Dock Modal */}
-      {showBlockModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Block Dock {selectedDock}
-            </h3>
-            
-            <p className="text-sm text-gray-600 mb-4">
-              This will mark the dock as blocked for dropped trailers or maintenance. 
-              The dock will not accept new orders until unblocked.
-            </p>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Reason for blocking *
-              </label>
-              <textarea
-                value={blockReason}
-                onChange={(e) => setBlockReason(e.target.value)}
-                placeholder="e.g., Dropped trailer - PO #12345, Maintenance required, etc."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                rows={3}
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={submitBlockDock}
-                className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 font-medium transition-colors"
-              >
-                Block Dock
-              </button>
-              <button
-                onClick={() => {
-                  setShowBlockModal(false);
-                  setSelectedDock(null);
-                  setBlockReason('');
-                }}
-                className="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
