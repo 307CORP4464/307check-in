@@ -1,6 +1,6 @@
 export interface CheckIn {
   id: string;
-  pickup_number: string;
+  reference_number: string;
   carrier_name: string;
   trailer_number: string;
   destination_city: string;
@@ -18,13 +18,11 @@ export interface CheckIn {
 
 export type CheckInStatus = 
   | 'pending' 
-  | 'assigned' 
-  | 'loading' 
+  | 'checked in' 
   | 'completed' 
-  | 'departed';
 
 export interface CheckInFormData {
-  pickup_number: string;
+  reference_number: string;
   carrier_name: string;
   trailer_number: string;
   destination_city: string;
