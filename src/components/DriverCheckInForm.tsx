@@ -185,7 +185,7 @@ export default function DriverCheckInForm() {
             carrier_name: formData.carrierName.trim(),
             trailer_number: formData.trailerNumber.trim().toUpperCase(),
             trailer_length: formData.trailerLength,
-            pickup_number: formData.referenceNumber.trim().toUpperCase(), // Changed field name
+            reference_number: formData.referenceNumber.trim().toUpperCase(), // Changed field name
             load_type: formData.loadType,
             destination_city: formData.destinationCity.trim() || null, // Allow null for inbound
             destination_state: formData.destinationState || null, // Allow null for inbound
