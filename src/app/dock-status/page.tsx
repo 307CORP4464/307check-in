@@ -20,6 +20,8 @@ interface DockStatus {
   blocked_reason?: string;
 }
 
+const TOTAL_DOCKS = 70;
+
 export default function DockStatusPage() {
   const [dockStatuses, setDockStatuses] = useState<DockStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +31,7 @@ export default function DockStatusPage() {
   const [filter, setFilter] = useState<'all' | 'available' | 'in-use' | 'double-booked' | 'blocked'>('all');
 
   useEffect(() => {
-    fetchDockStatuses();
+    initializeDocks();
     
     // Set up real-time subscription
     const channel = supabase
@@ -42,7 +44,7 @@ export default function DockStatusPage() {
           table: 'daily_log'
         },
         () => {
-          fetchDockStatuses();
+          initializeDocks();
         }
       )
       .subscribe();
@@ -52,66 +54,64 @@ export default function DockStatusPage() {
     };
   }, []);
 
-  const getBlockedDocks = (): Record<string, { reason: string }> => {
-    if (typeof window === 'undefined') return {};
-    try {
-      const stored = localStorage.getItem('blocked_docks');
-      return stored ? JSON.parse(stored) : {};
-    } catch (error) {
-      console.error('Error reading blocked docks:', error);
-      return {};
+  const initializeDocks = async () => {
+    setLoading(true);
+    
+    // Step 1: Create all 70 docks with default status
+    const allDocks: DockStatus[] = [];
+    
+    for (let i = 1; i <= TOTAL_DOCKS; i++) {
+      allDocks.push({
+        dock_number: i.toString(),
+        status: 'available',
+        orders: [],
+        is_manually_blocked: false,
+        blocked_reason: undefined
+      });
     }
-  };
 
-  const saveBlockedDocks = (blockedDocks: Record<string, { reason: string }>) => {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem('blocked_docks', JSON.stringify(blockedDocks));
-    } catch (error) {
-      console.error('Error saving blocked docks:', error);
+    // Step 2: Get blocked docks from localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        const blockedStr = localStorage.getItem('blocked_docks');
+        if (blockedStr) {
+          const blocked = JSON.parse(blockedStr);
+          Object.keys(blocked).forEach(dockNum => {
+            const dockIndex = parseInt(dockNum) - 1;
+            if (dockIndex >= 0 && dockIndex < TOTAL_DOCKS) {
+              allDocks[dockIndex].status = 'blocked';
+              allDocks[dockIndex].is_manually_blocked = true;
+              allDocks[dockIndex].blocked_reason = blocked[dockNum].reason;
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error loading blocked docks:', error);
+      }
     }
-  };
 
-  const fetchDockStatuses = async () => {
+    // Step 3: Fetch active orders from daily_log
     try {
-      // Fetch all active orders (not completed)
       const { data: logs, error } = await supabase
         .from('daily_log')
         .select('*')
-        .neq('status', 'complete')
-        .order('dock_number')
-        .order('check_in_time');
+        .neq('status', 'complete');
 
-      if (error) throw error;
-
-      // Get manually blocked docks
-      const blockedDocks = getBlockedDocks();
-
-      // Create a map for all 70 docks
-      const dockMap = new Map<string, DockStatus>();
-      
-      // Initialize ALL docks from 1 to 70
-      for (let i = 1; i <= 70; i++) {
-        const dockNum = i.toString();
-        const blockedInfo = blockedDocks[dockNum];
-        
-        dockMap.set(dockNum, {
-          dock_number: dockNum,
-          status: blockedInfo ? 'blocked' : 'available',
-          orders: [],
-          is_manually_blocked: !!blockedInfo,
-          blocked_reason: blockedInfo?.reason
-        });
+      if (error) {
+        console.error('Supabase error:', error);
       }
 
-      // Process logs and update dock statuses
+      // Step 4: Assign orders to docks
       if (logs && logs.length > 0) {
         logs.forEach((log) => {
           if (log.dock_number) {
-            const dock = dockMap.get(log.dock_number);
+            const dockNum = parseInt(log.dock_number);
+            const dockIndex = dockNum - 1;
             
-            if (dock) {
-              // Only add orders if dock is not manually blocked
+            if (dockIndex >= 0 && dockIndex < TOTAL_DOCKS) {
+              const dock = allDocks[dockIndex];
+              
+              // Only add orders if not manually blocked
               if (!dock.is_manually_blocked) {
                 dock.orders.push({
                   id: log.id,
@@ -121,34 +121,24 @@ export default function DockStatusPage() {
                   check_in_time: log.check_in_time
                 });
 
-                // Update status based on number of orders
+                // Update status based on order count
                 if (dock.orders.length === 1) {
                   dock.status = 'in-use';
                 } else if (dock.orders.length > 1) {
                   dock.status = 'double-booked';
                 }
               }
-
-              dockMap.set(log.dock_number, dock);
             }
           }
         });
       }
-
-      // Convert map to array and sort numerically
-      const docksArray = Array.from(dockMap.values()).sort((a, b) => {
-        const numA = parseInt(a.dock_number);
-        const numB = parseInt(b.dock_number);
-        return numA - numB;
-      });
-
-      console.log('Total docks initialized:', docksArray.length); // Debug log
-      setDockStatuses(docksArray);
     } catch (error) {
-      console.error('Error fetching dock statuses:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error fetching logs:', error);
     }
+
+    console.log('Initialized docks:', allDocks.length);
+    setDockStatuses(allDocks);
+    setLoading(false);
   };
 
   const handleBlockDock = (dockNumber: string) => {
@@ -159,10 +149,17 @@ export default function DockStatusPage() {
   };
 
   const handleUnblockDock = (dockNumber: string) => {
-    const blockedDocks = getBlockedDocks();
-    delete blockedDocks[dockNumber];
-    saveBlockedDocks(blockedDocks);
-    fetchDockStatuses();
+    if (typeof window === 'undefined') return;
+    
+    try {
+      const blockedStr = localStorage.getItem('blocked_docks');
+      const blocked = blockedStr ? JSON.parse(blockedStr) : {};
+      delete blocked[dockNumber];
+      localStorage.setItem('blocked_docks', JSON.stringify(blocked));
+      initializeDocks();
+    } catch (error) {
+      console.error('Error unblocking dock:', error);
+    }
   };
 
   const submitBlockDock = () => {
@@ -171,28 +168,35 @@ export default function DockStatusPage() {
       return;
     }
 
-    const blockedDocks = getBlockedDocks();
-    blockedDocks[selectedDock] = { reason: blockReason.trim() };
-    saveBlockedDocks(blockedDocks);
-    
-    setShowBlockModal(false);
-    setSelectedDock(null);
-    setBlockReason('');
-    fetchDockStatuses();
+    if (typeof window === 'undefined') return;
+
+    try {
+      const blockedStr = localStorage.getItem('blocked_docks');
+      const blocked = blockedStr ? JSON.parse(blockedStr) : {};
+      blocked[selectedDock] = { reason: blockReason.trim() };
+      localStorage.setItem('blocked_docks', JSON.stringify(blocked));
+      
+      setShowBlockModal(false);
+      setSelectedDock(null);
+      setBlockReason('');
+      initializeDocks();
+    } catch (error) {
+      console.error('Error blocking dock:', error);
+    }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'available':
-        return 'bg-green-100 text-green-800 border-green-300';
+        return 'bg-green-100 text-green-800';
       case 'in-use':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+        return 'bg-yellow-100 text-yellow-800';
       case 'double-booked':
-        return 'bg-red-100 text-red-800 border-red-300';
+        return 'bg-red-100 text-red-800';
       case 'blocked':
-        return 'bg-gray-100 text-gray-800 border-gray-400';
+        return 'bg-gray-100 text-gray-800';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -275,7 +279,7 @@ export default function DockStatusPage() {
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               filter === 'all'
                 ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                : 'bg-white text-gray-700 hover:bg-gray-100 shadow'
             }`}
           >
             All Docks ({dockStatuses.length})
@@ -285,7 +289,7 @@ export default function DockStatusPage() {
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               filter === 'available'
                 ? 'bg-green-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                : 'bg-white text-gray-700 hover:bg-gray-100 shadow'
             }`}
           >
             Available ({stats.available})
@@ -295,7 +299,7 @@ export default function DockStatusPage() {
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               filter === 'in-use'
                 ? 'bg-yellow-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                : 'bg-white text-gray-700 hover:bg-gray-100 shadow'
             }`}
           >
             In Use ({stats.inUse})
@@ -305,7 +309,7 @@ export default function DockStatusPage() {
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               filter === 'double-booked'
                 ? 'bg-red-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                : 'bg-white text-gray-700 hover:bg-gray-100 shadow'
             }`}
           >
             Double Booked ({stats.doubleBooked})
@@ -315,7 +319,7 @@ export default function DockStatusPage() {
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               filter === 'blocked'
                 ? 'bg-gray-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                : 'bg-white text-gray-700 hover:bg-gray-100 shadow'
             }`}
           >
             Blocked ({stats.blocked})
@@ -375,15 +379,7 @@ export default function DockStatusPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-full ${
-                            dock.status === 'available'
-                              ? 'bg-green-100 text-green-800'
-                              : dock.status === 'in-use'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : dock.status === 'double-booked'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
+                          className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(dock.status)}`}
                         >
                           <span>{getStatusIcon(dock.status)}</span>
                           <span>{dock.status.replace('-', ' ').toUpperCase()}</span>
