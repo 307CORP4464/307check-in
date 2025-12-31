@@ -16,7 +16,7 @@ interface DockInfo {
   status: 'available' | 'in-use' | 'blocked';
   orders: Array<{
     reference_number: string;
-    driver_name: string;
+    trailer_nunber: string;
   }>;
 }
 
@@ -60,7 +60,7 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
       // Check for existing orders on this dock
       const { data: existingOrders, error } = await supabase
         .from('daily_log')
-        .select('reference_number, driver_name, dock_number')
+        .select('reference_number, trailer_number, dock_number')
         .eq('dock_number', dock)
         .neq('status', 'complete');
 
