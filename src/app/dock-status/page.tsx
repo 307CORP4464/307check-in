@@ -4,16 +4,18 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import DashboardHeader from '@/components/DashboardHeader';
 
+interface OrderInfo {
+  id: string;
+  po_number: string;
+  driver_name: string;
+  status: string;
+  check_in_time: string;
+}
+
 interface DockStatus {
   dock_number: string;
   status: 'available' | 'in-use' | 'double-booked';
-  orders: {
-    id: string;
-    po_number: string;
-    driver_name: string;
-    status: string;
-    check_in_time: string;
-  }[];
+  orders: OrderInfo[];
 }
 
 export default function DockStatusPage() {
@@ -65,17 +67,19 @@ export default function DockStatusPage() {
         dockMap.set(dockNum, {
           dock_number: dockNum,
           status: 'available',
-          orders: []
+          orders: [] as OrderInfo[] // Fixed: Explicit type
         });
       }
 
       // Process logs and assign to docks
       logs?.forEach((log) => {
         if (log.dock_number) {
-          const dock = dockMap.get(log.dock_number) || {
+          const existingDock = dockMap.get(log.dock_number);
+          
+          const dock: DockStatus = existingDock || {
             dock_number: log.dock_number,
-            status: 'available' as const,
-            orders: []
+            status: 'available',
+            orders: [] as OrderInfo[] // Fixed: Explicit type
           };
 
           dock.orders.push({
