@@ -172,3 +172,117 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
               onChange={(e) => setDockNumber(e.target.value)}
               placeholder="Enter dock number (1-70)"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+              autoFocus
+            />
+            {checkingDock && (
+              <p className="mt-1 text-xs text-gray-500">Checking dock status...</p>
+            )}
+          </div>
+
+          {/* Dock Status Indicator */}
+          {dockInfo && !checkingDock && (
+            <div className={`mb-4 p-3 rounded-lg border-2 ${
+              dockInfo.status === 'available' 
+                ? 'bg-green-50 border-green-300' 
+                : dockInfo.status === 'blocked'
+                ? 'bg-gray-50 border-gray-400'
+                : 'bg-yellow-50 border-yellow-300'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">
+                  {dockInfo.status === 'available' ? '✓' : dockInfo.status === 'blocked' ? '🚫' : '⚠'}
+                </span>
+                <span className={`font-semibold ${
+                  dockInfo.status === 'available' 
+                    ? 'text-green-800' 
+                    : dockInfo.status === 'blocked'
+                    ? 'text-gray-800'
+                    : 'text-yellow-800'
+                }`}>
+                  Dock {dockInfo.dock_number} - {dockInfo.status.toUpperCase().replace('-', ' ')}
+                </span>
+              </div>
+              
+              {dockInfo.status === 'available' && (
+                <p className="text-sm text-green-700">
+                  This dock is available for assignment.
+                </p>
+              )}
+              
+              {dockInfo.status === 'blocked' && (
+                <div>
+                  <p className="text-sm text-gray-700 font-medium mb-1">
+                    ⚠️ This dock is currently blocked and cannot accept assignments.
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    Please unblock it from the Dock Status page or choose a different dock.
+                  </p>
+                </div>
+              )}
+              
+              {dockInfo.status === 'in-use' && (
+                <div>
+                  <p className="text-sm text-yellow-800 font-medium mb-2">
+                    ⚠️ Warning: This dock already has active orders!
+                  </p>
+                  <div className="text-xs text-yellow-700 space-y-1">
+                    {dockInfo.orders.map((order, idx) => (
+                      <div key={idx} className="bg-white bg-opacity-50 p-2 rounded">
+                        <span className="font-medium">PO: {order.po_number}</span>
+                        <br />
+                        <span>Driver: {order.driver_name}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-yellow-800 mt-2 font-medium">
+                    Assigning this order will create a DOUBLE BOOKING.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={loading || dockInfo?.status === 'blocked'}
+              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                dockInfo?.status === 'blocked'
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : showWarning && dockInfo?.status === 'in-use'
+                  ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+            >
+              {loading ? 'Assigning...' : 
+               showWarning && dockInfo?.status === 'in-use' ? 'Confirm Double Booking' : 
+               'Assign Dock'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+
+        {/* Help Text */}
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <p className="text-xs text-gray-500">
+            💡 <span className="font-medium">Tip:</span> Check the{' '}
+            <a href="/dock-status" target="_blank" className="text-blue-600 hover:underline">
+              Dock Status page
+            </a>{' '}
+            to see all available docks in real-time.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
