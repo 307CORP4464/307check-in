@@ -2,15 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { CheckIn } from '@/types';
 
 interface AssignDockModalProps {
   isOpen: boolean;
   onClose: () => void;
-  logEntry: {
-    id: string;
-    po_number: string;
-    driver_name: string;
-  };
+  logEntry: CheckIn;
   onSuccess: () => void;
 }
 
@@ -18,7 +15,7 @@ interface DockInfo {
   dock_number: string;
   status: 'available' | 'in-use' | 'blocked';
   orders: Array<{
-    po_number: string;
+    reference_number: string;
     driver_name: string;
   }>;
 }
@@ -63,7 +60,7 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
       // Check for existing orders on this dock
       const { data: existingOrders, error } = await supabase
         .from('daily_log')
-        .select('po_number, driver_name, dock_number')
+        .select('reference_number, driver_name, dock_number')
         .eq('dock_number', dock)
         .neq('status', 'complete');
 
@@ -109,7 +106,7 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
       const confirmDouble = window.confirm(
         `⚠️ WARNING: Dock ${dockNumber} is already in use!\n\n` +
         `Current orders on this dock:\n` +
-        dockInfo.orders.map(o => `• PO: ${o.po_number} - ${o.driver_name}`).join('\n') +
+        dockInfo.orders.map(o => `• Ref: ${o.reference_number} - ${o.driver_name}`).join('\n') +
         `\n\nAssigning another order will create a DOUBLE BOOKING.\n\n` +
         `Do you want to proceed with double booking this dock?`
       );
@@ -156,7 +153,7 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
 
         <div className="mb-4 p-3 bg-blue-50 rounded-lg">
           <div className="text-sm text-gray-700">
-            <p className="font-medium">PO Number: {logEntry.po_number}</p>
+            <p className="font-medium">Reference #: {logEntry.reference_number}</p>
             <p>Driver: {logEntry.driver_name}</p>
           </div>
         </div>
@@ -229,7 +226,7 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
                   <div className="text-xs text-yellow-700 space-y-1">
                     {dockInfo.orders.map((order, idx) => (
                       <div key={idx} className="bg-white bg-opacity-50 p-2 rounded">
-                        <span className="font-medium">PO: {order.po_number}</span>
+                        <span className="font-medium">Ref #: {order.reference_number}</span>
                         <br />
                         <span>Driver: {order.driver_name}</span>
                       </div>
@@ -257,7 +254,7 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
               }`}
             >
               {loading ? 'Assigning...' : 
-               showWarning && dockInfo?.status === 'in-use' ? 'Confirm Double Booking' : 
+               showWarning && dockInfo?.status === 'in-use' ? 'Confirm Double Book' : 
                'Assign Dock'}
             </button>
             <button
