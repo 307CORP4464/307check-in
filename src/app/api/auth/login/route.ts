@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server'; 
 
 // IMPORTANT: Change these credentials!
 const VALID_CREDENTIALS = {
