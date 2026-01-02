@@ -152,21 +152,24 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess }: EditCh
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Select...</option>
-                <option value="work_in">Work In</option>
-                <option value="paid_to_load">Paid - No Appt</option>
-                <option value="paid_charge_customer">Paid - Charge Customer</option>
-                <option value="LTL">LTL</option>
-                <option value="0700">07:00</option>
-                <option value="0800">08:00</option>
-                <option value="0900">09:00</option>
-                <option value="1000">10:00</option>
-                <option value="1100">11:00</option>
-                <option value="1200">12:00</option>
-                <option value="1300">13:00</option>
-                <option value="1400">14:00</option>
-                <option value="1500">15:00</option>
-                <option value="1600">16:00</option>
+               <option value="">Select...</option>
+              <option value="work_in">Work In</option>
+              <option value="paid_to_load">Paid - No Appt</option>
+              <option value="paid_charge_customer">Paid - Charge Customer</option>
+              <option value="LTL">LTL</option>
+              <option value="0800">08:00</option>
+              <option value="0900">09:00</option>
+              <option value="0930">09:30</option>
+              <option value="1000">10:00</option>
+              <option value="1030">10:30</option>
+              <option value="1100">11:00</option>
+              <option value="1230">12:30</option>
+              <option value="1300">13:00</option>
+              <option value="1330">13:30</option>
+              <option value="1400">14:00</option>
+              <option value="1430">14:30</option>
+              <option value="1500">15:00</option>
+              <option value="1530">15:30</option>
               </select>
             </div>
 
