@@ -303,11 +303,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
     }, 250);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
     if (!appointmentTime) {
       setError('Please select an appointment time');
       setLoading(false);
