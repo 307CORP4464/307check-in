@@ -1,36 +1,61 @@
+// src/app/dashboard/page.tsx or similar
+
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { getCurrentUser } from '@/lib/auth';
-import CSRDashboard from '@/components/CSRDashboard';
 
-export default function DashboardPage() {
+export default function CSRDashboard() {
+  const [checkIns, setCheckIns] = useState([]);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { user, error } = await getCurrentUser();
-      
-      if (error || !user) {
-        router.push('/dashboard/login');
-        return;
-      }
-      
-      setLoading(false);
-    };
+    async function fetchCheckIns() {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await fetch('/api/check-ins', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
 
-    checkAuth();
-  }, [router]);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setCheckIns(data.checkIns || []);
+      } catch (err) {
+        console.error('Fetch error:', err);
+        setError('Failed to fetch check-ins');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchCheckIns();
+  }, []);
 
   if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
+      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        {error}
       </div>
     );
   }
 
-  return <CSRDashboard />;
+  return (
+    <div>
+      <h1>CSR Dashboard</h1>
+      <div>Pending Check-Ins: {checkIns.length}</div>
+      {/* Rest of your component */}
+    </div>
+  );
 }
