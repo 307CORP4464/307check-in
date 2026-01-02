@@ -250,6 +250,9 @@ export default function CSRDashboard() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Check-in Time
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -278,39 +281,51 @@ export default function CSRDashboard() {
                     const waitTimeColor = getWaitTimeColor(ci);
                     return (
                       <tr key={ci.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          {formatTimeInIndianapolis(ci.check_in_time, true)}
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            ci.load_type === 'inbound' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-orange-100 text-orange-800'
+                          }`}>
+                            {ci.load_type === 'inbound' ? 'I' : 'O'}
+                          </span>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {formatTimeInIndianapolis(ci.check_in_time)}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                           {ci.reference_number || 'N/A'}
                         </td>
-                        <td className="px-4 py-4 text-sm">
-                          <div>{ci.driver_name || 'N/A'}</div>
-                          <div className="text-gray-500 text-xs">{formatPhoneNumber(ci.driver_phone)}</div>
-                          <div className="text-gray-500 text-xs">{ci.carrier_name || 'N/A'}</div>
+                        <td className="px-4 py-4 text-sm text-gray-900">
+                          <div className="font-medium">{ci.driver_name || 'N/A'}</div>
+                          <div className="text-gray-500">{formatPhoneNumber(ci.driver_phone)}</div>
+                          {ci.carrier_name && <div className="text-gray-500 text-xs">{ci.carrier_name}</div>}
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          {ci.trailer_number || 'N/A'}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div>{ci.trailer_number || 'N/A'}</div>
+                          {ci.trailer_length && <div className="text-gray-500 text-xs">{ci.trailer_length}'</div>}
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          {ci.destination || 'N/A'}
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {ci.destination_city && ci.destination_state 
+                            ? `${ci.destination_city}, ${ci.destination_state}`
+                            : 'N/A'}
                         </td>
-                        <td className={`px-4 py-4 whitespace-nowrap text-sm font-semibold ${waitTimeColor}`}>
+                        <td className={`px-4 py-4 whitespace-nowrap text-sm font-medium ${waitTimeColor}`}>
                           {waitTime}
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-center text-sm">
+                        <td className="px-4 py-4 whitespace-nowrap text-center">
                           <div className="flex gap-2 justify-center">
                             <button
-                              onClick={() => handleAssignDock(ci)}
-                              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
-                            >
-                              Assign Dock
-                            </button>
-                            <button
                               onClick={() => handleEdit(ci)}
-                              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+                              className="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 text-sm"
                             >
                               Edit
+                            </button>
+                            <button
+                              onClick={() => handleAssignDock(ci)}
+                              className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm"
+                            >
+                              Assign Dock
                             </button>
                           </div>
                         </td>
@@ -324,9 +339,10 @@ export default function CSRDashboard() {
         </div>
       </div>
 
+           {/* Assign Dock Modal */}
       {selectedForDock && (
         <AssignDockModal
-          checkIn={selectedForDock}
+          logEntry={selectedForDock}
           onClose={() => setSelectedForDock(null)}
           onSuccess={handleDockAssignSuccess}
         />
@@ -342,4 +358,3 @@ export default function CSRDashboard() {
     </div>
   );
 }
-
