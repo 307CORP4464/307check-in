@@ -9,147 +9,7 @@ import EditCheckInModal from './EditCheckInModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
-const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
-  try {
-    const utcDate = new Date(isoString);
-    
-    const options: Intl.DateTimeFormatOptions = {
-      timeZone: TIMEZONE,
-      hour12: false,
-      ...(includeDate && {
-        month: '2-digit',
-        day: '2-digit',
-      }),
-      hour: '2-digit',
-      minute: '2-digit',
-    };
-    
-    const formatter = new Intl.DateTimeFormat('en-US', options);
-    return formatter.format(utcDate);
-  } catch (e) {
-    console.error('Time formatting error:', e);
-    return '-';
-  }
-};
-
-const formatPhoneNumber = (phone: string | undefined): string => {
-  if (!phone) return 'N/A';
-  
-  const cleaned = phone.replace(/\D/g, '');
-  
-  if (cleaned.length === 10) {
-    return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
-  }
-  
-  return phone;
-};
-
-const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
-  if (!appointmentTime) return 'N/A';
-  
-  if (appointmentTime === 'work_in') return 'Work In';
-  if (appointmentTime === 'paid_to_load') return 'Paid - No Appt';
-  if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
-  if (appointmentTime === 'ltl') return 'LTL';
-  
-  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-    const hours = appointmentTime.substring(0, 2);
-    const minutes = appointmentTime.substring(2, 4);
-    return `${hours}:${minutes}`;
-  }
-  
-  return appointmentTime;
-};
-
-const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
-  if (!appointmentTime || 
-      appointmentTime === 'work_in' || 
-      appointmentTime === 'paid_to_load' || 
-      appointmentTime === 'paid_charge_customer' ||
-      appointmentTime === 'ltl') {
-    return false;
-  }
-
-  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-    const appointmentHour = parseInt(appointmentTime.substring(0, 2));
-    const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
-    
-    const checkInDate = new Date(checkInTime);
-    
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: false
-    });
-    
-    const timeString = formatter.format(checkInDate);
-    const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
-    
-    const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-    const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
-    
-    const difference = checkInTotalMinutes - appointmentTotalMinutes;
-    return difference <= 0;
-  }
-  
-  return false;
-};
-
-const calculateDetention = (checkIn: CheckIn): string => {
-  if (!checkIn.appointment_time || !checkIn.end_time) {
-    return '-';
-  }
-
-  if (!isOnTime(checkIn.check_in_time, checkIn.appointment_time)) {
-    return '-';
-  }
-
-  if (checkIn.appointment_time === 'work_in' || 
-      checkIn.appointment_time === 'paid_to_load' || 
-      checkIn.appointment_time === 'paid_charge_customer' ||
-      checkIn.appointment_time === 'ltl') {
-    return '-';
-  }
-
-  const endTime = new Date(checkIn.end_time);
-  const standardMinutes = 120;
-  let detentionMinutes = 0;
-
-  if (checkIn.appointment_time.length === 4 && /^\d{4}$/.test(checkIn.appointment_time)) {
-    const appointmentHour = parseInt(checkIn.appointment_time.substring(0, 2));
-    const appointmentMinute = parseInt(checkIn.appointment_time.substring(2, 4));
-    
-    const checkInDate = new Date(checkIn.check_in_time);
-    
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    
-    const parts = formatter.formatToParts(checkInDate);
-    const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
-    const month = parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1;
-    const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
-    
-    const appointmentDate = new Date(checkInDate);
-    appointmentDate.setFullYear(year, month, day);
-    appointmentDate.setHours(appointmentHour, appointmentMinute, 0, 0);
-    
-    const timeSinceAppointmentMs = endTime.getTime() - appointmentDate.getTime();
-    const minutesSinceAppointment = Math.floor(timeSinceAppointmentMs / (1000 * 60));
-    
-    detentionMinutes = Math.max(0, minutesSinceAppointment - standardMinutes);
-  }
-  
-  if (detentionMinutes === 0) {
-    return '-';
-  }
-  
-  return `${detentionMinutes} min`;
-};
+// ... (keep all the helper functions the same until the component)
 
 interface CheckIn {
   id: string;
@@ -283,6 +143,10 @@ export default function DailyLog() {
   const getStatusBadgeColor = (status: string): string => {
     const statusLower = status.toLowerCase();
     if (statusLower === 'completed' || statusLower === 'checked_out') return 'bg-gray-500 text-white';
+    if (statusLower === 'unloaded') return 'bg-green-500 text-white';
+    if (statusLower === 'rejected') return 'bg-red-500 text-white';
+    if (statusLower === 'turned_away') return 'bg-orange-500 text-white';
+    if (statusLower === 'driver_left') return 'bg-indigo-500 text-white';
     if (statusLower === 'pending') return 'bg-yellow-500 text-white';
     if (statusLower === 'checked_in') return 'bg-purple-500 text-white';
     return 'bg-gray-500 text-white';
@@ -291,12 +155,31 @@ export default function DailyLog() {
   const getStatusLabel = (status: string): string => {
     if (status === 'checked_in') return 'Checked In';
     if (status === 'checked_out') return 'Checked Out';
+    if (status === 'turned_away') return 'Turned Away';
+    if (status === 'driver_left') return 'Driver Left';
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
+  // Helper function to check if a status is considered "completed"
+  const isCompletedStatus = (status: string): boolean => {
+    const statusLower = status.toLowerCase();
+    return (
+      statusLower === 'completed' || 
+      statusLower === 'checked_out' ||
+      statusLower === 'unloaded' ||
+      statusLower === 'rejected' ||
+      statusLower === 'turned_away' ||
+      statusLower === 'driver_left'
+    );
+  };
+
+  // Updated stats calculations
   const totalCheckIns = filteredCheckIns.length;
-  const activeCheckIns = filteredCheckIns.filter(c => c.status.toLowerCase() === 'checked_in' || c.status.toLowerCase() === 'pending').length;
-  const completedCheckIns = filteredCheckIns.filter(c => c.status.toLowerCase() === 'completed' || c.status.toLowerCase() === 'checked_out').length;
+  const activeCheckIns = filteredCheckIns.filter(c => {
+    const statusLower = c.status.toLowerCase();
+    return statusLower === 'checked_in' || statusLower === 'pending';
+  }).length;
+  const completedCheckIns = filteredCheckIns.filter(c => isCompletedStatus(c.status)).length;
 
   if (loading) {
     return (
@@ -306,24 +189,35 @@ export default function DailyLog() {
     );
   }
 
-  return (
+ return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Header - CSR Dashboard Style */}
       <div className="bg-white border-b shadow-sm">
         <div className="max-w-[1600px] mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">Daily Log</h1>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">{userEmail}</span>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Daily Log</h1>
+              {userEmail && (
+                <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
+              )}
+              <p className="text-xs text-gray-500">Current time: {formatTimeInIndianapolis(new Date().toISOString())}</p>
+            </div>
+            <div className="flex gap-3">
               <Link
-                href="/csr-dashboard"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                href="/dashboard"
+                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
               >
-                Back to Dashboard
+                Dashboard
+              </Link>
+              <Link
+                href="/tracking"
+                className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
+              >
+                Tracking
               </Link>
               <button
                 onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors font-medium"
               >
                 Logout
               </button>
@@ -440,7 +334,7 @@ export default function DailyLog() {
           </div>
         </div>
 
-        {/* Check-ins Table - NEW LAYOUT */}
+        {/* Check-ins Table */}
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -471,9 +365,6 @@ export default function DailyLog() {
                     End Time
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Dock
-                  </th>
-                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Detention
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -565,11 +456,6 @@ export default function DailyLog() {
                       {/* End Time */}
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time, true) : '-'}
-                      </td>
-
-                        {/* Dock */}
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <span className="font-bold text-sm text-gray-900">{checkIn.dock_number || '-'}</span>
                       </td>
 
                       {/* Detention */}
