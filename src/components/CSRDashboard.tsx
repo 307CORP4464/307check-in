@@ -117,6 +117,7 @@ export default function CSRDashboard() {
       setCheckIns(data || []);
     } catch (error) {
       console.error('Error fetching check-ins:', error);
+      setError('Failed to fetch check-ins');
     } finally {
       setLoading(false);
     }
@@ -292,24 +293,22 @@ export default function CSRDashboard() {
                           {ci.trailer_number || 'N/A'}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          {ci.destination_city && ci.destination_state 
-                            ? `${ci.destination_city}, ${ci.destination_state}`
-                            : 'N/A'}
+                          {ci.destination || 'N/A'}
                         </td>
                         <td className={`px-4 py-4 whitespace-nowrap text-sm font-semibold ${waitTimeColor}`}>
                           {waitTime}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-center text-sm">
-                          <div className="flex justify-center gap-2">
+                          <div className="flex gap-2 justify-center">
                             <button
                               onClick={() => handleAssignDock(ci)}
-                              className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors text-xs"
+                              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
                             >
                               Assign Dock
                             </button>
                             <button
                               onClick={() => handleEdit(ci)}
-                              className="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 transition-colors text-xs"
+                              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
                             >
                               Edit
                             </button>
@@ -325,25 +324,21 @@ export default function CSRDashboard() {
         </div>
       </div>
 
-     {/* Assign Dock Modal */}
       {selectedForDock && (
         <AssignDockModal
-          isOpen={!!selectedForDock}
-          logEntry={selectedForDock}
+          checkIn={selectedForDock}
           onClose={() => setSelectedForDock(null)}
           onSuccess={handleDockAssignSuccess}
-  />
-)}
+        />
+      )}
 
-
-      {/* Edit Modal */}
       {selectedForEdit && (
-  <EditCheckInModal
-    checkIn={selectedForEdit}
-    onClose={() => setSelectedForEdit(null)}
-    onSuccess={handleEditSuccess}
-  />
-)}
+        <EditCheckInModal
+          checkIn={selectedForEdit}
+          onClose={() => setSelectedForEdit(null)}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </div>
   );
 }
