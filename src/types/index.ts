@@ -1,6 +1,6 @@
 export interface CheckIn {
   id: string;
-  load_type: string;
+  load_type: 'inbound' | 'outbound';
   reference_number: string;
   carrier_name: string;
   trailer_number: string;
@@ -24,6 +24,7 @@ export type CheckInStatus =
   | 'completed' 
 
 export interface CheckInFormData {
+  load_type: 'inbound' | 'outbound';
   reference_number: string;
   carrier_name: string;
   trailer_number: string;
