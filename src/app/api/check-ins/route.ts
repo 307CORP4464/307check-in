@@ -1,14 +1,20 @@
 
 
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
     const { data: checkIns, error } = await supabase
-      .from('check_ins') // Replace with your actual table name
+      .from('check_ins')
       .select('*')
-      .order('created_at', { ascending: false });
+      .eq('status', 'pending')
+      .order('check_in_time', { ascending: false });
 
     if (error) {
       console.error('Supabase error:', error);
