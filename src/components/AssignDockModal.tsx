@@ -1,8 +1,28 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { CheckIn } from '@/types';
+import { createBrowserClient } from '@supabase/ssr';
+
+interface CheckIn {
+  id: string;
+  check_in_time: string;
+  check_out_time?: string | null;
+  status: string;
+  driver_name?: string;
+  driver_phone?: string;
+  carrier_name?: string;
+  trailer_number?: string;
+  trailer_length?: string;
+  load_type?: 'inbound' | 'outbound';
+  reference_number?: string;
+  dock_number?: string;
+  appointment_time?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  destination_city?: string;
+  destination_state?: string;
+  notes?: string;
+}
 
 interface AssignDockModalProps {
   isOpen: boolean;
@@ -21,6 +41,11 @@ interface DockInfo {
 }
 
 export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }: AssignDockModalProps) {
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
   const [dockNumber, setDockNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [dockInfo, setDockInfo] = useState<DockInfo | null>(null);
@@ -59,10 +84,10 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
 
       // Check for existing orders on this dock
       const { data: existingOrders, error } = await supabase
-        .from('check-ins')
+        .from('check_ins')  // Changed from 'daily_log'
         .select('reference_number, trailer_number')
         .eq('dock_number', dock)
-        .neq('status', 'complete');
+        .in('status', ['assigned', 'loading']); // Changed from 'complete'
 
       if (error) throw error;
 
@@ -120,10 +145,11 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
 
     try {
       const { error } = await supabase
-        .from('daily_log')
+        .from('check_ins')  // Changed from 'daily_log'
         .update({ 
           dock_number: dockNumber.trim(),
-          updated_at: new Date().toISOString()
+          status: 'assigned',
+          start_time: new Date().toISOString()
         })
         .eq('id', logEntry.id);
 
@@ -282,3 +308,4 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
     </div>
   );
 }
+
