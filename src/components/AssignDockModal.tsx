@@ -319,46 +319,40 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     }
   };
 
-  // ADD async keyword here
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+// In AssignDockModal, after successful assignment
+const handleAssign = async () => {
+  setLoading(true);
+  setError(null);
 
-    if (!dockNumber.trim()) {
-      setError('Please enter a dock number');
-      return;
+  try {
+    const { error: updateError } = await supabase
+      .from('check_ins')
+      .update({
+        dock_number: dockNumber,
+        appointment_time: appointmentTime,
+        status: 'checked_in'
+      })
+      .eq('id', checkIn.id);
+
+    if (updateError) throw updateError;
+
+    // Trigger custom event for dock status update
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('dock-assignment-changed', {
+        detail: { dockNumber, checkInId: checkIn.id }
+      }));
     }
 
-    if (!appointmentTime) {
-      setError('Please select an appointment time');
-      return;
-    }
+    printReceipt();
+    onSuccess();
+    onClose();
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to assign dock');
+  } finally {
+    setLoading(false);
+  }
+};
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      const { error: updateError } = await supabase
-        .from('check_ins')
-        .update({
-          dock_number: dockNumber,
-          appointment_time: appointmentTime || null,
-          status: 'checked_in',
-          start_time: new Date().toISOString(),
-        })
-        .eq('id', checkIn.id);
-
-      if (updateError) throw updateError;
-
-      printReceipt();
-      onSuccess();
-      onClose();
-    } catch (err) {
-      console.error('Error assigning dock:', err);
-      setError(err instanceof Error ? err.message : 'Failed to assign dock');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
     if (checkIn.appointment_time) {
