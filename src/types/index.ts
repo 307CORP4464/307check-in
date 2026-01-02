@@ -1,6 +1,6 @@
 export interface CheckIn {
   id: string;
-  load_type: sting;
+  load_type: string;
   reference_number: string;
   carrier_name: string;
   trailer_number: string;
