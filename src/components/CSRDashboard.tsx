@@ -7,7 +7,6 @@ import { differenceInMinutes } from 'date-fns';
 import Link from 'next/link';
 import AssignDockModal from './AssignDockModal';
 import EditCheckInModal from './EditCheckInModal';
-import { CheckIn } from '@/types';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
@@ -55,6 +54,27 @@ const formatPhoneNumber = (phone: string | undefined): string => {
   return phone;
 };
 
+interface CheckIn {
+  id: string;
+  check_in_time: string;
+  check_out_time?: string | null;
+  status: string;
+  driver_name?: string;
+  driver_phone?: string;
+  carrier_name?: string;
+  trailer_number?: string;
+  trailer_length?: string;
+  load_type?: 'inbound' | 'outbound';
+  reference_number?: string;
+  dock_number?: string;
+  appointment_time?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  destination_city?: string;
+  destination_state?: string;
+  notes?: string;
+}
+
 export default function CSRDashboard() {
   const router = useRouter();
   const supabase = createBrowserClient(
@@ -86,7 +106,7 @@ export default function CSRDashboard() {
       .channel('check_ins_changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'daily_log' },
+        { event: '*', schema: 'public', table: 'check_ins' },
         () => {
           fetchCheckIns();
         }
@@ -99,18 +119,26 @@ export default function CSRDashboard() {
   }, [supabase]);
 
   const fetchCheckIns = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
+      setError(null);
+      
       const { data, error } = await supabase
-        .from('daily_log')
+        .from('check_ins')
         .select('*')
+        .eq('status', 'pending')
         .order('check_in_time', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      
+      console.log('Fetched check-ins:', data);
       setCheckIns(data || []);
-    } catch (error) {
-      console.error('Error fetching check-ins:', error);
-      setError('Failed to fetch check-ins');
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -243,10 +271,10 @@ export default function CSRDashboard() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Check-in Time
+                      Type
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Load Type
+                      Check-in Time
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Reference Number
@@ -274,51 +302,53 @@ export default function CSRDashboard() {
                     const waitTimeColor = getWaitTimeColor(ci);
                     return (
                       <tr key={ci.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          {formatTimeInIndianapolis(ci.check_in_time, true)}
-                        </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             ci.load_type === 'inbound' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-orange-100 text-orange-800'
+                              ? 'bg-blue-100 text-blue-800' 
+                              : 'bg-green-100 text-green-800'
                           }`}>
-                            {ci.load_type}
+                            {ci.load_type === 'inbound' ? 'Inbound' : 'Outbound'}
                           </span>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {formatTimeInIndianapolis(ci.check_in_time, true)}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                           {ci.reference_number || 'N/A'}
                         </td>
-                        <td className="px-4 py-4 text-sm">
-                          <div>{ci.driver_name || 'N/A'}</div>
-                          <div className="text-gray-500 text-xs">{formatPhoneNumber(ci.driver_phone)}</div>
+                        <td className="px-4 py-4 text-sm text-gray-900">
+                          <div className="font-medium">{ci.driver_name || 'N/A'}</div>
+                          <div className="text-gray-500">{formatPhoneNumber(ci.driver_phone)}</div>
                           <div className="text-gray-500 text-xs">{ci.carrier_name || 'N/A'}</div>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
+                        <td className="px-4 py-4 text-sm text-gray-900">
                           <div>{ci.trailer_number || 'N/A'}</div>
-                          <div className="text-gray-500 text-xs">{ci.trailer_length ? `${ci.trailer_length}'` : ''}</div>
+                          <div className="text-gray-500 text-xs">{ci.trailer_length || 'N/A'}</div>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
+                        <td className="px-4 py-4 text-sm text-gray-900">
                           {ci.destination_city && ci.destination_state 
                             ? `${ci.destination_city}, ${ci.destination_state}`
                             : 'N/A'}
                         </td>
-                        <td className={`px-4 py-4 whitespace-nowrap text-sm font-semibold ${waitTimeColor}`}>
-                          {waitTime}
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <span className={`text-sm font-semibold ${waitTimeColor}`}>
+                            {waitTime}
+                          </span>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-center text-sm">
+                        <td className="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
                           <div className="flex gap-2 justify-center">
                             <button
-                              onClick={() => handleAssignDock(ci)}
-                              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
-                            >
-                              Assign Dock
-                            </button>
-                            <button
                               onClick={() => handleEdit(ci)}
-                              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+                              className="text-blue-600 hover:text-blue-900"
                             >
                               Edit
+                            </button>
+                            <button
+                              onClick={() => handleAssignDock(ci)}
+                              className="text-green-600 hover:text-green-900"
+                            >
+                              Assign Dock
                             </button>
                           </div>
                         </td>
@@ -332,17 +362,14 @@ export default function CSRDashboard() {
         </div>
       </div>
 
-      {/* Assign Dock Modal */}
       {selectedForDock && (
         <AssignDockModal
-          isOpen={true}
-          logEntry={selectedForDock}
+          checkIn={selectedForDock}
           onClose={() => setSelectedForDock(null)}
           onSuccess={handleDockAssignSuccess}
         />
       )}
 
-      {/* Edit Check-In Modal */}
       {selectedForEdit && (
         <EditCheckInModal
           checkIn={selectedForEdit}
@@ -353,3 +380,4 @@ export default function CSRDashboard() {
     </div>
   );
 }
+
