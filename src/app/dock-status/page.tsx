@@ -139,9 +139,10 @@ allDocks.forEach(dock => {
   
   dock.orders = orders;
   if (orders.length > 0) {
-    dock.current_load_id = orders<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.id;  // THIS LINE - make sure there's no HTML
+    dock.current_load_id = orders<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.id;
   }
 });
+
 
       setDockStatuses(allDocks);
     } catch (error) {
