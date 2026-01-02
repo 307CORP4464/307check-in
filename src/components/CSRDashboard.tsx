@@ -33,9 +33,7 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
     }
     
     const formatter = new Intl.DateTimeFormat('en-US', options);
-    const formatted = formatter.format(date);
-    
-    return formatted;
+    return formatter.format(date);
   } catch (e) {
     console.error('Time formatting error:', e, isoString);
     return isoString;
@@ -362,26 +360,22 @@ export default function CSRDashboard() {
         </div>
       </div>
 
-      // At the bottom of CSRDashboard.tsx, replace the modal calls with:
+      {selectedForDock && (
+        <AssignDockModal
+          isOpen={!!selectedForDock}
+          onClose={() => setSelectedForDock(null)}
+          logEntry={selectedForDock}
+          onSuccess={handleDockAssignSuccess}
+        />
+      )}
 
-{selectedForDock && (
-  <AssignDockModal
-    isOpen={!!selectedForDock}
-    onClose={() => setSelectedForDock(null)}
-    logEntry={selectedForDock}
-    onSuccess={handleDockAssignSuccess}
-  />
-)}
-
-{selectedForEdit && (
-  <EditCheckInModal
-    checkIn={selectedForEdit}
-    onClose={() => setSelectedForEdit(null)}
-    onSuccess={handleEditSuccess}
-  />
-)}
-
+      {selectedForEdit && (
+        <EditCheckInModal
+          checkIn={selectedForEdit}
+          onClose={() => setSelectedForEdit(null)}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </div>
   );
 }
-
