@@ -37,6 +37,11 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
   const [dockInfo, setDockInfo] = useState<DockInfo | null>(null);
   const [showWarning, setShowWarning] = useState(false);
   const [checkingDock, setCheckingDock] = useState(false);
+  
+  // SMS-related state
+  const [sendSMS, setSendSMS] = useState(true);
+  const [driverPhone, setDriverPhone] = useState(checkIn.driver_phone || '');
+  const [smsStatus, setSmsStatus] = useState<string | null>(null);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -151,6 +156,38 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     }
   };
 
+  const sendSMSNotification = async (dock: string, phone: string) => {
+    try {
+      const response = await fetch('/api/send-sms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phoneNumber: phone,
+          dockNumber: dock,
+          driverName: checkIn.driver_name,
+          referenceNumber: checkIn.reference_number,
+          appointmentTime: formatAppointmentTime(appointmentTime),
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setSmsStatus('SMS sent successfully ✓');
+        return true;
+      } else {
+        setSmsStatus(`SMS failed: ${result.error}`);
+        return false;
+      }
+    } catch (err) {
+      console.error('Error sending SMS:', err);
+      setSmsStatus('SMS sending failed');
+      return false;
+    }
+  };
+
   const handleAssign = async () => {
     if (!dockNumber || !appointmentTime) {
       setError('Please select both dock number and appointment time');
@@ -159,6 +196,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
 
     setLoading(true);
     setError(null);
+    setSmsStatus(null);
 
     try {
       const { error: updateError } = await supabase
@@ -166,11 +204,17 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
         .update({
           dock_number: dockNumber,
           appointment_time: appointmentTime,
-          status: 'checked_in'
+          status: 'checked_in',
+          driver_phone: driverPhone,
         })
         .eq('id', checkIn.id);
 
       if (updateError) throw updateError;
+
+      // Send SMS if enabled and phone number provided
+      if (sendSMS && driverPhone) {
+        await sendSMSNotification(dockNumber, driverPhone);
+      }
 
       // Trigger custom event for dock status update
       if (typeof window !== 'undefined') {
@@ -314,33 +358,13 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             ${checkIn.destination_city ? `
             <div class="row">
               <span class="label">Destination City</span>
-              <span class="value">${checkIn.destination_city}</span>
+              <span class="value">${checkIn.destination_city}${checkIn.destination_state ? `, ${checkIn.destination_state}` : ''}</span>
             </div>
             ` : ''}
-            ${checkIn.destination_state ? `
-            <div class="row">
-              <span class="label">Destination State</span>
-              <span class="value">${checkIn.destination_state}</span>
-            </div>
-            ` : ''}
-          </div>
-          <div class="section">
             ${checkIn.carrier_name ? `
             <div class="row">
               <span class="label">Carrier</span>
               <span class="value">${checkIn.carrier_name}</span>
-            </div>
-            ` : ''}
-            ${checkIn.driver_name ? `
-            <div class="row">
-              <span class="label">Driver</span>
-              <span class="value">${checkIn.driver_name}</span>
-            </div>
-            ` : ''}
-            ${checkIn.driver_phone ? `
-            <div class="row">
-              <span class="label">Driver Phone</span>
-              <span class="value">${checkIn.driver_phone}</span>
             </div>
             ` : ''}
             ${checkIn.trailer_number ? `
@@ -349,22 +373,22 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
               <span class="value">${checkIn.trailer_number}</span>
             </div>
             ` : ''}
-            ${checkIn.trailer_length ? `
+            ${checkIn.driver_name ? `
             <div class="row">
-              <span class="label">Trailer Length</span>
-              <span class="value">${checkIn.trailer_length}</span>
+              <span class="label">Driver Name</span>
+              <span class="value">${checkIn.driver_name}</span>
             </div>
             ` : ''}
-          </div>
-          <div class="section">
             <div class="row">
               <span class="label">Appointment Time</span>
               <span class="value">${formatAppointmentTime(appointmentTime)}</span>
             </div>
+            ${checkIn.check_in_time ? `
             <div class="row">
-              <span class="label">Check-in Time</span>
+              <span class="label">Check-In Time</span>
               <span class="value">${formatCheckInTime(checkIn.check_in_time)}</span>
             </div>
+            ` : ''}
           </div>
           <button class="print-button no-print" onclick="window.print()">Print Receipt</button>
         </body>
@@ -373,175 +397,168 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
 
     printWindow.document.write(receiptHTML);
     printWindow.document.close();
-
-    setTimeout(() => {
-      printWindow.print();
-    }, 250);
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Assign Dock</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <h2 className="text-2xl font-bold mb-4">Assign Dock</h2>
+        
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
+
+        {smsStatus && (
+          <div className={`px-4 py-3 rounded mb-4 ${
+            smsStatus.includes('success') || smsStatus.includes('✓')
+              ? 'bg-green-100 border border-green-400 text-green-700'
+              : 'bg-yellow-100 border border-yellow-400 text-yellow-700'
+          }`}>
+            {smsStatus}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {/* Driver Information */}
+          <div className="bg-gray-50 p-3 rounded">
+            <p className="text-sm text-gray-600">
+              <span className="font-semibold">Driver:</span> {checkIn.driver_name || 'N/A'}
+            </p>
+            <p className="text-sm text-gray-600">
+              <span className="font-semibold">Company:</span> {checkIn.company || 'N/A'}
+            </p>
+            <p className="text-sm text-gray-600">
+              <span className="font-semibold">Reference:</span> {checkIn.reference_number || 'N/A'}
+            </p>
+          </div>
+
+          {/* Dock Number Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Dock Number <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={dockNumber}
+              onChange={(e) => setDockNumber(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={loading}
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <option value="">Select Dock</option>
+              {dockOptions.map((dock) => (
+                <option key={dock} value={dock}>
+                  {dock === 'Ramp' ? 'Ramp' : `Dock ${dock}`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Dock Status Warning */}
+          {checkingDock && (
+            <div className="bg-blue-100 text-blue-700 px-4 py-2 rounded flex items-center">
+              <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
               </svg>
-            </button>
-          </div>
-
-          {/* Check-in Details */}
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <h3 className="font-semibold text-gray-900 mb-2">Load Details</h3>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              {checkIn.reference_number && (
-                <div>
-                  <span className="text-gray-600">PO Number:</span>
-                  <span className="ml-2 font-medium">{checkIn.reference_number}</span>
-                </div>
-              )}
-              {checkIn.driver_name && (
-                <div>
-                  <span className="text-gray-600">Driver:</span>
-                  <span className="ml-2 font-medium">{checkIn.driver_name}</span>
-                </div>
-              )}
-              {checkIn.carrier_name && (
-                <div>
-                  <span className="text-gray-600">Carrier:</span>
-                  <span className="ml-2 font-medium">{checkIn.carrier_name}</span>
-                </div>
-              )}
-              {checkIn.trailer_number && (
-                <div>
-                  <span className="text-gray-600">Trailer:</span>
-                  <span className="ml-2 font-medium">{checkIn.trailer_number}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800 text-sm">{error}</p>
+              Checking dock status...
             </div>
           )}
 
-          {/* Dock Selection */}
-          <div className="space-y-4 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Dock Number *
-              </label>
-              <select
-                value={dockNumber}
-                onChange={(e) => setDockNumber(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={loading}
-              >
-                <option value="">Select Dock</option>
-                {dockOptions.map((dock) => (
-                  <option key={dock} value={dock}>
-                    {dock === 'Ramp' ? 'Ramp' : `Dock ${dock}`}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Dock Status Indicator */}
-            {checkingDock && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-blue-800 text-sm">Checking dock status...</p>
-              </div>
-            )}
-
-            {dockInfo && !checkingDock && (
-              <div className={`p-3 border rounded-lg ${
-                dockInfo.status === 'available' ? 'bg-green-50 border-green-200' :
-                dockInfo.status === 'blocked' ? 'bg-gray-50 border-gray-200' :
-                'bg-yellow-50 border-yellow-200'
-              }`}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-semibold text-sm">
-                    {dockInfo.status === 'available' ? '✓ Dock Available' :
-                     dockInfo.status === 'blocked' ? '🚫 Dock Blocked' :
-                     '⚠ Dock In Use'}
-                  </span>
-                </div>
-                {dockInfo.orders.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    <p className="text-xs font-medium text-gray-700">Current Orders:</p>
-                    {dockInfo.orders.map((order, idx) => (
-                      <p key={idx} className="text-xs text-gray-600">
-                        • PO: {order.reference_number || 'N/A'} | Trailer: {order.trailer_number || 'N/A'}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Appointment Time */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Appointment Time *
-              </label>
-              <select
-                value={appointmentTime}
-                onChange={(e) => setAppointmentTime(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={loading}
-              >
-                <option value="">Select Time</option>
-                {appointmentOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Warning for in-use docks */}
-          {showWarning && dockInfo?.status === 'in-use' && (
-            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-yellow-800 text-sm font-medium">
-                ⚠ Warning: This dock is currently in use. Assigning this load will create a double-booking.
+          {showWarning && dockInfo && (
+            <div className={`px-4 py-3 rounded border ${
+              dockInfo.status === 'blocked'
+                ? 'bg-red-100 border-red-400 text-red-700'
+                : 'bg-yellow-100 border-yellow-400 text-yellow-700'
+            }`}>
+              <p className="font-bold flex items-center">
+                <span className="text-xl mr-2">⚠️</span>
+                {dockInfo.status === 'blocked' 
+                  ? 'Dock is Blocked'
+                  : 'Dock Currently In Use'}
               </p>
+              {dockInfo.orders.length > 0 && (
+                <ul className="mt-2 text-sm space-y-1">
+                  {dockInfo.orders.map((order, idx) => (
+                    <li key={idx} className="ml-4">
+                      • Ref: {order.reference_number || 'N/A'} | Trailer: {order.trailer_number || 'N/A'}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
-          {/* Warning for blocked docks */}
-          {showWarning && dockInfo?.status === 'blocked' && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800 text-sm font-medium">
-                🚫 Warning: This dock is currently blocked and unavailable.
-              </p>
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <button
-              onClick={handleAssign}
-              disabled={loading || !dockNumber || !appointmentTime || checkingDock || (dockInfo?.status === 'blocked')}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+          {/* Appointment Time Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Appointment Time <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={appointmentTime}
+              onChange={(e) => setAppointmentTime(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={loading}
             >
-              {loading ? 'Assigning...' : 'Assign & Print Receipt'}
-            </button>
+              <option value="">Select Time</option>
+              {appointmentOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Phone Number Input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Driver Phone Number
+            </label>
+            <input
+              type="tel"
+              value={driverPhone}
+              onChange={(e) => setDriverPhone(e.target.value)}
+              placeholder="+1234567890"
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={loading}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Format: +1234567890 (include country code)
+            </p>
+          </div>
+
+          {/* SMS Checkbox */}
+          <div className="flex items-center space-x-2 bg-gray-50 p-3 rounded">
+            <input
+              type="checkbox"
+              id="sendSMS"
+              checked={sendSMS}
+              onChange={(e) => setSendSMS(e.target.checked)}
+              disabled={loading || !driverPhone}
+              className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+            />
+            <label htmlFor="sendSMS" className="text-sm text-gray-700 cursor-pointer select-none">
+              Send SMS notification to driver
+            </label>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3 mt-6 pt-4 border-t">
             <button
               onClick={onClose}
               disabled={loading}
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Cancel
+            </button>
+            <button
+              onClick={handleAssign}
+              disabled={loading || !dockNumber || !appointmentTime}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? 'Assigning...' : 'Assign Dock'}
             </button>
           </div>
         </div>
