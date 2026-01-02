@@ -362,21 +362,25 @@ export default function CSRDashboard() {
         </div>
       </div>
 
-      {selectedForDock && (
-        <AssignDockModal
-          checkIn={selectedForDock}
-          onClose={() => setSelectedForDock(null)}
-          onSuccess={handleDockAssignSuccess}
-        />
-      )}
+      // At the bottom of CSRDashboard.tsx, replace the modal calls with:
 
-      {selectedForEdit && (
-        <EditCheckInModal
-          checkIn={selectedForEdit}
-          onClose={() => setSelectedForEdit(null)}
-          onSuccess={handleEditSuccess}
-        />
-      )}
+{selectedForDock && (
+  <AssignDockModal
+    isOpen={!!selectedForDock}
+    onClose={() => setSelectedForDock(null)}
+    logEntry={selectedForDock}
+    onSuccess={handleDockAssignSuccess}
+  />
+)}
+
+{selectedForEdit && (
+  <EditCheckInModal
+    checkIn={selectedForEdit}
+    onClose={() => setSelectedForEdit(null)}
+    onSuccess={handleEditSuccess}
+  />
+)}
+
     </div>
   );
 }
