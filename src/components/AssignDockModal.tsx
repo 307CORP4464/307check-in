@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 
 interface AssignDockModalProps {
@@ -20,13 +20,23 @@ interface AssignDockModalProps {
   };
   onClose: () => void;
   onSuccess: () => void;
+  isOpen: boolean; // Add this prop
 }
 
-export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignDockModalProps) {
+interface DockInfo {
+  dock_number: string;
+  status: 'available' | 'in-use' | 'blocked';
+  orders: Array<{ reference_number?: string; trailer_number?: string }>;
+}
+
+export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }: AssignDockModalProps) {
   const [dockNumber, setDockNumber] = useState(checkIn.dock_number || '');
   const [appointmentTime, setAppointmentTime] = useState(checkIn.appointment_time || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dockInfo, setDockInfo] = useState<DockInfo | null>(null);
+  const [showWarning, setShowWarning] = useState(false);
+  const [checkingDock, setCheckingDock] = useState(false);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -125,25 +135,21 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
               border-bottom: 1px dashed #bbb;
             }
             .section:last-child { border-bottom: none; }
-
             .row {
               display: flex;
               justify-content: space-between;
               font-size: 14px;
               margin: 6px 0;
             }
-
             .label {
               font-weight: bold;
               text-transform: uppercase;
               font-size: 12px;
               color: #333;
             }
-
             .value {
               text-align: right;
             }
-
             .pickup-box {
               background-color: #ffeb3b;
               padding: 12px;
@@ -151,45 +157,29 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
               border: 2px solid #000;
               text-align: center;
             }
-
             .pickup-box .reference-number {
               font-size: 18px;
               font-weight: bold;
               margin-bottom: 4px;
             }
-
             .pickup-box .dock-number {
               font-size: 16px;
               font-weight: bold;
             }
-
             .appointment-status {
               display: inline-block;
               padding: 4px 8px;
               font-weight: bold;
               border-radius: 4px;
             }
-
             .appointment-status.made {
               background-color: #4CAF50;
               color: white;
             }
-
             .appointment-status.missed {
               background-color: #f44336;
               color: white;
             }
-
-            .bold {
-              font-weight: bold;
-            }
-
-            .footer {
-              text-align: center;
-              margin-top: 14px;
-              font-size: 12px;
-            }
-
             .print-button {
               display: block;
               margin: 12px auto 0;
@@ -208,12 +198,10 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
             <h1>Load Assignment Receipt</h1>
             <div>${currentDate}</div>
           </div>
-
           <div class="pickup-box">
             <div class="reference-number">Pickup #: ${checkIn.reference_number ?? 'N/A'}</div>
             <div class="dock-number">${dockDisplay}</div>
           </div>
-
           ${appointmentStatus ? `
           <div class="section">
             <div class="row">
@@ -224,24 +212,20 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
             </div>
           </div>
           ` : ''}
-
-      <div class="section">
+          <div class="section">
             ${checkIn.destination_city ? `
             <div class="row">
               <span class="label">Destination City</span>
               <span class="value">${checkIn.destination_city}</span>
             </div>
             ` : ''}
-             ${checkIn.destination_state ? `
+            ${checkIn.destination_state ? `
             <div class="row">
               <span class="label">Destination State</span>
               <span class="value">${checkIn.destination_state}</span>
             </div>
             ` : ''}
-          </span>
-        </div>
-       </div>
-
+          </div>
           <div class="section">
             ${checkIn.carrier_name ? `
             <div class="row">
@@ -274,7 +258,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
             </div>
             ` : ''}
           </div>
-
           <div class="section">
             <div class="row">
               <span class="label">Appointment Time</span>
@@ -285,11 +268,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
               <span class="value">${formatCheckInTime(checkIn.check_in_time)}</span>
             </div>
           </div>
-
-          <div class="footer">
-            <!-- Intentionally left blank per updated requirements -->
-          </div>
-
           <button class="print-button no-print" onclick="window.print()">Print Receipt</button>
         </body>
       </html>
@@ -303,11 +281,60 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
     }, 250);
   };
 
-    if (!appointmentTime) {
-      setError('Please select an appointment time');
-      setLoading(false);
+  const checkDockStatus = async (dock: string) => {
+    setCheckingDock(true);
+    try {
+      if (typeof window !== 'undefined') {
+        const blockedStr = localStorage.getItem('blocked_docks');
+        if (blockedStr) {
+          const blocked = JSON.parse(blockedStr);
+          if (blocked[dock]) {
+            setDockInfo({ dock_number: dock, status: 'blocked', orders: [] });
+            setShowWarning(true);
+            setCheckingDock(false);
+            return;
+          }
+        }
+      }
+
+      const { data: existingOrders, error } = await supabase
+        .from('check_ins')
+        .select('reference_number, trailer_number')
+        .eq('dock_number', dock)
+        .neq('status', 'complete');
+
+      if (error) throw error;
+
+      if (existingOrders && existingOrders.length > 0) {
+        setDockInfo({ dock_number: dock, status: 'in-use', orders: existingOrders });
+        setShowWarning(true);
+      } else {
+        setDockInfo({ dock_number: dock, status: 'available', orders: [] });
+        setShowWarning(false);
+      }
+    } catch (err) {
+      console.error('Error checking dock status:', err);
+    } finally {
+      setCheckingDock(false);
+    }
+  };
+
+  // ADD async keyword here
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!dockNumber.trim()) {
+      setError('Please enter a dock number');
       return;
     }
+
+    if (!appointmentTime) {
+      setError('Please select an appointment time');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
 
     try {
       const { error: updateError } = await supabase
@@ -333,15 +360,12 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
     }
   };
 
-
-  // prefill appointment if exists
   useEffect(() => {
-    if (logEntry.appointment_time) {
-      setAppointmentTime(logEntry.appointment_time);
+    if (checkIn.appointment_time) {
+      setAppointmentTime(checkIn.appointment_time);
     }
-  }, [logEntry]);
+  }, [checkIn.appointment_time]);
 
-  // fetch dock status when dockNumber changes
   useEffect(() => {
     if (dockNumber && dockNumber.length > 0) {
       checkDockStatus(dockNumber);
@@ -351,106 +375,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
     }
   }, [dockNumber]);
 
-  const checkDockStatus = async (dock: string) => {
-    setCheckingDock(true);
-    try {
-      if (typeof window !== 'undefined') {
-        const blockedStr = localStorage.getItem('blocked_docks');
-        if (blockedStr) {
-          const blocked = JSON.parse(blockedStr);
-          if (blocked[dock]) {
-            setDockInfo({ dock_number: dock, status: 'blocked', orders: [] });
-            setShowWarning(true);
-            return;
-          }
-        }
-      }
-
-      // Check existing non-complete orders on this dock
-      const { data: existingOrders, error } = await supabase
-        .from('check_ins')
-        .select('reference_number, trailer_number')
-        .eq('dock_number', dock)
-        .neq('status', 'complete');
-
-      if (error) throw error;
-
-      if (existingOrders && existingOrders.length > 0) {
-        setDockInfo({ dock_number: dock, status: 'in-use', orders: existingOrders });
-        setShowWarning(true);
-      } else {
-        setDockInfo({ dock_number: dock, status: 'available', orders: [] });
-        setShowWarning(false);
-      }
-    } catch (err) {
-      console.error('Error checking dock status:', err);
-    } finally {
-      setCheckingDock(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!dockNumber.trim()) {
-      alert('Please enter a dock number');
-      return;
-    }
-
-    if (dockInfo?.status === 'blocked') {
-      alert('This dock is currently blocked and cannot accept new assignments. Please choose a different dock or unblock it from the Dock Status page.');
-      return;
-    }
-
-    if (showWarning && dockInfo?.status === 'in-use') {
-      const confirmDouble = window.confirm(
-        `⚠️ WARNING: Dock ${dockNumber} is already in use!\n\n` +
-        `Current orders on this dock:\n` +
-        dockInfo.orders.map(o => `• Ref: ${o.reference_number} - Trailer: ${o.trailer_number}`).join('\n') +
-        `\n\nAssigning another order will create a DOUBLE BOOKING.\n\n` +
-        `Do you want to proceed with double booking this dock?`
-      );
-      if (!confirmDouble) return;
-    }
-
-    setLoading(true);
-
-    try {
-      const payload: any = {
-        dock_number: dockNumber.trim(),
-        updated_at: new Date().toISOString(),
-        // reflect assignment
-        status: 'assigned',
-        start_time: new Date().toISOString()
-      };
-
-      // include appointment time if chosen
-      if (appointmentTime && appointmentTime !== '') {
-        payload.appointment_time = appointmentTime;
-      }
-
-      // Update the log entry
-      const { error } = await supabase
-        .from('check_ins')
-        .update(payload)
-        .eq('id', logEntry.id);
-
-      if (error) throw error;
-
-      onSuccess();
-      onClose();
-      setDockNumber('');
-      setAppointmentTime('');
-      setDockInfo(null);
-      setShowWarning(false);
-    } catch (err) {
-      console.error('Error assigning dock:', err);
-      alert('Failed to assign dock. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Early return INSIDE the component function
   if (!isOpen) return null;
 
   return (
@@ -460,8 +385,8 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
 
         <div className="mb-4 p-3 bg-blue-50 rounded-lg">
           <div className="text-sm text-gray-700">
-            <p className="font-medium">Reference #: {logEntry.reference_number}</p>
-            <p>Trailer #: {logEntry.trailer_number}</p>
+            <p className="font-medium">Reference #: {checkIn.reference_number}</p>
+            <p>Trailer #: {checkIn.trailer_number}</p>
           </div>
         </div>
 
@@ -494,7 +419,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
               <option value="LTL">LTL</option>
               <option value="0800">08:00</option>
               <option value="0900">09:00</option>
-              <option value="0903">09:30</option>
+              <option value="0930">09:30</option>
               <option value="1000">10:00</option>
               <option value="1030">10:30</option>
               <option value="1100">11:00</option>
@@ -533,52 +458,45 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess }: AssignD
               {dockInfo.status === 'blocked' && (
                 <p className="text-sm text-gray-700">This dock is blocked.</p>
               )}
-              {dockInfo.status === 'in-use' && (
-                <p className="text-sm text-yellow-800">
-                  This dock has active orders. Double-booking may occur.
-                </p>
+              {dockInfo.status === 'in-use' && dockInfo.orders.length > 0 && (
+                <div className="text-sm text-yellow-800">
+                  <p className="font-medium mb-1">Current orders on this dock:</p>
+                  <ul className="list-disc pl-5">
+                    {dockInfo.orders.map((order, idx) => (
+                      <li key={idx}>
+                        Ref: {order.reference_number} - Trailer: {order.trailer_number}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
           )}
 
-{/* Action Buttons */}
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={loading || dockInfo?.status === 'blocked'}
-              className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-                dockInfo?.status === 'blocked'
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : showWarning && dockInfo?.status === 'in-use'
-                  ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
-              }`}
-            >
-              {loading ? 'Assigning...' : 
-               showWarning && dockInfo?.status === 'in-use' ? 'Confirm Double Book' : 
-               'Assign Dock'}
-            </button>
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+
+          <div className="flex gap-3 mt-6">
             <button
               type="button"
               onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               disabled={loading}
-              className="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              disabled={loading}
+            >
+              {loading ? 'Assigning...' : 'Assign Dock'}
+            </button>
           </div>
         </form>
-
-        {/* Help Text */}
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <p className="text-xs text-gray-500">
-            💡 <span className="font-medium">Tip:</span> Check the{' '}
-            <a href="/dock-status" target="_blank" className="text-blue-600 hover:underline">
-              Dock Status page
-            </a>{' '}
-            to see all available docks in real-time.
-          </p>
-        </div>
       </div>
     </div>
   );
