@@ -47,10 +47,18 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
   );
 
   const [dockNumber, setDockNumber] = useState('');
+  const [appointmentTime, setAppointmentTime] = useState('');
   const [loading, setLoading] = useState(false);
   const [dockInfo, setDockInfo] = useState<DockInfo | null>(null);
   const [showWarning, setShowWarning] = useState(false);
   const [checkingDock, setCheckingDock] = useState(false);
+
+  // Pre-fill appointment time if it exists
+  useEffect(() => {
+    if (logEntry.appointment_time) {
+      setAppointmentTime(logEntry.appointment_time);
+    }
+  }, [logEntry]);
 
   useEffect(() => {
     if (dockNumber && dockNumber.length > 0) {
@@ -84,10 +92,10 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
 
       // Check for existing orders on this dock
       const { data: existingOrders, error } = await supabase
-        .from('check_ins')  // Changed from 'daily_log'
+        .from('check_ins')
         .select('reference_number, trailer_number')
         .eq('dock_number', dock)
-        .in('status', ['assigned', 'loading']); // Changed from 'complete'
+        .in('status', ['assigned', 'loading']);
 
       if (error) throw error;
 
@@ -144,13 +152,20 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
     setLoading(true);
 
     try {
+      const updateData: any = { 
+        dock_number: dockNumber.trim(),
+        status: 'assigned',
+        start_time: new Date().toISOString()
+      };
+
+      // Add appointment time if provided
+      if (appointmentTime) {
+        updateData.appointment_time = appointmentTime;
+      }
+
       const { error } = await supabase
-        .from('check_ins')  // Changed from 'daily_log'
-        .update({ 
-          dock_number: dockNumber.trim(),
-          status: 'assigned',
-          start_time: new Date().toISOString()
-        })
+        .from('check_ins')
+        .update(updateData)
         .eq('id', logEntry.id);
 
       if (error) throw error;
@@ -158,6 +173,7 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
       onSuccess();
       onClose();
       setDockNumber('');
+      setAppointmentTime('');
       setDockInfo(null);
       setShowWarning(false);
     } catch (error) {
@@ -172,7 +188,7 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           Assign Dock
         </h3>
@@ -181,6 +197,7 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
           <div className="text-sm text-gray-700">
             <p className="font-medium">Reference #: {logEntry.reference_number}</p>
             <p>Trailer #: {logEntry.trailer_number}</p>
+            <p>Driver: {logEntry.driver_name}</p>
           </div>
         </div>
 
@@ -201,6 +218,33 @@ export default function AssignDockModal({ isOpen, onClose, logEntry, onSuccess }
             {checkingDock && (
               <p className="mt-1 text-xs text-gray-500">Checking dock status...</p>
             )}
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Appointment Time
+            </label>
+            <select
+              value={appointmentTime}
+              onChange={(e) => setAppointmentTime(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Select...</option>
+              <option value="work_in">Work In</option>
+              <option value="paid_to_load">Paid - No Appt</option>
+              <option value="paid_charge_customer">Paid - Charge Customer</option>
+              <option value="LTL">LTL</option>
+              <option value="0700">07:00</option>
+              <option value="0800">08:00</option>
+              <option value="0900">09:00</option>
+              <option value="1000">10:00</option>
+              <option value="1100">11:00</option>
+              <option value="1200">12:00</option>
+              <option value="1300">13:00</option>
+              <option value="1400">14:00</option>
+              <option value="1500">15:00</option>
+              <option value="1600">16:00</option>
+            </select>
           </div>
 
           {/* Dock Status Indicator */}
