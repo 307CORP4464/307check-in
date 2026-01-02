@@ -32,7 +32,6 @@ export default function DockStatusPage() {
   const [filter, setFilter] = useState<'all' | 'available' | 'in-use' | 'double-booked' | 'blocked'>('all');
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  
   useEffect(() => {
     // Update time every second
     const timer = setInterval(() => {
@@ -43,58 +42,46 @@ export default function DockStatusPage() {
   }, []);
 
   useEffect(() => {
-  initializeDocks();
-  
-  // Listen for check_ins changes (key fix)
-  const channel = supabase
-    .channel('dock-status-changes')
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'check_ins' // Changed from 'docks'
-      },
-      () => {
-        initializeDocks();
-      }
-    )
-    .subscribe();
+    initializeDocks();
+    
+    // Listen for check_ins table changes
+    const channel = supabase
+      .channel('dock-status-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'check_ins'
+        },
+        () => {
+          initializeDocks();
+        }
+      )
+      .subscribe();
 
-  // Also listen for custom events
-  const handleDockChange = () => initializeDocks();
-  if (typeof window !== 'undefined') {
-    window.addEventListener('dock-assignment-changed', handleDockChange);
-  }
-
-  return () => {
-    supabase.removeChannel(channel);
+    // Listen for custom events
+    const handleDockChange = () => initializeDocks();
     if (typeof window !== 'undefined') {
-      window.removeEventListener('dock-assignment-changed', handleDockChange);
+      window.addEventListener('dock-assignment-changed', handleDockChange);
     }
-  };
-}, []);
+
+    return () => {
+      supabase.removeChannel(channel);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('dock-assignment-changed', handleDockChange);
+      }
+    };
+  }, []);
 
   const initializeDocks = async () => {
     setLoading(true);
     
-    // Step 1: Fetch docks from backend if available, else initialize on client
-    // If you have an API endpoint that returns all docks with current status, use it.
-    // For now, we'll fetch from a hypothetical 'docks_view' or fallback to local construction.
-
     try {
-      // Try to fetch current dock statuses from a backend view or API
-      // Example (uncomment if you have an API):
-      // const res = await fetch('/api/docks-status');
-      // const data = await res.json();
-      // if (Array.isArray(data)) { setDockStatuses(data); setLoading(false); return; }
-
-      // Fallback: Build initial in-memory docks with defaults
-      const docksFromServer: DockStatus[] = [];
-
-      // If you have a backend endpoint, replace the loop with data from API
+      // Initialize all docks
+      const allDocks: DockStatus[] = [];
       for (let i = 1; i <= TOTAL_DOCKS; i++) {
-        docksFromServer.push({
+        allDocks.push({
           dock_number: i.toString(),
           status: 'available',
           orders: [],
@@ -104,9 +91,59 @@ export default function DockStatusPage() {
         });
       }
 
-      // You can optionally merge with daily_log like your previous logic to reflect in-use docks
+      // Fetch active check-ins (not completed/checked_out)
+      const { data: checkIns } = await supabase
+        .from('check_ins')
+        .select('*')
+        .in('status', ['checked_in', 'pending'])
+        .not('dock_number', 'is', null);
 
-      setDockStatuses(docksFromServer);
+      // Map check-ins to docks
+      const dockMap = new Map<string, any[]>();
+      checkIns?.forEach(checkIn => {
+        if (checkIn.dock_number && checkIn.dock_number !== 'Ramp') {
+          const existing = dockMap.get(checkIn.dock_number) || [];
+          existing.push({
+            id: checkIn.id,
+            po_number: checkIn.reference_number || 'N/A',
+            driver_name: checkIn.driver_name || 'N/A',
+            status: checkIn.status,
+            check_in_time: checkIn.check_in_time
+          });
+          dockMap.set(checkIn.dock_number, existing);
+        }
+      });
+
+      // Get blocked docks from localStorage
+      let blockedDocks: Record<string, any> = {};
+      if (typeof window !== 'undefined') {
+        const blockedStr = localStorage.getItem('blocked_docks');
+        if (blockedStr) {
+          blockedDocks = JSON.parse(blockedStr);
+        }
+      }
+
+      // Update dock statuses
+      allDocks.forEach(dock => {
+        const orders = dockMap.get(dock.dock_number) || [];
+        
+        if (blockedDocks[dock.dock_number]) {
+          dock.status = 'blocked';
+          dock.is_manually_blocked = true;
+          dock.blocked_reason = blockedDocks[dock.dock_number].reason;
+        } else if (orders.length > 1) {
+          dock.status = 'double-booked';
+        } else if (orders.length === 1) {
+          dock.status = 'in-use';
+        }
+        
+        dock.orders = orders;
+        if (orders.length > 0) {
+          dock.current_load_id = orders<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.id;
+        }
+      });
+
+      setDockStatuses(allDocks);
     } catch (error) {
       console.error('Error initializing docks:', error);
     }
@@ -125,12 +162,10 @@ export default function DockStatusPage() {
     if (typeof window === 'undefined') return;
     
     try {
-      // Remove from local blocked list (if you are persisting blockers in localStorage)
       const blockedStr = localStorage.getItem('blocked_docks');
       const blocked = blockedStr ? JSON.parse(blockedStr) : {};
       delete blocked[dockNumber];
       localStorage.setItem('blocked_docks', JSON.stringify(blocked));
-      // Re-fetch/refresh to reflect changes
       initializeDocks();
     } catch (error) {
       console.error('Error unblocking dock:', error);
@@ -163,15 +198,15 @@ export default function DockStatusPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'available':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 border-green-300';
       case 'in-use':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
       case 'double-booked':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 border-red-300';
       case 'blocked':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border-gray-300';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
 
@@ -206,6 +241,19 @@ export default function DockStatusPage() {
       month: 'long', 
       day: 'numeric'
     });
+  };
+
+  const formatCheckInTime = (isoString: string) => {
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+      });
+    } catch {
+      return 'N/A';
+    }
   };
 
   const filteredDocks = useMemo(() => {
@@ -251,7 +299,6 @@ export default function DockStatusPage() {
     );
   }
 
-  // Build UI for docks
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-md border-b-4 border-blue-600 sticky top-0 z-40">
@@ -267,103 +314,147 @@ export default function DockStatusPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {/* Filters */}
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as any)}
-                className="px-3 py-2 rounded-lg border border-gray-300 bg-white"
+                className="px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="all">All</option>
-                <option value="available">Available</option>
-                <option value="in-use">In-use</option>
-                <option value="double-booked">Double-booked</option>
-                <option value="blocked">Blocked</option>
+                <option value="all">All Docks ({dockStatuses.length})</option>
+                <option value="available">Available ({stats.available})</option>
+                <option value="in-use">In Use ({stats.inUse})</option>
+                <option value="double-booked">Double Booked ({stats.doubleBooked})</option>
+                <option value="blocked">Blocked ({stats.blocked})</option>
               </select>
-              {/* Quick stats can be shown here if desired */}
+              <Link href="/logs" className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium shadow-lg">
+                📋 Daily Logs
+              </Link>
               <Link href="/dashboard" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg">
                 ← Dashboard
               </Link>
             </div>
           </div>
         </div>
+
+        {/* Stats Bar */}
+        <div className="bg-gray-50 border-t border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="grid grid-cols-4 gap-4">
+              <div className="bg-white rounded-lg p-3 border-l-4 border-green-500">
+                <div className="text-2xl font-bold text-green-600">{stats.available}</div>
+                <div className="text-xs text-gray-600">Available</div>
+              </div>
+              <div className="bg-white rounded-lg p-3 border-l-4 border-yellow-500">
+                <div className="text-2xl font-bold text-yellow-600">{stats.inUse}</div>
+                <div className="text-xs text-gray-600">In Use</div>
+              </div>
+              <div className="bg-white rounded-lg p-3 border-l-4 border-red-500">
+                <div className="text-2xl font-bold text-red-600">{stats.doubleBooked}</div>
+                <div className="text-xs text-gray-600">Double Booked</div>
+              </div>
+              <div className="bg-white rounded-lg p-3 border-l-4 border-gray-500">
+                <div className="text-2xl font-bold text-gray-600">{stats.blocked}</div>
+                <div className="text-xs text-gray-600">Blocked</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filteredDocks.map((dock) => (
-            <div key={dock.dock_number} className={`rounded-lg p-4 border ${dock.status === 'blocked' ? 'border-gray-300' : 'border-gray-200'} shadow-sm ${getStatusColor(dock.status)}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl font-semibold">Dock {dock.dock_number}</span>
-                  <span className="text-sm">{dock.is_manually_blocked ? 'MANUAL BLOCK' : ''}</span>
-                </div>
-                <span className="text-lg" aria-label="status">
-                  {getStatusIcon(dock.status)}
-                </span>
-              </div>
-              <div className="mt-2 text-sm">
-                Status: <strong>{dock.status}</strong>
+            <div
+              key={dock.dock_number}
+              className={`rounded-lg p-4 border-2 shadow-sm hover:shadow-md transition-shadow ${getStatusColor(dock.status)}`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-bold">Dock {dock.dock_number}</h3>
+                <span className="text-2xl">{getStatusIcon(dock.status)}</span>
               </div>
 
+              <div className="mb-3">
+                <span className="inline-block px-2 py-1 text-xs font-semibold rounded uppercase">
+                  {dock.status.replace('-', ' ')}
+                </span>
+              </div>
+
+              {dock.is_manually_blocked && (
+                <div className="mb-3 p-2 bg-white rounded text-xs">
+                  <div className="font-semibold text-gray-700">Blocked Reason:</div>
+                  <div className="text-gray-600">{dock.blocked_reason}</div>
+                </div>
+              )}
+
               {dock.orders.length > 0 && (
-                <div className="mt-2">
-                  <div className="text-xs text-gray-500 mb-1">Current loads:</div>
-                  {dock.orders.map((o) => (
-                    <div key={o.id} className="flex flex-col">
-                      <span>PO {o.po_number} - {o.driver_name} - {o.status}</span>
-                      <span className="text-xs text-gray-400">{new Date(o.check_in_time).toLocaleTimeString()}</span>
+                <div className="mb-3 space-y-2">
+                  {dock.orders.map((order, idx) => (
+                    <div key={order.id} className="p-2 bg-white rounded text-xs">
+                      <div className="font-semibold text-gray-700">PO: {order.po_number}</div>
+                      <div className="text-gray-600">{order.driver_name}</div>
+                      <div className="text-gray-500 text-[10px]">
+                        {formatCheckInTime(order.check_in_time)}
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
 
-              <div className="mt-3 flex items-center gap-2">
-                <button
-                  className="px-3 py-2 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200"
-                  onClick={() => handleBlockDock(dock.dock_number)}
-                >
-                  Block
-                </button>
-                <button
-                  className="px-3 py-2 bg-green-100 text-green-800 rounded hover:bg-green-200"
-                  onClick={() => alert('Release action should call backend to free dock when load departs')}
-                  title="Release dock when load departs (backend handles this)"
-                >
-                  Release (Backend)
-                </button>
+              <div className="flex gap-2 mt-3">
+                {dock.status === 'blocked' ? (
+                  <button
+                    onClick={() => handleUnblockDock(dock.dock_number)}
+                    className="flex-1 px-3 py-1.5 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700 transition-colors"
+                  >
+                    Unblock
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleBlockDock(dock.dock_number)}
+                    className="flex-1 px-3 py-1.5 bg-gray-600 text-white rounded text-xs font-medium hover:bg-gray-700 transition-colors"
+                    disabled={dock.orders.length > 0}
+                  >
+                    Block
+                  </button>
+                )}
               </div>
             </div>
           ))}
-        </section>
-
-        <section className="mt-6">
-          <h2 className="text-lg font-semibold mb-2">Overview</h2>
-          <div className="flex flex-wrap gap-4">
-            <span className="px-3 py-1 rounded-full bg-green-100 text-green-800">Available: {stats.available}</span>
-            <span className="px-3 py-1 rounded-full bg-yellow-100 text-yellow-800">In-use: {stats.inUse}</span>
-            <span className="px-3 py-1 rounded-full bg-red-100 text-red-800">Double-booked: {stats.doubleBooked}</span>
-            <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-800">Blocked: {stats.blocked}</span>
-          </div>
-        </section>
+        </div>
       </main>
 
+      {/* Block Modal */}
       {showBlockModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-3">Block Dock {selectedDock}</h3>
-            <textarea
-              className="w-full border rounded p-2"
-              rows={4}
-              value={blockReason}
-              onChange={(e) => setBlockReason(e.target.value)}
-              placeholder="Reason for blocking"
-            />
-            <div className="mt-3 flex justify-end gap-2">
-              <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => setShowBlockModal(false)}>
-                Cancel
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-bold mb-4">Block Dock {selectedDock}</h2>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reason for blocking
+              </label>
+              <textarea
+                value={blockReason}
+                onChange={(e) => setBlockReason(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={3}
+                placeholder="Enter reason..."
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={submitBlockDock}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Block Dock
               </button>
-              <button className="px-4 py-2 bg-red-600 text-white rounded" onClick={submitBlockDock}>
-                Block
+              <button
+                onClick={() => {
+                  setShowBlockModal(false);
+                  setSelectedDock(null);
+                  setBlockReason('');
+                }}
+                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+              >
+                Cancel
               </button>
             </div>
           </div>
@@ -372,4 +463,3 @@ export default function DockStatusPage() {
     </div>
   );
 }
-
