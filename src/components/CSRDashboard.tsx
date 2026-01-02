@@ -36,13 +36,6 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
     const formatter = new Intl.DateTimeFormat('en-US', options);
     const formatted = formatter.format(date);
     
-    console.log('Formatting:', {
-      input: isoString,
-      parsed: date.toISOString(),
-      formatted: formatted,
-      timezone: TIMEZONE
-    });
-    
     return formatted;
   } catch (e) {
     console.error('Time formatting error:', e, isoString);
@@ -250,10 +243,10 @@ export default function CSRDashboard() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
+                      Check-in Time
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Check-in Time
+                      Load Type
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Reference Number
@@ -281,51 +274,51 @@ export default function CSRDashboard() {
                     const waitTimeColor = getWaitTimeColor(ci);
                     return (
                       <tr key={ci.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm">
+                          {formatTimeInIndianapolis(ci.check_in_time, true)}
+                        </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             ci.load_type === 'inbound' 
                               ? 'bg-green-100 text-green-800' 
                               : 'bg-orange-100 text-orange-800'
                           }`}>
-                            {ci.load_type === 'inbound' ? 'I' : 'O'}
+                            {ci.load_type || 'N/A'}
                           </span>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatTimeInIndianapolis(ci.check_in_time)}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                           {ci.reference_number || 'N/A'}
                         </td>
-                        <td className="px-4 py-4 text-sm text-gray-900">
-                          <div className="font-medium">{ci.driver_name || 'N/A'}</div>
-                          <div className="text-gray-500">{formatPhoneNumber(ci.driver_phone)}</div>
-                          {ci.carrier_name && <div className="text-gray-500 text-xs">{ci.carrier_name}</div>}
+                        <td className="px-4 py-4 text-sm">
+                          <div>{ci.driver_name || 'N/A'}</div>
+                          <div className="text-gray-500 text-xs">{formatPhoneNumber(ci.driver_phone)}</div>
+                          <div className="text-gray-500 text-xs">{ci.carrier_name || 'N/A'}</div>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm">
                           <div>{ci.trailer_number || 'N/A'}</div>
-                          {ci.trailer_length && <div className="text-gray-500 text-xs">{ci.trailer_length}'</div>}
+                          <div className="text-gray-500 text-xs">{ci.trailer_length ? `${ci.trailer_length}'` : ''}</div>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm">
                           {ci.destination_city && ci.destination_state 
                             ? `${ci.destination_city}, ${ci.destination_state}`
                             : 'N/A'}
                         </td>
-                        <td className={`px-4 py-4 whitespace-nowrap text-sm font-medium ${waitTimeColor}`}>
+                        <td className={`px-4 py-4 whitespace-nowrap text-sm font-semibold ${waitTimeColor}`}>
                           {waitTime}
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                        <td className="px-4 py-4 whitespace-nowrap text-center text-sm">
                           <div className="flex gap-2 justify-center">
                             <button
-                              onClick={() => handleEdit(ci)}
-                              className="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 text-sm"
-                            >
-                              Edit
-                            </button>
-                            <button
                               onClick={() => handleAssignDock(ci)}
-                              className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm"
+                              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
                             >
                               Assign Dock
+                            </button>
+                            <button
+                              onClick={() => handleEdit(ci)}
+                              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+                            >
+                              Edit
                             </button>
                           </div>
                         </td>
@@ -339,15 +332,17 @@ export default function CSRDashboard() {
         </div>
       </div>
 
-           {/* Assign Dock Modal */}
+      {/* Assign Dock Modal */}
       {selectedForDock && (
         <AssignDockModal
+          isOpen={true}
           logEntry={selectedForDock}
           onClose={() => setSelectedForDock(null)}
           onSuccess={handleDockAssignSuccess}
         />
       )}
 
+      {/* Edit Check-In Modal */}
       {selectedForEdit && (
         <EditCheckInModal
           checkIn={selectedForEdit}
