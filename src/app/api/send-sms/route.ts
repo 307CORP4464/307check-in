@@ -1,46 +1,36 @@
 import { NextResponse } from 'next/server';
 import twilio from 'twilio';
 
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
+
+const client = twilio(accountSid, authToken);
 
 export async function POST(request: Request) {
   try {
-    const { to, message } = await request.json();
+    const { phoneNumber, message } = await request.json();
 
+    // Validate input
+    if (!phoneNumber || !message) {
+      return NextResponse.json(
+        { success: false, error: 'Phone number and message are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate environment variables
+    if (!accountSid || !authToken || !twilioPhoneNumber) {
+      return NextResponse.json(
+        { success: false, error: 'Twilio credentials not configured' },
+        { status: 500 }
+      );
+    }
+
+    // Send SMS
     const result = await client.messages.create({
       body: message,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: to,
-    });
-
-    return NextResponse.json({ success: true, sid: result.sid });
-  } catch (error) {
-    console.error('Error sending SMS:', error);
-    return NextResponse.json(
-      { error: 'Failed to send SMS' },
-      { status: 500 }
-    );
-  }
-}
-
-
-    const message = `
-Hello ${driverName || 'Driver'}!
-
-You've been assigned to ${dockNumber === 'Ramp' ? 'the Ramp' : `Dock ${dockNumber}`}.
-
-Reference #: ${referenceNumber || 'N/A'}
-Appointment: ${appointmentTime || 'N/A'}
-
-Please proceed to your assigned dock.
-    `.trim();
-
-    const result = await client.messages.create({
-      body: message,
-      from: twilioPhone,
+      from: twilioPhoneNumber,
       to: phoneNumber,
     });
 
@@ -56,3 +46,4 @@ Please proceed to your assigned dock.
     );
   }
 }
+
