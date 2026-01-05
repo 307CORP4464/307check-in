@@ -1,22 +1,31 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import twilio from 'twilio';
 
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
+const client = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
 
-const client = twilio(accountSid, authToken);
-
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const { phoneNumber, dockNumber, driverName, referenceNumber, appointmentTime } = await request.json();
+    const { to, message } = await request.json();
 
-    if (!phoneNumber || !dockNumber) {
-      return NextResponse.json(
-        { success: false, error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
+    const result = await client.messages.create({
+      body: message,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: to,
+    });
+
+    return NextResponse.json({ success: true, sid: result.sid });
+  } catch (error) {
+    console.error('Error sending SMS:', error);
+    return NextResponse.json(
+      { error: 'Failed to send SMS' },
+      { status: 500 }
+    );
+  }
+}
+
 
     const message = `
 Hello ${driverName || 'Driver'}!
