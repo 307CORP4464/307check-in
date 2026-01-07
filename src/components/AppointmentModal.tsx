@@ -82,29 +82,30 @@ export default function AppointmentModal({ isOpen, onClose, onSave, appointment,
                 </option>
               ))}
             </select>
-          </div>
+          <div>
+  <label className="block text-sm font-medium mb-1">
+    Sales Order <span className="text-gray-500 text-xs">(at least one required)</span>
+  </label>
+  <input
+    type="text"
+    value={formData.sales_order || ''}
+    onChange={(e) => setFormData({ ...formData, sales_order: e.target.value })}
+    className="w-full border rounded px-3 py-2"
+  />
+</div>
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Sales Order</label>
-            <input
-              type="text"
-              value={formData.sales_order}
-              onChange={(e) => setFormData({ ...formData, sales_order: e.target.value })}
-              className="w-full p-2 border rounded"
-              required
-            />
-          </div>
+<div>
+  <label className="block text-sm font-medium mb-1">
+    Delivery <span className="text-gray-500 text-xs">(at least one required)</span>
+  </label>
+  <input
+    type="text"
+    value={formData.delivery || ''}
+    onChange={(e) => setFormData({ ...formData, delivery: e.target.value })}
+    className="w-full border rounded px-3 py-2"
+  />
+</div>
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Delivery</label>
-            <input
-              type="text"
-              value={formData.delivery}
-              onChange={(e) => setFormData({ ...formData, delivery: e.target.value })}
-              className="w-full p-2 border rounded"
-              required
-            />
-          </div>
 
           <div className="flex gap-2 justify-end">
             <button
