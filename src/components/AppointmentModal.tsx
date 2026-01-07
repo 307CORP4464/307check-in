@@ -38,6 +38,10 @@ export default function AppointmentModal({ isOpen, onClose, onSave, appointment,
   }, [appointment, defaultDate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
+ if (!formData.sales_order && !formData.delivery) {
+    alert('Please provide either a Sales Order or Delivery number');
+    return;
+  }
     e.preventDefault();
     await onSave(formData);
     onClose();
