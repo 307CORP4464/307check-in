@@ -78,6 +78,27 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    const appointmentId = parseInt(id, 10);
+    
+    if (isNaN(appointmentId)) {
+      return NextResponse.json(
+        { error: 'Invalid appointment ID' },
+        { status: 400 }
+      );
+    }
+
+    await deleteAppointment(appointmentId);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting appointment:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete appointment' },
+      { status: 500 }
+    );
+  }
+}
+
+
     await deleteAppointment(id);
     return NextResponse.json({ success: true });
   } catch (error) {
