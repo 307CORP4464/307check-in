@@ -12,7 +12,7 @@ import AppointmentUpload from '@/components/AppointmentUpload';
 import AppointmentModal from '@/components/AppointmentModal';
 
 export default function AppointmentsPage() {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
