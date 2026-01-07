@@ -41,7 +41,7 @@ export async function getAppointmentsByDate(date: string): Promise<Appointment[]
 }
 
 export async function findAppointmentByReference(reference: string): Promise<Appointment | null> {
-  const today = new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+  const today = new Date().toISOString().split('T')[0];
   
   // Try sales order first
   let { data, error } = await supabase
@@ -53,7 +53,7 @@ export async function findAppointmentByReference(reference: string): Promise<App
     .order('scheduled_time', { ascending: true })
     .limit(1);
   
-  if (data && data.length > 0) return data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+  if (data && data.length > 0) return data[0];
   
   // Try delivery
   ({ data, error } = await supabase
@@ -65,7 +65,7 @@ export async function findAppointmentByReference(reference: string): Promise<App
     .order('scheduled_time', { ascending: true })
     .limit(1));
   
-  return data && data.length > 0 ? data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a> : null;
+  return data && data.length > 0 ? data[0] : null;
 }
 
 export async function createAppointment(appointment: AppointmentInput): Promise<Appointment> {
