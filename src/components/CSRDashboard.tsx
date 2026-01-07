@@ -214,7 +214,7 @@ export default function CSRDashboard() {
             </div>
             <div className="flex gap-3">
           <Link href="/appointments" 
-            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium">
+            className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium">
             Appointments
             </Link>
    
