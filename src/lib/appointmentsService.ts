@@ -15,7 +15,7 @@ export async function cleanOldAppointments() {
   await supabase
     .from('appointments')
     .delete()
-    .lt('scheduled_date', sevenDaysAgo.toISOString().split('T')[0];
+    .lt('scheduled_date', sevenDaysAgo.toISOString().split('T')[0],
 }
 
 export async function getAppointmentsByDate(date: string): Promise<Appointment[]> {
