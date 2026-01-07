@@ -10,7 +10,7 @@ export default function AppointmentUpload({ onUploadComplete }: { onUploadComple
   const [uploading, setUploading] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.>[0]</a>;
+    const file = e.target.files?.[0]</a>;
     if (!file) return;
 
     setUploading(true);
@@ -18,7 +18,7 @@ export default function AppointmentUpload({ onUploadComplete }: { onUploadComple
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
-      const worksheet = workbook.Sheets[workbook.SheetNames>[0]</a>];
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]</a>];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
       const appointments: AppointmentInput[] = [];
@@ -30,7 +30,7 @@ export default function AppointmentUpload({ onUploadComplete }: { onUploadComple
           const excelDate = XLSX.SSF.parse_date_code(row['Apt. Start Date']);
           date = `${excelDate.y}-${String(excelDate.m).padStart(2, '0')}-${String(excelDate.d).padStart(2, '0')}`;
         } else {
-          date = new Date(row['Apt. Start Date']).toISOString().split('T')>[0]</a>;
+          date = new Date(row['Apt. Start Date']).toISOString().split('T')[0]</a>;
         }
 
         // Parse time
