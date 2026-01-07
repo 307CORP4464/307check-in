@@ -1,41 +1,21 @@
-'use client';
+useEffect(() => {
+  if (appointment) {
+    setFormData({
+      scheduled_date: appointment.scheduled_date,
+      scheduled_time: appointment.scheduled_time,
+      sales_order: appointment.sales_order,
+      delivery: appointment.delivery
+    });
+  } else {
+    setFormData({
+      scheduled_date: defaultDate,
+      scheduled_time: '0800',
+      sales_order: '',
+      delivery: ''
+    });
+  }
+}, [appointment, defaultDate]);
 
-import { useState, useEffect } from 'react';
-import { Appointment, AppointmentInput, TIME_SLOTS } from '@/types/appointments';
-
-interface Props {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (data: AppointmentInput) => Promise<void>;
-  appointment?: Appointment | null;
-  defaultDate: string;
-}
-
-export default function AppointmentModal({ isOpen, onClose, onSave, appointment, defaultDate }: Props) {
-  const [formData, setFormData] = useState<AppointmentInput>({
-    scheduled_date: defaultDate,
-    scheduled_time: '0800',
-    sales_order: '',
-    delivery: ''
-  });
-
-  useEffect(() => {
-    if (appointment) {
-      setFormData({
-        scheduled_date: appointment.scheduled_date,
-        scheduled_time: appointment.scheduled_time,
-        sales_order: appointment.sales_order,
-        delivery: appointment.delivery
-      });
-    } else {
-      setFormData({
-        scheduled_date: defaultDate,
-        scheduled_time: '0800',
-        sales_order: '',
-        delivery: ''
-      });
-    }
-  }, [appointment, defaultDate]);
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   
@@ -48,9 +28,9 @@ const handleSubmit = async (e: React.FormEvent) => {
   await onSave(formData);
   onClose();
 };
- 
 
-  if (!isOpen) return null;
+if (!isOpen) return null;
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
