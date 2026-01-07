@@ -97,15 +97,3 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
-
-
-    await deleteAppointment(id);
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting appointment:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete appointment' },
-      { status: 500 }
-    );
-  }
-}
