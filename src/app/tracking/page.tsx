@@ -322,6 +322,8 @@ export default function Tracking() {
         const mostUsedDockEntry = Object.entries(dockUsage).sort((a, b) => b[1] -[1] - a[1])[0];
         const mostUsedDock = mostUsedDockEntry ? mostUsedDockEntry[0] : 'N/A';
         const dockUsageCount = mostUsedDockEntry ? mostUsedDockEntry[1] : 0;
+      }
+        
 
         return {
           date,
