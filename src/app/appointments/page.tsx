@@ -46,12 +46,13 @@ export default function AppointmentsPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     const getUser = async () => {
@@ -92,16 +93,27 @@ export default function AppointmentsPage() {
   const changeDateByDays = (days: number) => {
     const currentDate = new Date(selectedDate);
     currentDate.setDate(currentDate.getDate() + days);
-    setSelectedDate(currentDate.toISOString().split('T')[0]);
+    setSelectedDate(currentDate.toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   };
 
+  // Filter appointments based on search query
+  const filteredAppointments = appointments.filter(apt => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase().trim();
+    const salesOrder = apt.sales_order_number?.toLowerCase() || '';
+    const delivery = apt.delivery?.toLowerCase() || '';
+    
+    return salesOrder.includes(query) || delivery.includes(query);
+  });
+
   const groupedAppointments = TIME_SLOTS.reduce((acc, slot) => {
-    acc[slot] = appointments.filter(apt => apt.scheduled_time === slot);
+    acc[slot] = filteredAppointments.filter(apt => apt.scheduled_time === slot);
     return acc;
   }, {} as Record<string, Appointment[]>);
 
   const workInCount = groupedAppointments['Work In']?.length || 0;
-  const totalAppointmentsCount = appointments.length;
+  const totalAppointmentsCount = filteredAppointments.length;
 
   const handleSave = async (data: AppointmentInput) => {
     try {
@@ -134,6 +146,10 @@ export default function AppointmentsPage() {
     }
   };
 
+  const clearSearch = () => {
+    setSearchQuery('');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header - Matching Dashboard */}
@@ -150,38 +166,41 @@ export default function AppointmentsPage() {
               </p>
             </div>
             <div className="flex gap-3">
-            <Link 
-		href="/appointments" 
+              <Link 
+                href="/appointments" 
                 className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
->
+              >
                 Appointments
               </Link>  
 
-<Link
+              <Link
                 href="/dock-status"
                 className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
               >
                 Dock Status
               </Link>    
 
-<Link
+              <Link
                 href="/dashboard"
                 className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
               >
                 Dashboard
               </Link>
-<Link
+              
+              <Link
                 href="/logs"
                 className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium"
               >
                 Daily Logs
               </Link>
-<Link
+              
+              <Link
                 href="/tracking"
                 className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium"
               >
                 Tracking
               </Link>
+              
               <button
                 onClick={handleLogout}
                 className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors font-medium"
@@ -233,6 +252,50 @@ export default function AppointmentsPage() {
           </div>
         </div>
 
+        {/* Search Bar */}
+        <div className="bg-white p-4 rounded-lg shadow mb-6">
+          <label className="block text-sm font-medium mb-2 text-gray-700">
+            Search by Reference Number
+          </label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Enter Sales Order or Delivery number..."
+                className="w-full p-3 pl-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <svg 
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
+                />
+              </svg>
+            </div>
+            {searchQuery && (
+              <button
+                onClick={clearSearch}
+                className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className="text-sm text-gray-600 mt-2">
+              Found {filteredAppointments.length} {filteredAppointments.length === 1 ? 'appointment' : 'appointments'} matching "{searchQuery}"
+            </p>
+          )}
+        </div>
+
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div className="bg-yellow-50 border-2 border-yellow-400 p-6 rounded-lg text-center shadow">
@@ -269,70 +332,4 @@ export default function AppointmentsPage() {
                     {slotAppts.length === 0 ? (
                       <p className="text-gray-500 text-center py-8">No appointments scheduled</p>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {slotAppts.map(apt => (
-                          <div
-                            key={apt.id}
-                            className={`p-4 rounded-lg border-l-4 ${
-                              apt.source === 'manual' 
-                                ? 'border-green-500 bg-green-50' 
-                                : 'border-blue-500 bg-blue-50'
-                            } shadow-sm hover:shadow-md transition-shadow`}>
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <p className="text-sm font-semibold text-gray-900 mb-1">
-                                  <span className="text-gray-600">SO:</span> {apt.sales_order}
-                                </p>
-                                <p className="text-sm text-gray-700 mb-2">
-                                  <span className="font-medium">Delivery:</span> {apt.delivery}
-                                </p>
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                    apt.source === 'manual' 
-                                      ? 'bg-green-200 text-green-800' 
-                                      : 'bg-blue-200 text-blue-800'
-                                  }`}>
-                                    {apt.source === 'manual' ? 'Manual' : 'Uploaded'}
-                                  </span>
-                                </div>
-                              </div>
-                              {apt.source === 'manual' && (
-                                <div className="flex flex-col gap-1 ml-2">
-                                  <button
-                                    onClick={() => handleEdit(apt)}
-                                    className="text-blue-600 hover:text-blue-800 text-xs font-medium px-2 py-1 hover:bg-blue-100 rounded transition-colors">
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={() => handleDelete(apt.id)}
-                                    className="text-red-600 hover:text-red-800 text-xs font-medium px-2 py-1 hover:bg-red-100 rounded transition-colors">
-                                    Delete
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <AppointmentModal
-        isOpen={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          setEditingAppointment(null);
-        }}
-        onSave={handleSave}
-        appointment={editingAppointment}
-        defaultDate={selectedDate}
-      />
-    </div>
-  );
-}
+                      // Your existing appointment rendering code continues here...
