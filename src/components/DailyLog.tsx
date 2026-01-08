@@ -653,13 +653,15 @@ export default function DailyLog() {
         />
       )}
 
-      {selectedForEdit && (
-        <EditCheckInModal
-          checkIn={selectedForEdit}
-          onClose={() => setSelectedForEdit(null)}
-          onSuccess={handleEditSuccess}
-        />
-      )}
+     {selectedForEdit && (
+  <EditCheckInModal
+    checkIn={selectedForEdit}
+    onClose={() => setSelectedForEdit(null)}
+    onSuccess={handleEditSuccess}
+    isOpen={!!selectedForEdit}  // Add this line
+  />
+)}
+
     </div>
   );
 }
