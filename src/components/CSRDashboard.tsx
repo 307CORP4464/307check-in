@@ -319,21 +319,32 @@ const fetchCheckIns = async () => {
               </p>
             </div>
             <div className="flex gap-3">
-              <Link href="/appointments" 
+              <Link 
+		href="/appointments" 
                 className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium">
                 Appointments
-              </Link>
-              <Link
+              </Link>  
+
+<Link
                 href="/dock-status"
-                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
-              >
+                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium">
                 Dock Status
+              </Link>    
+
+<Link
+                href="/dashboard"
+                className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium">
+                Dashboard
               </Link>
-              <Link
+<Link
                 href="/logs"
-                className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors font-medium"
-              >
-                View Logs
+                className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium">
+                Daily Logs
+              </Link>
+<Link
+                href="/tracking"
+                className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium">
+                Tracking
               </Link>
               <button
                 onClick={handleLogout}
