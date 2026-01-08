@@ -93,7 +93,7 @@ export default function AppointmentsPage() {
   const changeDateByDays = (days: number) => {
     const currentDate = new Date(selectedDate);
     currentDate.setDate(currentDate.getDate() + days);
-    setSelectedDate(currentDate.toISOString().split('T')0]);
+    setSelectedDate(currentDate.toISOString().split('T')[0]);
   };
 
   // Filter appointments based on search query
