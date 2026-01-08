@@ -68,17 +68,12 @@ export async function findAppointmentByReference(reference: string): Promise<App
   return data && data.length > 0 ? data[0] : null;
 }
 
-export async function createAppointment(appointmentData: AppointmentInput): Promise<Appointment> {
-  // Validate that at least one reference number is provided
-  if (!appointmentData.sales_order && !appointmentData.delivery) {
-    throw new Error('Either sales order or delivery number is required');
-  }
+export async function createAppointment(appointmentData: any) {
   const { data, error } = await supabase
     .from('appointments')
-    .insert([{ ...appointment, source: appointment.source || 'manual' }])
+    .insert([{ ...appointmentData, source: appointmentData.source || 'manual' }])
     .select()
-    .single();
-  
+    .single(); 
   if (error) throw error;
   return data;
 }
