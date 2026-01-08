@@ -52,6 +52,23 @@ const formatPhoneNumber = (phone: string | undefined): string => {
   return phone;
 };
 
+const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
+  if (!appointmentTime) return 'N/A';
+  
+  if (appointmentTime === 'work_in') return 'Work In';
+  if (appointmentTime === 'paid_to_load') return 'Paid to Load';
+  if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
+  if (appointmentTime === 'LTL' || appointmentTime === 'ltl') return 'LTL';
+  
+  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
+    const hours = appointmentTime.substring(0, 2);
+    const minutes = appointmentTime.substring(2, 4);
+    return `${hours}:${minutes}`;
+  }
+  
+  return appointmentTime;
+};
+
 interface CheckIn {
   id: string;
   check_in_time: string;
@@ -73,6 +90,16 @@ interface CheckIn {
   notes?: string;
 }
 
+interface Appointment {
+  id: string;
+  reference_number?: string;
+  appointment_time?: string;
+  appointment_date?: string;
+  carrier_name?: string;
+  load_type?: string;
+  status?: string;
+}
+
 export default function CSRDashboard() {
   const router = useRouter();
   const supabase = createBrowserClient(
@@ -81,6 +108,7 @@ export default function CSRDashboard() {
   );
   
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+  const [appointments, setAppointments] = useState<Map<string, Appointment>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
@@ -99,14 +127,22 @@ export default function CSRDashboard() {
 
   useEffect(() => {
     fetchCheckIns();
+    fetchAppointments();
     
     const channel = supabase
-      .channel('check_ins_changes')
+      .channel('dashboard_changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'check_ins' },
         () => {
           fetchCheckIns();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'appointments' },
+        () => {
+          fetchAppointments();
         }
       )
       .subscribe();
@@ -115,6 +151,33 @@ export default function CSRDashboard() {
       supabase.removeChannel(channel);
     };
   }, [supabase]);
+
+  const fetchAppointments = async () => {
+    try {
+      const today = new Date();
+      const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+      const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .gte('appointment_date', startOfDay)
+        .lte('appointment_date', endOfDay);
+
+      if (error) throw error;
+      
+      // Create a map of reference_number to appointment
+      const appointmentMap = new Map<string, Appointment>();
+      data?.forEach(apt => {
+        if (apt.reference_number) {
+          appointmentMap.set(apt.reference_number, apt);
+        }
+      });
+      setAppointments(appointmentMap);
+    } catch (err) {
+      console.error('Fetch appointments error:', err);
+    }
+  };
 
   const fetchCheckIns = async () => {
     try {
@@ -189,6 +252,14 @@ export default function CSRDashboard() {
     return 'text-red-600';
   };
 
+  const getAppointmentForCheckIn = (checkIn: CheckIn): string => {
+    if (checkIn.reference_number && appointments.has(checkIn.reference_number)) {
+      const apt = appointments.get(checkIn.reference_number);
+      return formatAppointmentTime(apt?.appointment_time);
+    }
+    return 'N/A';
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -213,11 +284,10 @@ export default function CSRDashboard() {
               </p>
             </div>
             <div className="flex gap-3">
-          <Link href="/appointments" 
-            className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium">
-            Appointments
-            </Link>
-   
+              <Link href="/appointments" 
+                className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium">
+                Appointments
+              </Link>
               <Link
                 href="/dock-status"
                 className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
@@ -282,6 +352,9 @@ export default function CSRDashboard() {
                       Check-in Time
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Appointment
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Reference Number
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -302,64 +375,63 @@ export default function CSRDashboard() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {checkIns.map((ci) => {
-                    const waitTime = calculateWaitTime(ci);
-                    const waitTimeColor = getWaitTimeColor(ci);
-                    return (
-                      <tr key={ci.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            ci.load_type === 'inbound' 
-                              ? 'bg-blue-100 text-blue-800' 
-                              : 'bg-green-100 text-green-800'
-                          }`}>
-                            {ci.load_type === 'inbound' ? 'Inbound' : 'Outbound'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatTimeInIndianapolis(ci.check_in_time, true)}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {ci.reference_number || 'N/A'}
-                        </td>
-                        <td className="px-4 py-4 text-sm text-gray-900">
-                          <div className="font-medium">{ci.driver_name || 'N/A'}</div>
-                          <div className="text-gray-500">{formatPhoneNumber(ci.driver_phone)}</div>
-                          <div className="text-gray-500 text-xs">{ci.carrier_name || 'N/A'}</div>
-                        </td>
-                        <td className="px-4 py-4 text-sm text-gray-900">
-                          <div>{ci.trailer_number || 'N/A'}</div>
-                          <div className="text-gray-500 text-xs">{ci.trailer_length || 'N/A'}</div>
-                        </td>
-                        <td className="px-4 py-4 text-sm text-gray-900">
-                          {ci.destination_city && ci.destination_state 
-                            ? `${ci.destination_city}, ${ci.destination_state}`
-                            : 'N/A'}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <span className={`text-sm font-semibold ${waitTimeColor}`}>
-                            {waitTime}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-center text-sm font-medium">
-                          <div className="flex gap-2 justify-center">
-                            <button
-                              onClick={() => handleEdit(ci)}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleAssignDock(ci)}
-                              className="text-green-600 hover:text-green-900"
-                            >
-                              Assign Dock
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {checkIns.map((checkIn) => (
+                    <tr key={checkIn.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          checkIn.load_type === 'inbound' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {checkIn.load_type || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        {formatTimeInIndianapolis(checkIn.check_in_time)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-blue-600">
+                        {getAppointmentForCheckIn(checkIn)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                        {checkIn.reference_number || 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div>{checkIn.driver_name || 'N/A'}</div>
+                        <div className="text-gray-500 text-xs">{formatPhoneNumber(checkIn.driver_phone)}</div>
+                        <div className="text-gray-500 text-xs">{checkIn.carrier_name || 'N/A'}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div>{checkIn.trailer_number || 'N/A'}</div>
+                        <div className="text-gray-500 text-xs">{checkIn.trailer_length || 'N/A'}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        {checkIn.destination_city && checkIn.destination_state
+                          ? `${checkIn.destination_city}, ${checkIn.destination_state}`
+                          : 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        <span className={`font-semibold ${getWaitTimeColor(checkIn)}`}>
+                          {calculateWaitTime(checkIn)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-center text-sm">
+                        <div className="flex gap-2 justify-center">
+                          <button
+                            onClick={() => handleAssignDock(checkIn)}
+                            className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors text-xs"
+                          >
+                            Assign Dock
+                          </button>
+                          <button
+                            onClick={() => handleEdit(checkIn)}
+                            className="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 transition-colors text-xs"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -370,10 +442,10 @@ export default function CSRDashboard() {
       {/* Modals */}
       {selectedForDock && (
         <AssignDockModal
-          isOpen={!!selectedForDock}
-          onClose={() => setSelectedForDock(null)}
           checkIn={selectedForDock}
+          onClose={() => setSelectedForDock(null)}
           onSuccess={handleDockAssignSuccess}
+          isOpen={!!selectedForDock}
         />
       )}
 
@@ -382,6 +454,7 @@ export default function CSRDashboard() {
           checkIn={selectedForEdit}
           onClose={() => setSelectedForEdit(null)}
           onSuccess={handleEditSuccess}
+          isOpen={!!selectedForEdit}
         />
       )}
     </div>
