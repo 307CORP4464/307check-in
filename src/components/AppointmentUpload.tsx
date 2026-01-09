@@ -1,105 +1,131 @@
 'use client';
 
 import { useState } from 'react';
-import * as XLSX from 'xlsx';
-import { bulkCreateAppointments } from '@/lib/appointmentsService';
-import { AppointmentInput } from '@/types/appointments';
-import { supabase } from '@/lib/supabase';
+import { parseAppointments } from '@/lib/appointmentParser';
+import { createAppointment, checkDuplicateAppointment } from '@/lib/appointmentsService';
 
-export default function AppointmentUpload({ onUploadComplete }: { onUploadComplete: () => void }) {
+interface AppointmentUploadProps {
+  onUploadComplete: () => void;
+}
+
+export default function AppointmentUpload({ onUploadComplete }: AppointmentUploadProps) {
   const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState('');
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const file = e.target.files?.<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
     if (!file) return;
 
     setUploading(true);
+    setMessage('Processing file...');
 
     try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const text = await file.text();
+      const parsedAppointments = parseAppointments(text);
 
-      const appointments: AppointmentInput[] = [];
+      if (parsedAppointments.length === 0) {
+        setMessage('No appointments found in file');
+        return;
+      }
 
-      for (const row of jsonData as any[]) {
-        // Parse date
-        let date: string;
-        if (typeof row['Apt. Start Date'] === 'number') {
-          const excelDate = XLSX.SSF.parse_date_code(row['Apt. Start Date']);
-          date = `${excelDate.y}-${String(excelDate.m).padStart(2, '0')}-${String(excelDate.d).padStart(2, '0')}`;
+      let created = 0;
+      let duplicates = 0;
+      let overridden = 0;
+
+      for (const apt of parsedAppointments) {
+        // Check for duplicates
+        const duplicate = await checkDuplicateAppointment(
+          apt.sales_order || '',
+          apt.delivery || '',
+          apt.appointment_date
+        );
+
+        if (duplicate) {
+          duplicates++;
+          const override = confirm(
+            `⚠️ DUPLICATE FOUND!\n\n` +
+            `Existing appointment:\n` +
+            `Sales Order: ${duplicate.sales_order || 'N/A'}\n` +
+            `Delivery: ${duplicate.delivery || 'N/A'}\n` +
+            `Time: ${duplicate.scheduled_time}\n\n` +
+            `New appointment:\n` +
+            `Sales Order: ${apt.sales_order || 'N/A'}\n` +
+            `Delivery: ${apt.delivery || 'N/A'}\n` +
+            `Time: ${apt.scheduled_time}\n\n` +
+            `Override and create new appointment?`
+          );
+
+          if (override) {
+            await createAppointment({ ...apt, source: 'upload' });
+            overridden++;
+            created++;
+          }
         } else {
-          date = new Date(row['Apt. Start Date']).toISOString().split('T')[0];
-        }
-
-        // Parse time
-        let time: string;
-        if (typeof row['Start Time'] === 'number') {
-          const totalMinutes = Math.round(row['Start Time'] * 24 * 60);
-          const hours = Math.floor(totalMinutes / 60);
-          const minutes = totalMinutes % 60;
-          time = String(hours).padStart(2, '0') + String(minutes).padStart(2, '0');
-        } else {
-          const timeStr = row['Start Time'].toString();
-          time = timeStr.replace(':', '').substring(0, 4);
-        }
-
-        // Check if already exists
-        const { data: existing } = await supabase
-          .from('appointments')
-          .select('id')
-          .eq('scheduled_date', date)
-          .eq('scheduled_time', time)
-          .eq('sales_order', String(row['Sales Order']))
-          .eq('delivery', String(row['Delivery']));
-
-        if (!existing || existing.length === 0) {
-          appointments.push({
-            scheduled_date: date,
-            scheduled_time: time,
-            sales_order: String(row['Sales Order']),
-            delivery: String(row['Delivery']),
-            source: 'excel'
-          });
+          await createAppointment({ ...apt, source: 'upload' });
+          created++;
         }
       }
 
-      if (appointments.length > 0) {
-        const count = await bulkCreateAppointments(appointments);
-        alert(`Successfully imported ${count} appointments`);
-        onUploadComplete();
-      } else {
-        alert('No new appointments to import');
+      let resultMessage = `✅ Upload complete: ${created} appointments created`;
+      if (duplicates > 0) {
+        resultMessage += `\n⚠️ ${duplicates} duplicates found, ${overridden} overridden`;
       }
-
-      // Reset file input
-      e.target.value = '';
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      alert('Error uploading file. Please check the format.');
+      
+      setMessage(resultMessage);
+      onUploadComplete();
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      setMessage(`❌ Error: ${error.message}`);
     } finally {
       setUploading(false);
+      e.target.value = '';
     }
   };
 
   return (
-    <div className="bg-blue-50 p-6 rounded-lg mb-6">
-      <h3 className="text-lg font-semibold mb-4">Upload Daily Appointments</h3>
-      <div className="flex items-center gap-4">
-        <input
-          type="file"
-          accept=".xlsx,.xls"
-          onChange={handleFileUpload}
-          disabled={uploading}
-          className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-white focus:outline-none"
-        />
-        {uploading && <span className="text-blue-600">Uploading...</span>}
+    <div className="bg-white p-6 rounded-lg shadow">
+      <h2 className="text-xl font-bold mb-4">Upload Appointments</h2>
+      
+      <div className="space-y-4">
+        <div>
+          <label className="block mb-2">
+            <span className="sr-only">Choose file</span>
+            <input
+              type="file"
+              accept=".txt"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="block w-full text-sm text-gray-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                hover:file:bg-blue-100
+                disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+          </label>
+        </div>
+
+        {message && (
+          <div className={`p-3 rounded whitespace-pre-line ${
+            message.includes('Error') || message.includes('⚠️')
+              ? 'bg-red-50 text-red-700 border border-red-200'
+              : 'bg-green-50 text-green-700 border border-green-200'
+          }`}>
+            {message}
+          </div>
+        )}
+
+        {uploading && (
+          <div className="flex items-center gap-2 text-blue-600">
+            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <span>Processing...</span>
+          </div>
+        )}
       </div>
-      <p className="text-sm text-gray-600 mt-2">
-        Upload Excel file with columns: Apt. Start Date, Start Time, Sales Order, Delivery
-      </p>
     </div>
   );
 }
-
