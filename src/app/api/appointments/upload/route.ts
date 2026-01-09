@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     // Parse Excel file
     const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
-    const sheetName = workbook.SheetNames<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+    const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     
     // Convert to JSON with raw values
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
         let formattedTime = startTime;
         if (typeof startTime === 'string' && startTime.includes(':')) {
           const timeParts = startTime.split(':');
-          formattedTime = `${timeParts<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.padStart(2, '0')}:${timeParts<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>.padStart(2, '0')}`;
+          formattedTime = `${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}`;
         } else if (typeof startTime === 'number') {
           // Handle Excel time decimal (e.g., 0.5 = 12:00 PM)
           const totalMinutes = Math.round(startTime * 24 * 60);
