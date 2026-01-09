@@ -6,7 +6,7 @@ export async function getAppointmentsByDate(date: string): Promise<Appointment[]
     .from('appointments')
     .select('*')
     .eq('scheduled_date', date)
-    .order('time', { ascending: true });
+    .order('scheduled_time', { ascending: true });
 
   if (error) throw error;
   return data || [];
@@ -25,8 +25,8 @@ export async function createAppointment(input: AppointmentInput): Promise<Appoin
   const { data, error } = await supabase
     .from('appointments')
     .insert([{
-      date: input.date,
-      time: input.time,
+      scheduled_date: input.date,
+      scheduled_time: input.time,
       salesOrder: salesOrder,
       delivery: delivery,
       carrier: input.carrier?.trim() || null,
@@ -51,8 +51,8 @@ export async function updateAppointment(
   const { data, error} = await supabase
     .from('appointments')
     .update({
-      date: input.date,
-      time: input.time,
+      scheduled_date: input.date,
+      scheduled_time: input.time,
       salesOrder: input.salesOrder?.trim() || null,
       delivery: input.delivery?.trim() || null,
       carrier: input.carrier?.trim() || null,
@@ -76,8 +76,8 @@ export async function deleteAppointment(id: number): Promise<void> {
 }
 
 export async function checkDuplicateAppointment(
-  date: string,
-  time: string,
+  scheduled_date: string,
+  scheduled_time: string,
   salesOrder?: string,
   delivery?: string
 ): Promise<boolean> {
