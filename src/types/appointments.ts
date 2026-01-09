@@ -1,9 +1,9 @@
 // src/types/appointments.ts
 
 export interface AppointmentInput {
-  appointment_date: string;
-  scheduled_time: string;
-  sales_order: string;
+  date: string;
+  time: string;
+  salesOrder: string;
   delivery: string;
   carrier: string;
   notes: string;
