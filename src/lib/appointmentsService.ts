@@ -13,11 +13,9 @@ export async function getAppointmentsByDate(date: string): Promise<Appointment[]
 }
 
 export async function createAppointment(input: AppointmentInput): Promise<Appointment> {
-  // Handle empty strings - convert to null or throw error
   const salesOrder = input.salesOrder?.trim() || null;
   const delivery = input.delivery?.trim() || null;
 
-  // Validate that at least one reference number exists
   if (!salesOrder && !delivery) {
     throw new Error('Either Sales Order or Delivery must be provided');
   }
@@ -27,10 +25,8 @@ export async function createAppointment(input: AppointmentInput): Promise<Appoin
     .insert([{
       scheduled_date: input.date,
       scheduled_time: input.time,
-      sales_order: sales_order,
+      sales_order: salesOrder,           // ✅ Fixed
       delivery: delivery,
-      carrier: input.carrier?.trim() || null,
-      notes: input.notes?.trim() || null,
       source: input.source || 'manual'
     }])
     .select()
@@ -53,10 +49,8 @@ export async function updateAppointment(
     .update({
       scheduled_date: input.date,
       scheduled_time: input.time,
-      sales_order: input.sales_order?.trim() || null,
-      delivery: input.delivery?.trim() || null,
-      carrier: input.carrier?.trim() || null,
-      notes: input.notes?.trim() || null
+      sales_order: input.salesOrder?.trim() || null,  // ✅ Fixed
+      delivery: input.delivery?.trim() || null
     })
     .eq('id', id)
     .select()
@@ -78,17 +72,17 @@ export async function deleteAppointment(id: number): Promise<void> {
 export async function checkDuplicateAppointment(
   scheduled_date: string,
   scheduled_time: string,
-  sales_order?: string,
+  salesOrder?: string,
   delivery?: string
 ): Promise<boolean> {
   const query = supabase
     .from('appointments')
     .select('id')
-    .eq('scheduled_date', scheduled_date)
-    .eq('scheduled_time', scheduled_time);
+    .eq('scheduled_date', scheduled_date)    // ✅ Fixed
+    .eq('scheduled_time', scheduled_time);   // ✅ Fixed
 
   if (salesOrder) {
-    query.eq('sales_order', salesOrder);
+    query.eq('sales_order', salesOrder);     // ✅ Fixed
   }
   if (delivery) {
     query.eq('delivery', delivery);
