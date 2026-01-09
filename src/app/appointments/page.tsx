@@ -101,7 +101,7 @@ export default function AppointmentsPage() {
     if (!searchQuery.trim()) return true;
     
     const query = searchQuery.toLowerCase().trim();
-    const salesOrder = apt.sales_order_number?.toLowerCase() || '';
+    const salesOrder = apt.sales_order?.toLowerCase() || '';
     const delivery = apt.delivery?.toLowerCase() || '';
     
     return salesOrder.includes(query) || delivery.includes(query);
