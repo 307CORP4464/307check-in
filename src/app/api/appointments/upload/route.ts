@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
 
     if (!appointments || !Array.isArray(appointments)) {
       return NextResponse.json(
-        { error: 'Invalid appointments data' },
+        { error: 'Invalid request body' },
         { status: 400 }
       );
     }
@@ -17,32 +17,31 @@ export async function POST(request: NextRequest) {
     const results = {
       success: 0,
       failed: 0,
-      errors: [] as string[],
+      errors: [] as string[]
     };
 
     for (const appointmentData of appointments) {
       try {
-        await createAppointment(appointmentData as AppointmentInput);
+        // Add the source property required by createAppointment
+        await createAppointment({ 
+          ...appointmentData as AppointmentInput,
+          source: 'upload' 
+        });
         results.success++;
       } catch (error) {
         results.failed++;
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         results.errors.push(
-          `Failed to create appointment for ${appointmentData.customer_name}: ${errorMessage}`
+          `Failed to create appointment: ${error instanceof Error ? error.message : 'Unknown error'}`
         );
       }
     }
 
-    return NextResponse.json({
-      message: `Upload complete: ${results.success} succeeded, ${results.failed} failed`,
-      ...results,
-    });
+    return NextResponse.json(results, { status: 200 });
   } catch (error) {
-    console.error('Error uploading appointments:', error);
+    console.error('Upload error:', error);
     return NextResponse.json(
-      { error: 'Failed to upload appointments' },
+      { error: 'Failed to process upload' },
       { status: 500 }
     );
   }
 }
-
