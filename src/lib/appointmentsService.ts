@@ -13,21 +13,34 @@ export async function getAppointmentsByDate(date: string): Promise<Appointment[]
 }
 
 export async function createAppointment(input: AppointmentInput): Promise<Appointment> {
+  // Handle empty strings - convert to null or throw error
+  const salesOrder = input.salesOrder?.trim() || null;
+  const delivery = input.delivery?.trim() || null;
+
+  // Validate that at least one reference number exists
+  if (!salesOrder && !delivery) {
+    throw new Error('Either Sales Order or Delivery must be provided');
+  }
+
   const { data, error } = await supabase
     .from('appointments')
     .insert([{
       date: input.date,
       time: input.time,
-      salesOrder: input.salesOrder,
-      delivery: input.delivery,
-      carrier: input.carrier || null,
-      notes: input.notes || null,
+      salesOrder: salesOrder,
+      delivery: delivery,
+      carrier: input.carrier?.trim() || null,
+      notes: input.notes?.trim() || null,
       source: input.source || 'manual'
     }])
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error('Supabase insert error:', error);
+    throw new Error(error.message || 'Failed to create appointment');
+  }
+  
   return data;
 }
 
@@ -35,15 +48,15 @@ export async function updateAppointment(
   id: number,
   input: Partial<AppointmentInput>
 ): Promise<Appointment> {
-  const { data, error } = await supabase
+  const { data, error} = await supabase
     .from('appointments')
     .update({
       date: input.date,
       time: input.time,
-      salesOrder: input.salesOrder,
-      delivery: input.delivery,
-      carrier: input.carrier,
-      notes: input.notes
+      salesOrder: input.salesOrder?.trim() || null,
+      delivery: input.delivery?.trim() || null,
+      carrier: input.carrier?.trim() || null,
+      notes: input.notes?.trim() || null
     })
     .eq('id', id)
     .select()
