@@ -33,9 +33,9 @@ export default function AppointmentModal({
   useEffect(() => {
     if (appointment) {
       setFormData({
-        date: appointment.date,
-        time: appointment.time,
-        salesOrder: appointment.salesOrder || '',
+        date: appointment.scheduled_date,
+        time: appointment.scheudled_time,
+        salesOrder: appointment.sales_order || '',
         delivery: appointment.delivery || '',
         carrier: appointment.carrier || '',
         notes: appointment.notes || '',
