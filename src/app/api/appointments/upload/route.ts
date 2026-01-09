@@ -70,6 +70,8 @@ export async function POST(request: NextRequest) {
         const startTime = row['Start Time'] || row['Time'] || '';
         const salesOrder = row['Sales Order'] || row['SalesOrder'] || '';
         const delivery = row['Delivery'] || '';
+        const carrier = row['Carrier'] || row['carrier'] || '';
+        const notes = row['Notes'] || row['notes'] || '';
 
         // Validate required fields
         if (!startDate) {
@@ -109,12 +111,14 @@ export async function POST(request: NextRequest) {
           formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
         }
 
-        // Create appointment object
+        // Create appointment object with carrier and notes
         const mappedAppointment: AppointmentInput = {
           date: formattedDate,
           time: formattedTime,
           salesOrder: String(salesOrder).trim(),
           delivery: String(delivery).trim(),
+          carrier: carrier ? String(carrier).trim() : '',
+          notes: notes ? String(notes).trim() : '',
           source: 'upload'
         };
 
