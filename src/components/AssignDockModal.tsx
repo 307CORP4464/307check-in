@@ -292,19 +292,19 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             .value {
               text-align: right;
             }
-            .pickup-box {
+            .reference-box {
               background-color: #ffeb3b;
               padding: 12px;
               margin: 10px 0 6px;
               border: 2px solid #000;
               text-align: center;
             }
-            .pickup-box .reference-number {
+            .reference-box .reference-number {
               font-size: 18px;
               font-weight: bold;
               margin-bottom: 4px;
             }
-            .pickup-box .dock-number {
+            .reference-box .dock-number {
               font-size: 16px;
               font-weight: bold;
             }
@@ -341,16 +341,9 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             <div>${currentDate}</div>
           </div>
           <div class="pickup-box">
-            <div class="reference-number">Pickup #: ${checkIn.reference_number ?? 'N/A'}</div>
+            <div class="reference-number">Reference #: ${checkIn.reference_number ?? 'N/A'}</div>
             <div class="dock-number">${dockDisplay}</div>
           </div>
-          ${appointmentStatus ? `
-          <div class="section">
-            <div class="row">
-              <span class="label">Appointment Status</span>
-              <span class="value">
-                <span class="appointment-status ${appointmentStatus.toLowerCase()}">${appointmentStatus}</span>
-              </span>
             </div>
           </div>
           ` : ''}
