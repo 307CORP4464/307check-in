@@ -84,8 +84,8 @@ export async function checkDuplicateAppointment(
   const query = supabase
     .from('appointments')
     .select('id')
-    .eq('date', date)
-    .eq('time', time);
+    .eq('scheduled_date', scheduled_date)
+    .eq('scheduled_time', scheduled_time);
 
   if (salesOrder) {
     query.eq('salesOrder', salesOrder);
