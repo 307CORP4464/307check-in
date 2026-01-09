@@ -485,6 +485,7 @@ export default function CSRDashboard() {
       {/* Modals */}
       {selectedForDock && (
         <AssignDockModal
+          isOpen={!!selectedForDock}
           checkIn={selectedForDock}
           onClose={() => setSelectedForDock(null)}
           onSuccess={handleDockAssignSuccess}
