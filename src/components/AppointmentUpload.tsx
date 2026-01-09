@@ -60,7 +60,7 @@ export default function AppointmentUpload({ onUploadComplete }: AppointmentUploa
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+    const file = e.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
