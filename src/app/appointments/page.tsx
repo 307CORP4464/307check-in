@@ -344,7 +344,7 @@ export default function AppointmentsPage() {
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
                                 <p className="text-sm font-semibold text-gray-900 mb-1">
-                                  <span className="text-gray-600">SO:</span> {apt.salesOrder}
+                                  <span className="text-gray-600">SO:</span> {apt.sales_order}
                                 </p>
                                 <p className="text-sm text-gray-700 mb-2">
                                   <span className="font-medium">Delivery:</span> {apt.delivery}
