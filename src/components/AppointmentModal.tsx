@@ -22,7 +22,7 @@ export default function AppointmentModal({
   defaultDate
 }: AppointmentModalProps) {
   // Use defaultDate if provided, otherwise fall back to selectedDate
-  const initialDate = defaultDate || selectedDate || new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+  const initialDate = defaultDate || selectedDate || new Date().toISOString().split('T')[0];
 
   const [formData, setFormData] = useState<AppointmentInput>({
     appointment_date: initialDate,
@@ -50,7 +50,7 @@ export default function AppointmentModal({
       });
     } else {
       // Use defaultDate or selectedDate for new appointments
-      const dateToUse = defaultDate || selectedDate || new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+      const dateToUse = defaultDate || selectedDate || new Date().toISOString().split('T')[0];
       setFormData({
         appointment_date: dateToUse,
         scheduled_time: '06:00',
