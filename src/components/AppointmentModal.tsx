@@ -34,7 +34,7 @@ export default function AppointmentModal({
     if (appointment) {
       setFormData({
         date: appointment.scheduled_date,
-        time: appointment.scheudled_time,
+        time: appointment.scheduled_time,
         salesOrder: appointment.sales_order || '',
         delivery: appointment.delivery || '',
         carrier: appointment.carrier || '',
