@@ -309,7 +309,7 @@ export default function CSRDashboard() {
         <div className="max-w-[1600px] mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">CSR Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
               {userEmail && (
                 <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
               )}
@@ -380,38 +380,35 @@ export default function CSRDashboard() {
               No pending check-ins at this time
             </div>
           ) : (
-            <div className="overflow-x-auto">
+             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Check-In Time
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Type
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Wait Time
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Check-in Time
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Driver Info
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Carrier
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Trailer
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Load Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Reference #
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Appointment
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Reference Number
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Driver Info
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Trailer
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Destination
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Wait Time
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -419,27 +416,8 @@ export default function CSRDashboard() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {checkIns.map((checkIn) => (
                     <tr key={checkIn.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatTimeInIndianapolis(checkIn.check_in_time)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`text-sm font-semibold ${getWaitTimeColor(checkIn)}`}>
-                          {calculateWaitTime(checkIn)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{checkIn.driver_name || 'N/A'}</div>
-                        <div className="text-sm text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {checkIn.carrier_name || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{checkIn.trailer_number || 'N/A'}</div>
-                        <div className="text-sm text-gray-500">{checkIn.trailer_length || 'N/A'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           checkIn.load_type === 'inbound' 
                             ? 'bg-blue-100 text-blue-800' 
                             : 'bg-green-100 text-green-800'
@@ -447,29 +425,47 @@ export default function CSRDashboard() {
                           {checkIn.load_type || 'N/A'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        {formatTimeInIndianapolis(checkIn.check_in_time)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-blue-600">
+                        {getAppointmentForCheckIn(checkIn)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                         {checkIn.reference_number || 'N/A'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                        {formatAppointmentTime(checkIn.appointment_time)}
+                      <td className="px-4 py-3 text-sm">
+                        <div>{checkIn.driver_name || 'N/A'}</div>
+                        <div className="text-gray-500 text-xs">{formatPhoneNumber(checkIn.driver_phone)}</div>
+                        <div className="text-gray-500 text-xs">{checkIn.carrier_name || 'N/A'}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {checkIn.destination_city && checkIn.destination_state 
+                      <td className="px-4 py-3 text-sm">
+                        <div>{checkIn.trailer_number || 'N/A'}</div>
+                        <div className="text-gray-500 text-xs">{checkIn.trailer_length || 'N/A'}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        {checkIn.destination_city && checkIn.destination_state
                           ? `${checkIn.destination_city}, ${checkIn.destination_state}`
-                          : 'N/A'
-                        }
+                          : 'N/A'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex gap-2 justify-end">
-                          <button
-                            onClick={() => handleEdit(checkIn)}
-                            className="text-blue-600 hover:text-blue-900 font-medium">
-                            Edit
-                          </button>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        <span className={`font-semibold ${getWaitTimeColor(checkIn)}`}>
+                          {calculateWaitTime(checkIn)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-center text-sm">
+                        <div className="flex gap-2 justify-center">
                           <button
                             onClick={() => handleAssignDock(checkIn)}
-                            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors font-medium">
+                            className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors text-xs"
+                          >
                             Assign Dock
+                          </button>
+                          <button
+                            onClick={() => handleEdit(checkIn)}
+                            className="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 transition-colors text-xs"
+                          >
+                            Edit
                           </button>
                         </div>
                       </td>
@@ -481,6 +477,8 @@ export default function CSRDashboard() {
           )}
         </div>
       </div>
+
+            
 
       {/* Modals */}
       {selectedForDock && (
