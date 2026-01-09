@@ -108,7 +108,7 @@ export default function AppointmentsPage() {
   });
 
   const groupedAppointments = TIME_SLOTS.reduce((acc, slot) => {
-    acc[slot] = filteredAppointments.filter(apt => apt.scheudled_time === slot);
+    acc[slot] = filteredAppointments.filter(apt => apt.scheduled_time === slot);
     return acc;
   }, {} as Record<string, Appointment[]>);
 
