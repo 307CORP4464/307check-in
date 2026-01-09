@@ -387,7 +387,7 @@ export default function AppointmentsPage() {
       </div>
 
       <AppointmentModal
-  isOpen={ModalOpen}
+  isOpen={modalOpen}
   onClose={() => setModalOpen(false)}
   onSave={handleSave}
   appointment={editingAppointment}
