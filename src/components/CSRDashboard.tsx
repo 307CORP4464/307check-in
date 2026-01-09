@@ -497,6 +497,7 @@ export default function CSRDashboard() {
           checkIn={selectedForEdit}
           onClose={() => setSelectedForEdit(null)}
           onSuccess={handleEditSuccess}
+          isOpen={!!selectedForEdit} 
         />
       )}
     </div>
