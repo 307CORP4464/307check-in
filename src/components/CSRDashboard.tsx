@@ -69,6 +69,44 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   return appointmentTime;
 };
 
+// Add after formatAppointmentTime function
+const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
+  if (!appointmentTime || 
+      appointmentTime === 'work_in' || 
+      appointmentTime === 'paid_to_load' || 
+      appointmentTime === 'paid_charge_customer' ||
+      appointmentTime === 'ltl' ||
+      appointmentTime === 'LTL') {
+    return false;
+  }
+
+  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
+    const appointmentHour = parseInt(appointmentTime.substring(0, 2));
+    const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
+    
+    const checkInDate = new Date(checkInTime);
+    
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: TIMEZONE,
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false
+    });
+    
+    const timeString = formatter.format(checkInDate);
+    const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
+    
+    const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
+    const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
+    
+    const difference = checkInTotalMinutes - appointmentTotalMinutes;
+    return difference <= 0;
+  }
+  
+  return false;
+};
+
+
 interface CheckIn {
   id: string;
   check_in_time: string;
@@ -428,9 +466,11 @@ export default function CSRDashboard() {
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
                         {formatTimeInIndianapolis(checkIn.check_in_time)}
                       </td>
-                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                        {formatAppointmentTime(checkIn.appointment_time)}
-                      </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+  <span className={isOnTime(checkIn.check_in_time, checkIn.appointment_time) ? 'text-green-600 font-semibold' : ''}>
+    {formatAppointmentTime(checkIn.appointment_time)}
+  </span>
+</td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                         {checkIn.reference_number || 'N/A'}
                       </td>
