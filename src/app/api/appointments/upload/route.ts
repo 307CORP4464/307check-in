@@ -15,40 +15,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
-    const validTypes = [
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-excel.sheet.macroEnabled.12',
-      'text/csv'
-    ];
-
-    const fileName = file.name.toLowerCase();
-    const validExtensions = ['.xls', '.xlsx', '.xlsm', '.csv'];
-    const hasValidExtension = validExtensions.some(ext => fileName.endsWith(ext));
-
-    if (!validTypes.includes(file.type) && !hasValidExtension) {
-      return NextResponse.json(
-        { error: 'Invalid file type. Please upload an Excel file (.xls, .xlsx, or .csv)' },
-        { status: 400 }
-      );
-    }
-
     // Read file as buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
     // Parse Excel file
-    const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
-    const sheetName = workbook.SheetNames[0];
+    let workbook;
+    try {
+      workbook = XLSX.read(buffer, { type: 'buffer', raw: false });
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'Failed to parse file. Please ensure it is a valid Excel or CSV file.' },
+        { status: 400 }
+      );
+    }
+
+    const sheetName = workbook.SheetNames<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
     const worksheet = workbook.Sheets[sheetName];
     
-    // Convert to JSON with raw values
-    const rawData = XLSX.utils.sheet_to_json(worksheet, { raw: false, defval: '' }) as any[];
+    // Convert to JSON
+    const rawData = XLSX.utils.sheet_to_json(worksheet, { 
+      raw: false, 
+      defval: '' 
+    }) as any[];
+
+    console.log('Parsed data sample:', rawData.slice(0, 2));
 
     if (!rawData || rawData.length === 0) {
       return NextResponse.json(
-        { error: 'No data found in Excel file' },
+        { error: 'No data found in file' },
+        { status: 400 }
+      );
+    }
+
+    // Verify required columns
+    const firstRow = rawData<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+    const requiredColumns = ['Apt. Start Date', 'Start Time', 'Sales Order', 'Delivery'];
+    const missingColumns = requiredColumns.filter(col => !(col in firstRow));
+
+    if (missingColumns.length > 0) {
+      return NextResponse.json(
+        { error: `Missing required columns: ${missingColumns.join(', ')}. Found columns: ${Object.keys(firstRow).join(', ')}` },
         { status: 400 }
       );
     }
@@ -62,75 +69,84 @@ export async function POST(request: NextRequest) {
 
     for (let i = 0; i < rawData.length; i++) {
       const row = rawData[i];
-      const rowNumber = i + 2; // +2 because Excel rows start at 1 and we have a header row
+      const rowNumber = i + 2;
 
       try {
-        // Extract values from Excel - handle different column name variations
-        const startDate = row['Apt. Start Date'] || row['Start Date'] || row['Date'] || '';
-        const startTime = row['Start Time'] || row['Time'] || '';
-        const salesOrder = row['Sales Order'] || row['SalesOrder'] || '';
+        // Extract values
+        const startDate = row['Apt. Start Date'] || '';
+        const startTime = row['Start Time'] || '';
+        const salesOrder = row['Sales Order'] || '';
         const delivery = row['Delivery'] || '';
-        const carrier = row['Carrier'] || row['carrier'] || '';
-        const notes = row['Notes'] || row['notes'] || '';
 
         // Validate required fields
-        if (!startDate) {
-          throw new Error('Apt. Start Date is required');
-        }
-        if (!startTime) {
-          throw new Error('Start Time is required');
-        }
-        
-        // Either sales order OR delivery is required (reference number)
-        if (!salesOrder && !delivery) {
-          throw new Error('Either Sales Order or Delivery is required');
+        if (!startDate || !startTime || !salesOrder || !delivery) {
+          throw new Error('Missing required field(s)');
         }
 
-        // Parse and format date (MM/DD/YYYY to YYYY-MM-DD)
-        let formattedDate = startDate;
+        // Parse date (MM/DD/YYYY to YYYY-MM-DD)
+        let formattedDate = '';
         if (typeof startDate === 'string' && startDate.includes('/')) {
           const [month, day, year] = startDate.split('/');
+          if (!month || !day || !year) {
+            throw new Error(`Invalid date format: ${startDate}`);
+          }
           formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        } else if (typeof startDate === 'number') {
-          // Handle Excel serial date
-          const excelDate = XLSX.SSF.parse_date_code(startDate);
-          formattedDate = `${excelDate.y}-${String(excelDate.m).padStart(2, '0')}-${String(excelDate.d).padStart(2, '0')}`;
+        } else {
+          throw new Error(`Unsupported date format: ${startDate}`);
         }
 
-        // Format time (HH:MM:SS to HH:MM)
-        let formattedTime = startTime;
-        if (typeof startTime === 'string' && startTime.includes(':')) {
-          const timeParts = startTime.split(':');
-          formattedTime = `${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}`;
+        // Parse time (HH:MM:SS to HH:MM)
+        let formattedTime = '';
+        if (typeof startTime === 'string') {
+          // Remove any whitespace
+          const cleanTime = startTime.trim();
+          
+          if (cleanTime.includes(':')) {
+            const timeParts = cleanTime.split(':');
+            if (timeParts.length >= 2) {
+              const hours = timeParts<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.padStart(2, '0');
+              const minutes = timeParts<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>.padStart(2, '0');
+              formattedTime = `${hours}:${minutes}`;
+            } else {
+              throw new Error(`Invalid time format: ${startTime}`);
+            }
+          } else {
+            throw new Error(`Invalid time format: ${startTime}`);
+          }
         } else if (typeof startTime === 'number') {
-          // Handle Excel time decimal (e.g., 0.5 = 12:00 PM)
+          // Handle Excel time decimal
           const totalMinutes = Math.round(startTime * 24 * 60);
           const hours = Math.floor(totalMinutes / 60);
           const minutes = totalMinutes % 60;
           formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        } else {
+          throw new Error(`Unsupported time format: ${startTime}`);
         }
 
-        // Create appointment object - allow empty values for salesOrder or delivery
-        const mappedAppointment = {
+        // Create appointment
+        const appointmentData: AppointmentInput = {
           date: formattedDate,
           time: formattedTime,
-          salesOrder: salesOrder ? String(salesOrder).trim() : '',
-          delivery: delivery ? String(delivery).trim() : '',
-          carrier: carrier ? String(carrier).trim() : '',
-          notes: notes ? String(notes).trim() : '',
+          salesOrder: String(salesOrder).trim(),
+          delivery: String(delivery).trim(),
+          carrier: '',
+          notes: '',
           source: 'upload' as const
         };
 
-        await createAppointment(mappedAppointment);
+        console.log(`Row ${rowNumber} processed:`, appointmentData);
+
+        await createAppointment(appointmentData);
         results.success++;
       } catch (error) {
         results.failed++;
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        results.errors.push(
-          `Row ${rowNumber}: ${errorMessage}`
-        );
+        results.errors.push(`Row ${rowNumber}: ${errorMessage}`);
+        console.error(`Row ${rowNumber} error:`, error);
       }
     }
+
+    console.log('Upload results:', results);
 
     return NextResponse.json(results, { status: 200 });
   } catch (error) {
