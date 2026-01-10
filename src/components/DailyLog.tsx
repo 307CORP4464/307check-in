@@ -1,145 +1,259 @@
 'use client';
-
 import { useState, useEffect } from 'react';
-import { Appointment, AppointmentInput, TIME_SLOTS } from '@/types/appointments';
-import {
-  getAppointmentsByDate,
-  createAppointment,
-  updateAppointment,
-  deleteAppointment
-} from '@/lib/appointmentsService';
-import AppointmentUpload from '@/components/AppointmentUpload';
-import AppointmentModal from '@/components/AppointmentModal';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { zonedTimeToUtc } from 'date-fns-tz';
+import Link from 'next/link';
+import StatusChangeModal from './StatusChangeModal';
+import EditCheckInModal from './EditCheckInModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
-const formatTimeInIndianapolis = (isoString: string): string => {
+// All your formatting functions stay here (formatTimeInIndianapolis, formatPhoneNumber, formatAppointmentTime, isOnTime, calculateDetention)
+
+const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
   try {
-    const date = new Date(isoString);
-    
-    if (isNaN(date.getTime())) {
-      return 'Invalid Date';
-    }
+    const utcDate = new Date(isoString);
     
     const options: Intl.DateTimeFormatOptions = {
       timeZone: TIMEZONE,
+      hour12: false,
+      ...(includeDate && {
+        month: '2-digit',
+        day: '2-digit',
+      }),
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false
     };
     
     const formatter = new Intl.DateTimeFormat('en-US', options);
-    return formatter.format(date);
+    return formatter.format(utcDate);
   } catch (e) {
-    console.error('Time formatting error:', e, isoString);
-    return isoString;
+    console.error('Time formatting error:', e);
+    return '-';
   }
 };
 
-// Status badge color function matching DailyLog
-const getStatusBadgeColor = (status: string): string => {
-  const statusLower = status.toLowerCase();
-  if (statusLower === 'completed' || statusLower === 'checked_out') return 'bg-gray-500 text-white';
-  if (statusLower === 'unloaded') return 'bg-green-500 text-white';
-  if (statusLower === 'rejected') return 'bg-red-500 text-white';
-  if (statusLower === 'turned_away') return 'bg-red-500 text-white';
-  if (statusLower === 'driver_left') return 'bg-red-500 text-white';
-  if (statusLower === 'pending') return 'bg-yellow-500 text-white';
-  if (statusLower === 'checked_in') return 'bg-purple-500 text-white';
-  return 'bg-gray-500 text-white';
+const formatPhoneNumber = (phone: string | undefined): string => {
+  if (!phone) return 'N/A';
+  
+  const cleaned = phone.replace(/\D/g, '');
+  
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+  }
+  
+  return phone;
 };
 
-// Status label function
-const getStatusLabel = (status: string): string => {
-  if (status === 'checked_in') return 'Check In';
-  if (status === 'checked_out') return 'Completed';
-  if (status === 'turned_away') return 'Turned Away';
-  if (status === 'driver_left') return 'Driver Left';
-  return status.charAt(0).toUpperCase() + status.slice(1);
+const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
+  if (!appointmentTime) return 'N/A';
+  
+  if (appointmentTime === 'work_in') return 'Work In';
+  if (appointmentTime === 'paid_to_load') return 'Paid - No Appt';
+  if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
+  if (appointmentTime === 'ltl') return 'LTL';
+  
+  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
+    const hours = appointmentTime.substring(0, 2);
+    const minutes = appointmentTime.substring(2, 4);
+    return `${hours}:${minutes}`;
+  }
+  
+  return appointmentTime;
 };
 
-interface CheckInStatus {
-  reference_number: string;
+const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
+  if (!appointmentTime || 
+      appointmentTime === 'work_in' || 
+      appointmentTime === 'paid_to_load' || 
+      appointmentTime === 'paid_charge_customer' ||
+      appointmentTime === 'ltl') {
+    return false;
+  }
+
+  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
+    const appointmentHour = parseInt(appointmentTime.substring(0, 2));
+    const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
+    
+    const checkInDate = new Date(checkInTime);
+    
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: TIMEZONE,
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false
+    });
+    
+    const timeString = formatter.format(checkInDate);
+    const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
+    
+    const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
+    const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
+    
+    const difference = checkInTotalMinutes - appointmentTotalMinutes;
+    return difference <= 0;
+  }
+  
+  return false;
+};
+
+const calculateDetention = (checkIn: CheckIn): string => {
+  if (!checkIn.appointment_time || !checkIn.end_time) {
+    return '-';
+  }
+
+  if (!isOnTime(checkIn.check_in_time, checkIn.appointment_time)) {
+    return '-';
+  }
+
+  if (checkIn.appointment_time === 'work_in' || 
+      checkIn.appointment_time === 'paid_to_load' || 
+      checkIn.appointment_time === 'paid_charge_customer' ||
+      checkIn.appointment_time === 'ltl') {
+    return '-';
+  }
+
+  const endTime = new Date(checkIn.end_time);
+  const standardMinutes = 120;
+  let detentionMinutes = 0;
+
+  if (checkIn.appointment_time.length === 4 && /^\d{4}$/.test(checkIn.appointment_time)) {
+    const appointmentHour = parseInt(checkIn.appointment_time.substring(0, 2));
+    const appointmentMinute = parseInt(checkIn.appointment_time.substring(2, 4));
+    
+    const checkInDate = new Date(checkIn.check_in_time);
+    
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    
+    const parts = formatter.formatToParts(checkInDate);
+    const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+    const month = parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1;
+    const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
+    
+    const appointmentDate = new Date(checkInDate);
+    appointmentDate.setFullYear(year, month, day);
+    appointmentDate.setHours(appointmentHour, appointmentMinute, 0, 0);
+    
+    const timeSinceAppointmentMs = endTime.getTime() - appointmentDate.getTime();
+    const minutesSinceAppointment = Math.floor(timeSinceAppointmentMs / (1000 * 60));
+    
+    detentionMinutes = Math.max(0, minutesSinceAppointment - standardMinutes);
+  }
+  
+  if (detentionMinutes === 0) {
+    return '-';
+  }
+  
+  return `${detentionMinutes} min`;
+};
+
+interface CheckIn {
+  id: string;
+  check_in_time: string;
+  check_out_time?: string | null;
   status: string;
-  check_in_time?: string;
+  driver_name?: string;
+  driver_phone?: string;
+  carrier_name?: string;
+  trailer_number?: string;
+  trailer_length?: string;
+  load_type?: 'inbound' | 'outbound';
+  reference_number?: string;
+  dock_number?: string;
+  appointment_time?: string | null;
+  end_time?: string | null;
+  start_time?: string | null;
+  notes?: string;
+  destination_city?: string;
+  destination_state?: string;
 }
 
-export default function AppointmentsPage() {
+export default function DailyLog() {
   const router = useRouter();
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [checkInStatuses, setCheckInStatuses] = useState<Map<string, CheckInStatus>>(new Map());
-  const [loading, setLoading] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  
+  const getCurrentDateInIndianapolis = () => {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    const parts = formatter.formatToParts(now);
+    const year = parts.find(p => p.type === 'year')?.value;
+    const month = parts.find(p => p.type === 'month')?.value;
+    const day = parts.find(p => p.type === 'day')?.value;
+    return `${year}-${month}-${day}`;
+  };
+
+  const [selectedDate, setSelectedDate] = useState<string>(getCurrentDateInIndianapolis());
+  const [selectedForStatusChange, setSelectedForStatusChange] = useState<CheckIn | null>(null);
+  const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
+
+  // MOVE fetchCheckInsForDate INSIDE the component - RIGHT HERE
+  const fetchCheckInsForDate = async () => {
+    try {
+      setLoading(true);
+      
+      const startOfDayIndy = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
+      const endOfDayIndy = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
+
+      const { data, error } = await supabase
+        .from('check_ins')
+        .select('*')
+        .gte('check_in_time', startOfDayIndy.toISOString())
+        .lte('check_in_time', endOfDayIndy.toISOString())
+        .order('check_in_time', { ascending: false });
+
+      if (error) throw error;
+      setCheckIns(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserEmail(user.email || '');
+      } else {
+        router.push('/login');
       }
     };
     getUser();
-  }, [supabase]);
+  }, [supabase, router]);
 
   useEffect(() => {
-    loadAppointments();
-    loadCheckInStatuses();
-  }, [selectedDate]);
+    fetchCheckInsForDate();
+  }, [selectedDate]); // Removed supabase from dependencies
 
-  const loadAppointments = async () => {
-    setLoading(true);
-    try {
-      const data = await getAppointmentsByDate(selectedDate);
-      setAppointments(data);
-    } catch (error) {
-      console.error('Error loading appointments:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCheckInStatuses = async () => {
-    try {
-      const startOfDayIndy = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
-      const endOfDayIndy = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
-
-      const { data, error } = await supabase
-        .from('check_ins')
-        .select('reference_number, status, check_in_time')
-        .gte('check_in_time', startOfDayIndy.toISOString())
-        .lte('check_in_time', endOfDayIndy.toISOString());
-
-      if (error) throw error;
-      
-      const statusMap = new Map<string, CheckInStatus>();
-      data?.forEach((checkIn) => {
-        if (checkIn.reference_number) {
-          statusMap.set(checkIn.reference_number, {
-            reference_number: checkIn.reference_number,
-            status: checkIn.status,
-            check_in_time: checkIn.check_in_time
-          });
-        }
-      });
-      
-      setCheckInStatuses(statusMap);
-    } catch (error) {
-      console.error('Error loading check-in statuses:', error);
-    }
-  };
+  const filteredCheckIns = checkIns.filter((checkIn) => {
+    if (!searchTerm.trim()) return true;
+    
+    const searchLower = searchTerm.toLowerCase().trim();
+    const refNumber = checkIn.reference_number?.toLowerCase() || '';
+    
+    return refNumber.includes(searchLower);
+  });
 
   const handleLogout = async () => {
     try {
@@ -151,124 +265,114 @@ export default function AppointmentsPage() {
     }
   };
 
-  const changeDateByDays = (days: number) => {
-    const currentDate = new Date(selectedDate);
-    currentDate.setDate(currentDate.getDate() + days);
-    setSelectedDate(currentDate.toISOString().split('T')[0]);
+  const handleStatusChange = (checkIn: CheckIn) => {
+    setSelectedForStatusChange(checkIn);
   };
 
-  // Filter appointments based on search query
-  const filteredAppointments = appointments.filter(apt => {
-    if (!searchQuery.trim()) return true;
-    
-    const query = searchQuery.toLowerCase().trim();
-    const salesOrder = apt.sales_order?.toLowerCase() || '';
-    const delivery = apt.delivery?.toLowerCase() || '';
-    
-    return salesOrder.includes(query) || delivery.includes(query);
-  });
-
-  const groupedAppointments = TIME_SLOTS.reduce((acc, slot) => {
-    acc[slot] = filteredAppointments.filter(apt => apt.scheduled_time === slot);
-    return acc;
-  }, {} as Record<string, Appointment[]>);
-
-  const workInCount = groupedAppointments['Work In']?.length || 0;
-  const totalAppointmentsCount = filteredAppointments.length;
-
-  const handleSave = async (data: AppointmentInput) => {
-    try {
-      if (editingAppointment) {
-        await updateAppointment(editingAppointment.id, data);
-      } else {
-        await createAppointment({ ...data, source: 'manual' });
-      }
-      await loadAppointments();
-      await loadCheckInStatuses();
-      setEditingAppointment(null);
-    } catch (error: any) {
-      alert(error.message || 'Error saving appointment');
-      throw error;
-    }
+  const handleStatusChangeSuccess = () => {
+    fetchCheckInsForDate();
+    setSelectedForStatusChange(null);
   };
 
-  const handleEdit = (appointment: Appointment) => {
-    setEditingAppointment(appointment);
-    setModalOpen(true);
+  const handleEdit = (checkIn: CheckIn) => {
+    setSelectedForEdit(checkIn);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this appointment?')) return;
-    
-    try {
-      await deleteAppointment(id);
-      await loadAppointments();
-    } catch (error: any) {
-      alert(error.message || 'Error deleting appointment');
-    }
+  const handleEditSuccess = () => {
+    fetchCheckInsForDate();
+    setSelectedForEdit(null);
   };
 
-  const clearSearch = () => {
-    setSearchQuery('');
+  const getStatusBadgeColor = (status: string): string => {
+    const statusLower = status.toLowerCase();
+    if (statusLower === 'completed' || statusLower === 'checked_out') return 'bg-gray-500 text-white';
+    if (statusLower === 'unloaded') return 'bg-green-500 text-white';
+    if (statusLower === 'rejected') return 'bg-red-500 text-white';
+    if (statusLower === 'turned_away') return 'bg-orange-500 text-white';
+    if (statusLower === 'driver_left') return 'bg-indigo-500 text-white';
+    if (statusLower === 'pending') return 'bg-yellow-500 text-white';
+    if (statusLower === 'checked_in') return 'bg-purple-500 text-white';
+    return 'bg-gray-500 text-white';
   };
 
-  // Helper function to get status for an appointment
-  const getAppointmentStatus = (appointment: Appointment): CheckInStatus | undefined => {
-    const refNumber = appointment.sales_order || appointment.delivery;
-    return refNumber ? checkInStatuses.get(refNumber) : undefined;
+  const getStatusLabel = (status: string): string => {
+    if (status === 'checked_in') return 'Checked In';
+    if (status === 'checked_out') return 'Checked Out';
+    if (status === 'turned_away') return 'Turned Away';
+    if (status === 'driver_left') return 'Driver Left';
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
-  return (
+  // Helper function to check if a status is considered "completed"
+  const isCompletedStatus = (status: string): boolean => {
+    const statusLower = status.toLowerCase();
+    return (
+      statusLower === 'completed' || 
+      statusLower === 'checked_out' ||
+      statusLower === 'unloaded' ||
+      statusLower === 'rejected' ||
+      statusLower === 'turned_away' ||
+      statusLower === 'driver_left'
+    );
+  };
+
+  // Updated stats calculations
+  const totalCheckIns = filteredCheckIns.length;
+  const activeCheckIns = filteredCheckIns.filter(c => {
+    const statusLower = c.status.toLowerCase();
+    return statusLower === 'checked_in' || statusLower === 'pending';
+  }).length;
+  const completedCheckIns = filteredCheckIns.filter(c => isCompletedStatus(c.status)).length;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+ return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header - Matching Dashboard */}
+      {/* Header - CSR Dashboard Style */}
       <div className="bg-white border-b shadow-sm">
         <div className="max-w-[1600px] mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Appointment Scheduling</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Daily Log</h1>
               {userEmail && (
                 <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
               )}
-              <p className="text-xs text-gray-500">
-                Current time: {formatTimeInIndianapolis(new Date().toISOString())}
-              </p>
+              <p className="text-xs text-gray-500">Current time: {formatTimeInIndianapolis(new Date().toISOString())}</p>
             </div>
             <div className="flex gap-3">
               <Link 
-                href="/appointments" 
-                className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
-              >
+		href="/appointments" 
+                className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium">
                 Appointments
               </Link>  
 
-              <Link
+<Link
                 href="/dock-status"
-                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
-              >
+                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium">
                 Dock Status
               </Link>    
 
-              <Link
+<Link
                 href="/dashboard"
-                className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
-              >
+                className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium">
                 Dashboard
               </Link>
-              
-              <Link
+<Link
                 href="/logs"
-                className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium"
-              >
+                className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium">
                 Daily Logs
               </Link>
-              
-              <Link
+<Link
                 href="/tracking"
-                className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium"
-              >
+                className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium">
                 Tracking
               </Link>
-              
               <button
                 onClick={handleLogout}
                 className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors font-medium"
@@ -282,232 +386,287 @@ export default function AppointmentsPage() {
 
       {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-2">
-            <AppointmentUpload onUploadComplete={() => {
-              loadAppointments();
-              loadCheckInStatuses();
-            }} />
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg shadow">
-            <label className="block text-sm font-medium mb-2">Select Date</label>
-            <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => changeDateByDays(-1)}
-                className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors font-medium"
-                title="Previous Day">
-                ← Prev
-              </button>
+        {/* Date Selector and Search Bar */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex-1">
+              <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">
+                Select Date
+              </label>
               <input
+                id="date-select"
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="flex-1 p-2 border rounded"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              <button
-                onClick={() => changeDateByDays(1)}
-                className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors font-medium"
-                title="Next Day">
-                Next →
-              </button>
             </div>
-            <button
-              onClick={() => {
-                setEditingAppointment(null);
-                setModalOpen(true);
-              }}
-              className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition-colors font-medium">
-              + Add Manual Appointment
-            </button>
-          </div>
-        </div>
-
-        {/* Search Bar */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <label className="block text-sm font-medium mb-2 text-gray-700">
-            Search by Reference Number
-          </label>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Enter Sales Order or Delivery number..."
-                className="w-full p-3 pl-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-              <svg 
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
+            
+            {/* Search Bar */}
+            <div className="flex-1">
+              <label htmlFor="search-input" className="block text-sm font-medium text-gray-700 mb-2">
+                Search by Reference Number
+              </label>
+              <div className="relative">
+                <input
+                  id="search-input"
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Enter reference number..."
+                  className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-              </svg>
+                <svg
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <svg className="h-5 w-5" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+                      <path d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                  </button>
+                )}
+              </div>
+              {searchTerm && (
+                <p className="mt-1 text-sm text-gray-500">
+                  Showing {filteredCheckIns.length} of {checkIns.length} check-ins
+                </p>
+              )}
             </div>
-            {searchQuery && (
-              <button
-                onClick={clearSearch}
-                className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors font-medium"
-              >
-                Clear
-              </button>
-            )}
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-blue-100 p-4 rounded-lg border border-blue-300">
-            <div className="text-sm text-blue-800 font-medium">Total Appointments</div>
-            <div className="text-3xl font-bold text-blue-900">{totalAppointmentsCount}</div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Check-ins</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{totalCheckIns}</p>
+              </div>
+              <div className="bg-blue-100 p-3 rounded-lg">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+            </div>
           </div>
-          <div className="bg-green-100 p-4 rounded-lg border border-green-300">
-            <div className="text-sm text-green-800 font-medium">Work In Count</div>
-            <div className="text-3xl font-bold text-green-900">{workInCount}</div>
+
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Active</p>
+                <p className="text-3xl font-bold text-purple-600 mt-2">{activeCheckIns}</p>
+              </div>
+              <div className="bg-purple-100 p-3 rounded-lg">
+                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Completed</p>
+                <p className="text-3xl font-bold text-green-600 mt-2">{completedCheckIns}</p>
+              </div>
+              <div className="bg-green-100 p-3 rounded-lg">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Appointments List */}
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {TIME_SLOTS.map((slot) => {
-              const slotAppointments = groupedAppointments[slot] || [];
-              if (slotAppointments.length === 0) return null;
+        {/* Check-ins Table */}
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Driver Info
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Trailer Info
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Destination
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Reference #
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Appt Time
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Check In
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    End Time
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Detention
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Notes
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredCheckIns.length === 0 ? (
+                  <tr>
+                    <td colSpan={12} className="px-6 py-12 text-center text-gray-500">
+                      {searchTerm ? 'No check-ins found matching your search' : 'No check-ins for this date'}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCheckIns.map((checkIn) => (
+                    <tr key={checkIn.id} className="hover:bg-gray-50">
+                      {/* Type - I (orange) or O (blue) */}
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-white font-bold ${
+                          checkIn.load_type === 'inbound' 
+                            ? 'bg-orange-500' 
+                            : 'bg-blue-500'
+                        }`}>
+                          {checkIn.load_type === 'inbound' ? 'I' : 'O'}
+                        </span>
+                      </td>
 
-              return (
-                <div key={slot} className="bg-white rounded-lg shadow overflow-hidden">
-                  <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3">
-                    <h3 className="text-lg font-bold">
-                      {slot} ({slotAppointments.length})
-                    </h3>
-                  </div>
-                  <div className="divide-y divide-gray-200">
-                    {slotAppointments.map((appointment) => {
-                      const status = getAppointmentStatus(appointment);
-                      
-                      return (
-                        <div
-                          key={appointment.id}
-                          className="p-6 hover:bg-gray-50 transition-colors"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-3">
-                                {/* Sales Order or Delivery as Title */}
-                                <h4 className="text-lg font-semibold text-gray-900">
-                                  {appointment.sales_order || appointment.delivery || 'N/A'}
-                                </h4>
-                                {/* Status Badge */}
-                                {status && (
-                                  <span
-                                    className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusBadgeColor(
-                                      status.status
-                                    )}`}
-                                  >
-                                    {getStatusLabel(status.status)}
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Appointment Details */}
-                              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                                {appointment.sales_order && (
-                                  <div>
-                                    <span className="text-gray-600">Sales Order:</span>
-                                    <span className="ml-2 font-medium text-gray-900">
-                                      {appointment.sales_order}
-                                    </span>
-                                  </div>
-                                )}
-                                {appointment.delivery && (
-                                  <div>
-                                    <span className="text-gray-600">Delivery:</span>
-                                    <span className="ml-2 font-medium text-gray-900">
-                                      {appointment.delivery}
-                                    </span>
-                                  </div>
-                                )}
-                                {status?.check_in_time && (
-                                  <div>
-                                    <span className="text-gray-600">Check In Time:</span>
-                                    <span className="ml-2 font-medium text-gray-900">
-                                      {formatTimeInIndianapolis(status.check_in_time)}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Notes */}
-                              {appointment.notes && (
-                                <div className="mt-3 text-sm">
-                                  <span className="text-gray-600 font-medium">Notes:</span>
-                                  <p className="mt-1 text-gray-900">{appointment.notes}</p>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex gap-2 ml-4">
-                              <button
-                                onClick={() => handleEdit(appointment)}
-                                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors text-sm font-medium"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleDelete(appointment.id)}
-                                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors text-sm font-medium"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Source and Created At */}
-                          <div className="flex items-center gap-4 text-xs text-gray-500 mt-3 pt-3 border-t border-gray-100">
-                            <span className={`px-2 py-1 rounded ${
-                              appointment.source === 'upload' 
-                                ? 'bg-blue-100 text-blue-800' 
-                                : 'bg-green-100 text-green-800'
-                            }`}>
-                              {appointment.source === 'upload' ? 'Uploaded' : 'Manual'}
-                            </span>
-                            <span>
-                              Created: {new Date(appointment.created_at).toLocaleString()}
-                            </span>
-                          </div>
+                      {/* Driver Info - Carrier bold, driver name, phone stacked */}
+                      <td className="px-4 py-4">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-gray-900">{checkIn.carrier_name || 'N/A'}</span>
+                          <span className="text-sm text-gray-700">{checkIn.driver_name || 'N/A'}</span>
+                          <span className="text-sm text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</span>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+                      </td>
+
+                      {/* Trailer Info - Number with length underneath */}
+                      <td className="px-4 py-4">
+                        <div className="flex flex-col">
+                          <span className="text-sm text-gray-900">{checkIn.trailer_number || 'N/A'}</span>
+                          <span className="text-sm text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : '-'}</span>
+                        </div>
+                      </td>
+
+                      {/* Destination - City and State */}
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {checkIn.destination_city && checkIn.destination_state 
+                            ? `${checkIn.destination_city}, ${checkIn.destination_state}`
+                            : 'N/A'}
+                        </div>
+                      </td>
+
+                    {/* Reference Number Column */}
+<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+  {checkIn.reference_number || 'N/A'}
+</td>
+
+{/* Appointment Time Column - ADD THIS */}
+<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+  {formatAppointmentTime(checkIn.appointment_time)}
+</td>
+
+{/* Check In Time Column */}
+<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+  {formatTimeInIndianapolis(checkIn.check_in_time)}
+</td>
+
+
+                      {/* End Time */}
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time, true) : '-'}
+                      </td>
+
+                      {/* Detention */}
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {calculateDetention(checkIn)}
+                      </td>
+
+                      {/* Notes */}
+                      <td className="px-4 py-4">
+                        <div className="text-sm text-gray-700 max-w-xs truncate" title={checkIn.notes || ''}>
+                          {checkIn.notes || '-'}
+                        </div>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(checkIn.status)}`}>
+                          {getStatusLabel(checkIn.status)}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEdit(checkIn)}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleStatusChange(checkIn)}
+                            className="text-purple-600 hover:text-purple-900"
+                          >
+                            Status
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
+        </div>
       </div>
-{/* Modal */}
-<AppointmentModal
-  isOpen={modalOpen}
-  onClose={() => {
-    setModalOpen(false);
-    setEditingAppointment(null);
-  }}
-  onSave={handleSave}
-  appointment={editingAppointment}
-/>
-      
+
+      {/* Modals */}
+      {selectedForStatusChange && (
+        <StatusChangeModal
+          checkIn={selectedForStatusChange}
+          onClose={() => setSelectedForStatusChange(null)}
+          onSuccess={handleStatusChangeSuccess}
+        />
+      )}
+
+     {selectedForEdit && (
+  <EditCheckInModal
+    checkIn={selectedForEdit}
+    onClose={() => setSelectedForEdit(null)}
+    onSuccess={handleEditSuccess}
+    isOpen={!!selectedForEdit}  // Add this line
+  />
+)}
+
     </div>
   );
 }
