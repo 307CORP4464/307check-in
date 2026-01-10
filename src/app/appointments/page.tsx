@@ -69,16 +69,22 @@ export default function AppointmentsPage() {
   }, [selectedDate]);
 
   const loadAppointments = async () => {
-    setLoading(true);
-    try {
-      const data = await getAppointmentsByDate(selectedDate);
-      setAppointments(data);
-    } catch (error) {
-      console.error('Error loading appointments:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  setLoading(true);
+  try {
+    console.log('🔍 Loading appointments for date:', selectedDate);
+    const data = await getAppointmentsByDate(selectedDate);
+    console.log('📦 Received appointments:', data);
+    console.log('📊 Total appointments:', data.length);
+    console.log('🔨 Manual appointments:', data.filter(a => a.source === 'manual'));
+    setAppointments(data);
+    console.log('✅ State updated with appointments');
+  } catch (error) {
+    console.error('❌ Error loading appointments:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleLogout = async () => {
     try {
