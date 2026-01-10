@@ -2,13 +2,20 @@ import { supabase } from './supabase';
 import { Appointment, AppointmentInput } from '@/types/appointments';
 
 export async function getAppointmentsByDate(date: string): Promise<Appointment[]> {
+  console.log('Fetching appointments for date:', date); // Debug log
+  
   const { data, error } = await supabase
     .from('appointments')
     .select('*')
     .eq('scheduled_date', date)
     .order('scheduled_time', { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error fetching appointments:', error);
+    throw error;
+  }
+  
+  console.log('Fetched appointments:', data); // Debug log
   return data || [];
 }
 
@@ -20,6 +27,15 @@ export async function createAppointment(input: AppointmentInput): Promise<Appoin
     throw new Error('Either Sales Order or Delivery must be provided');
   }
 
+  console.log('Creating appointment with data:', {
+    scheduled_date: input.date,
+    scheduled_time: input.time,
+    sales_order: salesOrder,
+    delivery: delivery,
+    notes: input.notes?.trim() || null,
+    source: input.source || 'manual'
+  });
+
   const { data, error } = await supabase
     .from('appointments')
     .insert([{
@@ -27,8 +43,7 @@ export async function createAppointment(input: AppointmentInput): Promise<Appoin
       scheduled_time: input.time,
       sales_order: salesOrder,
       delivery: delivery,
-      carrier: input.carrier?.trim() || null,  // ✅ Added
-      notes: input.notes?.trim() || null,      // ✅ Added
+      notes: input.notes?.trim() || null,
       source: input.source || 'manual'
     }])
     .select()
@@ -39,6 +54,7 @@ export async function createAppointment(input: AppointmentInput): Promise<Appoin
     throw new Error(error.message || 'Failed to create appointment');
   }
   
+  console.log('Created appointment:', data); // Debug log
   return data;
 }
 
@@ -53,8 +69,7 @@ export async function updateAppointment(
       scheduled_time: input.time,
       sales_order: input.salesOrder?.trim() || null,
       delivery: input.delivery?.trim() || null,
-      carrier: input.carrier?.trim() || null,   // ✅ Added
-      notes: input.notes?.trim() || null        // ✅ Added
+      notes: input.notes?.trim() || null
     })
     .eq('id', id)
     .select()
@@ -97,4 +112,3 @@ export async function checkDuplicateAppointment(
   if (error) throw error;
   return (data?.length || 0) > 0;
 }
-
