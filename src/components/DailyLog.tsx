@@ -542,7 +542,7 @@ export default function DailyLog() {
         </div>
       </main>
 
-            {/* Modals */}
+         {/* Modals */}
       {selectedForStatusChange && (
         <StatusChangeModal
           checkIn={selectedForStatusChange}
@@ -551,12 +551,14 @@ export default function DailyLog() {
         />
       )}
 
-      <EditCheckInModal
-        isOpen={!!selectedForEdit}
-        checkIn={selectedForEdit}
-        onClose={() => setSelectedForEdit(null)}
-        onSuccess={handleEditSuccess}
-      />
+      {selectedForEdit && (
+        <EditCheckInModal
+          isOpen={true}
+          checkIn={selectedForEdit}
+          onClose={() => setSelectedForEdit(null)}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </div>
   );
 }
