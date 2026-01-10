@@ -32,7 +32,6 @@ export async function createAppointment(input: AppointmentInput): Promise<Appoin
     scheduled_time: input.time,
     sales_order: salesOrder,
     delivery: delivery,
-    carrier: input.carrier?.trim() || null,
     notes: input.notes?.trim() || null,
     source: input.source || 'manual'
   });
@@ -44,7 +43,6 @@ export async function createAppointment(input: AppointmentInput): Promise<Appoin
       scheduled_time: input.time,
       sales_order: salesOrder,
       delivery: delivery,
-      carrier: input.carrier?.trim() || null,
       notes: input.notes?.trim() || null,
       source: input.source || 'manual'
     }])
@@ -71,7 +69,6 @@ export async function updateAppointment(
       scheduled_time: input.time,
       sales_order: input.salesOrder?.trim() || null,
       delivery: input.delivery?.trim() || null,
-      carrier: input.carrier?.trim() || null,
       notes: input.notes?.trim() || null
     })
     .eq('id', id)
