@@ -27,7 +27,9 @@ export async function createAppointment(input: AppointmentInput): Promise<Appoin
       scheduled_time: input.time,
       sales_order: salesOrder,
       delivery: delivery,
-      source: input.source || 'manual'  // ✅ Simplified
+      carrier: input.carrier?.trim() || null,  // ✅ Added
+      notes: input.notes?.trim() || null,      // ✅ Added
+      source: input.source || 'manual'
     }])
     .select()
     .single();
@@ -44,13 +46,15 @@ export async function updateAppointment(
   id: number,
   input: Partial<AppointmentInput>
 ): Promise<Appointment> {
-  const { data, error} = await supabase
+  const { data, error } = await supabase
     .from('appointments')
     .update({
       scheduled_date: input.date,
       scheduled_time: input.time,
       sales_order: input.salesOrder?.trim() || null,
-      delivery: input.delivery?.trim() || null
+      delivery: input.delivery?.trim() || null,
+      carrier: input.carrier?.trim() || null,   // ✅ Added
+      notes: input.notes?.trim() || null        // ✅ Added
     })
     .eq('id', id)
     .select()
@@ -78,8 +82,8 @@ export async function checkDuplicateAppointment(
   const query = supabase
     .from('appointments')
     .select('id')
-    .eq('scheduled_date', scheduled_date)  // ✅ Fixed
-    .eq('scheduled_time', scheduled_time); // ✅ Fixed
+    .eq('scheduled_date', scheduled_date)
+    .eq('scheduled_time', scheduled_time);
 
   if (salesOrder) {
     query.eq('sales_order', salesOrder);
@@ -93,3 +97,4 @@ export async function checkDuplicateAppointment(
   if (error) throw error;
   return (data?.length || 0) > 0;
 }
+
