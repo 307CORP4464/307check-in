@@ -314,96 +314,100 @@ export default function AppointmentsPage() {
           </div>
         </div>
 
-        {/* Appointments List */}
-        {loading ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <div className="text-xl text-gray-600">Loading...</div>
+       {/* Appointments List */}
+{loading ? (
+  <div className="bg-white rounded-lg shadow p-12 text-center">
+    <div className="text-xl text-gray-600">Loading...</div>
+  </div>
+) : (
+  <div className="space-y-6">
+    {TIME_SLOTS.map(slot => {
+      const slotAppts = groupedAppointments[slot] || [];
+      const maxAppointments = slot === 'Work In' ? 40 : 20;
+      const displayedAppts = slotAppts.slice(0, maxAppointments);
+      const hiddenCount = slotAppts.length - maxAppointments;
+      const displayTime = slot === 'Work In' ? 'Work In' : `${slot.substring(0, 2)}:${slot.substring(2)}`;
+
+      return (
+        <div key={slot} className="bg-white rounded-lg shadow">
+          <div className="flex justify-between items-center p-4 border-b bg-gray-50">
+            <h3 className="text-xl font-semibold text-gray-900">{displayTime}</h3>
+            <span className="bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium">
+              {slotAppts.length} {slotAppts.length === 1 ? 'appointment' : 'appointments'}
+            </span>
           </div>
-        ) : (
-          <div className="space-y-6">
-            {TIME_SLOTS.map(slot => {
-              const slotAppts = groupedAppointments[slot] || [];
-              const displayTime = slot === 'Work In' ? 'Work In' : `${slot.substring(0, 2)}:${slot.substring(2)}`;
 
-              return (
-                <div key={slot} className="bg-white rounded-lg shadow">
-                  <div className="flex justify-between items-center p-4 border-b bg-gray-50">
-                    <h3 className="text-xl font-semibold text-gray-900">{displayTime}</h3>
-                    <span className="bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium">
-                      {slotAppts.length} {slotAppts.length === 1 ? 'appointment' : 'appointments'}
-                    </span>
-                  </div>
-
-                  <div className="p-4">
-                    {slotAppts.length === 0 ? (
-                      <p className="text-gray-500 text-center py-8">No appointments scheduled</p>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {slotAppts.map(apt => (
-                          <div
-                            key={apt.id}
-                            className={`p-4 rounded-lg border-l-4 ${
+          <div className="p-4">
+            {displayedAppts.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">No appointments scheduled</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                  {displayedAppts.map(apt => (
+                    <div
+                      key={apt.id}
+                      className={`p-4 rounded-lg border-l-4 ${
+                        apt.source === 'manual' 
+                          ? 'border-green-500 bg-green-50' 
+                          : 'border-blue-500 bg-blue-50'
+                      } shadow-sm hover:shadow-md transition-shadow`}>
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          {apt.sales_order && (
+                            <p className="text-sm font-semibold text-gray-900 mb-1">
+                              <span className="text-gray-600">SO:</span> {apt.sales_order}
+                            </p>
+                          )}
+                          {apt.delivery && (
+                            <p className="text-sm text-gray-700 mb-2">
+                              <span className="font-medium">DEL:</span> {apt.delivery}
+                            </p>
+                          )}
+                          {apt.notes && (
+                            <p className="text-xs text-gray-600 mb-2 italic">{apt.notes}</p>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                               apt.source === 'manual' 
-                                ? 'border-green-500 bg-green-50' 
-                                : 'border-blue-500 bg-blue-50'
-                            } shadow-sm hover:shadow-md transition-shadow`}>
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <p className="text-sm font-semibold text-gray-900 mb-1">
-                                  <span className="text-gray-600">SO:</span> {apt.sales_order}
-                                </p>
-                                <p className="text-sm text-gray-700 mb-2">
-                                  <span className="font-medium">Delivery:</span> {apt.delivery}
-                                </p>
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                    apt.source === 'manual' 
-                                      ? 'bg-green-200 text-green-800' 
-                                      : 'bg-blue-200 text-blue-800'
-                                  }`}>
-                                    {apt.source === 'manual' ? 'Manual' : 'Uploaded'}
-                                  </span>
-                                </div>
-                              </div>
-                              {apt.source === 'manual' && (
-                                <div className="flex flex-col gap-1 ml-2">
-                                  <button
-                                    onClick={() => handleEdit(apt)}
-                                    className="text-blue-600 hover:text-blue-800 text-xs font-medium px-2 py-1 hover:bg-blue-100 rounded transition-colors">
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={() => handleDelete(apt.id)}
-                                    className="text-red-600 hover:text-red-800 text-xs font-medium px-2 py-1 hover:bg-red-100 rounded transition-colors">
-                                    Delete
-                                  </button>
-                                </div>
-                              )}
-                            </div>
+                                ? 'bg-green-200 text-green-800' 
+                                : 'bg-blue-200 text-blue-800'
+                            }`}>
+                              {apt.source === 'manual' ? 'Manual' : 'Uploaded'}
+                            </span>
                           </div>
-                        ))}
+                        </div>
+                        {apt.source === 'manual' && (
+                          <div className="flex flex-col gap-1 ml-2">
+                            <button
+                              onClick={() => handleEdit(apt)}
+                              className="text-blue-600 hover:text-blue-800 text-xs font-medium px-2 py-1 hover:bg-blue-100 rounded transition-colors">
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(apt.id)}
+                              className="text-red-600 hover:text-red-800 text-xs font-medium px-2 py-1 hover:bg-red-100 rounded transition-colors">
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
+                
+                {hiddenCount > 0 && (
+                  <div className="mt-4 p-4 bg-orange-50 border-l-4 border-orange-400 rounded">
+                    <p className="text-sm text-orange-800 font-medium">
+                      ⚠️ {hiddenCount} additional appointment{hiddenCount > 1 ? 's' : ''} not shown. 
+                      Maximum display limit: {maxAppointments} per time slot.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
-        )}
-      </div>
-
-     <AppointmentModal
-  isOpen={modalOpen}
-  onClose={() => {
-    setModalOpen(false);
-    setEditingAppointment(null);
-  }}
-  onSave={handleSave}
-  appointment={editingAppointment}
-  initialDate={selectedDate}  // Changed from defaultDate to initialDate
-/>
-
-
-    </div>
-  );
-}
+        </div>
+      );
+    })}
+  </div>
+)}
