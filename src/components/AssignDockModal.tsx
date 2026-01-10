@@ -88,6 +88,18 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     }
   };
 
+  // Sync state when modal opens with new checkIn data
+  useEffect(() => {
+    if (isOpen) {
+      setDockNumber(checkIn.dock_number || '');
+      setAppointmentTime(checkIn.appointment_time || '');
+      setDriverPhone(checkIn.driver_phone || '');
+      setError(null);
+      setSmsStatus(null);
+      setShowWarning(false);
+    }
+  }, [isOpen, checkIn]);
+
   useEffect(() => {
     if (dockNumber && dockNumber !== 'Ramp') {
       checkDockStatus(dockNumber);
@@ -350,7 +362,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             ` : ''}
             <div class="row">
               <span class="label">Appointment Time</span>
-              <span class="value">${formatAppointmentTime(checkIn.appointment_time || appointmentTime)}</span>
+              <span class="value">${formatAppointmentTime(appointmentTime)}</span>
             </div>
             ${checkIn.check_in_time ? `
             <div class="row">
