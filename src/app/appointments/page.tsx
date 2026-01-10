@@ -39,6 +39,24 @@ const formatTimeInIndianapolis = (isoString: string): string => {
     return isoString;
   }
 };
+// Update the filteredAppointments logic to handle manual appointments better
+const filteredAppointments = appointments.filter(apt => {
+  if (!searchQuery.trim()) return true;
+  
+  const query = searchQuery.toLowerCase().trim();
+  const salesOrder = apt.sales_order?.toLowerCase() || '';
+  const delivery = apt.delivery?.toLowerCase() || '';
+  const carrier = apt.carrier?.toLowerCase() || '';
+  const notes = apt.notes?.toLowerCase() || '';
+  const source = apt.source?.toLowerCase() || '';
+  
+  // Search across multiple fields including carrier, notes, and source
+  return salesOrder.includes(query) || 
+         delivery.includes(query) || 
+         carrier.includes(query) ||
+         notes.includes(query) ||
+         source.includes(query);
+});
 
 // Status badge color function matching DailyLog
 const getStatusBadgeColor = (status: string): string => {
