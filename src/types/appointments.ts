@@ -16,7 +16,6 @@ export interface Appointment {
   scheduled_time: string;
   sales_order: string | null;
   delivery: string | null;
-  carrier?: string | null;
   notes?: string | null;
   source: AppointmentSource;  // ✅ Use the shared type
   created_at: string;
