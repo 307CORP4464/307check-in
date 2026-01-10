@@ -1,3 +1,24 @@
+import { supabase } from './supabase';
+import { Appointment, AppointmentInput } from '@/types/appointments';
+
+export async function getAppointmentsByDate(date: string): Promise<Appointment[]> {
+  console.log('Fetching appointments for date:', date);
+  
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('*')
+    .eq('scheduled_date', date)
+    .order('scheduled_time', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching appointments:', error);
+    throw error;
+  }
+  
+  console.log('Fetched appointments:', data);
+  return data || [];
+}
+
 export async function createAppointment(input: AppointmentInput): Promise<Appointment> {
   const salesOrder = input.salesOrder?.trim() || null;
   const delivery = input.delivery?.trim() || null;
@@ -60,7 +81,6 @@ export async function updateAppointment(
   if (error) throw error;
   return data;
 }
-
 
 export async function deleteAppointment(id: number): Promise<void> {
   const { error } = await supabase
