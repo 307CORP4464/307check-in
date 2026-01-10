@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { Appointment, AppointmentInput } from '@/types/appointments';
 
 export async function getAppointmentsByDate(date: string): Promise<Appointment[]> {
-  console.log('Fetching appointments for date:', date); // Debug log
+  console.log('Fetching appointments for date:', date);
   
   const { data, error } = await supabase
     .from('appointments')
@@ -15,7 +15,7 @@ export async function getAppointmentsByDate(date: string): Promise<Appointment[]
     throw error;
   }
   
-  console.log('Fetched appointments:', data); // Debug log
+  console.log('Fetched appointments:', data);
   return data || [];
 }
 
@@ -27,12 +27,11 @@ export async function createAppointment(input: AppointmentInput): Promise<Appoin
     throw new Error('Either Sales Order or Delivery must be provided');
   }
 
-  console.log('Creating appointment with data:', {
+  console.log('Creating appointment:', {
     scheduled_date: input.date,
     scheduled_time: input.time,
     sales_order: salesOrder,
     delivery: delivery,
-    notes: input.notes?.trim() || null,
     source: input.source || 'manual'
   });
 
@@ -43,7 +42,6 @@ export async function createAppointment(input: AppointmentInput): Promise<Appoin
       scheduled_time: input.time,
       sales_order: salesOrder,
       delivery: delivery,
-      notes: input.notes?.trim() || null,
       source: input.source || 'manual'
     }])
     .select()
@@ -54,7 +52,7 @@ export async function createAppointment(input: AppointmentInput): Promise<Appoin
     throw new Error(error.message || 'Failed to create appointment');
   }
   
-  console.log('Created appointment:', data); // Debug log
+  console.log('Created appointment:', data);
   return data;
 }
 
@@ -68,8 +66,7 @@ export async function updateAppointment(
       scheduled_date: input.date,
       scheduled_time: input.time,
       sales_order: input.salesOrder?.trim() || null,
-      delivery: input.delivery?.trim() || null,
-      notes: input.notes?.trim() || null
+      delivery: input.delivery?.trim() || null
     })
     .eq('id', id)
     .select()
