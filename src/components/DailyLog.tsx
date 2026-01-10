@@ -69,7 +69,37 @@ const isOnTime = (checkInTime: string, appointmentTime: string | null | undefine
       appointmentTime === 'ltl') {
     return false;
   }
+const fetchCheckInsForDate = async () => {
+  try {
+    setLoading(true);
+    
+    const startOfDayIndy = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
+    const endOfDayIndy = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
 
+    const { data, error } = await supabase
+      .from('check_ins')
+      .select('*')
+      .gte('check_in_time', startOfDayIndy.toISOString())
+      .lte('check_in_time', endOfDayIndy.toISOString())
+      .order('check_in_time', { ascending: false });
+
+    if (error) throw error;
+    
+    // ADD THIS DEBUG LOG
+    console.log('Fetched check-ins:', data);
+    if (data && data.length > 0) {
+      console.log('First check-in appointment_time:', data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_time);
+    }
+    
+    setCheckIns(data || []);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'An error occurred');
+  } finally {
+    setLoading(false);
+  }
+};
+
+	
   if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
     const appointmentHour = parseInt(appointmentTime.substring(0, 2));
     const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
