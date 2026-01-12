@@ -46,7 +46,7 @@ export default function AppointmentsPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -104,7 +104,7 @@ export default function AppointmentsPage() {
   const changeDateByDays = (days: number) => {
     const currentDate = new Date(selectedDate);
     currentDate.setDate(currentDate.getDate() + days);
-    setSelectedDate(currentDate.toISOString().split('T')[0]);
+    setSelectedDate(currentDate.toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   };
 
   // Filter appointments based on search query
@@ -128,10 +128,15 @@ export default function AppointmentsPage() {
 
   const handleSave = async (data: AppointmentInput) => {
     try {
+      // Add the selected date to the data if creating new appointment
+      const appointmentData = editingAppointment 
+        ? data 
+        : { ...data, scheduled_date: selectedDate, source: 'manual' as const };
+
       if (editingAppointment) {
-        await updateAppointment(editingAppointment.id, data);
+        await updateAppointment(editingAppointment.id, appointmentData);
       } else {
-        await createAppointment({ ...data, source: 'manual' });
+        await createAppointment(appointmentData);
       }
       setModalOpen(false);
       setEditingAppointment(null);
@@ -398,11 +403,10 @@ export default function AppointmentsPage() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal - REMOVED selectedDate prop */}
       {modalOpen && (
         <AppointmentModal
           appointment={editingAppointment}
-          selectedDate={selectedDate}
           onClose={() => {
             setModalOpen(false);
             setEditingAppointment(null);
@@ -413,4 +417,3 @@ export default function AppointmentsPage() {
     </div>
   );
 }
-
