@@ -152,10 +152,10 @@ export default function AppointmentsPage() {
     }
   };
 
-  const clearSearch = () => {
-    setSearchQuery('');
-  }
-  };
+ const clearSearch = () => {
+  setSearchQuery('');
+};
+
 
   return (
     <div className="min-h-screen bg-gray-50">
