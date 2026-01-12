@@ -154,6 +154,7 @@ export default function AppointmentsPage() {
 
   const clearSearch = () => {
     setSearchQuery('');
+  }
   };
 
   return (
