@@ -16,12 +16,12 @@ export default function AppointmentModal({
   onClose,
   onSave,
   appointment,
-  initialDate = new Date().toISOString().split('T')[0]
+  initialDate = new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>
 }: AppointmentModalProps) {
   const [formData, setFormData] = useState<AppointmentInput>({
     scheduled_date: initialDate,
     scheduled_time: '06:00',
-    salesOrder: '',
+    sales_order: '',
     delivery: '',
     notes: '',
     source: 'manual'
@@ -32,18 +32,18 @@ export default function AppointmentModal({
   useEffect(() => {
     if (appointment) {
       setFormData({
-        date: appointment.scheduled_date,
-        time: appointment.scheduled_time,
-        salesOrder: appointment.sales_order || '',
+        scheduled_date: appointment.scheduled_date,
+        scheduled_time: appointment.scheduled_time,
+        sales_order: appointment.sales_order || '',
         delivery: appointment.delivery || '',
         notes: appointment.notes || '',
-        source: appointment.source as 'manual' | 'upload'
+        source: appointment.source
       });
     } else {
       setFormData({
-        date: initialDate,
-        time: '06:00',
-        salesOrder: '',
+        scheduled_date: initialDate,
+        scheduled_time: '06:00',
+        sales_order: '',
         delivery: '',
         notes: '',
         source: 'manual'
@@ -57,7 +57,7 @@ export default function AppointmentModal({
     setError('');
 
     // Validation
-    if (!formData.salesOrder && !formData.delivery) {
+    if (!formData.sales_order && !formData.delivery) {
       setError('Either Sales Order or Delivery is required');
       return;
     }
@@ -103,8 +103,8 @@ export default function AppointmentModal({
               <label className="block text-sm font-medium mb-1">Date *</label>
               <input
                 type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                value={formData.scheduled_date}
+                onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 required
               />
@@ -113,8 +113,8 @@ export default function AppointmentModal({
             <div>
               <label className="block text-sm font-medium mb-1">Time Slot *</label>
               <select
-                value={formData.time}
-                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                value={formData.scheduled_time}
+                onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 required
               >
@@ -133,8 +133,8 @@ export default function AppointmentModal({
               </label>
               <input
                 type="text"
-                value={formData.salesOrder}
-                onChange={(e) => setFormData({ ...formData, salesOrder: e.target.value })}
+                value={formData.sales_order}
+                onChange={(e) => setFormData({ ...formData, sales_order: e.target.value })}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter sales order number"
               />
@@ -143,7 +143,7 @@ export default function AppointmentModal({
             <div>
               <label className="block text-sm font-medium mb-1">
                 Delivery
-                {!formData.salesOrder && <span className="text-red-500"> *</span>}
+                {!formData.sales_order && <span className="text-red-500"> *</span>}
               </label>
               <input
                 type="text"
