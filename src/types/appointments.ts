@@ -17,7 +17,7 @@ export interface Appointment {
   sales_order: string | null;
   delivery: string | null;
   notes?: string | null;
-  source: AppointmentSource;  // ✅ Use the shared type
+  source: 'manual' | 'excel';
   created_at: string;
   updated_at: string;
 }
