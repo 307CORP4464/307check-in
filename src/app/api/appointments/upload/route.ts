@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
           delivery: String(delivery).trim(),
           carrier: '',
           notes: '',
-          source: 'upload' as const
+          source: 'excel' as const
         };
 
         console.log(`Row ${rowNumber} processed:`, appointmentData);
