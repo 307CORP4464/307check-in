@@ -27,7 +27,7 @@ export interface AppointmentInput {
   scheduled_time: string;
   sales_order: string;
   delivery: string;
-  source: 'manual' | 'upload';
+  source: 'manual' | 'excel';
   notes?: string;  // Make it optional
   carrier?: string; // Make it optional
 }
