@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify required columns
-    const firstRow = rawData<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+    const firstRow = rawData[0];
     const requiredColumns = ['Apt. Start Date', 'Start Time', 'Sales Order', 'Delivery'];
     const missingColumns = requiredColumns.filter(col => !(col in firstRow));
 
