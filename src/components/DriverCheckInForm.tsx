@@ -284,7 +284,31 @@ export default function DriverCheckInForm() {
               <option value="outbound">Outbound Pickup</option>
             </select>
           </div>
-{/* Driver Name */}
+
+          {/* Reference Number */}
+          <div>
+            <label 
+              htmlFor="referenceNumber" 
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Reference Number <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              id="referenceNumber"
+              name="referenceNumber"
+              value={formData.referenceNumber}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Enter reference number"
+              required
+            />
+            {referenceError && (
+              <p className="mt-1 text-sm text-red-600">{referenceError}</p>
+            )}
+          </div>
+
+          {/* Driver Name */}
           <div>
             <label 
               htmlFor="driverName" 
@@ -299,7 +323,7 @@ export default function DriverCheckInForm() {
               value={formData.driverName}
               onChange={handleInputChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Enter driver name"
+              placeholder="Enter your full name"
               required
             />
           </div>
@@ -310,7 +334,7 @@ export default function DriverCheckInForm() {
               htmlFor="driverPhone" 
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Driver Phone <span className="text-red-500">*</span>
+              Phone Number <span className="text-red-500">*</span>
             </label>
             <input
               type="tel"
@@ -381,41 +405,16 @@ export default function DriverCheckInForm() {
               required
             >
               {TRAILER_LENGTHS.map(({ value, label }) => (
-                <option key={value} value={value}>
+                <option key={value || 'default'} value={value}>
                   {label}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Reference Number */}
-          <div>
-            <label 
-              htmlFor="referenceNumber" 
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Reference Number <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="referenceNumber"
-              name="referenceNumber"
-              value={formData.referenceNumber}
-              onChange={handleInputChange}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                referenceError ? 'border-red-500' : 'border-gray-300'
-              }`}
-              placeholder="e.g., 2123456, TLNA-SO-012345"
-              required
-            />
-            {referenceError && (
-              <p className="mt-1 text-sm text-red-600">{referenceError}</p>
-            )}
-          </div>
-
-          {/* Destination (Outbound Only) */}
+          {/* Destination Fields (only for outbound) */}
           {formData.loadType === 'outbound' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <>
               <div>
                 <label 
                   htmlFor="destinationCity" 
@@ -430,10 +429,11 @@ export default function DriverCheckInForm() {
                   value={formData.destinationCity}
                   onChange={handleInputChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter city"
-                  required={formData.loadType === 'outbound'}
+                  placeholder="Enter destination city"
+                  required
                 />
               </div>
+
               <div>
                 <label 
                   htmlFor="destinationState" 
@@ -447,9 +447,9 @@ export default function DriverCheckInForm() {
                   value={formData.destinationState}
                   onChange={handleInputChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required={formData.loadType === 'outbound'}
+                  required
                 >
-                  <option value="">Select state</option>
+                  <option value="">Select a state</option>
                   {US_STATES.map(state => (
                     <option key={state} value={state}>
                       {state}
@@ -457,83 +457,17 @@ export default function DriverCheckInForm() {
                   ))}
                 </select>
               </div>
-            </div>
+            </>
           )}
-
-          {/* TEXT MESSAGING CONSENT & LIABILITY SECTION */}
-          <div className="border-t-2 border-gray-200 pt-6 mt-8">
-            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-blue-800">
-                    Text Messaging Consent & Liability
-                  </h3>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              <div className="text-sm text-gray-700 space-y-2">
-                <p className="font-semibold">By providing your mobile phone number, you agree to:</p>
-                <ul className="list-disc list-inside space-y-1 ml-2">
-                  <li>Receive text messages regarding dock assignments, updates, and status notifications</li>
-                  <li>Standard message and data rates may apply based on your carrier plan</li>
-                  <li>Message frequency varies based on activity</li>
-                  <li>You can opt-out at any time by replying STOP to any message</li>
-                  <li>We are not liable for delays or failures in message delivery</li>
-                  <li>You are responsible for maintaining the security of your mobile device</li>
-                  <li>Carrier delays or technical failures are not our responsibility</li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="flex items-start">
-              <div className="flex items-center h-5">
-                <input
-                  id="smsConsent"
-                  name="smsConsent"
-                  type="checkbox"
-                  checked={formData.smsConsent}
-                  onChange={handleInputChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
-                  required
-                />
-              </div>
-              <div className="ml-3 text-sm">
-                <label htmlFor="smsConsent" className="font-medium text-gray-700 cursor-pointer">
-                  I consent to receive text messages and agree to the terms above
-                  <span className="text-red-500 ml-1">*</span>
-                </label>
-                <p className="text-gray-500 mt-1 text-xs">
-                  Required to complete check-in. Reply STOP to opt-out anytime.
-                </p>
-              </div>
-            </div>
-          </div>
 
           {/* Submit Button */}
           <div className="pt-4">
             <button
               type="submit"
-              disabled={loading || !formData.smsConsent}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 ease-in-out transform hover:scale-[1.02] disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center"
+              disabled={loading || !!referenceError}
+              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Checking In...
-                </>
-              ) : (
-                'Check In'
-              )}
+              {loading ? 'Checking In...' : 'Check In'}
             </button>
           </div>
         </form>
