@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAppointment } from '@/lib/appointmentsService';
 import { AppointmentInput } from '@/types/appointments';
 import * as XLSX from 'xlsx';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const sheetName = workbook.SheetNames[0];
+    const sheetName = workbook.SheetNames<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
     const worksheet = workbook.Sheets[sheetName];
     
     // Convert to JSON
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify required columns
-    const firstRow = rawData[0];
+    const firstRow = rawData<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
     const requiredColumns = ['Apt. Start Date', 'Start Time', 'Sales Order', 'Delivery'];
     const missingColumns = requiredColumns.filter(col => !(col in firstRow));
 
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
     const results = {
       success: 0,
       failed: 0,
+      skipped: 0,  // ✅ NEW: Track skipped duplicates
       errors: [] as string[],
       total: rawData.length
     };
@@ -98,14 +100,13 @@ export async function POST(request: NextRequest) {
         // Parse time (HH:MM:SS to HH:MM)
         let formattedTime = '';
         if (typeof startTime === 'string') {
-          // Remove any whitespace
           const cleanTime = startTime.trim();
           
           if (cleanTime.includes(':')) {
             const timeParts = cleanTime.split(':');
             if (timeParts.length >= 2) {
-              const hours = timeParts[0].padStart(2, '0');
-              const minutes = timeParts[1].padStart(2, '0');
+              const hours = timeParts<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.padStart(2, '0');
+              const minutes = timeParts<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>.padStart(2, '0');
               formattedTime = `${hours}:${minutes}`;
             } else {
               throw new Error(`Invalid time format: ${startTime}`);
@@ -114,13 +115,32 @@ export async function POST(request: NextRequest) {
             throw new Error(`Invalid time format: ${startTime}`);
           }
         } else if (typeof startTime === 'number') {
-          // Handle Excel time decimal
           const totalMinutes = Math.round(startTime * 24 * 60);
           const hours = Math.floor(totalMinutes / 60);
           const minutes = totalMinutes % 60;
           formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
         } else {
           throw new Error(`Unsupported time format: ${startTime}`);
+        }
+
+        // ✅ NEW: Check if appointment already exists
+        const { data: existingAppointments, error: checkError } = await supabase
+          .from('appointments')
+          .select('id, source')
+          .eq('scheduled_date', formattedDate)
+          .eq('scheduled_time', formattedTime)
+          .eq('sales_order', String(sales_order).trim())
+          .eq('delivery', String(delivery).trim());
+
+        if (checkError) {
+          throw new Error(`Database check failed: ${checkError.message}`);
+        }
+
+        // ✅ Skip if exact duplicate exists
+        if (existingAppointments && existingAppointments.length > 0) {
+          results.skipped++;
+          console.log(`Row ${rowNumber} skipped: Duplicate appointment`);
+          continue;
         }
 
         // Create appointment
