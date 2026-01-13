@@ -6,28 +6,28 @@ export const TIME_SLOTS = [
 
 export type TimeSlot = typeof TIME_SLOTS[number];
 
-// ✅ Complete Fixed Types File
+// ✅ Complete Fixed Types Filed
 
-export type AppointmentSource = 'manual' | 'excel' | 'upload';
-
-export interface Appointment {
-  id: number;
-  scheduled_date: string;
-  scheduled_time: string;
-  sales_order: string | null;
-  delivery: string | null;
-  notes?: string | null;
-  source: 'manual' | 'excel';
-  created_at: string;
-  updated_at: string;
-}
+export type AppointmentSource = 'excel' | 'manual';
 
 export interface AppointmentInput {
   scheduled_date: string;
   scheduled_time: string;
   sales_order: string;
-  delivery: string;
-  source: 'manual' | 'excel';
-  notes?: string;  // Make it optional
-  carrier?: string; // Make it optional
+  delivery?: string;
+  notes?: string;
+  source?: AppointmentSource;  // Use the same type
 }
+
+export interface Appointment {
+  id: number;
+  scheduled_date: string;
+  scheduled_time: string;
+  sales_order: string;
+  delivery?: string;
+  notes?: string;
+  source: AppointmentSource;  // Use the same type
+  created_at?: string;
+  updated_at?: string;
+}
+
