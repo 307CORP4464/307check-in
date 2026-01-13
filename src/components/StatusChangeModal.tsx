@@ -6,7 +6,7 @@ import { createBrowserClient } from '@supabase/ssr';
 interface StatusChangeModalProps {
   checkIn: {
     id: string;
-    pickup_number?: string;
+    reference_number?: string;
     driver_name?: string;
     end_time?: string | null;
   };
@@ -114,8 +114,8 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
 
         <div className="mb-4 p-3 bg-gray-50 rounded flex gap-6">
           <div>
-            <p className="text-sm text-gray-600">Pickup Number:</p>
-            <p className="font-semibold">{checkIn.pickup_number || 'N/A'}</p>
+            <p className="text-sm text-gray-600">Reference Number:</p>
+            <p className="font-semibold">{checkIn.reference_number || 'N/A'}</p>
           </div>
           {checkIn.driver_name && (
             <div>
@@ -230,8 +230,8 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
               } disabled:bg-gray-400`}
             >
               {loading ? 'Updating...' : 
-                statusAction === 'complete' ? 'Complete Loading' :
-                statusAction === 'unloaded' ? 'Mark as Unloaded' :
+                statusAction === 'complete' ? 'Completed' :
+                statusAction === 'unloaded' ? 'Mark as Completed' :
                 statusAction === 'rejected' ? 'Mark as Rejected' :
                 statusAction === 'driver_left' ? 'Mark as Driver Left' :
                 'Mark as Turned Away'
