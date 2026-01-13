@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const sheetName = workbook.SheetNames<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+    const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     
     // Convert to JSON
@@ -105,8 +105,8 @@ export async function POST(request: NextRequest) {
           if (cleanTime.includes(':')) {
             const timeParts = cleanTime.split(':');
             if (timeParts.length >= 2) {
-              const hours = timeParts<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.padStart(2, '0');
-              const minutes = timeParts<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>.padStart(2, '0');
+              const hours = timeParts[0].padStart(2, '0');
+              const minutes = timeParts[1].padStart(2, '0');
               formattedTime = `${hours}:${minutes}`;
             } else {
               throw new Error(`Invalid time format: ${startTime}`);
