@@ -20,7 +20,7 @@ export async function getAppointmentsByDate(date: string): Promise<Appointment[]
 }
 
 export async function createAppointment(input: AppointmentInput): Promise<Appointment> {
-  const salesOrder = input.sales_order?.trim() || null;
+  const sales_order = input.sales_order?.trim() || null;
   const delivery = input.delivery?.trim() || null;
 
   if (!sales_order && !delivery) {
