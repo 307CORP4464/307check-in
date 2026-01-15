@@ -330,12 +330,12 @@ export default function DailyLog() {
     return 'bg-gray-500 text-white';
   };
 
-  return (
+   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header section */}
+      {/* Header section - Navigation only */}
       <div className="bg-white shadow">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Daily Log</h1>
             
             <div className="flex gap-2">
@@ -355,7 +355,7 @@ export default function DailyLog() {
 
               <Link
                 href="/dashboard"
-                className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium text-sm"
+                className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium text-sm"
               >
                 Dashboard
               </Link>
@@ -382,11 +382,16 @@ export default function DailyLog() {
               </Link>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Date picker and search */}
+      {/* Main Content Area */}
+      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Date picker and search - Moved outside header */}
+        <div className="bg-white shadow rounded-lg p-6 mb-6">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
             {/* Date Selector with Arrows */}
-            <div>
+            <div className="flex-shrink-0">
               <label htmlFor="date-picker" className="block text-sm font-medium text-gray-700 mb-1">
                 Select Date
               </label>
@@ -464,10 +469,8 @@ export default function DailyLog() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Stats Cards */}
-      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {/* Total Count Card */}
           <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white transform transition-all hover:scale-105">
