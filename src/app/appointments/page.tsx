@@ -140,7 +140,6 @@ export default function AppointmentsPage() {
       // Add the selected date and source for new appointments
       const appointmentData: AppointmentInput = {
         ...data,
-        scheduled_date: selectedDate,
         source: editingAppointment ? data.source : 'manual'
       };
 
