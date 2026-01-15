@@ -204,6 +204,17 @@ export default function DailyLog() {
   const [selectedForStatusChange, setSelectedForStatusChange] = useState<CheckIn | null>(null);
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
 
+  // Calculate counters
+  const totalCount = filteredCheckIns.length;
+  const completedCount = filteredCheckIns.filter(checkIn => {
+    const statusLower = checkIn.status.toLowerCase();
+    return statusLower === 'completed' || 
+           statusLower === 'checked_out' || 
+           statusLower === 'rejected' || 
+           statusLower === 'driver_left' || 
+           statusLower === 'turned_away';
+  }).length;
+
   const fetchCheckInsForDate = async () => {
     try {
       setLoading(true);
@@ -300,117 +311,69 @@ export default function DailyLog() {
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-red-600">Error: {error}</div>
-      </div>
-    );
-  }
-
   return (
-  <div className="min-h-screen bg-gray-50">
-    {/* Header */}
-    <div className="bg-white border-b shadow-sm">
-      <div className="max-w-[1600px] mx-auto px-4 py-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Appointment Scheduling</h1>
-            {userEmail && (
-              <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
-            )}
-            <p className="text-xs text-gray-500">
-              Current time: {formatTimeInIndianapolis(new Date().toISOString())}
-            </p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header section - add counters here */}
+      <div className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-gray-900">Daily Log</h1>
+            
+            {/* Counters Display */}
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-600">Total:</span>
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
+                  {totalCount}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-600">Completed:</span>
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
+                  {completedCount}
+                </span>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md"
+              >
+                Logout
+              </button>
+            </div>
           </div>
-          <div className="flex gap-3">
-            <Link 
-              href="/appointments" 
-              className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
-            >
-              Appointments
-            </Link>  
 
-            <Link
-              href="/dock-status"
-              className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
-            >
-              Dock Status
-            </Link>    
-
-            <Link
-              href="/dashboard"
-              className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
-            >
-              Dashboard
-            </Link>
-            
-            <Link
-              href="/logs"
-              className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium"
-            >
-              Daily Logs
-            </Link>
-            
-            <Link
-              href="/tracking"
-              className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium"
-            >
-              Tracking
-            </Link>
-            
-            <Link
-              href="/check-in"
-              className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
-            >
-              Check-In Form
-            </Link>
+          {/* Date picker and search */}
+          <div className="mt-4 flex gap-4 items-center">
+            <div>
+              <label htmlFor="date-picker" className="block text-sm font-medium text-gray-700 mb-1">
+                Select Date
+              </label>
+              <input
+                id="date-picker"
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+                Search by Reference Number
+              </label>
+              <input
+                id="search"
+                type="text"
+                placeholder="Enter reference number..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-      {/* Main Content */}
-      <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
-        {/* Date Selector & Search */}
-        <div className="mb-6 flex gap-4 items-center max-w-7xl mx-auto">
-          <div>
-            <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">
-              Select Date
-            </label>
-            <input
-              id="date-select"
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          
-          <div className="flex-1">
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
-              Search by Reference Number
-            </label>
-            <input
-              id="search"
-              type="text"
-              placeholder="Enter reference number..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-        </div>
-
-        {/* Table - Full Width */}
+              {/* Table - Full Width */}
         <div className="bg-white rounded-lg shadow">
           <table className="w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -573,7 +536,6 @@ export default function DailyLog() {
           </table>
         </div>
       </main>
-
       {/* Modals */}
       {selectedForStatusChange && (
         <StatusChangeModal
@@ -582,10 +544,9 @@ export default function DailyLog() {
           onSuccess={handleStatusChangeSuccess}
         />
       )}
-
+      
       {selectedForEdit && (
         <EditCheckInModal
-          isOpen={true}
           checkIn={selectedForEdit}
           onClose={() => setSelectedForEdit(null)}
           onSuccess={handleEditSuccess}
