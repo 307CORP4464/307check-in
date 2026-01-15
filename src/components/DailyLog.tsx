@@ -335,62 +335,12 @@ export default function DailyLog() {
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Daily Log</h1>
             
-            {/* Counters Display */}
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-600">Total:</span>
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
-                  {totalCount}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-600">Completed:</span>
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
-                  {completedCount}
-                </span>
-              </div>
-               <Link 
-              href="/appointments" 
-              className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md"
             >
-              Appointments
-            </Link>  
-
-            <Link
-              href="/dock-status"
-              className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
-            >
-              Dock Status
-            </Link>    
-
-            <Link
-              href="/dashboard"
-              className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
-            >
-              Dashboard
-            </Link>
-            
-            <Link
-              href="/logs"
-              className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium"
-            >
-              Daily Logs
-            </Link>
-            
-            <Link
-              href="/tracking"
-              className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium"
-            >
-              Tracking
-            </Link>
-            
-            <Link
-              href="/check-in"
-              className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
-            >
-              Check-In Form
-            </Link>
-            </div>
+              Logout
+            </button>
           </div>
 
           {/* Date picker and search */}
@@ -424,8 +374,41 @@ export default function DailyLog() {
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Stats Cards - Matching Dock Status Style */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {/* Total Count Card */}
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white transform transition-all hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-100 text-sm font-medium uppercase tracking-wide">Total Check-Ins</p>
+                <p className="text-5xl font-bold mt-2">{totalCount}</p>
+                <p className="text-blue-100 text-sm mt-2">For selected date</p>
+              </div>
+              <div className="text-6xl opacity-20">
+                📋
+              </div>
+            </div>
+          </div>
+
+          {/* Completed Count Card */}
+          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white transform transition-all hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-100 text-sm font-medium uppercase tracking-wide">Completed</p>
+                <p className="text-5xl font-bold mt-2">{completedCount}</p>
+                <p className="text-green-100 text-sm mt-2">
+                  {totalCount > 0 ? `${Math.round((completedCount / totalCount) * 100)}% completion rate` : 'No data'}
+                </p>
+              </div>
+              <div className="text-6xl opacity-20">
+                ✓
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Table */}
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -520,7 +503,7 @@ export default function DailyLog() {
         </div>
       </div>
 
-    {/* Modals */}
+      {/* Modals */}
       {selectedForStatusChange && (
         <StatusChangeModal
           checkIn={selectedForStatusChange}
@@ -528,10 +511,9 @@ export default function DailyLog() {
           onSuccess={handleStatusChangeSuccess}
         />
       )}
-
+      
       {selectedForEdit && (
         <EditCheckInModal
-          isOpen={true}
           checkIn={selectedForEdit}
           onClose={() => setSelectedForEdit(null)}
           onSuccess={handleEditSuccess}
