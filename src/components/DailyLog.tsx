@@ -372,6 +372,9 @@ export default function DailyLog() {
           </div>
         </div>
       </div>
+    </div>
+    </div>
+      
 
               {/* Table - Full Width */}
         <div className="bg-white rounded-lg shadow">
