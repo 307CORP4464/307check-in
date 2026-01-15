@@ -1,6 +1,6 @@
-'use client'; 
+'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 
@@ -26,6 +26,13 @@ const INITIAL_FORM_DATA: FormData = {
   loadType: 'inbound',
   destinationCity: '',
   destinationState: '',
+};
+
+// SITE CONFIGURATION - Crawfordsville, IN
+const SITE_COORDINATES = {
+  latitude: 40.37260025266849,
+  longitude: -86.82089938420066,
+  radiusMeters: 100  // 100 meters = ~328 feet
 };
 
 const US_STATES = [
@@ -91,6 +98,119 @@ const formatPhoneNumber = (value: string): string => {
   return value;
 };
 
+// Check if current time is within allowed hours (Mon-Fri, 7:00-17:00)
+const isWithinAllowedTime = (): { allowed: boolean; message?: string } => {
+  const now = new Date();
+  const day = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const hour = now.getHours();
+  
+  // Check if Monday-Friday (1-5)
+  if (day === 0 || day === 6) {
+    return { 
+      allowed: false, 
+      message: 'Check-in is only available Monday through Friday' 
+    };
+  }
+  
+  // Check if between 7:00 AM and 5:00 PM
+  if (hour < 7) {
+    return { 
+      allowed: false, 
+      message: 'Check-in is not available before 7:00 AM' 
+    };
+  }
+  
+  if (hour >= 17) {
+    return { 
+      allowed: false, 
+      message: 'Check-in is not available after 5:00 PM' 
+    };
+  }
+  
+  return { allowed: true };
+};
+
+// Calculate distance between two coordinates using Haversine formula
+const calculateDistance = (
+  lat1: number, 
+  lon1: number, 
+  lat2: number, 
+  lon2: number
+): number => {
+  const R = 6371e3; // Earth's radius in meters
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c;
+
+  return distance;
+};
+
+// Validate user is within geofence
+const validateGeofence = (): Promise<{ valid: boolean; message?: string; distance?: number }> => {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve({ 
+        valid: false, 
+        message: 'Geolocation is not supported by your device' 
+      });
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userLat = position.coords.latitude;
+        const userLng = position.coords.longitude;
+        
+        const distance = calculateDistance(
+          userLat,
+          userLng,
+          SITE_COORDINATES.latitude,
+          SITE_COORDINATES.longitude
+        );
+
+        if (distance <= SITE_COORDINATES.radiusMeters) {
+          resolve({ valid: true, distance });
+        } else {
+          resolve({ 
+            valid: false, 
+            message: `You must be on-site to check in. You are ${Math.round(distance)} meters away (${Math.round(distance * 3.28084)} feet)`,
+            distance 
+          });
+        }
+      },
+      (error) => {
+        let message = 'Unable to verify your location. ';
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            message += 'Please enable location permissions in your browser.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            message += 'Location information is unavailable.';
+            break;
+          case error.TIMEOUT:
+            message += 'Location request timed out.';
+            break;
+          default:
+            message += 'An unknown error occurred.';
+        }
+        resolve({ valid: false, message });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  });
+};
+
 export default function DriverCheckInForm() {
   const router = useRouter();
   const supabase = useMemo(() => getSupabaseClient(), []);
@@ -100,6 +220,26 @@ export default function DriverCheckInForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [referenceError, setReferenceError] = useState<string | null>(null);
+  const [locationStatus, setLocationStatus] = useState<'checking' | 'valid' | 'invalid' | null>(null);
+  const [timeRestrictionWarning, setTimeRestrictionWarning] = useState<string | null>(null);
+
+  // Check time restrictions on mount and set up interval
+  useEffect(() => {
+    const checkTimeRestrictions = () => {
+      const timeCheck = isWithinAllowedTime();
+      if (!timeCheck.allowed) {
+        setTimeRestrictionWarning(timeCheck.message || 'Check-in not available at this time');
+      } else {
+        setTimeRestrictionWarning(null);
+      }
+    };
+
+    checkTimeRestrictions();
+    // Check every minute
+    const interval = setInterval(checkTimeRestrictions, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleInputChange = useCallback((
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -131,6 +271,7 @@ export default function DriverCheckInForm() {
     setFormData(INITIAL_FORM_DATA);
     setReferenceError(null);
     setError(null);
+    setLocationStatus(null);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -138,7 +279,29 @@ export default function DriverCheckInForm() {
     setLoading(true);
     setError(null);
     setSuccess(false);
+    setLocationStatus('checking');
 
+    // Check time restrictions
+    const timeCheck = isWithinAllowedTime();
+    if (!timeCheck.allowed) {
+      setError(timeCheck.message || 'Check-in not available at this time');
+      setLoading(false);
+      setLocationStatus(null);
+      return;
+    }
+
+    // Check geofence
+    const geofenceCheck = await validateGeofence();
+    if (!geofenceCheck.valid) {
+      setError(geofenceCheck.message || 'You must be on-site to check in');
+      setLoading(false);
+      setLocationStatus('invalid');
+      return;
+    }
+    
+    setLocationStatus('valid');
+
+    // Existing validations
     if (!validateReferenceNumber(formData.referenceNumber)) {
       setError('Invalid reference number format');
       setLoading(false);
@@ -183,6 +346,9 @@ export default function DriverCheckInForm() {
             destination_state: formData.destinationState || null,
             check_in_time: checkInTime,
             status: 'pending',
+            check_in_location: geofenceCheck.distance 
+              ? `${Math.round(geofenceCheck.distance)}m from site` 
+              : null,
           }
         ])
         .select();
@@ -218,7 +384,44 @@ export default function DriverCheckInForm() {
           <p className="text-gray-600 text-center mt-2">
             Please fill out all required information
           </p>
+          <p className="text-sm text-gray-500 text-center mt-1">
+            Available: Monday-Friday, 7:00 AM - 5:00 PM
+          </p>
         </div>
+
+        {/* Time Restriction Warning */}
+        {timeRestrictionWarning && (
+          <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded mb-6">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="font-bold">Check-In Not Available</p>
+                <p>{timeRestrictionWarning}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Location Status */}
+        {locationStatus === 'checking' && (
+          <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p>Verifying your location...</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Error Alert */}
         {error && (
@@ -279,6 +482,7 @@ export default function DriverCheckInForm() {
               onChange={handleInputChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
+              disabled={!!timeRestrictionWarning}
             >
               <option value="inbound">Inbound Delivery</option>
               <option value="outbound">Outbound Pickup</option>
@@ -299,9 +503,12 @@ export default function DriverCheckInForm() {
               name="referenceNumber"
               value={formData.referenceNumber}
               onChange={handleInputChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                referenceError ? 'border-red-500' : 'border-gray-300'
+              }`}
               placeholder="Enter reference number"
               required
+              disabled={!!timeRestrictionWarning}
             />
             {referenceError && (
               <p className="mt-1 text-sm text-red-600">{referenceError}</p>
@@ -325,6 +532,7 @@ export default function DriverCheckInForm() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Enter your full name"
               required
+              disabled={!!timeRestrictionWarning}
             />
           </div>
 
@@ -334,7 +542,7 @@ export default function DriverCheckInForm() {
               htmlFor="driverPhone" 
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Phone Number <span className="text-red-500">*</span>
+              Driver Phone <span className="text-red-500">*</span>
             </label>
             <input
               type="tel"
@@ -345,6 +553,7 @@ export default function DriverCheckInForm() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="(555) 555-5555"
               required
+              disabled={!!timeRestrictionWarning}
             />
           </div>
 
@@ -363,8 +572,9 @@ export default function DriverCheckInForm() {
               value={formData.carrierName}
               onChange={handleInputChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Enter carrier name"
+              placeholder="Enter carrier company name"
               required
+              disabled={!!timeRestrictionWarning}
             />
           </div>
 
@@ -385,6 +595,7 @@ export default function DriverCheckInForm() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Enter trailer number"
               required
+              disabled={!!timeRestrictionWarning}
             />
           </div>
 
@@ -403,16 +614,17 @@ export default function DriverCheckInForm() {
               onChange={handleInputChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
+              disabled={!!timeRestrictionWarning}
             >
-              {TRAILER_LENGTHS.map(({ value, label }) => (
-                <option key={value || 'default'} value={value}>
-                  {label}
+              {TRAILER_LENGTHS.map((length) => (
+                <option key={length.value} value={length.value}>
+                  {length.label}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Destination Fields (only for outbound) */}
+          {/* Destination Fields (Outbound Only) */}
           {formData.loadType === 'outbound' && (
             <>
               <div>
@@ -431,6 +643,7 @@ export default function DriverCheckInForm() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Enter destination city"
                   required
+                  disabled={!!timeRestrictionWarning}
                 />
               </div>
 
@@ -448,9 +661,10 @@ export default function DriverCheckInForm() {
                   onChange={handleInputChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
+                  disabled={!!timeRestrictionWarning}
                 >
-                  <option value="">Select a state</option>
-                  {US_STATES.map(state => (
+                  <option value="">Select state</option>
+                  {US_STATES.map((state) => (
                     <option key={state} value={state}>
                       {state}
                     </option>
@@ -461,15 +675,23 @@ export default function DriverCheckInForm() {
           )}
 
           {/* Submit Button */}
-          <div className="pt-4">
-            <button
-              type="submit"
-              disabled={loading || !!referenceError}
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? 'Checking In...' : 'Check In'}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={loading || !!referenceError || !!timeRestrictionWarning}
+            className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Checking In...
+              </span>
+            ) : (
+              'Check In'
+            )}
+          </button>
         </form>
       </div>
     </div>
