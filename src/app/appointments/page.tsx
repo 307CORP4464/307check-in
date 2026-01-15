@@ -231,12 +231,12 @@ export default function AppointmentsPage() {
                 Tracking
               </Link>
               
-              <button
-                onClick={handleLogout}
-                className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors font-medium"
+              <Link
+              href="/check-in"
+                class Name="className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
               >
-                Logout
-              </button>
+              Check-In Form
+              </Link>
             </div>
           </div>
         </div>
