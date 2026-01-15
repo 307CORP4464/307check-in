@@ -351,7 +351,7 @@ export default function Tracking() {
       <div className="max-w-[1600px] mx-auto px-4 py-4">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Appointment Scheduling</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Data Tracking</h1>
             {userEmail && (
               <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
             )}
