@@ -698,15 +698,16 @@ export default function DailyLog() {
         <StatusChangeModal
           checkIn={selectedForStatusChange}
           onClose={() => setSelectedForStatusChange(null)}
-          onUpdate={fetchCheckInsForDate}
+          onSuccess={handleStatusChangeSuccess}
         />
       )}
-      
+
       {selectedForEdit && (
         <EditCheckInModal
+          isOpen={true}
           checkIn={selectedForEdit}
           onClose={() => setSelectedForEdit(null)}
-          onUpdate={fetchCheckInsForDate}
+          onSuccess={handleEditSuccess}
         />
       )}
     </div>
