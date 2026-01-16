@@ -501,10 +501,10 @@ return (
             </div>
           </div>
 
-          {/* Right side: Stats Cards (Compact) */}
-          <div className="flex flex-col sm:flex-row lg:flex-col gap-3 min-w-[200px]">
+          {/* Right side: Stats Cards (Side by side) */}
+          <div className="flex flex-row gap-3">
             {/* Total Count Card - Compact */}
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow p-4 text-white flex-1">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow p-4 text-white min-w-[200px]">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100 text-xs font-medium uppercase tracking-wide">Total Checked In</p>
@@ -517,7 +517,7 @@ return (
             </div>
 
             {/* Completed Count Card - Compact */}
-            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow p-4 text-white flex-1">
+            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow p-4 text-white min-w-[200px]">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-green-100 text-xs font-medium uppercase tracking-wide">Total Completed</p>
@@ -535,31 +535,45 @@ return (
         </div>
       </div>
 
-      {/* Table - Updated for better fit */}
+      {/* Table - Updated with fixed column widths */}
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full divide-y divide-gray-200 text-xs">
+          <table className="w-full divide-y divide-gray-200 text-xs table-fixed">
+            <colgroup>
+              <col style={{ width: '60px' }} /> {/* Type */}
+              <col style={{ width: '80px' }} /> {/* Driver */}
+              <col style={{ width: '80px' }} /> {/* Trailer */}
+              <col style={{ width: 'auto' }} /> {/* Destination */}
+              <col style={{ width: '150px' }} /> {/* Ref# - 15 digits visible */}
+              <col style={{ width: 'auto' }} /> {/* Dock */}
+              <col style={{ width: '80px' }} /> {/* Check In */}
+              <col style={{ width: 'auto' }} /> {/* Check Out */}
+              <col style={{ width: '80px' }} /> {/* Status */}
+              <col style={{ width: '150px' }} /> {/* Notes - 15 digits visible */}
+              <col style={{ width: 'auto' }} /> {/* Actions */}
+            </colgroup>
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Type
                 </th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Driver
                 </th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Trailer
                 </th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Destination
                 </th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Ref#
                 </th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Dock
                 </th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+
                   Appt
                 </th>
                 <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
