@@ -329,7 +329,6 @@ export default function DailyLog() {
     if (statusLower === 'checked_in') return 'bg-blue-500 text-white';
     return 'bg-gray-500 text-white';
   };
-
 return (
   <div className="min-h-screen bg-gray-50">
     {/* Header */}
@@ -540,40 +539,40 @@ return (
         <div className="overflow-x-auto">
           <table className="w-full divide-y divide-gray-200 text-xs table-fixed">
             <colgroup>
-              <col style={{ width: 'auto' }} /> {/* Type */}
-              <col style={{ width: 'auto' }} /> {/* Driver */}
-              <col style={{ width: 'auto' }} /> {/* Trailer */}
+              <col style={{ width: '70px' }} /> {/* Type */}
+              <col style={{ width: '90px' }} /> {/* Driver */}
+              <col style={{ width: '90px' }} /> {/* Trailer */}
               <col style={{ width: 'auto' }} /> {/* Destination */}
-              <col style={{ width: '300' }} /> {/* Reference Number - 15 digits visible */}
+              <col style={{ width: '180px' }} /> {/* Ref# - wider for 15 digits */}
               <col style={{ width: 'auto' }} /> {/* Dock */}
-              <col style={{ width: 'auto' }} /> {/* Check In */}
+              <col style={{ width: '80px' }} /> {/* Check In */}
               <col style={{ width: 'auto' }} /> {/* Check Out */}
-              <col style={{ width: 'auto' }} /> {/* Status */}
-              <col style={{ width: 'auto' }} /> {/* Notes - 15 digits visible */}
+              <col style={{ width: '80px' }} /> {/* Status */}
+              <col style={{ width: '180px' }} /> {/* Notes - wider for 15 digits */}
               <col style={{ width: 'auto' }} /> {/* Actions */}
             </colgroup>
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   Type
                 </th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   Driver
                 </th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   Trailer
                 </th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   Destination
                 </th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Reference Number
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Ref#
                 </th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   Dock
                 </th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
 
+  
                   Appt
                 </th>
                 <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
