@@ -469,9 +469,20 @@ export default function CSRDashboard() {
                           {checkIn.load_type === 'inbound' ? 'I' : 'O'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {formatTimeInIndianapolis(checkIn.check_in_time)}
-                      </td>
+                      {/* APPOINTMENT TIME COLUMN - Update this cell */}
+<td className="px-4 py-4 whitespace-nowrap text-sm">
+  <span 
+    className={
+      checkIn.appointment_time && 
+      isOnTime(checkIn.check_in_time, checkIn.appointment_time)
+        ? 'bg-green-500 text-white px-2 py-1 rounded font-semibold'
+        : ''
+    }
+  >
+    {formatAppointmentTime(checkIn.appointment_time)}
+  </span>
+</td>
+
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
   <span className={isOnTime(checkIn.check_in_time, checkIn.appointment_time) ? 'text-green-600 font-semibold' : ''}>
     {formatAppointmentTime(checkIn.appointment_time)}
