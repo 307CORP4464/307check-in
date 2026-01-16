@@ -380,35 +380,56 @@ export default function DailyLog() {
 
       {/* Main Content */}
       <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
-        {/* Date Selector & Search */}
-        <div className="mb-6 flex gap-4 items-center max-w-7xl mx-auto">
-          <div>
-            <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">
-              Select Date
-            </label>
-            <input
-              id="date-select"
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          
-          <div className="flex-1">
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
-              Search by Reference Number
-            </label>
-            <input
-              id="search"
-              type="text"
-              placeholder="Enter reference number..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-        </div>
+       {/* Date Selector, Search & Counters */}
+<div className="mb-6 flex gap-4 items-end max-w-7xl mx-auto">
+  <div>
+    <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">
+      Select Date
+    </label>
+    <input
+      id="date-select"
+      type="date"
+      value={selectedDate}
+      onChange={(e) => setSelectedDate(e.target.value)}
+      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    />
+  </div>
+  
+  <div className="flex-1">
+    <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+      Search by Reference Number
+    </label>
+    <input
+      id="search"
+      type="text"
+      placeholder="Enter reference number..."
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    />
+  </div>
+
+  {/* Counters */}
+  <div className="flex gap-4">
+    <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+      <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">
+        Total Checked In
+      </div>
+      <div className="text-2xl font-bold text-blue-900">
+        {filteredCheckIns.length}
+      </div>
+    </div>
+    
+    <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+      <div className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">
+        Total Complete
+      </div>
+      <div className="text-2xl font-bold text-green-900">
+        {filteredCheckIns.filter(checkIn => checkIn.end_time).length}
+      </div>
+    </div>
+  </div>
+</div>
 
         {/* Table - Full Width */}
         <div className="bg-white rounded-lg shadow">
