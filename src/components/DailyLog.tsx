@@ -283,10 +283,10 @@ export default function DailyLog() {
   const getStatusBadgeColor = (status: string): string => {
     const statusLower = status.toLowerCase();
     if (statusLower === 'completed' || statusLower === 'checked_out') return 'bg-gray-500 text-white';
-    if (statusLower === 'unloaded') return 'bg-grey-500 text-white';
+    if (statusLower === 'unloaded') return 'bg-green-500 text-white';
     if (statusLower === 'rejected') return 'bg-red-500 text-white';
     if (statusLower === 'turned_away') return 'bg-orange-500 text-white';
-    if (statusLower === 'driver_left') return 'bg-grey-500 text-white';
+    if (statusLower === 'driver_left') return 'bg-indigo-500 text-white';
     if (statusLower === 'pending') return 'bg-yellow-500 text-white';
     if (statusLower === 'checked_in') return 'bg-purple-500 text-white';
     return 'bg-gray-500 text-white';
@@ -323,7 +323,7 @@ export default function DailyLog() {
       <div className="max-w-[1600px] mx-auto px-4 py-4">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Daily Log/h1>
+            <h1 className="text-2xl font-bold text-gray-900">Daily Log</h1>
             {userEmail && (
               <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
             )}
