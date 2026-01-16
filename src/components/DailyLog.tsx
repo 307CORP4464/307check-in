@@ -356,8 +356,7 @@ export default function DailyLog() {
               >
                 Appointments
               </Link>
-
-
+              
             <Link
               href="/dock-status"
               className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
@@ -395,7 +394,6 @@ export default function DailyLog() {
           </div>
         </div>
       </div>
-    </div>
 
     {/* Main Content Area */}
     <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
