@@ -299,6 +299,7 @@ export default function DailyLog() {
       console.error('Error logging out:', error);
     }
   };
+
   const handleStatusChange = (checkIn: CheckIn) => {
     setSelectedForStatusChange(checkIn);
   };
