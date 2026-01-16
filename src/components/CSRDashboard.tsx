@@ -426,55 +426,89 @@ export default function CSRDashboard() {
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {checkIns.map((checkIn) => (
-                    <tr key={checkIn.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          checkIn.load_type === 'inbound' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
-                        }`}>
-                          {checkIn.load_type === 'inbound' ? 'I' : 'O'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {formatTimeInIndianapolis(checkIn.check_in_time)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {checkIn.appointment_time && isOnTime(checkIn.check_in_time, checkIn.appointment_time) ? (
-                          <span className="bg-green-500 text-white px-2 py-1 rounded font-semibold">
-                            {formatAppointmentTime(checkIn.appointment_time)}
-                          </span>
-                        ) : (
-                          <span>{formatAppointmentTime(checkIn.appointment_time)}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">{checkIn.reference_number || 'N/A'}</td>
-                      <td className="px-4 py-3 text-sm">
-                        <div>{checkIn.driver_name || 'N/A'}</div>
-                        <div className="text-gray-500 text-xs">{formatPhoneNumber(checkIn.driver_phone)}</div>
-                        <div className="text-gray-500 text-xs">{checkIn.carrier_name || 'N/A'}</div>
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <div>{checkIn.trailer_number || 'N/A'}</div>
-                        <div className="text-gray-500 text-xs">{checkIn.trailer_length || 'N/A'}</div>
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        {checkIn.destination_city && checkIn.destination_state ? `${checkIn.destination_city}, ${checkIn.destination_state}` : 'N/A'}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        <span className={`font-semibold ${getWaitTimeColor(checkIn)}`}>
-                          {calculateWaitTime(checkIn)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-center text-sm">
-                        <div className="flex gap-2 justify-center">
-                          <button onClick={() => handleAssignDock(checkIn)} className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors text-xs">Assign Dock</button>
-                          <button onClick={() => handleEdit(checkIn)} className="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 transition-colors text-xs">Edit</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+<tbody className="bg-white divide-y divide-gray-200">
+  {checkIns.map((checkIn) => (
+    <tr key={checkIn.id} className="hover:bg-gray-50">
+      {/* Type */}
+      <td className="px-4 py-3 whitespace-nowrap">
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          checkIn.load_type === 'inbound' 
+            ? 'bg-blue-100 text-blue-800' 
+            : 'bg-orange-100 text-orange-800'
+        }`}>
+          {checkIn.load_type === 'inbound' ? 'I' : 'O'}
+        </span>
+      </td>
+
+      {/* ✅ CHECK-IN TIME - When form was submitted */}
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        {formatTimeInIndianapolis(checkIn.check_in_time)}
+      </td>
+
+      {/* ✅ APPOINTMENT TIME - With green highlight if on time */}
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        {checkIn.appointment_time && isOnTime(checkIn.check_in_time, checkIn.appointment_time) ? (
+          <span className="bg-green-500 text-white px-2 py-1 rounded font-semibold">
+            {formatAppointmentTime(checkIn.appointment_time)}
+          </span>
+        ) : (
+          <span>{formatAppointmentTime(checkIn.appointment_time)}</span>
+        )}
+      </td>
+
+      {/* Reference Number */}
+      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+        {checkIn.reference_number || 'N/A'}
+      </td>
+
+      {/* Driver Info */}
+      <td className="px-4 py-3 text-sm">
+        <div>{checkIn.driver_name || 'N/A'}</div>
+        <div className="text-gray-500 text-xs">{formatPhoneNumber(checkIn.driver_phone)}</div>
+        <div className="text-gray-500 text-xs">{checkIn.carrier_name || 'N/A'}</div>
+      </td>
+
+      {/* Trailer */}
+      <td className="px-4 py-3 text-sm">
+        <div>{checkIn.trailer_number || 'N/A'}</div>
+        <div className="text-gray-500 text-xs">{checkIn.trailer_length || 'N/A'}</div>
+      </td>
+
+      {/* Destination */}
+      <td className="px-4 py-3 text-sm">
+        {checkIn.destination_city && checkIn.destination_state
+          ? `${checkIn.destination_city}, ${checkIn.destination_state}`
+          : 'N/A'}
+      </td>
+
+      {/* Wait Time */}
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        <span className={`font-semibold ${getWaitTimeColor(checkIn)}`}>
+          {calculateWaitTime(checkIn)}
+        </span>
+      </td>
+
+      {/* Actions */}
+      <td className="px-4 py-3 whitespace-nowrap text-center text-sm">
+        <div className="flex gap-2 justify-center">
+          <button
+            onClick={() => handleAssignDock(checkIn)}
+            className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors text-xs"
+          >
+            Assign Dock
+          </button>
+          <button
+            onClick={() => handleEdit(checkIn)}
+            className="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 transition-colors text-xs"
+          >
+            Edit
+          </button>
+        </div>
+      </td>
+    </tr>
+  ))}
+</tbody>
+
               </table>
             </div>
           )}
