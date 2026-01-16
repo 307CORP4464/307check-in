@@ -1,596 +1,231 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
-import { useRouter } from 'next/navigation';
-import { zonedTimeToUtc } from 'date-fns-tz';
-import Link from 'next/link';
-import StatusChangeModal from './StatusChangeModal';
-import EditCheckInModal from './EditCheckInModal';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, Search, Package, CheckCircle, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-const TIMEZONE = 'America/Indiana/Indianapolis';
-
-const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
-  try {
-    const utcDate = new Date(isoString);
-    
-    const options: Intl.DateTimeFormatOptions = {
-      timeZone: TIMEZONE,
-      hour12: false,
-      ...(includeDate && {
-        month: '2-digit',
-        day: '2-digit',
-      }),
-      hour: '2-digit',
-      minute: '2-digit',
-    };
-    
-    const formatter = new Intl.DateTimeFormat('en-US', options);
-    return formatter.format(utcDate);
-  } catch (e) {
-    console.error('Time formatting error:', e);
-    return '-';
-  }
-};
-
-const formatPhoneNumber = (phone: string | undefined): string => {
-  if (!phone) return 'N/A';
-  
-  const cleaned = phone.replace(/\D/g, '');
-  
-  if (cleaned.length === 10) {
-    return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
-  }
-  
-  return phone;
-};
-
-const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
-  if (!appointmentTime) return 'N/A';
-  
-  if (appointmentTime === 'work_in') return 'Work In';
-  if (appointmentTime === 'paid_to_load') return 'Paid - No Appt';
-  if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
-  if (appointmentTime === 'ltl') return 'LTL';
-  
-  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-    const hours = appointmentTime.substring(0, 2);
-    const minutes = appointmentTime.substring(2, 4);
-    return `${hours}:${minutes}`;
-  }
-  
-  return appointmentTime;
-};
-
-const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
-  if (!appointmentTime || 
-      appointmentTime === 'work_in' || 
-      appointmentTime === 'paid_to_load' || 
-      appointmentTime === 'paid_charge_customer' ||
-      appointmentTime === 'ltl') {
-    return false;
-  }
-
-  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-    const appointmentHour = parseInt(appointmentTime.substring(0, 2));
-    const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
-    
-    const checkInDate = new Date(checkInTime);
-    
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: false
-    });
-    
-    const timeString = formatter.format(checkInDate);
-    const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
-    
-    const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-    const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
-    
-    const difference = checkInTotalMinutes - appointmentTotalMinutes;
-    return difference <= 0;
-  }
-  
-  return false;
-};
-
-const calculateDetention = (checkIn: CheckIn): string => {
-  if (!checkIn.appointment_time || !checkIn.end_time) {
-    return '-';
-  }
-
-  if (!isOnTime(checkIn.check_in_time, checkIn.appointment_time)) {
-    return '-';
-  }
-
-  if (checkIn.appointment_time === 'work_in' || 
-      checkIn.appointment_time === 'paid_to_load' || 
-      checkIn.appointment_time === 'paid_charge_customer' ||
-      checkIn.appointment_time === 'ltl') {
-    return '-';
-  }
-
-  const endTime = new Date(checkIn.end_time);
-  const standardMinutes = 120;
-  let detentionMinutes = 0;
-
-  if (checkIn.appointment_time.length === 4 && /^\d{4}$/.test(checkIn.appointment_time)) {
-    const appointmentHour = parseInt(checkIn.appointment_time.substring(0, 2));
-    const appointmentMinute = parseInt(checkIn.appointment_time.substring(2, 4));
-    
-    const checkInDate = new Date(checkIn.check_in_time);
-    
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    
-    const parts = formatter.formatToParts(checkInDate);
-    const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
-    const month = parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1;
-    const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
-    
-    const appointmentDate = new Date(checkInDate);
-    appointmentDate.setFullYear(year, month, day);
-    appointmentDate.setHours(appointmentHour, appointmentMinute, 0, 0);
-    
-    const timeSinceAppointmentMs = endTime.getTime() - appointmentDate.getTime();
-    const minutesSinceAppointment = Math.floor(timeSinceAppointmentMs / (1000 * 60));
-    
-    detentionMinutes = Math.max(0, minutesSinceAppointment - standardMinutes);
-  }
-  
-  if (detentionMinutes === 0) {
-    return '-';
-  }
-  
-  return `${detentionMinutes} min`;
-};
-
-interface CheckIn {
-  id: string;
-  check_in_time: string;
-  check_out_time?: string | null;
-  status: string;
-  driver_name?: string;
-  driver_phone?: string;
-  carrier_name?: string;
-  trailer_number?: string;
-  trailer_length?: string;
-  load_type?: 'inbound' | 'outbound';
-  reference_number?: string;
-  dock_number?: string;
-  appointment_time?: string | null;
-  end_time?: string | null;
-  start_time?: string | null;
-  notes?: string;
-  destination_city?: string;
-  destination_state?: string;
-}
-
-export default function DailyLog() {
-  const router = useRouter();
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
-  const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+const DailyLog = () => {
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loads, setLoads] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string>('');
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  
-  const getCurrentDateInIndianapolis = () => {
-    const now = new Date();
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
-    const parts = formatter.formatToParts(now);
-    const year = parts.find(p => p.type === 'year')?.value;
-    const month = parts.find(p => p.type === 'month')?.value;
-    const day = parts.find(p => p.type === 'day')?.value;
-    return `${year}-${month}-${day}`;
-  };
 
-  const [selectedDate, setSelectedDate] = useState<string>(getCurrentDateInIndianapolis());
-  const [selectedForStatusChange, setSelectedForStatusChange] = useState<CheckIn | null>(null);
-  const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
+  useEffect(() => {
+    fetchLoads();
+  }, [selectedDate]);
 
-  const fetchCheckInsForDate = async () => {
+  const fetchLoads = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      
-      const startOfDayIndy = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
-      const endOfDayIndy = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
-
-      const { data, error } = await supabase
-        .from('check_ins')
-        .select('*')
-        .gte('check_in_time', startOfDayIndy.toISOString())
-        .lte('check_in_time', endOfDayIndy.toISOString())
-        .order('check_in_time', { ascending: false });
-
-      if (error) throw error;
-      setCheckIns(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const response = await fetch(`/api/loads?date=${selectedDate}`);
+      const data = await response.json();
+      setLoads(data);
+    } catch (error) {
+      console.error('Error fetching loads:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserEmail(user.email || '');
-      } else {
-        router.push('/login');
-      }
+  const getStatusColor = (status) => {
+    const colors = {
+      'Checked In': 'bg-blue-500',
+      'Complete': 'bg-green-500',
+      'Unloaded': 'bg-purple-500',
+      'Rejected': 'bg-red-500',
+      'Driver Left': 'bg-orange-500',
+      'Turned Away': 'bg-yellow-500'
     };
-    getUser();
-  }, [supabase, router]);
+    return colors[status] || 'bg-gray-500';
+  };
 
-  useEffect(() => {
-    fetchCheckInsForDate();
-  }, [selectedDate]);
-
-  const filteredCheckIns = checkIns.filter((checkIn) => {
-    if (!searchTerm.trim()) return true;
+  // Calculate stats
+  const stats = useMemo(() => {
+    const totalCheckedIn = loads.length;
+    const finishedStatuses = ['Complete', 'Unloaded', 'Rejected', 'Driver Left', 'Turned Away'];
+    const totalFinished = loads.filter(load => 
+      finishedStatuses.includes(load.status)
+    ).length;
     
-    const searchLower = searchTerm.toLowerCase().trim();
-    const refNumber = checkIn.reference_number?.toLowerCase() || '';
-    
-    return refNumber.includes(searchLower);
-  });
+    return { totalCheckedIn, totalFinished };
+  }, [loads]);
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      router.push('/login');
-      router.refresh();
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
-  };
-
-  const handleStatusChange = (checkIn: CheckIn) => {
-    setSelectedForStatusChange(checkIn);
-  };
-
-  const handleStatusChangeSuccess = () => {
-    fetchCheckInsForDate();
-    setSelectedForStatusChange(null);
-  };
-
-  const handleEdit = (checkIn: CheckIn) => {
-    setSelectedForEdit(checkIn);
-  };
-
-  const handleEditSuccess = () => {
-    fetchCheckInsForDate();
-    setSelectedForEdit(null);
-  };
-
-  const getStatusBadgeColor = (status: string): string => {
-    const statusLower = status.toLowerCase();
-    if (statusLower === 'completed' || statusLower === 'checked_out') return 'bg-gray-500 text-white';
-    if (statusLower === 'unloaded') return 'bg-green-500 text-white';
-    if (statusLower === 'rejected') return 'bg-red-500 text-white';
-    if (statusLower === 'turned_away') return 'bg-orange-500 text-white';
-    if (statusLower === 'driver_left') return 'bg-indigo-500 text-white';
-    if (statusLower === 'pending') return 'bg-yellow-500 text-white';
-    if (statusLower === 'checked_in') return 'bg-purple-500 text-white';
-    return 'bg-gray-500 text-white';
-  };
-
-  const getStatusLabel = (status: string): string => {
-    if (status === 'checked_in') return 'Checked In';
-    if (status === 'checked_out') return 'Checked Out';
-    if (status === 'driver_left') return 'Driver Left';
-    if (status === 'turned_away') return 'Turned Away';
-    return status.charAt(0).toUpperCase() + status.slice(1);
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
-      </div>
+  const filteredLoads = useMemo(() => {
+    return loads.filter(load =>
+      load.loadNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      load.carrier?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      load.driver?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }
+  }, [loads, searchTerm]);
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-red-600">Error: {error}</div>
-      </div>
-    );
-  }
+  // Date navigation functions
+  const changeDate = (days) => {
+    const currentDate = new Date(selectedDate);
+    currentDate.setDate(currentDate.getDate() + days);
+    setSelectedDate(currentDate.toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+  };
 
   return (
-  <div className="min-h-screen bg-gray-50">
-    {/* Header */}
-    <div className="bg-white border-b shadow-sm">
-      <div className="max-w-[1600px] mx-auto px-4 py-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Daily Log</h1>
-            {userEmail && (
-              <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
-            )}
-            <p className="text-xs text-gray-500">
-              Current time: {formatTimeInIndianapolis(new Date().toISOString())}
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Link 
-              href="/appointments" 
-              className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
-            >
-              Appointments
-            </Link>  
+    <div className="p-6 max-w-7xl mx-auto">
+      <h1 className="text-3xl font-bold mb-6">Daily Log</h1>
+      
+      {/* Controls and Stats Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">
+        {/* Date Selector with Navigation */}
+        <div className="lg:col-span-3">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => changeDate(-1)}
+                  className="h-10 w-10"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex-1 relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => changeDate(1)}
+                  className="h-10 w-10"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-            <Link
-              href="/dock-status"
-              className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
-            >
-              Dock Status
-            </Link>    
+        {/* Stat Cards */}
+        <div className="lg:col-span-4 grid grid-cols-2 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Checked In</p>
+                  <p className="text-2xl font-bold">{stats.totalCheckedIn}</p>
+                </div>
+                <Package className="h-8 w-8 text-blue-500" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Finished</p>
+                  <p className="text-2xl font-bold">{stats.totalFinished}</p>
+                </div>
+                <CheckCircle className="h-8 w-8 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-            <Link
-              href="/dashboard"
-              className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
-            >
-              Dashboard
-            </Link>
-            
-            <Link
-              href="/logs"
-              className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium"
-            >
-              Daily Logs
-            </Link>
-            
-            <Link
-              href="/tracking"
-              className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium"
-            >
-              Tracking
-            </Link>
-            
-            <Link
-              href="/check-in"
-              className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
-            >
-              Check-In Form
-            </Link>
-          </div>
+        {/* Search Bar */}
+        <div className="lg:col-span-5">
+          <Card>
+            <CardContent className="p-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  type="text"
+                  placeholder="Search by load #, carrier, or driver..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-10"
+                />
+                {searchTerm && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={clearSearch}
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
-    </div>
 
-      {/* Main Content */}
-      <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
-        {/* Date Selector & Search */}
-        <div className="mb-6 flex gap-4 items-center max-w-7xl mx-auto">
-          <div>
-            <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">
-              Select Date
-            </label>
-            <input
-              id="date-select"
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          
-          <div className="flex-1">
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
-              Search by Reference Number
-            </label>
-            <input
-              id="search"
-              type="text"
-              placeholder="Enter reference number..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+      {/* Loads Display */}
+      {loading ? (
+        <div className="text-center py-8">Loading...</div>
+      ) : (
+        <div className="grid gap-4">
+          {filteredLoads.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center text-gray-500">
+                No loads found for the selected criteria
+              </CardContent>
+            </Card>
+          ) : (
+            filteredLoads.map((load) => (
+              <Card key={load.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-xl">Load #{load.loadNumber}</CardTitle>
+                      <p className="text-sm text-gray-600 mt-1">{load.carrier}</p>
+                    </div>
+                    <Badge className={`${getStatusColor(load.status)} text-white`}>
+                      {load.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Driver</p>
+                      <p className="text-sm">{load.driver || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Check-in Time</p>
+                      <p className="text-sm">{load.checkInTime || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Door Assignment</p>
+                      <p className="text-sm">{load.doorAssignment || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Completion Time</p>
+                      <p className="text-sm">{load.completionTime || 'N/A'}</p>
+                    </div>
+                  </div>
+                  {load.notes && (
+                    <div className="mt-4">
+                      <p className="text-sm font-medium text-gray-600">Notes</p>
+                      <p className="text-sm">{load.notes}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
-
-        {/* Table - Full Width */}
-        <div className="bg-white rounded-lg shadow">
-          <table className="w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Driver Info
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Trailer Info
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Destination
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Reference #
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Dock
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Appointment
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Check-In
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  End Time
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Detention
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Notes
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredCheckIns.length === 0 ? (
-                <tr>
-                  <td colSpan={13} className="px-4 py-8 text-center text-gray-500">
-                    No check-ins found for this date
-                  </td>
-                </tr>
-              ) : (
-                filteredCheckIns.map((checkIn) => (
-                  <tr key={checkIn.id} className="hover:bg-gray-50">
-                    {/* Type */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      <span
-                        className={`px-3 py-1 rounded text-sm font-medium ${
-                          checkIn.load_type === 'inbound'
-                            ? 'bg-orange-100 text-orange-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}
-                      >
-                        {checkIn.load_type === 'inbound' ? 'I' : 'O'}
-                      </span>
-                    </td>
-
-                    {/* Driver Info */}
-                    <td className="px-4 py-4 text-sm">
-                      <div className="font-bold text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
-                      <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
-                      <div className="text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
-                    </td>
-
-                    {/* Trailer Info */}
-                    <td className="px-4 py-4 text-sm text-gray-900">
-                      <div>{checkIn.trailer_number || 'N/A'}</div>
-                      <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
-                    </td>
-
-                    {/* Destination */}
-                    <td className="px-4 py-4 text-sm text-gray-900">
-                      {checkIn.destination_city && checkIn.destination_state
-                        ? `${checkIn.destination_city}, ${checkIn.destination_state}`
-                        : 'N/A'}
-                    </td>
-
-                    {/* Reference Number */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                      {checkIn.reference_number || 'N/A'}
-                    </td>
-
-                    {/* Dock */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {checkIn.dock_number || 'N/A'}
-                    </td>
-
-                    {/* Appointment Time */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      <span
-                        className={`${
-                          isOnTime(checkIn.check_in_time, checkIn.appointment_time)
-                            ? 'bg-green-100 text-green-800 px-2 py-1 rounded font-medium'
-                            : 'text-gray-900'
-                        }`}
-                      >
-                        {formatAppointmentTime(checkIn.appointment_time)}
-                      </span>
-                    </td>
-
-                    {/* Check-In Time */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatTimeInIndianapolis(checkIn.check_in_time)}
-                    </td>
-
-                    {/* End Time */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time) : '-'}
-                    </td>
-
-                    {/* Detention */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {calculateDetention(checkIn)}
-                    </td>
-
-                    {/* Notes */}
-                    <td className="px-4 py-4 text-sm text-gray-900 max-w-xs">
-                      <div className="line-clamp-2">{checkIn.notes || '-'}</div>
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(checkIn.status)}`}>
-                        {getStatusLabel(checkIn.status)}
-                      </span>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEdit(checkIn)}
-                          className="text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(checkIn)}
-                          className="text-green-600 hover:text-green-800 font-medium"
-                        >
-                          Status
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </main>
-
-      {/* Modals */}
-      {selectedForStatusChange && (
-        <StatusChangeModal
-          checkIn={selectedForStatusChange}
-          onClose={() => setSelectedForStatusChange(null)}
-          onSuccess={handleStatusChangeSuccess}
-        />
-      )}
-
-      {selectedForEdit && (
-        <EditCheckInModal
-          isOpen={true}
-          checkIn={selectedForEdit}
-          onClose={() => setSelectedForEdit(null)}
-          onSuccess={handleEditSuccess}
-        />
       )}
     </div>
   );
-}
+};
+
+export default DailyLog;
+
