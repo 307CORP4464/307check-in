@@ -6,7 +6,7 @@ import { Calendar, Search, Package, CheckCircle, ChevronLeft, ChevronRight, X } 
 import { Button } from '@/components/ui/button';
 
 const DailyLog = () => {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loads, setLoads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +63,7 @@ const DailyLog = () => {
   const changeDate = (days) => {
     const currentDate = new Date(selectedDate);
     currentDate.setDate(currentDate.getDate() + days);
-    setSelectedDate(currentDate.toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
+    setSelectedDate(currentDate.toISOString().split('T')[0]);
   };
 
   const clearSearch = () => {
