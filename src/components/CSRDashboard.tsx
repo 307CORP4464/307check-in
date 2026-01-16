@@ -78,33 +78,63 @@ const isOnTime = (checkInTime: string, appointmentTime: string | null | undefine
       appointmentTime === 'LTL') {
     return false;
   }
+const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
+  // Early exit for non-standard appointment types
+  if (!appointmentTime || 
+      appointmentTime === 'work_in' || 
+      appointmentTime === 'paid_to_load' || 
+      appointmentTime === 'paid_charge_customer' ||
+      appointmentTime === 'ltl' ||
+      appointmentTime === 'LTL') {
+    return false;
+  }
 
-  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-    const appointmentHour = parseInt(appointmentTime.substring(0, 2));
-    const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
-    
-    const checkInDate = new Date(checkInTime);
-    
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: false
-    });
-    
-    const timeString = formatter.format(checkInDate);
-    const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
-    
-    const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-    const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
-    
-    const difference = checkInTotalMinutes - appointmentTotalMinutes;
-    return difference <= 0;
+  try {
+    // Handle 4-digit format (e.g., "1400" for 2:00 PM)
+    if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
+      const appointmentHour = parseInt(appointmentTime.substring(0, 2));
+      const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
+      
+      // Get check-in time in Indianapolis timezone
+      const checkInDate = new Date(checkInTime);
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: TIMEZONE,
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false
+      });
+      
+      const timeString = formatter.format(checkInDate);
+      const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
+      
+      // Calculate total minutes from midnight
+      const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
+      const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
+      
+      // Check if checked in before or within 15 minutes after appointment
+      const difference = checkInTotalMinutes - appointmentTotalMinutes;
+      
+      // Debug logging (remove after testing)
+      console.log('isOnTime check:', {
+        appointmentTime,
+        checkInTime: `${checkInHour}:${checkInMinute}`,
+        appointmentMinutes: appointmentTotalMinutes,
+        checkInMinutes: checkInTotalMinutes,
+        difference,
+        isOnTime: difference <= 15 // within 15 minutes
+      });
+      
+      // Consider on-time if checked in up to 15 minutes after appointment
+      return difference <= 15;
+    }
+  } catch (error) {
+    console.error('Error in isOnTime:', error);
   }
   
   return false;
 };
 
+  
 interface CheckIn {
   id: string;
   check_in_time: string;
