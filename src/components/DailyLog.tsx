@@ -251,16 +251,7 @@ export default function DailyLog() {
     
     return refNumber.includes(searchLower);
   });
-// Calculate counters
-  const totalCount = filteredCheckIns.length;
-  const completedCount = filteredCheckIns.filter(checkIn => {
-    const statusLower = checkIn.status.toLowerCase();
-    return statusLower === 'completed' || 
-           statusLower === 'checked_out' || 
-           statusLower === 'rejected' || 
-           statusLower === 'driver_left' || 
-           statusLower === 'turned_away';
-  }).length;
+
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
@@ -390,137 +381,34 @@ export default function DailyLog() {
       {/* Main Content */}
       <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Date Selector & Search */}
-        <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setSelectedDate(adjustDate(selectedDate, -1))}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
-                  title="Previous day"
-                >
-                  <svg 
-                    className="w-5 h-5 text-gray-600" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M15 19l-7-7 7-7" 
-                    />
-                  </svg>
-                </button>
-                
-                <input
-                  id="date-picker"
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
-                
-                <button
-                  onClick={() => setSelectedDate(adjustDate(selectedDate, 1))}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
-                  title="Next day"
-                >
-                  <svg 
-                    className="w-5 h-5 text-gray-600" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M9 5l7 7-7 7" 
-                    />
-                  </svg>
-                </button>
-                
-                <button
-                  onClick={() => setSelectedDate(getCurrentDateInIndianapolis())}
-                  className="ml-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm font-medium"
-                >
-                  Today
-                </button>
-              </div>
-            </div>
-
-            {/* Search Input with Clear Button */}
-            <div className="w-full sm:w-80">
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
-                Search by Reference Number
-              </label>
-              <div className="relative">
-                <input
-                  id="search"
-                  type="text"
-                  placeholder="Enter reference number..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-colors"
-                    title="Clear search"
-                  >
-                    <svg 
-                      className="w-5 h-5 text-gray-400 hover:text-gray-600" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M6 18L18 6M6 6l12 12" 
-                      />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            </div>
+        <div className="mb-6 flex gap-4 items-center max-w-7xl mx-auto">
+          <div>
+            <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">
+              Select Date
+            </label>
+            <input
+              id="date-select"
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
-
-          {/* Right side: Stats Cards (Side by side) */}
-          <div className="flex flex-row gap-3">
-            {/* Total Count Card - Compact */}
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow p-4 text-white min-w-[200px]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-xs font-medium uppercase tracking-wide">Total Checked In</p>
-                  <p className="text-3xl font-bold mt-1">{totalCount}</p>
-                </div>
-                <div className="text-3xl opacity-20">
-                  📋
-                </div>
-              </div>
-            </div>
-
-            {/* Completed Count Card - Compact */}
-            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow p-4 text-white min-w-[200px]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-xs font-medium uppercase tracking-wide">Total Completed</p>
-                  <p className="text-3xl font-bold mt-1">{completedCount}</p>
-                  <p className="text-green-100 text-xs mt-1">
-                    {totalCount > 0 ? `${Math.round((completedCount / totalCount) * 100)}%` : 'N/A'}
-                  </p>
-                </div>
-                <div className="text-3xl opacity-20">
-                  ✓
-                </div>
-              </div>
-            </div>
+          
+          <div className="flex-1">
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+              Search by Reference Number
+            </label>
+            <input
+              id="search"
+              type="text"
+              placeholder="Enter reference number..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
         </div>
-      </div>
-
 
         {/* Table - Full Width */}
         <div className="bg-white rounded-lg shadow">
