@@ -544,7 +544,7 @@ return (
               <col style={{ width: '80px' }} /> {/* Driver */}
               <col style={{ width: '80px' }} /> {/* Trailer */}
               <col style={{ width: 'auto' }} /> {/* Destination */}
-              <col style={{ width: '150px' }} /> {/* Ref# - 15 digits visible */}
+              <col style={{ width: '150px' }} /> {/* Reference Number - 15 digits visible */}
               <col style={{ width: 'auto' }} /> {/* Dock */}
               <col style={{ width: '80px' }} /> {/* Check In */}
               <col style={{ width: 'auto' }} /> {/* Check Out */}
@@ -567,7 +567,7 @@ return (
                   Destination
                 </th>
                 <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ref#
+                  Reference Number
                 </th>
                 <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Dock
