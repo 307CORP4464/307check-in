@@ -340,18 +340,19 @@ export default function DailyLog() {
       <div className="bg-white border-b shadow-sm">
         <div className="max-w-[1600px] mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Daily Log</h1>
-              {userEmail && (
-                <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
-              )}
-              <p className="text-xs text-gray-500">
-                Current time: {formatTimeInIndianapolis(new Date().toISOString())}
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <Link 
-                href="/appointments" 
+          <div>
+  <h1 className="text-2xl font-bold text-gray-900">Daily Log</h1>
+  {userEmail && (
+    <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
+  )}
+  <p className="text-xs text-gray-500">
+    Current time: {formatTimeInIndianapolis(new Date().toISOString())}
+  </p>
+</div>  {/* ← ADD THIS CLOSING TAG */}
+<div className="flex gap-3">
+  <Link 
+    href="/appointments" 
+
                 className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
               >
                 Appointments
