@@ -330,7 +330,7 @@ export default function DriverCheckInForm() {
 
       const checkInTime = new Date().toISOString();
 
-      // Insert without check_in_location field
+      // Insert with status = 'pending' (NOT 'checked_in')
       const { data, error: insertError } = await supabase
         .from('check_ins')
         .insert([
@@ -345,7 +345,7 @@ export default function DriverCheckInForm() {
             destination_city: formData.destinationCity.trim() || null,
             destination_state: formData.destinationState || null,
             check_in_time: checkInTime,
-            status: 'checked_in'
+            status: 'pending'  // Changed from 'checked_in' to 'pending'
           }
         ])
         .select()
