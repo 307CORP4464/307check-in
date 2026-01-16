@@ -299,13 +299,12 @@ export default function DailyLog() {
       console.error('Error logging out:', error);
     }
   };
-
   const handleStatusChange = (checkIn: CheckIn) => {
     setSelectedForStatusChange(checkIn);
   };
 
-  const handleStatusChangeSuccess = () => {
-    fetchCheckInsForDate();
+  const handleStatusUpdate = async () => {
+    await fetchCheckInsForDate();
     setSelectedForStatusChange(null);
   };
 
@@ -313,39 +312,28 @@ export default function DailyLog() {
     setSelectedForEdit(checkIn);
   };
 
-  const handleEditSuccess = () => {
-    fetchCheckInsForDate();
+  const handleEditUpdate = async () => {
+    await fetchCheckInsForDate();
     setSelectedForEdit(null);
-  };
-  const getStatusBadgeColor = (status: string): string => {
-    const statusLower = status.toLowerCase();
-    if (statusLower === 'completed' || statusLower === 'checked_out') return 'bg-gray-500 text-white';
-    if (statusLower === 'unloaded') return 'bg-grey-500 text-white';
-    if (statusLower === 'rejected') return 'bg-red-500 text-white';
-    if (statusLower === 'turned_away') return 'bg-orange-500 text-white';
-    if (statusLower === 'driver_left') return 'bg-red-500 text-white';
-    if (statusLower === 'pending') return 'bg-yellow-500 text-white';
-    if (statusLower === 'checked_in') return 'bg-green-500 text-white';
-    return 'bg-gray-500 text-white';
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg text-gray-600">Loading...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-red-600">Error: {error}</div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg text-red-600">Error: {error}</div>
       </div>
     );
   }
 
-   return (
+  return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b shadow-sm">
@@ -755,26 +743,28 @@ export default function DailyLog() {
               </tbody>
             </table>
           </div>
-        </div>
       </div>
-
-      {/* Modals */}
-      {selectedForStatusChange && (
-        <StatusChangeModal
-          checkIn={selectedForStatusChange}
-          onClose={() => setSelectedForStatusChange(null)}
-          onSuccess={handleStatusChangeSuccess}
-        />
-      )}
-
-      {selectedForEdit && (
-        <EditCheckInModal
-          isOpen={true}
-          checkIn={selectedForEdit}
-          onClose={() => setSelectedForEdit(null)}
-          onSuccess={handleEditSuccess}
-        />
-      )}
     </div>
-  );
+
+    {/* Status Change Modal */}
+    {selectedForStatusChange && (
+      <StatusChangeModal
+        checkIn={selectedForStatusChange}
+        onClose={() => setSelectedForStatusChange(null)}
+        onUpdate={handleStatusUpdate}
+      />
+    )}
+
+    {/* Edit Check-In Modal */}
+    {selectedForEdit && (
+      <EditCheckInModal
+        checkIn={selectedForEdit}
+        onClose={() => setSelectedForEdit(null)}
+        onUpdate={handleEditUpdate}
+      />
+    )}
+  </div>
+);
 }
+
+
