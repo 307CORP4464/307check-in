@@ -536,6 +536,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
 
         <div style="margin: 10px 0;">
           <strong>I ACKNOWLEDGE THAT ALL ITEMS LISTED ABOVE HAVE BEEN EXECUTED.</strong><br>
+            <div class="spacer-row"></div>
           <strong>OPERATOR SIGNATURE:</strong> <span class="signature-line"></span>
         </div>
 
