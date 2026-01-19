@@ -887,14 +887,14 @@ const getOutboundInspectionForm = () => {
           </tr>
           <tr>
             <td>CUSTOMER REQUIRED PHOTOS TAKEN AND SENT?</td>
-            <td class="checkbox-cell">☐</td>
+            <td class="signature-line"></span></td>
+          </tr>
+          <tr>
+            <td>INITIALS</td>
+            <td class="checkbox-cell">_____</td>
           </tr>
         </tbody>
       </table>
-      
-      <div class="signature-section" style="margin-top: 10px;">
-        <p>INITIAL: <span class="signature-line" style="width: 150px;"></span></p>
-      </div>
 
    <!-- REVISION TABLE -->
       <table class="revision-table" style="margin-top: 25px;">
