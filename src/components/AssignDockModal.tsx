@@ -254,7 +254,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Load Assignment Receipt</title>
+        <title>Load Check-In Receipt</title>
         <style>
           @media print {
             body { margin: 0; padding: 0; }
@@ -363,10 +363,10 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
         .inspection-page {
           max-width: 100%;
           width: 100%;
-          padding: 0.5in;
+          padding: 0.25in;
           box-sizing: border-box;
           font-family: Arial, sans-serif;
-          font-size: 12px; /* Increased from 11px */
+          font-size: 11px; 
         }
         
         .inspection-info-large {
@@ -384,8 +384,8 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
         .inspection-table {
           width: 100%;
           border-collapse: collapse;
-          margin-bottom: 15px; /* Increased from 12px */
-          font-size: 11px; /* Increased from 10px */
+          margin-bottom: 12px;
+          font-size: 11px;
         }
         .inspection-table th,
         .inspection-table td {
@@ -646,8 +646,8 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
               <span class="value">${checkIn.driver_name || 'N/A'}</span>
             </div>
             <div class="row">
-              <span class="label">Company:</span>
-              <span class="value">${checkIn.company || 'N/A'}</span>
+              <span class="label">Phone Number:</span>
+              <span class="value">${checkIn.phone_number || 'N/A'}</span>
             </div>
             <div class="row">
               <span class="label">Carrier:</span>
@@ -664,13 +664,13 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
               <span class="label">Trailer Length:</span>
               <span class="value">${checkIn.trailer_length || 'N/A'}</span>
             </div>
-          </div>
-
-          <div class="section">
             <div class="row">
               <span class="label">Destination:</span>
               <span class="value">${checkIn.destination_city || ''} ${checkIn.destination_state || ''}</span>
             </div>
+          </div>
+
+          <div class="section">
             <div class="row">
               <span class="label">Appointment:</span>
               <span class="value">${checkIn.appointment_time ? formatAppointmentTime(checkIn.appointment_time) : 'N/A'}</span>
@@ -713,13 +713,9 @@ const getInboundInspectionForm = () => {
   const today = new Date().toLocaleDateString();
   return `
     <div class="inspection-page">
-      <!-- HEADER WITH 307 CORPORATION -->
       <div class="page-header-row">
         <div class="inspection-header" style="flex: 1;">
-          PRP02A: INBOUND INSPECTION SHEET
-        </div>
-        <div class="company-logo">
-          307 CORPORATION
+          PRP02A: INBOUND INSPECTION
         </div>
       </div>
       
@@ -800,13 +796,9 @@ const getOutboundInspectionForm = () => {
   const today = new Date().toLocaleDateString();
   return `
     <div class="inspection-page">
-      <!-- HEADER WITH 307 CORPORATION -->
       <div class="page-header-row">
         <div class="inspection-header" style="flex: 1;">
-          PRP03A: PRE-SEALING CHECKLIST
-        </div>
-        <div class="company-logo">
-          307 CORPORATION
+          PRP03A: Outbound Inspection
         </div>
       </div>
       
@@ -816,8 +808,6 @@ const getOutboundInspectionForm = () => {
         <span><strong>Load#:</strong> <u>&nbsp;${checkIn.reference_number || ''}&nbsp;</u></span>
         <span><strong>Trailer#:</strong> <u>&nbsp;${checkIn.trailer_number || ''}&nbsp;</u></span>
       </div>
-
-      <div class="section-title">WAREHOUSE STAFF</div>
       
       <table class="inspection-table">
         <thead>
@@ -898,26 +888,20 @@ const getOutboundInspectionForm = () => {
         <p>INITIAL: <span class="signature-line" style="width: 150px;"></span></p>
       </div>
 
-      <!-- REVISION TABLE -->
-      <table class="revision-table" style="margin-top: 20px;">
+   <!-- REVISION TABLE -->
+      <table class="revision-table" style="margin-top: 25px;">
         <thead>
           <tr>
-            <th>Version</th>
-            <th>Date</th>
-            <th>Changes</th>
+            <th>Revision Number</th>
+            <th>Summary of Changes</th>
+            <th>Requested by</th>
+            <th>Authorised by</th>
+            <th>Date Updated</th>
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>V1</td>
-            <td>7/24/2025</td>
-            <td>Outbound Inspection - Restructured</td>
-          </tr>
-          <tr>
-            <td>V2</td>
-            <td>7/31/2025</td>
-            <td>Added loadbar question</td>
-          </tr>
+          <tr><td>Original</td><td></td><td>Quality Manager</td><td>Operations Manager</td><td>07/24/2025</td></tr>
+          <tr><td>2</td><td>Added loadbar question</td><td>Quality Manager</td><td>Operations Manager</td><td>7/31/2025</td></tr>
         </tbody>
       </table>
 
