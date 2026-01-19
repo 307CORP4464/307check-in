@@ -547,6 +547,8 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
 
         <!-- 2 ROWS OF SPACE BEFORE REVISIONS TABLE -->
         <div class="spacer-row-double"></div>
+         <div class="spacer-row-double"></div>
+          <div class="spacer-row-double"></div>
 
         <table style="font-size: 8pt; margin-top: 10px;">
           <thead>
