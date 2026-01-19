@@ -830,9 +830,14 @@ const getOutboundInspectionForm = () => {
         </tbody>
       </table>
 
-      <div class="section-title">PRODUCT SECURITY / LOADER SAFETY</div>
-      
       <table class="inspection-table">
+      <thread>
+        <tr>
+          <th>PRODUCT SECURITY / LOADER SAFETY</th>
+            <th class="checkbox-cell">YES</th>
+            <th class="checkbox-cell">NO</th>
+          </tr>
+        </thead>
         <tbody>
           <tr><td>PROBLEMS WITH LATCHES ON DOORS WORKING PROPERLY?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
           <tr><td>IS TRAILER UNSEALABLE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
@@ -859,11 +864,14 @@ const getOutboundInspectionForm = () => {
           <p style="margin-left: 10px;">☐ Trailer can be corrected</p>
         </div>
       </div>
-
-      <div class="section-title" style="margin-top: 15px;">PRE-SEALING CHECKLIST</div>
       
-      <!-- UPDATED WITH CHECKBOXES AND INITIAL LINE -->
       <table class="inspection-table">
+      <thead>
+          <tr>
+            <th>PRE-SEALING CHECKLIST</th>
+            <th class="checkbox-cell">DONE</th>
+          </tr>
+        </thead>
         <tbody>
           <tr>
             <td>ALL THE INSTRUCTIONS ON THE BILL OF LADING BEEN FOLLOWED?</td>
