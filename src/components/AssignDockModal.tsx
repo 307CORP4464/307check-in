@@ -237,7 +237,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     }
   };
 
-const printReceipt = () => {
+  const printReceipt = () => {
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
     alert('Please allow popups to print the receipt');
@@ -411,6 +411,12 @@ const printReceipt = () => {
             justify-content: space-between;
             margin-bottom: 3px;
           }
+          .spacer-row {
+            height: 20px;
+          }
+          .spacer-row-double {
+            height: 40px;
+          }
         </style>
       </head>
       <body>
@@ -432,8 +438,8 @@ const printReceipt = () => {
               <span class="value">${checkIn.driver_name || 'N/A'}</span>
             </div>
             <div class="row">
-              <span class="label">Company:</span>
-              <span class="value">${checkIn.company || 'N/A'}</span>
+              <span class="label">Phone#:</span>
+              <span class="value">${checkIn.driver.phone || 'N/A'}</span>
             </div>
             <div class="row">
               <span class="label">Carrier:</span>
@@ -467,10 +473,6 @@ const printReceipt = () => {
             </div>
           </div>
 
-          <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #666;">
-            Please proceed to ${dockDisplay}
-          </div>
-
           <button class="print-button no-print" onclick="window.print()">Print Receipt</button>
         </div>
 
@@ -500,8 +502,13 @@ const printReceipt = () => {
         <div class="title">PRP02A: INBOUND INSPECTION</div>
 
         <div class="info-line">
-          Date: _______________  Delivery#: _______________  Trailer#: _______________
+          Date: <strong>${today}</strong>&nbsp;&nbsp;&nbsp;
+          Delivery#: <strong>${checkIn.reference_number || 'N/A'}</strong>&nbsp;&nbsp;&nbsp;
+          Trailer#: <strong>${checkIn.trailer_number || 'N/A'}</strong>
         </div>
+
+        <!-- 1 ROW OF SPACE BEFORE TABLE -->
+        <div class="spacer-row"></div>
 
         <table>
           <thead>
@@ -537,6 +544,9 @@ const printReceipt = () => {
           <div class="comment-line"></div>
           <div class="comment-line"></div>
         </div>
+
+        <!-- 2 ROWS OF SPACE BEFORE REVISIONS TABLE -->
+        <div class="spacer-row-double"></div>
 
         <table style="font-size: 8pt; margin-top: 10px;">
           <thead>
@@ -574,7 +584,9 @@ const printReceipt = () => {
         <div class="title">PRP03A: OUTBOUND INSPECTION</div>
 
         <div class="info-line">
-          Date: _______________  Load#: _______________  Trailer#: _______________
+          Date: <strong>${today}</strong>&nbsp;&nbsp;&nbsp;
+          Load#: <strong>${checkIn.reference_number || 'N/A'}</strong>&nbsp;&nbsp;&nbsp;
+          Trailer#: <strong>${checkIn.trailer_number || 'N/A'}</strong>
         </div>
 
         <table>
@@ -626,17 +638,20 @@ const printReceipt = () => {
         <div class="checkbox-group">
           <div>Rejected by: <span class="signature-line"></span></div>
           <div style="margin-top: 5px;">
-            ☐ Ok to load after sweeping
-            ☐ Needs new trailer<br>
+            ☐ OK TO LOAD AFTER SWEEPING 
+            ☐ Needs new trailer 
             ☐ Driver can correct trailer
           </div>
         </div>
+
+        <!-- 1 ROW OF SPACE BEFORE PRE-SEALING CHECKLIST -->
+        <div class="spacer-row"></div>
 
         <table>
           <thead>
             <tr>
               <th>PRE-SEALING CHECKLIST</th>
-              <th class="checkbox-cell">Done</th>
+              <th class="checkbox-cell">INITIAL</th>
             </tr>
           </thead>
           <tbody>
@@ -644,14 +659,18 @@ const printReceipt = () => {
             <tr><td>TRAILER HAS BEEN LATCH PROPERLY?</td><td class="checkbox-cell">☐</td></tr>
             <tr><td>THE TRAILER BEEN SEALED?</td><td class="checkbox-cell">☐</td></tr>
             <tr><td>CUSTOMER REQUIRED PHOTOS TAKEN AND SENT?</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>Initials</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>INITIAL?</td><td class="signature-line"></span></tr>
+            
           </tbody>
         </table>
+
+        <!-- 2 ROWS OF SPACE AFTER PRE-SEALING CHECKLIST -->
+        <div class="spacer-row-double"></div>
 
         <table style="font-size: 8pt; margin-top: 10px;">
           <thead>
             <tr>
-              <th style="width: 10%;">Revision #</th>
+              <th style="width: 10%;">Rev #</th>
               <th style="width: 40%;">Summary of Changes</th>
               <th style="width: 17%;">Requested By</th>
               <th style="width: 18%;">Authorized By</th>
@@ -675,8 +694,6 @@ const printReceipt = () => {
     `;
   }
 };
-
-
 
 
   if (!isOpen) return null;
