@@ -336,7 +336,152 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
           .print-button:hover {
             background-color: #45a049;
           }
-          
+
+                  .page-header-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 15px;
+        }
+        
+        .company-logo {
+          font-weight: bold;
+          font-size: 14px;
+          text-align: right;
+          white-space: nowrap;
+        }
+        
+        .inspection-header {
+          text-align: center;
+          font-weight: bold;
+          font-size: 16px;
+          border-bottom: 2px solid #000;
+          padding-bottom: 8px;
+        }
+        
+        /* UPDATED INSPECTION PAGE STYLES */
+        .inspection-page {
+          max-width: 100%;
+          width: 100%;
+          padding: 0.5in;
+          box-sizing: border-box;
+          font-family: Arial, sans-serif;
+          font-size: 12px; /* Increased from 11px */
+        }
+        
+        .inspection-info-large {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 15px;
+          font-size: 14px;
+          font-weight: bold;
+        }
+        .inspection-info-large span {
+          flex: 1;
+        }
+        
+        /* UPDATED TABLE STYLES WITH MORE SPACING */
+        .inspection-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 15px; /* Increased from 12px */
+          font-size: 11px; /* Increased from 10px */
+        }
+        .inspection-table th,
+        .inspection-table td {
+          border: 1px solid #000;
+          padding: 6px 8px; /* Increased from 4px 6px */
+          text-align: left;
+        }
+        .inspection-table th {
+          background-color: #f0f0f0;
+          font-weight: bold;
+          font-size: 11px;
+        }
+        .checkbox-cell {
+          text-align: center;
+          width: 40px;
+          font-size: 14px;
+        }
+        
+        .section-title {
+          font-weight: bold;
+          font-size: 13px; /* Increased from 12px */
+          margin: 15px 0 8px 0; /* Increased spacing */
+          padding: 5px 0; /* Increased from 4px */
+          border-bottom: 1px solid #000;
+        }
+        
+        .signature-section {
+          margin-top: 15px; /* Increased from 12px */
+          font-size: 11px; /* Increased from 10px */
+        }
+        .signature-line {
+          border-bottom: 1px solid #000;
+          width: 250px;
+          display: inline-block;
+          margin: 5px 0;
+        }
+        
+        .comments-section {
+          margin-top: 15px; /* Increased from 12px */
+          font-size: 11px; /* Increased from 10px */
+        }
+        .comments-box {
+          border: 1px solid #000;
+          min-height: 60px; /* Increased from 50px */
+          padding: 8px; /* Increased from 6px */
+          margin-top: 5px;
+        }
+        
+        .two-column {
+          display: flex;
+          justify-content: space-between;
+          gap: 20px;
+          margin-top: 15px; /* Increased from 12px */
+          font-size: 11px; /* Increased from 10px */
+        }
+        .two-column > div {
+          flex: 1;
+        }
+        
+        .revision-table {
+          width: 100%;
+          font-size: 9px; /* Increased from 8px */
+          margin-top: 15px; /* Increased from 12px */
+          border-collapse: collapse;
+        }
+        .revision-table th,
+        .revision-table td {
+          border: 1px solid #000;
+          padding: 3px 5px; /* Increased from 2px 4px */
+        }
+        .revision-table th {
+          background-color: #f0f0f0;
+        }
+        
+        .warning-text {
+          font-weight: bold;
+          margin: 15px 0; /* Increased from 10px */
+          font-size: 11px; /* Increased from 10px */
+          line-height: 1.4;
+        }
+        
+        .document-footer {
+          margin-top: 15px;
+          padding-top: 10px;
+          border-top: 2px solid #000;
+          font-size: 10px; /* Increased from 9px */
+          line-height: 1.4;
+        }
+        .footer-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 4px;
+        }
+        .footer-row span {
+          flex: 1;
+        }
           /* Page 2 Styles - WITH 0.5" MARGINS */
           .inspection-page {
             max-width: 100%;
@@ -563,19 +708,26 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
   printWindow.document.close();
 };
 
-// Optimized PRP02A - Inbound Inspection Form
+// Updated PRP02A - Inbound Inspection Form
 const getInboundInspectionForm = () => {
   const today = new Date().toLocaleDateString();
   return `
     <div class="inspection-page">
-      <div class="inspection-header">
-        PRP02A: INBOUND INSPECTION SHEET
+      <!-- HEADER WITH 307 CORPORATION -->
+      <div class="page-header-row">
+        <div class="inspection-header" style="flex: 1;">
+          PRP02A: INBOUND INSPECTION SHEET
+        </div>
+        <div class="company-logo">
+          307 CORPORATION
+        </div>
       </div>
       
-      <div class="inspection-info">
-        <span>Date: <u>&nbsp;${today}&nbsp;</u></span>
-        <span>Delivery#: <u>&nbsp;${checkIn.reference_number || ''}&nbsp;</u></span>
-        <span>Trailer#: <u>&nbsp;${checkIn.trailer_number || ''}&nbsp;</u></span>
+      <!-- LARGER FONT FOR DATE/DELIVERY/TRAILER INFO -->
+      <div class="inspection-info-large">
+        <span><strong>Date:</strong> <u>&nbsp;${today}&nbsp;</u></span>
+        <span><strong>Delivery#:</strong> <u>&nbsp;${checkIn.reference_number || ''}&nbsp;</u></span>
+        <span><strong>Trailer#:</strong> <u>&nbsp;${checkIn.trailer_number || ''}&nbsp;</u></span>
       </div>
 
       <table class="inspection-table">
@@ -588,42 +740,12 @@ const getInboundInspectionForm = () => {
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>IS THE TRAILER PROPERLY SEALED?</td>
-            <td class="checkbox-cell">☐</td>
-            <td class="checkbox-cell">☐</td>
-            <td class="checkbox-cell">☐</td>
-          </tr>
-          <tr>
-            <td>DOES THE SEAL# ON THE TRAILER MATCH THE SEAL# ON THE BOL AND BEEN INITIALED ON THE BOL?</td>
-            <td class="checkbox-cell">☐</td>
-            <td class="checkbox-cell">☐</td>
-            <td class="checkbox-cell">☐</td>
-          </tr>
-          <tr>
-            <td>DOES THE MATERIAL & LOT #'S OF THE PRODUCT ON THE TRAILER MATCH WHAT IS INDICATED ON THE BOL?</td>
-            <td class="checkbox-cell">☐</td>
-            <td class="checkbox-cell">☐</td>
-            <td class="checkbox-cell">☐</td>
-          </tr>
-          <tr>
-            <td>IS THE VISIBLE PRODUCT AND PALLET FREE OF FOREIGN OBJECTS, INSECTS, MOLD & DAMAGE?</td>
-            <td class="checkbox-cell">☐</td>
-            <td class="checkbox-cell">☐</td>
-            <td class="checkbox-cell">☐</td>
-          </tr>
-          <tr>
-            <td>WAS THE TRAILER FREE OF METAL/GLASS, RODENT/INSECT INFESTATION, DAMAGE AND ODOR?</td>
-            <td class="checkbox-cell">☐</td>
-            <td class="checkbox-cell">☐</td>
-            <td class="checkbox-cell">☐</td>
-          </tr>
-          <tr>
-            <td>IS ALL OF THE VISIBLE PRINT ON THE BAGS LEGIBLE AND ARE ALL OF THE VISIBLE VALVES FREE OF LEAKAGE?</td>
-            <td class="checkbox-cell">☐</td>
-            <td class="checkbox-cell">☐</td>
-            <td class="checkbox-cell">☐</td>
-          </tr>
+          <tr><td>IS THE TRAILER PROPERLY SEALED?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+          <tr><td>DOES THE SEAL# ON THE TRAILER MATCH THE SEAL# ON THE BOL AND BEEN INITIALED ON THE BOL?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+          <tr><td>DOES THE MATERIAL & LOT #'S OF THE PRODUCT ON THE TRAILER MATCH WHAT IS INDICATED ON THE BOL?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+          <tr><td>IS THE VISIBLE PRODUCT AND PALLET FREE OF FOREIGN OBJECTS, INSECTS, MOLD & DAMAGE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+          <tr><td>WAS THE TRAILER FREE OF METAL/GLASS, RODENT/INSECT INFESTATION, DAMAGE AND ODOR?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+          <tr><td>IS ALL OF THE VISIBLE PRINT ON THE BAGS LEGIBLE AND ARE ALL OF THE VISIBLE VALVES FREE OF LEAKAGE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
         </tbody>
       </table>
 
@@ -632,24 +754,25 @@ const getInboundInspectionForm = () => {
         IF ANY PRODUCT IS QUESTIONABLE TO RECEIVE INTO THE WAREHOUSE, CONTACT A SUPERVISOR FOR APPROVAL.
       </div>
 
-      <div class="signature-section">
+      <div class="signature-section" style="margin-top: 20px;">
         <p><strong>I ACKNOWLEDGE THAT ALL ITEMS LISTED ABOVE HAVE BEEN EXECUTED.</strong></p>
         <p>OPERATOR SIGNATURE: <span class="signature-line"></span></p>
       </div>
 
-      <div class="comments-section">
+      <div class="comments-section" style="margin-top: 20px;">
         <p><strong>COMMENTS:</strong></p>
         <div class="comments-box"></div>
       </div>
 
-      <table class="revision-table">
+      <!-- REVISION TABLE -->
+      <table class="revision-table" style="margin-top: 25px;">
         <thead>
           <tr>
-            <th>Rev #</th>
+            <th>Revision Number</th>
             <th>Summary of Changes</th>
             <th>Requested by</th>
             <th>Authorised by</th>
-            <th>Date</th>
+            <th>Date Updated</th>
           </tr>
         </thead>
         <tbody>
@@ -659,28 +782,51 @@ const getInboundInspectionForm = () => {
           <tr><td>4</td><td>Updated questions 4 to add pallet inspection.</td><td>Quality Manager</td><td>Operations Manager</td><td>01/14/2026</td></tr>
         </tbody>
       </table>
+
+      <!-- FOOTER -->
+      <div class="document-footer" style="margin-top: 15px;">
+        <div class="footer-row">
+          <span><strong>PRP02A</strong> Inbound Inspection</span>
+          <span><strong>Owned By:</strong> Quality Manager</span>
+          <span><strong>Authorized By:</strong> Operations Manager</span>
+        </div>
+      </div>
     </div>
   `;
 };
 
-// Optimized PRP03A - Outbound Inspection Form
+// Updated PRP03A - Outbound Inspection Form
 const getOutboundInspectionForm = () => {
   const today = new Date().toLocaleDateString();
   return `
     <div class="inspection-page">
-      <div class="inspection-header">
-        PRP03A: Outbound Inspection 
+      <!-- HEADER WITH 307 CORPORATION -->
+      <div class="page-header-row">
+        <div class="inspection-header" style="flex: 1;">
+          PRP03A: PRE-SEALING CHECKLIST
+        </div>
+        <div class="company-logo">
+          307 CORPORATION
+        </div>
       </div>
       
-      <div class="inspection-info">
-        <span>Date: <u>&nbsp;${today}&nbsp;</u></span>
-        <span>Load#: <u>&nbsp;${checkIn.reference_number || ''}&nbsp;</u></span>
-        <span>Trailer#: <u>&nbsp;${checkIn.trailer_number || ''}&nbsp;</u></span>
+      <!-- LARGER FONT FOR DATE/LOAD/TRAILER INFO -->
+      <div class="inspection-info-large">
+        <span><strong>Date:</strong> <u>&nbsp;${today}&nbsp;</u></span>
+        <span><strong>Load#:</strong> <u>&nbsp;${checkIn.reference_number || ''}&nbsp;</u></span>
+        <span><strong>Trailer#:</strong> <u>&nbsp;${checkIn.trailer_number || ''}&nbsp;</u></span>
       </div>
 
-      <div class="section-title">General Trailer GMP</div>
+      <div class="section-title">WAREHOUSE STAFF</div>
       
       <table class="inspection-table">
+        <thead>
+          <tr>
+            <th>GENERAL TRAILER GMP</th>
+            <th class="checkbox-cell">YES</th>
+            <th class="checkbox-cell">NO</th>
+          </tr>
+        </thead>
         <tbody>
           <tr><td>EVIDENCE OF ODOR?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
           <tr><td>DEBRIS ON FLOOR OR IN CORNERS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
@@ -719,21 +865,70 @@ const getOutboundInspectionForm = () => {
           <p style="margin-left: 10px;">☐ Need new trailer</p>
         </div>
         <div>
-          <p>OK TO LOAD BY: <span class="signature-line"></span></p>
+          <p>OK TO LOAD AFTER SWEEPING: <span class="signature-line"></span></p>
           <p style="margin-left: 10px;">☐ Trailer can be corrected</p>
         </div>
       </div>
 
       <div class="section-title" style="margin-top: 15px;">PRE-SEALING CHECKLIST</div>
       
+      <!-- UPDATED WITH CHECKBOXES AND INITIAL LINE -->
       <table class="inspection-table">
         <tbody>
-          <tr><td>ALL THE INSTRUCTIONS ON THE BILL OF LADING BEEN FOLLOWED?</td><td class="checkbox-cell">INITIAL______</td></tr>
-          <tr><td>TRAILER HAS BEEN LATCH PROPERLY?</td><td class="checkbox-cell">INITIAL______</td></tr>
-          <tr><td>THE TRAILER BEEN SEALED?</td><td class="checkbox-cell">INITIAL______</td></tr>
-          <tr><td>CUSTOMER REQUIRED PHOTOS TAKEN AND SENT?</td><td class="checkbox-cell">INITIAL______</td></tr>
+          <tr>
+            <td>ALL THE INSTRUCTIONS ON THE BILL OF LADING BEEN FOLLOWED?</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>TRAILER HAS BEEN LATCH PROPERLY?</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>THE TRAILER BEEN SEALED?</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>CUSTOMER REQUIRED PHOTOS TAKEN AND SENT?</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
         </tbody>
       </table>
+      
+      <div class="signature-section" style="margin-top: 10px;">
+        <p>INITIAL: <span class="signature-line" style="width: 150px;"></span></p>
+      </div>
+
+      <!-- REVISION TABLE -->
+      <table class="revision-table" style="margin-top: 20px;">
+        <thead>
+          <tr>
+            <th>Version</th>
+            <th>Date</th>
+            <th>Changes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>V1</td>
+            <td>7/24/2025</td>
+            <td>Outbound Inspection - Restructured</td>
+          </tr>
+          <tr>
+            <td>V2</td>
+            <td>7/31/2025</td>
+            <td>Added loadbar question</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- FOOTER -->
+      <div class="document-footer" style="margin-top: 10px;">
+        <div class="footer-row">
+          <span><strong>PRP03A</strong> Outbound Inspection</span>
+          <span><strong>Owned By:</strong> Quality Manager</span>
+          <span><strong>Authorized By:</strong> Operations Manager</span>
+        </div>
+      </div>
     </div>
   `;
 };
