@@ -486,7 +486,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
           .inspection-page {
             max-width: 100%;
             width: 100%;
-            padding: 0.5in; /* 0.5 inch margins on all sides */
+            padding: 0.25in; /* 0.5 inch margins on all sides */
             box-sizing: border-box;
             font-family: Arial, sans-serif;
             font-size: 11px;
@@ -647,7 +647,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             </div>
             <div class="row">
               <span class="label">Phone Number:</span>
-              <span class="value">${checkIn.phone_number || 'N/A'}</span>
+              <span class="value">${checkIn.driver_number || 'N/A'}</span>
             </div>
             <div class="row">
               <span class="label">Carrier:</span>
