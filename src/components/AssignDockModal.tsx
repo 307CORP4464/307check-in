@@ -17,6 +17,7 @@ interface AssignDockModalProps {
     destination_city?: string;
     destination_state?: string;
     check_in_time?: string | null;
+    load_type?: 'inbound' | 'outbound'; // ADD THIS LINE
   };
   onClose: () => void;
   onSuccess: () => void;
@@ -236,147 +237,516 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     }
   };
 
-  const printReceipt = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert('Please allow popups to print the receipt');
-      return;
-    }
+ const printReceipt = () => {
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('Please allow popups to print the receipt');
+    return;
+  }
 
-    const currentDate = new Date().toLocaleString();
-    const dockDisplay = dockNumber === 'Ramp' ? 'Ramp' : `Dock ${dockNumber}`;
+  const currentDate = new Date().toLocaleString();
+  const dockDisplay = dockNumber === 'Ramp' ? 'Ramp' : `Dock ${dockNumber}`;
+  
+  // Determine load type - you may need to adjust this based on your data structure
+  // Assuming you have a load_type field in checkIn object
+  const isInbound = checkIn.load_type === 'inbound'; // Adjust this condition as needed
 
-    const receiptHTML = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Load Assignment Receipt</title>
-          <style>
-            @media print {
-              body { margin: 0; }
-              .no-print { display: none; }
-            }
-            body {
-              font-family: 'Arial', monospace;
-              padding: 20px;
-              max-width: 420px;
-              margin: 0 auto;
-            }
-            .receipt-header {
-              text-align: center;
-              border-bottom: 2px dashed #000;
-              padding-bottom: 12px;
-              margin-bottom: 12px;
-            }
-            .receipt-header h1 {
-              margin: 0;
-              font-size: 20px;
-            }
-            .section {
-              margin: 8px 0;
-              padding: 6px 0;
-              border-bottom: 1px dashed #bbb;
-            }
-            .section:last-child { border-bottom: none; }
-            .row {
-              display: flex;
-              justify-content: space-between;
-              font-size: 14px;
-              margin: 6px 0;
-            }
-            .label {
-              font-weight: bold;
-              text-transform: uppercase;
-              font-size: 12px;
-              color: #333;
-            }
-            .value {
-              text-align: right;
-            }
-            .reference-box {
-              background-color: #ffeb3b;
-              padding: 12px;
-              margin: 10px 0 6px;
-              border: 2px solid #000;
-              text-align: center;
-            }
-            .reference-box .reference-number {
-              font-size: 18px;
-              font-weight: bold;
-              margin-bottom: 4px;
-            }
-            .reference-box .dock-number {
-              font-size: 16px;
-              font-weight: bold;
-            }
-            .print-button {
-              display: block;
-              margin: 20px auto;
-              padding: 12px 24px;
-              background-color: #4CAF50;
-              color: white;
-              border: none;
-              border-radius: 4px;
-              font-size: 16px;
-              cursor: pointer;
-            }
-            .print-button:hover {
-              background-color: #45a049;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="receipt-header">
-            <h1>Load Assignment Receipt</h1>
-            <p style="margin: 4px 0; font-size: 12px;">${currentDate}</p>
-          </div>
+  const receiptHTML = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Load Assignment Receipt</title>
+        <style>
+          @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+            .page-break { page-break-before: always; }
+          }
+          body {
+            font-family: 'Arial', monospace;
+            padding: 20px;
+            max-width: 420px;
+            margin: 0 auto;
+          }
+          .receipt-header {
+            text-align: center;
+            border-bottom: 2px dashed #000;
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+          }
+          .receipt-header h1 {
+            margin: 0;
+            font-size: 20px;
+          }
+          .section {
+            margin: 8px 0;
+            padding: 6px 0;
+            border-bottom: 1px dashed #bbb;
+          }
+          .section:last-child { border-bottom: none; }
+          .row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin: 6px 0;
+          }
+          .label {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 12px;
+            color: #333;
+          }
+          .value {
+            text-align: right;
+          }
+          .reference-box {
+            background-color: #ffeb3b;
+            padding: 12px;
+            margin: 10px 0 6px;
+            border: 2px solid #000;
+            text-align: center;
+          }
+          .reference-box .reference-number {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 4px;
+          }
+          .reference-box .dock-number {
+            font-size: 16px;
+            font-weight: bold;
+          }
+          .print-button {
+            display: block;
+            margin: 20px auto;
+            padding: 12px 24px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+          }
+          .print-button:hover {
+            background-color: #45a049;
+          }
           
-          <div class="reference-box">
-            <div class="reference-number">Ref: ${checkIn.reference_number || 'N/A'}</div>
-            <div class="dock-number">${dockDisplay}</div>
+          /* Inspection Form Styles */
+          .inspection-page {
+            max-width: 800px;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+          }
+          .inspection-header {
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+          }
+          .inspection-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+          }
+          .inspection-info span {
+            flex: 1;
+          }
+          .inspection-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+          }
+          .inspection-table th,
+          .inspection-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+          }
+          .inspection-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+          }
+          .checkbox-cell {
+            text-align: center;
+            width: 60px;
+          }
+          .signature-section {
+            margin-top: 30px;
+          }
+          .signature-line {
+            border-bottom: 1px solid #000;
+            width: 300px;
+            display: inline-block;
+            margin: 10px 0;
+          }
+          .comments-section {
+            margin-top: 20px;
+          }
+          .comments-box {
+            border: 1px solid #000;
+            min-height: 80px;
+            padding: 10px;
+          }
+          .revision-table {
+            width: 100%;
+            font-size: 10px;
+            margin-top: 20px;
+            border-collapse: collapse;
+          }
+          .revision-table th,
+          .revision-table td {
+            border: 1px solid #000;
+            padding: 4px;
+          }
+        </style>
+      </head>
+      <body>
+        <!-- Page 1: Load Receipt -->
+        <div class="receipt-header">
+          <h1>Load Assignment Receipt</h1>
+          <p style="margin: 5px 0; font-size: 12px;">${currentDate}</p>
+        </div>
+
+        <div class="reference-box">
+          <div class="reference-number">REF: ${checkIn.reference_number || 'N/A'}</div>
+          <div class="dock-number">ASSIGNED TO: ${dockDisplay}</div>
+        </div>
+
+        <div class="section">
+          <div class="row">
+            <span class="label">Driver:</span>
+            <span class="value">${checkIn.driver_name || 'N/A'}</span>
           </div>
-
-          <div class="section">
-            <div class="row">
-              <span class="label">Driver:</span>
-              <span class="value">${checkIn.driver_name || 'N/A'}</span>
-            </div>
-            <div class="row">
-              <span class="label">Carrier:</span>
-              <span class="value">${checkIn.carrier_name || 'N/A'}</span>
-            </div>
-            <div class="row">
-              <span class="label">Trailer:</span>
-              <span class="value">${checkIn.trailer_number || 'N/A'}</span>
-            </div>
+          <div class="row">
+            <span class="label">Company:</span>
+            <span class="value">${checkIn.company || 'N/A'}</span>
           </div>
-
-          <div class="section">
-            <div class="row">
-              <span class="label">Appointment:</span>
-              <span class="value">${checkIn.appointment_time ? formatAppointmentTime(checkIn.appointment_time) : 'N/A'}</span>
-            </div>
-            <div class="row">
-              <span class="label">Check-In:</span>
-              <span class="value">${formatCheckInTime(checkIn.check_in_time)}</span>
-            </div>
+          <div class="row">
+            <span class="label">Carrier:</span>
+            <span class="value">${checkIn.carrier_name || 'N/A'}</span>
           </div>
+        </div>
 
-          <div class="section">
-            <div class="row">
-              <span class="label">Destination:</span>
-              <span class="value">${checkIn.destination_city || ''} ${checkIn.destination_state || ''}</span>
-            </div>
+        <div class="section">
+          <div class="row">
+            <span class="label">Trailer #:</span>
+            <span class="value">${checkIn.trailer_number || 'N/A'}</span>
           </div>
+          <div class="row">
+            <span class="label">Trailer Length:</span>
+            <span class="value">${checkIn.trailer_length || 'N/A'}</span>
+          </div>
+        </div>
 
-          <button class="print-button no-print" onclick="window.print()">Print Receipt</button>
-        </body>
-      </html>
-    `;
+        <div class="section">
+          <div class="row">
+            <span class="label">Destination:</span>
+            <span class="value">${checkIn.destination_city || ''} ${checkIn.destination_state || ''}</span>
+          </div>
+          <div class="row">
+            <span class="label">Appointment:</span>
+            <span class="value">${checkIn.appointment_time ? formatAppointmentTime(checkIn.appointment_time) : 'N/A'}</span>
+          </div>
+          <div class="row">
+            <span class="label">Check-in Time:</span>
+            <span class="value">${formatCheckInTime(checkIn.check_in_time)}</span>
+          </div>
+        </div>
 
-    printWindow.document.write(receiptHTML);
-    printWindow.document.close();
-  };
+        <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #666;">
+          Please proceed to ${dockDisplay}
+        </div>
+
+        <button class="print-button no-print" onclick="window.print()">Print Receipt</button>
+
+        <!-- Page 2: Inspection Form -->
+        <div class="page-break"></div>
+        
+        ${isInbound ? getInboundInspectionForm() : getOutboundInspectionForm()}
+
+        <script>
+          // Auto-print when page loads
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 250);
+          };
+        </script>
+      </body>
+    </html>
+  `;
+
+  printWindow.document.write(receiptHTML);
+  printWindow.document.close();
+};
+
+// Function for PRP02A - Inbound Inspection Form
+const getInboundInspectionForm = () => {
+  const today = new Date().toLocaleDateString();
+  return `
+    <div class="inspection-page">
+      <div class="inspection-header">
+        PRP02A: INBOUND INSPECTION SHEET
+      </div>
+      
+      <div class="inspection-info">
+        <span>Date: <u>&nbsp;&nbsp;&nbsp;${today}&nbsp;&nbsp;&nbsp;</u></span>
+        <span>Delivery#: <u>&nbsp;&nbsp;&nbsp;${checkIn.reference_number || ''}&nbsp;&nbsp;&nbsp;</u></span>
+        <span>Trailer#: <u>&nbsp;&nbsp;&nbsp;${checkIn.trailer_number || ''}&nbsp;&nbsp;&nbsp;</u></span>
+      </div>
+
+      <table class="inspection-table">
+        <thead>
+          <tr>
+            <th>INSPECTION ITEM</th>
+            <th class="checkbox-cell">YES</th>
+            <th class="checkbox-cell">NO</th>
+            <th class="checkbox-cell">N/A</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>IS THE TRAILER PROPERLY SEALED?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>DOES THE SEAL# ON THE TRAILER MATCH THE SEAL# ON THE BOL AND BEEN INITIALED ON THE BOL?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>DOES THE MATERIAL & LOT #'S OF THE PRODUCT ON THE TRAILER MATCH WHAT IS INDICATED ON THE BOL?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>IS THE VISIBLE PRODUCT AND PALLET FREE OF FOREIGN OBJECTS, INSECTS, MOLD & DAMAGE?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>WAS THE TRAILER FREE OF METAL/GLASS, RODENT/INSECT INFESTATION, DAMAGE AND ODOR?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>IS ALL OF THE VISIBLE PRINT ON THE BAGS LEGIBLE AND ARE ALL OF THE VISIBLE VALVES FREE OF LEAKAGE?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="font-weight: bold; margin: 20px 0;">
+        IF ANY OF THE ABOVE QUESTIONS WERE ANSWERED "NO" PLEASE ENSURE CORRECTIVE ACTION IS TAKEN AND/OR NOTIFY A SUPERVISOR.<br>
+        IF ANY PRODUCT IS QUESTIONABLE TO RECEIVE INTO THE WAREHOUSE, CONTACT A SUPERVISOR FOR APPROVAL.
+      </div>
+
+      <div class="signature-section">
+        <p><strong>I ACKNOWLEDGE THAT ALL ITEMS LISTED ABOVE HAVE BEEN EXECUTED.</strong></p>
+        <p>OPERATOR SIGNATURE: <span class="signature-line"></span></p>
+      </div>
+
+      <div class="comments-section">
+        <p><strong>COMMENTS:</strong></p>
+        <div class="comments-box"></div>
+      </div>
+
+      <table class="revision-table">
+        <thead>
+          <tr>
+            <th>Revision Number</th>
+            <th>Summary of Changes</th>
+            <th>Requested by</th>
+            <th>Authorised by</th>
+            <th>Date Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Original</td>
+            <td></td>
+            <td>Quality Manager</td>
+            <td>Operations Manager</td>
+            <td>10/28/2015</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Changed question 9.</td>
+            <td>Quality Manager</td>
+            <td>Operations Manager</td>
+            <td>10/30/2017</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Updated questions</td>
+            <td>Quality Manager</td>
+            <td>Operations Manager</td>
+            <td>09/19/2018</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>Updated questions 4 to add pallet inspection.</td>
+            <td>Quality Manager</td>
+            <td>Operations Manager</td>
+            <td>01/14/2026</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+};
+
+// Function for PRP03A - Outbound Inspection Form
+const getOutboundInspectionForm = () => {
+  const today = new Date().toLocaleDateString();
+  return `
+    <div class="inspection-page">
+      <div class="inspection-header">
+        PRP03A: PRE-SEALING CHECKLIST
+      </div>
+      
+      <div class="inspection-info">
+        <span>Date: <u>&nbsp;&nbsp;&nbsp;${today}&nbsp;&nbsp;&nbsp;</u></span>
+        <span>Load#: <u>&nbsp;&nbsp;&nbsp;${checkIn.reference_number || ''}&nbsp;&nbsp;&nbsp;</u></span>
+        <span>Trailer#: <u>&nbsp;&nbsp;&nbsp;${checkIn.trailer_number || ''}&nbsp;&nbsp;&nbsp;</u></span>
+      </div>
+
+      <h3 style="margin-top: 30px;">WAREHOUSE STAFF</h3>
+      
+      <table class="inspection-table">
+        <thead>
+          <tr>
+            <th>GENERAL TRAILER GMP</th>
+            <th class="checkbox-cell">YES</th>
+            <th class="checkbox-cell">NO</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>EVIDENCE OF ODOR?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>DEBRIS ON FLOOR OR IN CORNERS?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>EVIDENCE OF INSECT OR RODENT ACTIVITY?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>PREVIOUS PRODUCT RESIDUE?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>SPLINTERED SIDEWALLS, CEILING OR FLOOR THAT COULD DAMAGE BAGS?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>BROKEN GLASS OR METAL SHAVINGS?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>NAILS OR OTHER OBJECTS PROTRUDING FROM THE FLOORS OR SIDEWALLS?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>HOLES ON CEILING, SIDEWALLS OR FLOORS?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>EVIDENCE OF LEAKS, STANDING WATER, MOISTURE, MOLD, MILDEW, ETC?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>PRODUCT SECURITY / LOADER SAFETY</h3>
+      
+      <table class="inspection-table">
+        <tbody>
+          <tr>
+            <td>PROBLEMS WITH LATCHES ON DOORS WORKING PROPERLY?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>IS TRAILER UNSEALABLE?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+          <tr>
+            <td>LOAD STRAPS/BARS APPLIED IF REQUIRED?</td>
+            <td class="checkbox-cell">☐</td>
+            <td class="checkbox-cell">☐</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="signature-section">
+        <p>LOADER SIGNATURE: <span class="signature-line"></span></p>
+      </div>
+
+      <div class="comments-section">
+        <p><strong>COMMENTS:</strong></p>
+        <div class="comments-box"></div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+        <div>
+          <p>Rejected by: <span class="signature-line"></span></p>
+          <p style="margin-left: 20px;">☐ Need new trailer</p>
+        </div>
+        <div>
+          <p>OK TO LOAD BY: <span class="signature-line"></span></p>
+          <p style="margin-left: 20px;">☐ Trailer can be corrected</p>
+        </div>
+      </div>
+
+      <h3 style="margin-top: 30px;">PRE-SEALING CHECKLIST</h3>
+      
+      <table class="inspection-table">
+        <tbody>
+          <tr>
+            <td>ALL THE INSTRUCTIONS ON THE BILL OF LADING BEEN FOLLOWED?</td>
+            <td class="checkbox-cell">INITIAL</td>
+          </tr>
+          <tr>
+            <td>TRAILER HAS BEEN LATCH PROPERLY?</td>
+            <td class="checkbox-cell">INITIAL</td>
+          </tr>
+          <tr>
+            <td>THE TRAILER BEEN SEALED?</td>
+            <td class="checkbox-cell">INITIAL</td>
+          </tr>
+          <tr>
+            <td>CUSTOMER REQUIRED PHOTOS TAKEN AND SENT?</td>
+            <td class="checkbox-cell">INITIAL</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+};
+
 
   if (!isOpen) return null;
 
