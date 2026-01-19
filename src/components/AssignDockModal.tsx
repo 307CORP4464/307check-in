@@ -661,7 +661,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             <tr><td>TRAILER HAS BEEN LATCH PROPERLY?</td><td class="checkbox-cell">☐</td></tr>
             <tr><td>THE TRAILER BEEN SEALED?</td><td class="checkbox-cell">☐</td></tr>
             <tr><td>CUSTOMER REQUIRED PHOTOS TAKEN AND SENT?</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td></td>INITIAL _______</td></tr>
+            <tr><td>INITIALS OF PERSON THAT SEALED</td><td class="checkbox-cell">__________</td></tr>
             
           </tbody>
         </table>
