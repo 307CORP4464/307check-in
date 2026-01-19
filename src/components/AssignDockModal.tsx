@@ -439,7 +439,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             </div>
             <div class="row">
               <span class="label">Phone#:</span>
-              <span class="value">${checkIn.driver.phone || 'N/A'}</span>
+              <span class="value">${checkIn.driver_phone || 'N/A'}</span>
             </div>
             <div class="row">
               <span class="label">Carrier:</span>
