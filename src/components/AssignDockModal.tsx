@@ -337,11 +337,12 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             background-color: #45a049;
           }
           
-          /* Page 2 Styles - WIDER LAYOUT */
+          /* Page 2 Styles - WITH 0.5" MARGINS */
           .inspection-page {
             max-width: 100%;
             width: 100%;
-            padding: 15px;
+            padding: 0.5in; /* 0.5 inch margins on all sides */
+            box-sizing: border-box;
             font-family: Arial, sans-serif;
             font-size: 11px;
           }
@@ -353,6 +354,19 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             border-bottom: 2px solid #000;
             padding-bottom: 8px;
           }
+          
+          /* LARGER FONT FOR DATE/LOAD/TRAILER INFO */
+          .inspection-info-large {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 14px; /* Increased from 11px */
+            font-weight: bold;
+          }
+          .inspection-info-large span {
+            flex: 1;
+          }
+          
           .inspection-info {
             display: flex;
             justify-content: space-between;
@@ -449,6 +463,23 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             font-size: 10px;
             line-height: 1.3;
           }
+          
+          /* FOOTER STYLING */
+          .document-footer {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 2px solid #000;
+            font-size: 9px;
+            line-height: 1.4;
+          }
+          .footer-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+          }
+          .footer-row span {
+            flex: 1;
+          }
         </style>
       </head>
       <body>
@@ -503,6 +534,10 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
               <span class="label">Check-in Time:</span>
               <span class="value">${formatCheckInTime(checkIn.check_in_time)}</span>
             </div>
+          </div>
+
+          <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #666;">
+            Please proceed to ${dockDisplay}
           </div>
 
           <button class="print-button no-print" onclick="window.print()">Print Receipt</button>
