@@ -812,15 +812,15 @@ export default function DriverCheckInForm() {
             {/* Additional Info */}
             <div className="text-center text-xs text-gray-500 pt-4 border-t border-gray-200">
               <p className="mb-1">
-                <strong>Operating Hours:</strong> Monday - Friday, 6:00 AM - 5:00 PM
+                <strong>Operating Hours:</strong> Monday - Friday, 7:00 AM - 5:00 PM
               </p>
               <p className="mb-1">
                 <strong>Location Verification:</strong> You must be on-site to complete check-in
               </p>
               <p>
-                For assistance, contact the shipping office at{'765-474-2512'}
-                <a href="tel:+15551234567" className="text-blue-600 hover:underline">
-                  (555) 123-4567
+                For assistance, contact the shipping office at{''}
+                <a href="tel:+17654742512" className="text-blue-600 hover:underline">
+                  (765) 474-2512
                 </a>
               </p>
             </div>
