@@ -6,6 +6,7 @@ import { createBrowserClient } from '@supabase/ssr';
 interface FormData {
   driverName: string;
   driverPhone: string;
+  driverEmail: string;
   carrierName: string;
   trailerNumber: string;
   trailerLength: string;
@@ -13,11 +14,13 @@ interface FormData {
   loadType: 'inbound' | 'outbound';
   destinationCity: string;
   destinationState: string;
+  emailConsent: boolean;
 }
 
 const INITIAL_FORM_DATA: FormData = {
   driverName: '',
   driverPhone: '',
+  driverEmail: '',
   carrierName: '',
   trailerNumber: '',
   trailerLength: '',
@@ -25,6 +28,7 @@ const INITIAL_FORM_DATA: FormData = {
   loadType: 'inbound',
   destinationCity: '',
   destinationState: '',
+  emailConsent: false,
 };
 
 // SITE CONFIGURATION - Crawfordsville, IN
@@ -78,6 +82,11 @@ const validateReferenceNumber = (value: string): boolean => {
   return REFERENCE_NUMBER_PATTERNS.some(pattern => pattern.test(cleaned));
 };
 
+const validateEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
 const formatPhoneNumber = (value: string): string => {
   const cleaned = value.replace(/\D/g, '');
   const match = cleaned.match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/);
@@ -97,7 +106,7 @@ const formatPhoneNumber = (value: string): string => {
   return value;
 };
 
-// Check if current time is within allowed hours (Mon-Fri, 7:00-17:00)
+// Check if current time is within allowed hours (Mon-Fri, 6:00-17:00)
 const isWithinAllowedTime = (): { allowed: boolean; message?: string } => {
   const now = new Date();
   const day = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
@@ -218,6 +227,7 @@ export default function DriverCheckInForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [referenceError, setReferenceError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [locationStatus, setLocationStatus] = useState<'checking' | 'valid' | 'invalid' | null>(null);
   const [timeRestrictionWarning, setTimeRestrictionWarning] = useState<string | null>(null);
 
@@ -263,11 +273,30 @@ export default function DriverCheckInForm() {
         setReferenceError(null);
       }
     }
+
+    if (name === 'driverEmail') {
+      if (value && !validateEmail(value)) {
+        setEmailError('Please enter a valid email address');
+      } else {
+        setEmailError(null);
+      }
+    }
+  }, []);
+
+  const handleCheckboxChange = useCallback((
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const { name, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: checked
+    }));
   }, []);
 
   const resetForm = useCallback(() => {
     setFormData(INITIAL_FORM_DATA);
     setReferenceError(null);
+    setEmailError(null);
     setError(null);
     setLocationStatus(null);
     setSuccess(false);
@@ -301,13 +330,28 @@ export default function DriverCheckInForm() {
       
       setLocationStatus('valid');
 
-      // Existing validations
+      // Email validation
+      if (!validateEmail(formData.driverEmail)) {
+        setError('Please enter a valid email address');
+        setLoading(false);
+        return;
+      }
+
+      // Email consent validation
+      if (!formData.emailConsent) {
+        setError('You must consent to email communications to proceed');
+        setLoading(false);
+        return;
+      }
+
+      // Reference number validation
       if (!validateReferenceNumber(formData.referenceNumber)) {
         setError('Invalid reference number format');
         setLoading(false);
         return;
       }
 
+      // Phone validation
       const phoneDigits = formData.driverPhone.replace(/\D/g, '');
       if (phoneDigits.length !== 10) {
         setError('Phone number must be 10 digits');
@@ -315,6 +359,7 @@ export default function DriverCheckInForm() {
         return;
       }
 
+      // Outbound validations
       if (formData.loadType === 'outbound') {
         if (!formData.destinationCity.trim()) {
           setError('Destination city is required for outbound pickups');
@@ -330,33 +375,39 @@ export default function DriverCheckInForm() {
 
       const checkInTime = new Date().toISOString();
 
-      // Insert with status = 'pending' (NOT 'checked_in')
+      // Insert with status = 'pending'
       const { data, error: insertError } = await supabase
         .from('check_ins')
         .insert([
           {
             driver_name: formData.driverName.trim(),
             driver_phone: phoneDigits,
+            driver_email: formData.driverEmail.trim().toLowerCase(),
+            email_consent: formData.emailConsent,
+            email_consent_timestamp: new Date().toISOString(),
             carrier_name: formData.carrierName.trim(),
             trailer_number: formData.trailerNumber.trim().toUpperCase(),
             trailer_length: formData.trailerLength,
-            reference_number: formData.referenceNumber.trim().toUpperCase(),
+            reference_number: formData.referenceNumber.replace(/\s/g, '').toUpperCase(),
             load_type: formData.loadType,
-            destination_city: formData.destinationCity.trim() || null,
-            destination_state: formData.destinationState || null,
+            destination_city: formData.loadType === 'outbound' ? formData.destinationCity.trim() : null,
+            destination_state: formData.loadType === 'outbound' ? formData.destinationState : null,
             check_in_time: checkInTime,
-            status: 'pending'  // Changed from 'checked_in' to 'pending'
+            status: 'pending',
+            created_at: checkInTime,
           }
         ])
-        .select()
-        .single();
+        .select();
 
       if (insertError) {
-        console.error('Error checking in:', insertError);
-        throw insertError;
+        console.error('Supabase insert error:', insertError);
+        setError(`Failed to submit check-in: ${insertError.message}`);
+        setLoading(false);
+        return;
       }
 
       setSuccess(true);
+      setLoading(false);
       
       // Reset form after 3 seconds
       setTimeout(() => {
@@ -364,246 +415,415 @@ export default function DriverCheckInForm() {
       }, 3000);
 
     } catch (err) {
-      console.error('Error checking in:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred during check-in');
-      setLocationStatus(null);
-    } finally {
+      console.error('Check-in error:', err);
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       setLoading(false);
+      setLocationStatus(null);
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Driver Check-In
             </h1>
             <p className="text-gray-600">
-              Please complete all required fields
+              Crawfordsville Distribution Center
             </p>
-            {timeRestrictionWarning && (
-              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800">⚠️ {timeRestrictionWarning}</p>
-              </div>
-            )}
           </div>
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-800">{error}</p>
+          {/* Time Restriction Warning */}
+          {timeRestrictionWarning && (
+            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-yellow-800">
+                    {timeRestrictionWarning}
+                  </h3>
+                  <p className="mt-1 text-sm text-yellow-700">
+                    Check-in hours: Monday-Friday, 6:00 AM - 5:00 PM
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
-          {success && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-sm text-green-800">✓ Check-in successful! Form will reset shortly...</p>
-            </div>
-          )}
-
+          {/* Location Status Indicator */}
           {locationStatus === 'checking' && (
             <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">📍 Verifying your location...</p>
+              <div className="flex items-center">
+                <svg className="animate-spin h-5 w-5 text-blue-600 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-blue-800">Verifying your location...</span>
+              </div>
             </div>
           )}
 
-          {locationStatus === 'valid' && !success && (
+          {locationStatus === 'valid' && (
             <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-sm text-green-800">✓ Location verified</p>
+              <div className="flex items-center">
+                <svg className="h-5 w-5 text-green-600 mr-3" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span className="text-green-800">Location verified - You are on-site</span>
+              </div>
+            </div>
+          )}
+
+          {/* Error Alert */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">{error}</h3>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Success Alert */}
+          {success && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-green-800">
+                    Check-in successful! You will be notified when your dock is ready.
+                  </h3>
+                </div>
+              </div>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Driver Name */}
+            {/* Load Type Selection */}
             <div>
-              <label htmlFor="driverName" className="block text-sm font-medium text-gray-700 mb-2">
-                Driver Name *
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Load Type <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                id="driverName"
-                name="driverName"
-                value={formData.driverName}
-                onChange={handleInputChange}
-                required
-                disabled={loading || success}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:bg-gray-100 disabled:cursor-not-allowed"
-                placeholder="Enter driver name"
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, loadType: 'inbound' }))}
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    formData.loadType === 'inbound'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className="text-2xl mb-2">📦</div>
+                    <div className="font-semibold">Inbound Delivery</div>
+                    <div className="text-sm text-gray-500">Delivering to facility</div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, loadType: 'outbound' }))}
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    formData.loadType === 'outbound'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-center">
+                    <div className="text-2xl mb-2">🚚</div>
+                    <div className="font-semibold">Outbound Pickup</div>
+                    <div className="text-sm text-gray-500">Picking up from facility</div>
+                  </div>
+                </button>
+              </div>
             </div>
 
-            {/* Driver Phone */}
-            <div>
-              <label htmlFor="driverPhone" className="block text-sm font-medium text-gray-700 mb-2">
-                Driver Phone *
-              </label>
-              <input
-                type="tel"
-                id="driverPhone"
-                name="driverPhone"
-                value={formData.driverPhone}
-                onChange={handleInputChange}
-                required
-                maxLength={14}
-                disabled={loading || success}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:bg-gray-100 disabled:cursor-not-allowed"
-                placeholder="(555) 555-5555"
-              />
+            {/* Driver Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label htmlFor="driverName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Driver Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="driverName"
+                  name="driverName"
+                  value={formData.driverName}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="John Doe"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="driverPhone" className="block text-sm font-medium text-gray-700 mb-1">
+                  Driver Phone <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  id="driverPhone"
+                  name="driverPhone"
+                  value={formData.driverPhone}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="(555) 123-4567"
+                  maxLength={14}
+                />
+              </div>
             </div>
 
-            {/* Carrier Name */}
+            {/* Email Field */}
             <div>
-              <label htmlFor="carrierName" className="block text-sm font-medium text-gray-700 mb-2">
-                Carrier Name *
+              <label htmlFor="driverEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                Email Address <span className="text-red-500">*</span>
               </label>
               <input
-                type="text"
-                id="carrierName"
-                name="carrierName"
-                value={formData.carrierName}
+                type="email"
+                id="driverEmail"
+                name="driverEmail"
+                value={formData.driverEmail}
                 onChange={handleInputChange}
                 required
-                disabled={loading || success}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:bg-gray-100 disabled:cursor-not-allowed"
-                placeholder="Enter carrier name"
-              />
-            </div>
-
-            {/* Trailer Number */}
-            <div>
-              <label htmlFor="trailerNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                Trailer Number *
-              </label>
-              <input
-                type="text"
-                id="trailerNumber"
-                name="trailerNumber"
-                value={formData.trailerNumber}
-                onChange={handleInputChange}
-                required
-                disabled={loading || success}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:bg-gray-100 disabled:cursor-not-allowed"
-                placeholder="Enter trailer number"
-              />
-            </div>
-
-            {/* Trailer Length */}
-            <div>
-              <label htmlFor="trailerLength" className="block text-sm font-medium text-gray-700 mb-2">
-                Trailer Length *
-              </label>
-              <select
-                id="trailerLength"
-                name="trailerLength"
-                value={formData.trailerLength}
-                onChange={handleInputChange}
-                required
-                disabled={loading || success}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:bg-gray-100 disabled:cursor-not-allowed"
-              >
-                {TRAILER_LENGTHS.map((length) => (
-                  <option key={length.value} value={length.value}>
-                    {length.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Reference Number */}
-            <div>
-              <label htmlFor="referenceNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                Reference Number *
-              </label>
-              <input
-                type="text"
-                id="referenceNumber"
-                name="referenceNumber"
-                value={formData.referenceNumber}
-                onChange={handleInputChange}
-                required
-                disabled={loading || success}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                  referenceError ? 'border-red-300' : 'border-gray-300'
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  emailError ? 'border-red-300' : 'border-gray-300'
                 }`}
-                placeholder="Enter reference number"
+                placeholder="driver@example.com"
               />
-              {referenceError && (
-                <p className="mt-1 text-sm text-red-600">{referenceError}</p>
+              {emailError && (
+                <p className="mt-1 text-sm text-red-600">{emailError}</p>
               )}
             </div>
 
-            {/* Load Type */}
-            <div>
-              <label htmlFor="loadType" className="block text-sm font-medium text-gray-700 mb-2">
-                Load Type *
-              </label>
-              <select
-                id="loadType"
-                name="loadType"
-                value={formData.loadType}
-                onChange={handleInputChange}
-                required
-                disabled={loading || success}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:bg-gray-100 disabled:cursor-not-allowed"
-              >
-                <option value="inbound">Inbound Delivery</option>
-                <option value="outbound">Outbound Pickup</option>
-              </select>
+            {/* Carrier & Trailer Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label htmlFor="carrierName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Carrier Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="carrierName"
+                  name="carrierName"
+                  value={formData.carrierName}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="ABC Trucking"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="trailerNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                  Trailer Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="trailerNumber"
+                  name="trailerNumber"
+                  value={formData.trailerNumber}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="TRL12345"
+                />
+              </div>
             </div>
 
-            {/* Destination Fields (for outbound only) */}
-            {formData.loadType === 'outbound' && (
-              <>
-                <div>
-                  <label htmlFor="destinationCity" className="block text-sm font-medium text-gray-700 mb-2">
-                    Destination City *
-                  </label>
-                  <input
-                    type="text"
-                    id="destinationCity"
-                    name="destinationCity"
-                    value={formData.destinationCity}
-                    onChange={handleInputChange}
-                    required={formData.loadType === 'outbound'}
-                    disabled={loading || success}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:bg-gray-100 disabled:cursor-not-allowed"
-                    placeholder="Enter destination city"
-                  />
-                </div>
+            {/* Trailer Length & Reference Number */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label htmlFor="trailerLength" className="block text-sm font-medium text-gray-700 mb-1">
+                  Trailer Length <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="trailerLength"
+                  name="trailerLength"
+                  value={formData.trailerLength}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {TRAILER_LENGTHS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                <div>
-                  <label htmlFor="destinationState" className="block text-sm font-medium text-gray-700 mb-2">
-                    Destination State *
-                  </label>
-                  <select
-                    id="destinationState"
-                    name="destinationState"
-                    value={formData.destinationState}
-                    onChange={handleInputChange}
-                    required={formData.loadType === 'outbound'}
-                    disabled={loading || success}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">Select state</option>
-                    {US_STATES.map((state) => (
-                      <option key={state} value={state}>
-                        {state}
-                      </option>
-                    ))}
-                  </select>
+              <div>
+                <label htmlFor="referenceNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                  Reference Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="referenceNumber"
+                  name="referenceNumber"
+                  value={formData.referenceNumber}
+                  onChange={handleInputChange}
+                  required
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    referenceError ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="2123456 or 44123456789"
+                />
+                {referenceError && (
+                  <p className="mt-1 text-sm text-red-600">{referenceError}</p>
+                )}
+              </div>
+            </div>
+
+                        {/* Destination (Outbound Only) */}
+            {formData.loadType === 'outbound' && (
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h3 className="text-sm font-semibold text-blue-900 mb-3">
+                  Destination Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="destinationCity" className="block text-sm font-medium text-gray-700 mb-1">
+                      Destination City <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="destinationCity"
+                      name="destinationCity"
+                      value={formData.destinationCity}
+                      onChange={handleInputChange}
+                      required={formData.loadType === 'outbound'}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Indianapolis"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="destinationState" className="block text-sm font-medium text-gray-700 mb-1">
+                      Destination State <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      id="destinationState"
+                      name="destinationState"
+                      value={formData.destinationState}
+                      onChange={handleInputChange}
+                      required={formData.loadType === 'outbound'}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select state</option>
+                      {US_STATES.map(state => (
+                        <option key={state} value={state}>
+                          {state}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              </>
+              </div>
             )}
 
+            {/* Email Consent Disclaimer */}
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                Email Communication Consent
+              </h3>
+              <p className="text-xs text-gray-600 mb-3">
+                By providing your email address, you consent to receive:
+              </p>
+              <ul className="text-xs text-gray-600 list-disc list-inside space-y-1 mb-3 ml-2">
+                <li>Real-time shipment status updates and notifications</li>
+                <li>Dock appointment confirmations and schedule changes</li>
+                <li>Facility operational updates and safety alerts</li>
+                <li>Important delivery and pickup instructions</li>
+              </ul>
+              <p className="text-xs text-gray-600 mb-3">
+                We respect your privacy. Your email will not be sold or shared with third parties 
+                for marketing purposes. You may opt out at any time by contacting our facility.
+              </p>
+              
+              <div className="flex items-start">
+                <input
+                  type="checkbox"
+                  id="emailConsent"
+                  name="emailConsent"
+                  checked={formData.emailConsent}
+                  onChange={handleCheckboxChange}
+                  required
+                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="emailConsent" className="ml-2 text-sm text-gray-700">
+                  I consent to receive email communications as described above. 
+                  <span className="text-red-500">*</span>
+                </label>
+              </div>
+            </div>
+
             {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading || !!referenceError || !!timeRestrictionWarning || success}
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Checking In...' : success ? 'Check-In Complete!' : 'Check In'}
-            </button>
+            <div className="flex gap-4">
+              <button
+                type="submit"
+                disabled={loading || !!timeRestrictionWarning || !!referenceError || !!emailError}
+                className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${
+                  loading || timeRestrictionWarning || referenceError || emailError
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
+                }`}
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </span>
+                ) : (
+                  'Check In'
+                )}
+              </button>
+
+              {(formData.driverName || formData.carrierName) && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-all"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+
+            {/* Additional Info */}
+            <div className="text-center text-xs text-gray-500 pt-4 border-t border-gray-200">
+              <p className="mb-1">
+                <strong>Operating Hours:</strong> Monday - Friday, 6:00 AM - 5:00 PM
+              </p>
+              <p className="mb-1">
+                <strong>Location Verification:</strong> You must be on-site to complete check-in
+              </p>
+              <p>
+                For assistance, contact the shipping office at{'765-474-2512'}
+                <a href="tel:+15551234567" className="text-blue-600 hover:underline">
+                  (555) 123-4567
+                </a>
+              </p>
+            </div>
           </form>
         </div>
       </div>
