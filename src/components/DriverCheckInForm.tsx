@@ -303,7 +303,7 @@ export default function DriverCheckInForm() {
     setSuccess(false);
   }, []);
 
-const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = (e: React.FormEvent) => {
   e.preventDefault();
   setLoading(true);
   setError(null);
