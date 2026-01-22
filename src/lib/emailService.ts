@@ -5,6 +5,13 @@ interface EmailTemplate {
   html: string;
 }
 
+interface EmailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}
+
 class EmailService {
   private transporter: nodemailer.Transporter;
 
@@ -216,14 +223,13 @@ class EmailService {
                         <tr>
                           <td style="padding: 20px;">
                             <p style="margin: 0 0 10px; font-size: 14px; color: #666666;"><strong style="color: #333333;">Reference Number:</strong> ${referenceNumber}</p>
-                            <p style="margin: 0 0 10px; font-size: 14px; color: #666666;"><strong style="color: #333333;">Previous Status:</strong> ${oldStatus}</p>
-                            <p style="margin: 0 0 ${notes ? '10px' : '0'}; font-size: 16px;"><strong style="color: #333333;">Current Status:</strong> <span style="color: ${color}; font-weight: bold;">${statusLabel}</span></p>
-                            ${notes ? `<p style="margin: 15px 0 0; font-size: 14px; color: #666666; padding-top: 15px; border-top: 1px solid #dee2e6;"><strong style="color: #333333;">Notes:</strong><br>${notes}</p>` : ''}
+                            <p style="margin: 0 0 10px; font-size: 14px; color: #666666;"><strong style="color: #333333;">New Status:</strong> <span style="color: ${color}; font-weight: bold;">${statusLabel}</span></p>
+                            ${notes ? `<p style="margin: 10px 0 0; font-size: 14px; color: #666666;"><strong style="color: #333333;">Notes:</strong> ${notes}</p>` : ''}
                           </td>
                         </tr>
                       </table>
                       
-                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0;">Thank you for your business!</p>
+                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0;">Thank you for choosing 307 Logistics!</p>
                     </td>
                   </tr>
                   
@@ -245,93 +251,101 @@ class EmailService {
   }
 
   async sendCheckInConfirmation(
-    toEmail: string,
+    to: string,
     driverName: string,
     checkInTime: string,
     referenceNumber: string,
     loadType: string
-  ): Promise<boolean> {
-    try {
-      const template = this.getCheckInConfirmationTemplate(
-        driverName,
-        checkInTime,
-        referenceNumber,
-        loadType
-      );
+  ): Promise<void> {
+    const template = this.getCheckInConfirmationTemplate(
+      driverName,
+      checkInTime,
+      referenceNumber,
+      loadType
+    );
 
-      await this.transporter.sendMail({
-        from: process.env.EMAIL_FROM,
-        to: toEmail,
-        subject: template.subject,
-        html: template.html,
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Error sending check-in email:', error);
-      return false;
-    }
+    await this.sendEmail({
+      to,
+      subject: template.subject,
+      html: template.html,
+    });
   }
 
   async sendDockAssignment(
-    toEmail: string,
+    to: string,
     driverName: string,
     dockNumber: string,
     referenceNumber: string,
     appointmentTime?: string
-  ): Promise<boolean> {
-    try {
-      const template = this.getDockAssignmentTemplate(
-        driverName,
-        dockNumber,
-        referenceNumber,
-        appointmentTime
-      );
+  ): Promise<void> {
+    const template = this.getDockAssignmentTemplate(
+      driverName,
+      dockNumber,
+      referenceNumber,
+      appointmentTime
+    );
 
-      await this.transporter.sendMail({
-        from: process.env.EMAIL_FROM,
-        to: toEmail,
-        subject: template.subject,
-        html: template.html,
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Error sending dock assignment email:', error);
-      return false;
-    }
+    await this.sendEmail({
+      to,
+      subject: template.subject,
+      html: template.html,
+    });
   }
 
   async sendStatusChange(
-    toEmail: string,
+    to: string,
     driverName: string,
     referenceNumber: string,
     oldStatus: string,
     newStatus: string,
     notes?: string
-  ): Promise<boolean> {
+  ): Promise<void> {
+    const template = this.getStatusChangeTemplate(
+      driverName,
+      referenceNumber,
+      oldStatus,
+      newStatus,
+      notes
+    );
+
+    await this.sendEmail({
+      to,
+      subject: template.subject,
+      html: template.html,
+    });
+  }
+
+  async sendEmail(options: EmailOptions): Promise<void> {
     try {
-      const template = this.getStatusChangeTemplate(
-        driverName,
-        referenceNumber,
-        oldStatus,
-        newStatus,
-        notes
-      );
-
       await this.transporter.sendMail({
-        from: process.env.EMAIL_FROM,
-        to: toEmail,
-        subject: template.subject,
-        html: template.html,
+        from: `${process.env.EMAIL_FROM_NAME || '307 Logistics'} <${process.env.EMAIL_USER}>`,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        text: options.text,
       });
+      console.log(`Email sent successfully to ${options.to}`);
+    } catch (error) {
+      console.error('Error sending email:', error);
+      throw new Error(`Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
 
+  async verifyConnection(): Promise<boolean> {
+    try {
+      await this.transporter.verify();
+      console.log('Email server connection verified');
       return true;
     } catch (error) {
-      console.error('Error sending status change email:', error);
+      console.error('Email server connection failed:', error);
       return false;
     }
   }
 }
 
-export const emailService = new EmailService();
+// Export singleton instance
+const emailService = new EmailService();
+export default emailService;
+
+// Also export the class for testing purposes
+export { EmailService };
