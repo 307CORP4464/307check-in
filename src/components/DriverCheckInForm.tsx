@@ -303,206 +303,139 @@ export default function DriverCheckInForm() {
     setSuccess(false);
   }, []);
 
-const handleSubmit = (e: React.FormEvent) => {
-  e.preventDefault();
-  setLoading(true);
-  setError(null);
-  setSuccess(false);
-  setLocationStatus('checking');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+    setLocationStatus('checking');
 
-  try {
-    // Check time restrictions
-    const timeCheck = isWithinAllowedTime();
-    if (!timeCheck.allowed) {
-      setError(timeCheck.message || 'Check-in not available at this time');
-      setLoading(false);
-      setLocationStatus(null);
-      return;
-    }
-
-    // Check geofence
-    const geofenceCheck = await validateGeofence();
-    if (!geofenceCheck.valid) {
-      setError(geofenceCheck.message || 'You must be on-site to check in');
-      setLoading(false);
-      setLocationStatus('invalid');
-      return;
-    }
-    
-    setLocationStatus('valid');
-
-    // Email validation
-    if (!validateEmail(formData.driverEmail)) {
-      setError('Please enter a valid email address');
-      setLoading(false);
-      return;
-    }
-
-    // Email consent validation
-    if (!formData.emailConsent) {
-      setError('You must consent to email communications to proceed');
-      setLoading(false);
-      return;
-    }
-
-    // Reference number validation
-    if (!validateReferenceNumber(formData.referenceNumber)) {
-      setError('Invalid reference number format');
-      setLoading(false);
-      return;
-    }
-
-    // Phone validation
-    const phoneDigits = formData.driverPhone.replace(/\D/g, '');
-    if (phoneDigits.length !== 10) {
-      setError('Phone number must be 10 digits');
-      setLoading(false);
-      return;
-    }
-
-    // Outbound validations
-    if (formData.loadType === 'outbound') {
-      if (!formData.destinationCity.trim()) {
-        setError('Destination city is required for outbound pickups');
-        setLoading(false);
-        return;
-      }
-      if (!formData.destinationState) {
-        setError('Destination state is required for outbound pickups');
-        setLoading(false);
-        return;
-      }
-    }
-
-    // Submit check-in to your database/API
-    const checkInResponse = await fetch('/api/check-in', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        ...formData,
-        checkInTime: new Date().toISOString(),
-        location: geofenceCheck.location, // Include location data if available
-      }),
-    });
-
-    if (!checkInResponse.ok) {
-      throw new Error('Failed to submit check-in');
-    }
-
-    const checkInData = await checkInResponse.json();
-
-    // Send confirmation email
     try {
-      const emailResponse = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type: 'driver-checkin',
-          data: {
-            driverName: formData.driverName,
-            driverEmail: formData.driverEmail,
-            companyName: formData.companyName,
-            checkInTime: new Date().toLocaleString(),
-            loadType: formData.loadType,
-            referenceNumber: formData.referenceNumber,
-            destination: formData.loadType === 'outbound' 
-              ? `${formData.destinationCity}, ${formData.destinationState}`
-              : 'N/A',
-            checkInId: checkInData.id, // If you return an ID from check-in
-          },
-        }),
-      });
-
-      if (!emailResponse.ok) {
-        // Log email error but don't fail the check-in
-        console.error('Failed to send confirmation email');
-        // Optionally show a warning to the user
-        setError('Check-in successful, but confirmation email failed to send');
+      // Check time restrictions
+      const timeCheck = isWithinAllowedTime();
+      if (!timeCheck.allowed) {
+        setError(timeCheck.message || 'Check-in not available at this time');
+        setLoading(false);
+        setLocationStatus(null);
+        return;
       }
-    } catch (emailError) {
-      console.error('Email sending error:', emailError);
-      // Don't fail the entire check-in process due to email issues
-    }
 
-    setSuccess(true);
-    setLocationStatus(null);
-    
-    // Reset form after successful submission
-    setFormData({
-      driverName: '',
-      driverEmail: '',
-      driverPhone: '',
-      companyName: '',
-      loadType: 'inbound',
-      referenceNumber: '',
-      destinationCity: '',
-      destinationState: '',
-      emailConsent: false,
-    });
+      // Check geofence
+      const geofenceCheck = await validateGeofence();
+      if (!geofenceCheck.valid) {
+        setError(geofenceCheck.message || 'You must be on-site to check in');
+        setLoading(false);
+        setLocationStatus('invalid');
+        return;
+      }
+      
+      setLocationStatus('valid');
 
-    // Optional: Show success message for a few seconds then redirect
-    setTimeout(() => {
-      // window.location.href = '/check-in/success';
-    }, 3000);
+      // Email validation
+      if (!validateEmail(formData.driverEmail)) {
+        setError('Please enter a valid email address');
+        setLoading(false);
+        return;
+      }
 
-  } catch (err) {
-    setError(err instanceof Error ? err.message : 'An error occurred during check-in');
-    setLocationStatus(null);
-  } finally {
-    setLoading(false);
-  }
-};
+      // Email consent validation
+      if (!formData.emailConsent) {
+        setError('You must consent to email communications to proceed');
+        setLoading(false);
+        return;
+      }
+
+      // Reference number validation
+      if (!validateReferenceNumber(formData.referenceNumber)) {
+        setError('Invalid reference number format');
+        setLoading(false);
+        return;
+      }
+
+      // Phone validation
+      const phoneDigits = formData.driverPhone.replace(/\D/g, '');
+      if (phoneDigits.length !== 10) {
+        setError('Phone number must be 10 digits');
+        setLoading(false);
+        return;
+      }
+
+      // Outbound validations
+      if (formData.loadType === 'outbound') {
+        if (!formData.destinationCity.trim()) {
+          setError('Destination city is required for outbound pickups');
+          setLoading(false);
+          return;
+        }
+        if (!formData.destinationState) {
+          setError('Destination state is required for outbound pickups');
+          setLoading(false);
+          return;
+        }
+      }
 
       const checkInTime = new Date().toISOString();
 
-      // Insert with status = 'pending'
+      // Insert check-in to Supabase
       const { data, error: insertError } = await supabase
         .from('check_ins')
         .insert([
           {
-            driver_name: formData.driverName.trim(),
-            driver_phone: phoneDigits,
-            driver_email: formData.driverEmail.trim().toLowerCase(),
-            email_consent: formData.emailConsent,
-            email_consent_timestamp: new Date().toISOString(),
-            carrier_name: formData.carrierName.trim(),
-            trailer_number: formData.trailerNumber.trim().toUpperCase(),
+            driver_name: formData.driverName,
+            driver_phone: formData.driverPhone,
+            driver_email: formData.driverEmail,
+            carrier_name: formData.carrierName,
+            trailer_number: formData.trailerNumber,
             trailer_length: formData.trailerLength,
-            reference_number: formData.referenceNumber.replace(/\s/g, '').toUpperCase(),
+            reference_number: formData.referenceNumber,
             load_type: formData.loadType,
-            destination_city: formData.loadType === 'outbound' ? formData.destinationCity.trim() : null,
-            destination_state: formData.loadType === 'outbound' ? formData.destinationState : null,
+            destination_city: formData.destinationCity,
+            destination_state: formData.destinationState,
             check_in_time: checkInTime,
             status: 'pending',
-            created_at: checkInTime,
+            location_latitude: geofenceCheck.distance ? SITE_COORDINATES.latitude : null,
+            location_longitude: geofenceCheck.distance ? SITE_COORDINATES.longitude : null,
           }
         ])
-        .select();
+        .select()
+        .single();
 
       if (insertError) {
-        console.error('Supabase insert error:', insertError);
-        setError(`Failed to submit check-in: ${insertError.message}`);
-        setLoading(false);
-        return;
+        throw insertError;
+      }
+
+      // Send confirmation email
+      try {
+        await sendDriverCheckInEmail({
+          driverName: formData.driverName,
+          driverEmail: formData.driverEmail,
+          carrierName: formData.carrierName,
+          trailerNumber: formData.trailerNumber,
+          referenceNumber: formData.referenceNumber,
+          loadType: formData.loadType,
+          checkInTime: new Date(checkInTime).toLocaleString(),
+          destinationCity: formData.destinationCity,
+          destinationState: formData.destinationState,
+        });
+      } catch (emailError) {
+        console.error('Email sending error:', emailError);
+        // Don't fail the entire check-in process due to email issues
       }
 
       setSuccess(true);
-      setLoading(false);
+      setLocationStatus(null);
       
-      // Reset form after 3 seconds
+      // Reset form after successful submission
       setTimeout(() => {
         resetForm();
       }, 3000);
 
     } catch (err) {
       console.error('Check-in error:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
-      setLoading(false);
+      setError(err instanceof Error ? err.message : 'An error occurred during check-in');
       setLocationStatus(null);
+    } finally {
+      setLoading(false);
     }
   };
 
