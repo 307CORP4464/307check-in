@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
+import { sendDriverCheckInEmail } from '@/lib/emailTriggers';
 
 interface FormData {
   driverName: string;
@@ -302,76 +303,159 @@ export default function DriverCheckInForm() {
     setSuccess(false);
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setSuccess(false);
-    setLocationStatus('checking');
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setLoading(true);
+  setError(null);
+  setSuccess(false);
+  setLocationStatus('checking');
 
+  try {
+    // Check time restrictions
+    const timeCheck = isWithinAllowedTime();
+    if (!timeCheck.allowed) {
+      setError(timeCheck.message || 'Check-in not available at this time');
+      setLoading(false);
+      setLocationStatus(null);
+      return;
+    }
+
+    // Check geofence
+    const geofenceCheck = await validateGeofence();
+    if (!geofenceCheck.valid) {
+      setError(geofenceCheck.message || 'You must be on-site to check in');
+      setLoading(false);
+      setLocationStatus('invalid');
+      return;
+    }
+    
+    setLocationStatus('valid');
+
+    // Email validation
+    if (!validateEmail(formData.driverEmail)) {
+      setError('Please enter a valid email address');
+      setLoading(false);
+      return;
+    }
+
+    // Email consent validation
+    if (!formData.emailConsent) {
+      setError('You must consent to email communications to proceed');
+      setLoading(false);
+      return;
+    }
+
+    // Reference number validation
+    if (!validateReferenceNumber(formData.referenceNumber)) {
+      setError('Invalid reference number format');
+      setLoading(false);
+      return;
+    }
+
+    // Phone validation
+    const phoneDigits = formData.driverPhone.replace(/\D/g, '');
+    if (phoneDigits.length !== 10) {
+      setError('Phone number must be 10 digits');
+      setLoading(false);
+      return;
+    }
+
+    // Outbound validations
+    if (formData.loadType === 'outbound') {
+      if (!formData.destinationCity.trim()) {
+        setError('Destination city is required for outbound pickups');
+        setLoading(false);
+        return;
+      }
+      if (!formData.destinationState) {
+        setError('Destination state is required for outbound pickups');
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Submit check-in to your database/API
+    const checkInResponse = await fetch('/api/check-in', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...formData,
+        checkInTime: new Date().toISOString(),
+        location: geofenceCheck.location, // Include location data if available
+      }),
+    });
+
+    if (!checkInResponse.ok) {
+      throw new Error('Failed to submit check-in');
+    }
+
+    const checkInData = await checkInResponse.json();
+
+    // Send confirmation email
     try {
-      // Check time restrictions
-      const timeCheck = isWithinAllowedTime();
-      if (!timeCheck.allowed) {
-        setError(timeCheck.message || 'Check-in not available at this time');
-        setLoading(false);
-        setLocationStatus(null);
-        return;
-      }
+      const emailResponse = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'driver-checkin',
+          data: {
+            driverName: formData.driverName,
+            driverEmail: formData.driverEmail,
+            companyName: formData.companyName,
+            checkInTime: new Date().toLocaleString(),
+            loadType: formData.loadType,
+            referenceNumber: formData.referenceNumber,
+            destination: formData.loadType === 'outbound' 
+              ? `${formData.destinationCity}, ${formData.destinationState}`
+              : 'N/A',
+            checkInId: checkInData.id, // If you return an ID from check-in
+          },
+        }),
+      });
 
-      // Check geofence
-      const geofenceCheck = await validateGeofence();
-      if (!geofenceCheck.valid) {
-        setError(geofenceCheck.message || 'You must be on-site to check in');
-        setLoading(false);
-        setLocationStatus('invalid');
-        return;
+      if (!emailResponse.ok) {
+        // Log email error but don't fail the check-in
+        console.error('Failed to send confirmation email');
+        // Optionally show a warning to the user
+        setError('Check-in successful, but confirmation email failed to send');
       }
-      
-      setLocationStatus('valid');
+    } catch (emailError) {
+      console.error('Email sending error:', emailError);
+      // Don't fail the entire check-in process due to email issues
+    }
 
-      // Email validation
-      if (!validateEmail(formData.driverEmail)) {
-        setError('Please enter a valid email address');
-        setLoading(false);
-        return;
-      }
+    setSuccess(true);
+    setLocationStatus(null);
+    
+    // Reset form after successful submission
+    setFormData({
+      driverName: '',
+      driverEmail: '',
+      driverPhone: '',
+      companyName: '',
+      loadType: 'inbound',
+      referenceNumber: '',
+      destinationCity: '',
+      destinationState: '',
+      emailConsent: false,
+    });
 
-      // Email consent validation
-      if (!formData.emailConsent) {
-        setError('You must consent to email communications to proceed');
-        setLoading(false);
-        return;
-      }
+    // Optional: Show success message for a few seconds then redirect
+    setTimeout(() => {
+      // window.location.href = '/check-in/success';
+    }, 3000);
 
-      // Reference number validation
-      if (!validateReferenceNumber(formData.referenceNumber)) {
-        setError('Invalid reference number format');
-        setLoading(false);
-        return;
-      }
-
-      // Phone validation
-      const phoneDigits = formData.driverPhone.replace(/\D/g, '');
-      if (phoneDigits.length !== 10) {
-        setError('Phone number must be 10 digits');
-        setLoading(false);
-        return;
-      }
-
-      // Outbound validations
-      if (formData.loadType === 'outbound') {
-        if (!formData.destinationCity.trim()) {
-          setError('Destination city is required for outbound pickups');
-          setLoading(false);
-          return;
-        }
-        if (!formData.destinationState) {
-          setError('Destination state is required for outbound pickups');
-          setLoading(false);
-          return;
-        }
-      }
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'An error occurred during check-in');
+    setLocationStatus(null);
+  } finally {
+    setLoading(false);
+  }
+};
 
       const checkInTime = new Date().toISOString();
 
@@ -531,8 +615,8 @@ export default function DriverCheckInForm() {
                   }`}
                 >
                   <div className="text-center">
-                    <div className="text-2xl mb-2">📦</div>
-                    <div className="font-semibold">Inbound Delivery</div>
+                    <div className="text-2xl mb-2"></div>
+                    <div className="font-semibold">Inbound</div>
                     <div className="text-sm text-gray-500">Delivering to facility</div>
                   </div>
                 </button>
@@ -546,8 +630,8 @@ export default function DriverCheckInForm() {
                   }`}
                 >
                   <div className="text-center">
-                    <div className="text-2xl mb-2">🚚</div>
-                    <div className="font-semibold">Outbound Pickup</div>
+                    <div className="text-2xl mb-2"></div>
+                    <div className="font-semibold">Outbound</div>
                     <div className="text-sm text-gray-500">Picking up from facility</div>
                   </div>
                 </button>
