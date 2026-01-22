@@ -1,24 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { emailService } from '@/lib/emailService';
+// src/app/api/send-email/route.ts
+import { NextResponse } from 'next/server';
+import emailService from '@/lib/emailService';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { type, toEmail, data } = body;
-
-    if (!toEmail || !type) {
-      return NextResponse.json(
-        { success: false, error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-
-    let success = false;
+    const { type, data } = await request.json();
 
     switch (type) {
-      case 'checkin':
-        success = await emailService.sendCheckInConfirmation(
-          toEmail,
+      case 'driver-checkin':
+        await emailService.sendCheckInConfirmation(
+          data.driverEmail,
           data.driverName,
           data.checkInTime,
           data.referenceNumber,
@@ -26,9 +17,9 @@ export async function POST(request: NextRequest) {
         );
         break;
 
-      case 'dock_assignment':
-        success = await emailService.sendDockAssignment(
-          toEmail,
+      case 'dock-assignment':
+        await emailService.sendDockAssignment(
+          data.driverEmail,
           data.driverName,
           data.dockNumber,
           data.referenceNumber,
@@ -36,9 +27,9 @@ export async function POST(request: NextRequest) {
         );
         break;
 
-      case 'status_change':
-        success = await emailService.sendStatusChange(
-          toEmail,
+      case 'status-change':
+        await emailService.sendStatusChange(
+          data.driverEmail,
           data.driverName,
           data.referenceNumber,
           data.oldStatus,
@@ -49,23 +40,20 @@ export async function POST(request: NextRequest) {
 
       default:
         return NextResponse.json(
-          { success: false, error: 'Invalid email type' },
+          { error: 'Invalid email type' },
           { status: 400 }
         );
     }
 
-    if (success) {
-      return NextResponse.json({ success: true });
-    } else {
-      return NextResponse.json(
-        { success: false, error: 'Failed to send email' },
-        { status: 500 }
-      );
-    }
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Email API error:', error);
+    console.error('Email send error:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { 
+        success: false,
+        error: 'Failed to send email',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
