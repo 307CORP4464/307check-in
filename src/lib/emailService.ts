@@ -342,6 +342,8 @@ class EmailService {
     }
   }
 }
+// At the end of your EmailService class (around line 344)
+}
 
 // Export singleton instance
 const emailService = new EmailService();
@@ -350,10 +352,8 @@ export default emailService;
 // Also export the class for testing purposes
 export { EmailService };
 
-// At the end of emailService.ts file
-export const emailService = new EmailService();
-
 // Export the sendEmail function
 export async function sendEmail(options: EmailOptions) {
   return emailService.sendEmail(options);
 }
+
