@@ -1,14 +1,12 @@
 // lib/emailTriggers.ts
-import { EmailService } from './emailService';
-
 interface TriggerData {
   driverEmail: string;
   driverName: string;
   carrierName: string;
   trailerNumber: string;
   referenceNumber: string;
-  destinationCity: String;
-  destinationState: String;
+  destinationCity: string;
+  destinationState: string;
   loadType?: string;
   dockNumber?: string;
   appointmentTime?: string;
@@ -18,8 +16,7 @@ interface TriggerData {
   checkInTime: string;
 }
 
-// lib/emailTriggers.ts
-export async function triggerCheckInEmail(data: TriggerData) {
+export async function triggerCheckInEmail(data: TriggerData): Promise<{ success: boolean; error?: string }> {
   try {
     const checkInTime = new Date().toLocaleString('en-US', {
       dateStyle: 'medium',
@@ -41,9 +38,10 @@ export async function triggerCheckInEmail(data: TriggerData) {
       }),
     });
 
+    const result = await response.json();
+
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to send email');
+      throw new Error(result.error || result.details || 'Failed to send email');
     }
 
     return { success: true };
@@ -51,15 +49,14 @@ export async function triggerCheckInEmail(data: TriggerData) {
     console.error('Failed to trigger check-in email:', error);
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+      error: error instanceof Error ? error.message : 'Unknown error sending email' 
     };
   }
 }
 
-
-export async function triggerDockAssignmentEmail(data: TriggerData) {
+export async function triggerDockAssignmentEmail(data: TriggerData): Promise<{ success: boolean; error?: string }> {
   try {
-    await fetch('/api/send-email', {
+    const response = await fetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -73,14 +70,26 @@ export async function triggerDockAssignmentEmail(data: TriggerData) {
         },
       }),
     });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to send email');
+    }
+
+    return { success: true };
   } catch (error) {
     console.error('Failed to trigger dock assignment email:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
   }
 }
 
-export async function triggerStatusChangeEmail(data: TriggerData) {
+export async function triggerStatusChangeEmail(data: TriggerData): Promise<{ success: boolean; error?: string }> {
   try {
-    await fetch('/api/send-email', {
+    const response = await fetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -95,7 +104,19 @@ export async function triggerStatusChangeEmail(data: TriggerData) {
         },
       }),
     });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to send email');
+    }
+
+    return { success: true };
   } catch (error) {
     console.error('Failed to trigger status change email:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
   }
 }
