@@ -217,6 +217,7 @@ export default function DailyLog() {
         .select('*')
         .gte('check_in_time', startOfDayIndy.toISOString())
         .lte('check_in_time', endOfDayIndy.toISOString())
+        .neq('status', 'pending')
         .order('check_in_time', { ascending: false });
 
       if (error) throw error;
