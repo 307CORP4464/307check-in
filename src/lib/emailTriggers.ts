@@ -7,7 +7,7 @@ interface TriggerData {
   carrierName: string;
   trailerNumber: string;
   referenceNumber: string;
-  destingationCity: String;
+  destinationCity: String;
   destinationState: String;
   loadType?: string;
   dockNumber?: string;
