@@ -114,7 +114,7 @@ export default function AppointmentModal({
               <label className="block text-sm font-medium mb-1">Time Slot *</label>
               <select
                 value={formData.appointment_time}
-                onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, appointment_time: e.target.value })}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 required
               >
