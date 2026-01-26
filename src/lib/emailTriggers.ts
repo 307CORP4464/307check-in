@@ -1,5 +1,5 @@
 // lib/emailTriggers.ts
-import { emailService } from './emailService';
+import { EmailService } from './emailService';
 
 interface TriggerData {
   driverEmail: string;
