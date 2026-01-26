@@ -360,7 +360,7 @@ export default function DriverCheckInForm() {
         destination_city: formData.destinationCity,
         destination_state: formData.destinationState,
         email_consent: formData.emailConsent,
-        status: 'checked_in',
+        status: 'pending',
       }])
       .select()
       .single();
