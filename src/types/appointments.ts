@@ -11,8 +11,8 @@ export type TimeSlot = typeof TIME_SLOTS[number];
 export type AppointmentSource = 'excel' | 'manual';
 
 export interface AppointmentInput {
-  scheduled_date: string;
-  scheduled_time: string;
+  appointment_date: string;
+  appointment_time: string;
   sales_order: string;
   delivery?: string;
   notes?: string;
@@ -21,8 +21,8 @@ export interface AppointmentInput {
 
 export interface Appointment {
   id: number;
-  scheduled_date: string;
-  scheduled_time: string;
+  appointment_date: string;
+  appointment_time: string;
   sales_order: string;
   delivery?: string;
   notes?: string;
