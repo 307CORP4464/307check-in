@@ -19,8 +19,8 @@ export default function AppointmentModal({
   initialDate = new Date().toISOString().split('T')[0]
 }: AppointmentModalProps) {
   const [formData, setFormData] = useState<AppointmentInput>({
-    scheduled_date: initialDate,
-    scheduled_time: '08:00',
+    appointment_date: initialDate,
+    appointment_time: '08:00',
     sales_order: '',
     delivery: '',
     notes: '',
@@ -32,8 +32,8 @@ export default function AppointmentModal({
   useEffect(() => {
     if (appointment) {
       setFormData({
-        scheduled_date: appointment.scheduled_date,
-        scheduled_time: appointment.scheduled_time,
+        appointment_date: appointment.appointment_date,
+        appointment_time: appointment.appointment_time,
         sales_order: appointment.sales_order || '',
         delivery: appointment.delivery || '',
         notes: appointment.notes || '',
