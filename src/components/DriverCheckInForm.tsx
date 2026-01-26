@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { sendDriverCheckInEmail } from '@/lib/emailTriggers';
+import { triggerCheckInEmail } from '@/lib/emailTriggers';
 
 interface FormData {
   driverName: string;
@@ -406,7 +406,7 @@ export default function DriverCheckInForm() {
 
       // Send confirmation email
       try {
-        await sendDriverCheckInEmail({
+        await triggrtDriverCheckInEmail({
           driverName: formData.driverName,
           driverEmail: formData.driverEmail,
           carrierName: formData.carrierName,
