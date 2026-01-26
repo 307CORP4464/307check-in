@@ -487,7 +487,7 @@ export default function DriverCheckInForm() {
                 </div>
                 <div className="ml-3">
                   <h3 className="text-sm font-medium text-green-800">
-                    Check-in successful! You will be notified when your dock is ready.
+                    Check-in successful! You will receive an email with instructions. 
                   </h3>
                 </div>
               </div>
