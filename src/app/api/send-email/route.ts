@@ -28,7 +28,6 @@ export async function POST(request: Request) {
           data.driverName,
           data.checkInTime,
           data.referenceNumber,
-          data.loadType
         );
         console.log('✓ Check-in email sent successfully');
         break;
