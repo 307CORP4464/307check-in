@@ -406,7 +406,7 @@ export default function DriverCheckInForm() {
 
       // Send confirmation email
       try {
-        await triggrtDriverCheckInEmail({
+        await triggerDriverCheckInEmail({
           driverName: formData.driverName,
           driverEmail: formData.driverEmail,
           carrierName: formData.carrierName,
