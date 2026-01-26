@@ -7,10 +7,13 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { type, toEmail, data } = body;
 
-    console.log('Email API called:', { type, toEmail, hasData: !!data });
+    console.log('=== EMAIL API CALLED ===');
+    console.log('Type:', type);
+    console.log('To Email:', toEmail);
+    console.log('Data:', JSON.stringify(data, null, 2));
 
-    // Validate required fields
     if (!type || !toEmail || !data) {
+      console.error('Missing required fields');
       return NextResponse.json(
         { error: 'Missing required fields: type, toEmail, or data' },
         { status: 400 }
@@ -18,8 +21,8 @@ export async function POST(request: Request) {
     }
 
     switch (type) {
-      case 'checkin':  // ✅ Match what emailTriggers.ts sends
-        console.log('Sending check-in confirmation...');
+      case 'checkin':
+        console.log('Sending check-in confirmation to:', toEmail);
         await emailService.sendCheckInConfirmation(
           toEmail,
           data.driverName,
@@ -27,10 +30,11 @@ export async function POST(request: Request) {
           data.referenceNumber,
           data.loadType
         );
+        console.log('✓ Check-in email sent successfully');
         break;
 
-      case 'dock_assignment':  // ✅ Match what emailTriggers.ts sends
-        console.log('Sending dock assignment...');
+      case 'dock_assignment':
+        console.log('Sending dock assignment to:', toEmail);
         await emailService.sendDockAssignment(
           toEmail,
           data.driverName,
@@ -38,10 +42,11 @@ export async function POST(request: Request) {
           data.referenceNumber,
           data.appointmentTime
         );
+        console.log('✓ Dock assignment email sent successfully');
         break;
 
-      case 'status_change':  // ✅ Match what emailTriggers.ts sends
-        console.log('Sending status change...');
+      case 'status_change':
+        console.log('Sending status change to:', toEmail);
         await emailService.sendStatusChange(
           toEmail,
           data.driverName,
@@ -50,21 +55,25 @@ export async function POST(request: Request) {
           data.newStatus,
           data.notes
         );
+        console.log('✓ Status change email sent successfully');
         break;
 
       default:
         console.error('Invalid email type:', type);
         return NextResponse.json(
-          { error: `Invalid email type: ${type}` },
+          { error: `Invalid email type: ${type}. Expected: checkin, dock_assignment, or status_change` },
           { status: 400 }
         );
     }
 
-    console.log('Email sent successfully');
     return NextResponse.json({ success: true });
 
   } catch (error) {
-    console.error('Email send error:', error);
+    console.error('=== EMAIL API ERROR ===');
+    console.error('Error object:', error);
+    console.error('Error message:', error instanceof Error ? error.message : 'Unknown');
+    console.error('Error stack:', error instanceof Error ? error.stack : 'N/A');
+
     return NextResponse.json(
       { 
         success: false,
@@ -75,3 +84,4 @@ export async function POST(request: Request) {
     );
   }
 }
+
