@@ -103,8 +103,8 @@ export default function AppointmentModal({
               <label className="block text-sm font-medium mb-1">Date *</label>
               <input
                 type="date"
-                value={formData.scheduled_date}
-                onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+                value={formData.appointment_date}
+                onChange={(e) => setFormData({ ...formData, appointment_date: e.target.value })}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 required
               />
@@ -113,7 +113,7 @@ export default function AppointmentModal({
             <div>
               <label className="block text-sm font-medium mb-1">Time Slot *</label>
               <select
-                value={formData.scheduled_time}
+                value={formData.appointment_time}
                 onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 required
