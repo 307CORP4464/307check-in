@@ -4,14 +4,24 @@ import emailService from '@/lib/emailService';
 
 export async function POST(request: Request) {
   try {
-    const { type, toEmail, data } = await request.json();
+    const body = await request.json();
+    const { type, toEmail, data } = body;
 
-    console.log('Email API called with type:', type); // Add logging
+    console.log('Email API called:', { type, toEmail, hasData: !!data });
+
+    // Validate required fields
+    if (!type || !toEmail || !data) {
+      return NextResponse.json(
+        { error: 'Missing required fields: type, toEmail, or data' },
+        { status: 400 }
+      );
+    }
 
     switch (type) {
-      case 'checkin':  // ✅ Changed from 'driver-checkin'
+      case 'checkin':  // ✅ Match what emailTriggers.ts sends
+        console.log('Sending check-in confirmation...');
         await emailService.sendCheckInConfirmation(
-          toEmail,  // ✅ Use toEmail from request
+          toEmail,
           data.driverName,
           data.checkInTime,
           data.referenceNumber,
@@ -19,9 +29,10 @@ export async function POST(request: Request) {
         );
         break;
 
-      case 'dock_assignment':  // ✅ Changed from 'dock-assignment'
+      case 'dock_assignment':  // ✅ Match what emailTriggers.ts sends
+        console.log('Sending dock assignment...');
         await emailService.sendDockAssignment(
-          toEmail,  // ✅ Use toEmail from request
+          toEmail,
           data.driverName,
           data.dockNumber,
           data.referenceNumber,
@@ -29,9 +40,10 @@ export async function POST(request: Request) {
         );
         break;
 
-      case 'status_change':  // ✅ Changed from 'status-change'
+      case 'status_change':  // ✅ Match what emailTriggers.ts sends
+        console.log('Sending status change...');
         await emailService.sendStatusChange(
-          toEmail,  // ✅ Use toEmail from request
+          toEmail,
           data.driverName,
           data.referenceNumber,
           data.oldStatus,
@@ -41,15 +53,16 @@ export async function POST(request: Request) {
         break;
 
       default:
-        console.error('Invalid email type received:', type);
+        console.error('Invalid email type:', type);
         return NextResponse.json(
           { error: `Invalid email type: ${type}` },
           { status: 400 }
         );
     }
 
-    console.log('Email sent successfully for type:', type);
+    console.log('Email sent successfully');
     return NextResponse.json({ success: true });
+
   } catch (error) {
     console.error('Email send error:', error);
     return NextResponse.json(
@@ -62,4 +75,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
