@@ -1,6 +1,6 @@
 // src/app/api/test-email/route.ts
 import { NextResponse } from 'next/server';
-import { emailService } from '@/lib/emailService';
+import emailService from '@/lib/emailService';
 
 export async function POST(request: Request) {
   try {
