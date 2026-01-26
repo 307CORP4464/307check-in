@@ -130,6 +130,7 @@ interface CheckIn {
   load_type?: 'inbound' | 'outbound';
   reference_number?: string;
   dock_number?: string;
+  appointment_date?: string | null;
   appointment_time?: string | null;
   start_time?: string | null;
   end_time?: string | null;
@@ -142,7 +143,7 @@ interface Appointment {
   id: string;
   sales_order?: string;
   delivery?: string;
-  scheduled_time?: string;
+  appointment_time?: string;
   appointment_date?: string;
   carrier_name?: string;
   load_type?: string;
@@ -252,7 +253,7 @@ export default function CSRDashboard() {
       if (referenceNumbers.length > 0) {
         const { data: appointmentsData, error: appointmentsError } = await supabase
           .from('appointments')
-          .select('sales_order, delivery, scheduled_time')
+          .select('sales_order, delivery, appointment_time')
           .or(`sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`);
 
         if (appointmentsError) {
@@ -260,10 +261,10 @@ export default function CSRDashboard() {
         } else if (appointmentsData) {
           appointmentsData.forEach(apt => {
             if (apt.sales_order) {
-              appointmentsMap.set(apt.sales_order, apt.scheduled_time);
+              appointmentsMap.set(apt.sales_order, apt.appointment_time);
             }
             if (apt.delivery) {
-              appointmentsMap.set(apt.delivery, apt.scheduled_time);
+              appointmentsMap.set(apt.delivery, apt.appointment_time);
             }
           });
         }
@@ -445,16 +446,52 @@ export default function CSRDashboard() {
         {formatTimeInIndianapolis(checkIn.check_in_time)}
       </td>
 
-      {/* ✅ APPOINTMENT TIME - With green highlight if on time */}
-      <td className="px-4 py-3 whitespace-nowrap text-sm">
-        {checkIn.appointment_time && isOnTime(checkIn.check_in_time, checkIn.appointment_time) ? (
-          <span className="bg-green-500 text-white px-2 py-1 rounded font-semibold">
-            {formatAppointmentTime(checkIn.appointment_time)}
-          </span>
-        ) : (
-          <span>{formatAppointmentTime(checkIn.appointment_time)}</span>
-        )}
-      </td>
+     {/* ✅ APPOINTMENT DATE & TIME - With conditional highlighting */}
+<td className="px-4 py-3 whitespace-nowrap text-sm">
+  {checkIn.appointment_time && isOnTime(checkIn.check_in_time, checkIn.appointment_time) ? (
+    <>
+      {/* Check if appointment is same day or future date */}
+      {new Date(checkIn.appointment_time).toDateString() === new Date(checkIn.check_in_time).toDateString() ? (
+        // Same day appointment - Green highlight
+        <span className="bg-green-500 text-white px-2 py-1 rounded font-semibold">
+          {new Date(checkIn.appointment_time).toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric' 
+          })}
+          {' at '}
+          {formatAppointmentTime(checkIn.appointment_time)}
+        </span>
+      ) : (
+        // Future date appointment - Orange highlight
+        <span className="bg-orange-500 text-white px-2 py-1 rounded font-semibold">
+          {new Date(checkIn.appointment_time).toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric' 
+          })}
+          {' at '}
+          {formatAppointmentTime(checkIn.appointment_time)}
+        </span>
+      )}
+    </>
+  ) : (
+    // Not on time or no appointment
+    <span className="text-gray-600">
+      {checkIn.appointment_time ? (
+        <>
+          {new Date(checkIn.appointment_time).toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric' 
+          })}
+          {' at '}
+          {formatAppointmentTime(checkIn.appointment_time)}
+        </>
+      ) : (
+        'N/A'
+      )}
+    </span>
+  )}
+</td>
+
 
       {/* Reference Number */}
       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
