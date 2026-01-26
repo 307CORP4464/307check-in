@@ -342,8 +342,6 @@ class EmailService {
     }
   }
 }
-// At the end of your EmailService class (around line 344)
-}
 
 // Export singleton instance
 const emailService = new EmailService();
