@@ -51,7 +51,7 @@ class EmailService {
                   <!-- Header -->
                   <tr>
                     <td style="background-color: #4CAF50; padding: 30px; text-align: center;">
-                      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">✓ Check-In Confirmed</h1>
+                      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Check-In Confirmed</h1>
                     </td>
                   </tr>
                   
