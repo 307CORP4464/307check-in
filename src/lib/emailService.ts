@@ -31,9 +31,8 @@ class EmailService {
     driverName: string,
     checkInTime: string,
     referenceNumber: string,
-    loadType: string
+  
   ): EmailTemplate {
-    const loadTypeDisplay = loadType === 'inbound' ? 'Inbound Delivery' : 'Outbound Pickup';
     
     return {
       subject: `Check-In Confirmed - ${referenceNumber}`,
@@ -60,21 +59,19 @@ class EmailService {
                   <tr>
                     <td style="padding: 40px 30px;">
                       <p style="font-size: 16px; color: #333333; margin: 0 0 20px;">Hello ${driverName},</p>
-                      <p style="font-size: 16px; color: #333333; margin: 0 0 30px;">Your check-in has been successfully confirmed at <strong>307 Logistics</strong>.</p>
+                      <p style="font-size: 16px; color: #333333; margin: 0 0 30px;">Your check-in has been successfully submitted.</p>
                       
                       <!-- Info Box -->
                       <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-left: 4px solid #4CAF50; margin: 20px 0;">
                         <tr>
                           <td style="padding: 20px;">
                             <p style="margin: 0 0 10px; font-size: 14px; color: #666666;"><strong style="color: #333333;">Reference Number:</strong> ${referenceNumber}</p>
-                            <p style="margin: 0 0 10px; font-size: 14px; color: #666666;"><strong style="color: #333333;">Load Type:</strong> ${loadTypeDisplay}</p>
                             <p style="margin: 0; font-size: 14px; color: #666666;"><strong style="color: #333333;">Check-In Time:</strong> ${checkInTime}</p>
                           </td>
                         </tr>
                       </table>
                       
-                      <p style="font-size: 16px; color: #333333; margin: 30px 0 20px;">You will receive another email shortly with your dock assignment.</p>
-                      <p style="font-size: 16px; color: #333333; margin: 0;">Thank you for choosing 307 Logistics!</p>
+                      <p style="font-size: 16px; color: #333333; margin: 30px 0 20px;">You will receive another email shortly with your dock assignment and instructions.</p>
                     </td>
                   </tr>
                   
