@@ -1,23 +1,24 @@
 // src/app/api/test-email/route.ts
 import { NextResponse } from 'next/server';
-import { sendEmail } from '@/lib/emailService';
+import { emailService } from '@/lib/emailService';
 
 export async function POST(request: Request) {
   try {
-    const { testEmail } = await request.json();
+    const body = await request.json();
     
-    await sendEmail({
-      to: testEmail,
-      subject: 'Test Email from WMS',
-      text: 'If you receive this, email is configured correctly!',
-      html: '<p>If you receive this, email is configured correctly!</p>'
+    await emailService.sendEmail({
+      to: body.to || 'test@example.com',
+      subject: 'Test Email',
+      html: '<h1>Test Email</h1><p>This is a test email.</p>',
+      text: 'Test Email - This is a test email.',
     });
-    
+
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message 
-    }, { status: 500 });
+    console.error('Test email error:', error);
+    return NextResponse.json(
+      { error: 'Failed to send test email' },
+      { status: 500 }
+    );
   }
 }
