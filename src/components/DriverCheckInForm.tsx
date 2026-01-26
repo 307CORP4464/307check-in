@@ -304,140 +304,106 @@ export default function DriverCheckInForm() {
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setSuccess(false);
-    setLocationStatus('checking');
+  e.preventDefault();
+  setLoading(true);
+  setError(null);
+  setSuccess(false);
+  setLocationStatus('checking');
 
-    try {
-      // Check time restrictions
-      const timeCheck = isWithinAllowedTime();
-      if (!timeCheck.allowed) {
-        setError(timeCheck.message || 'Check-in not available at this time');
-        setLoading(false);
-        setLocationStatus(null);
-        return;
-      }
-
-      // Check geofence
-      const geofenceCheck = await validateGeofence();
-      if (!geofenceCheck.valid) {
-        setError(geofenceCheck.message || 'You must be on-site to check in');
-        setLoading(false);
-        setLocationStatus('invalid');
-        return;
-      }
-      
-      setLocationStatus('valid');
-
-      // Email validation
-      if (!validateEmail(formData.driverEmail)) {
-        setError('Please enter a valid email address');
-        setLoading(false);
-        return;
-      }
-
-      // Email consent validation
-      if (!formData.emailConsent) {
-        setError('You must consent to email communications to proceed');
-        setLoading(false);
-        return;
-      }
-
-      // Reference number validation
-      if (!validateReferenceNumber(formData.referenceNumber)) {
-        setError('Invalid reference number format');
-        setLoading(false);
-        return;
-      }
-
-      // Phone validation
-      const phoneDigits = formData.driverPhone.replace(/\D/g, '');
-      if (phoneDigits.length !== 10) {
-        setError('Phone number must be 10 digits');
-        setLoading(false);
-        return;
-      }
-
-      // Outbound validations
-      if (formData.loadType === 'outbound') {
-        if (!formData.destinationCity.trim()) {
-          setError('Destination city is required for outbound pickups');
-          setLoading(false);
-          return;
-        }
-        if (!formData.destinationState) {
-          setError('Destination state is required for outbound pickups');
-          setLoading(false);
-          return;
-        }
-      }
-
-      const checkInTime = new Date().toISOString();
-
-      // Insert check-in to Supabase
-      const { data, error: insertError } = await supabase
-        .from('check_ins')
-        .insert([
-          {
-            driver_name: formData.driverName,
-            driver_phone: formData.driverPhone,
-            driver_email: formData.driverEmail,
-            carrier_name: formData.carrierName,
-            trailer_number: formData.trailerNumber,
-            trailer_length: formData.trailerLength,
-            reference_number: formData.referenceNumber,
-            load_type: formData.loadType,
-            destination_city: formData.destinationCity,
-            destination_state: formData.destinationState,
-            check_in_time: checkInTime,
-            status: 'pending',
-            location_latitude: geofenceCheck.distance ? SITE_COORDINATES.latitude : null,
-            location_longitude: geofenceCheck.distance ? SITE_COORDINATES.longitude : null,
-          }
-        ])
-        .select()
-        .single();
-
-      if (Error) {
-        throw Error;
-      }
-
-      // Send confirmation email
-      try {
-        await triggerCheckInEmail({
-          driverName: formData.driverName,
-          driverEmail: formData.driverEmail,
-          carrierName: formData.carrierName,
-          trailerNumber: formData.trailerNumber,
-          referenceNumber: formData.referenceNumber,
-          loadType: formData.loadType,
-          checkInTime: new Date(checkInTime).toLocaleString(),
-          destinationCity: formData.destinationCity,
-          destinationState: formData.destinationState,
-        });
-      } catch (emailError) {
-        console.error('Email sending error:', emailError);
-        // Don't fail the entire check-in process due to email issues
-      }
-
-      setSuccess(true);
-      setLocationStatus(null);
-      
-      // Reset form after successful submission
-      setTimeout(() => {
-        resetForm();
-      }, 3000);
-
-    } catch (err) {
-      console.error('Check-in error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred during check-in');
-      setLocationStatus(null);
-    } finally {
+  try {
+    // Check time restrictions
+    const timeCheck = isWithinAllowedTime();
+    if (!timeCheck.allowed) {
+      setError(timeCheck.message || 'Check-in not available at this time');
       setLoading(false);
+      setLocationStatus(null);
+      return;
     }
-  };
+
+    // Check geofence
+    const geofenceCheck = await validateGeofence();
+    if (!geofenceCheck.valid) {
+      setError(geofenceCheck.message || 'You must be on-site to check in');
+      setLoading(false);
+      setLocationStatus('invalid');
+      return;
+    }
+    
+    setLocationStatus('valid');
+
+    // Email validation
+    if (!validateEmail(formData.driverEmail)) {
+      setError('Please enter a valid email address');
+      setLoading(false);
+      return;
+    }
+
+    // Email consent validation
+    if (!formData.emailConsent) {
+      setError('You must consent to email communications to proceed');
+      setLoading(false);
+      return;
+    }
+
+    // Submit to database
+    const { data: checkInData, error: dbError } = await supabase
+      .from('check_ins')
+      .insert([{
+        driver_name: formData.driverName,
+        driver_phone: formData.driverPhone,
+        driver_email: formData.driverEmail,
+        carrier_name: formData.carrierName,
+        trailer_number: formData.trailerNumber,
+        trailer_length: formData.trailerLength,
+        reference_number: formData.referenceNumber,
+        load_type: formData.loadType,
+        destination_city: formData.destinationCity,
+        destination_state: formData.destinationState,
+        email_consent: formData.emailConsent,
+        status: 'checked_in',
+      }])
+      .select()
+      .single();
+
+    if (dbError) {
+      console.error('Database error:', dbError);
+      throw new Error(dbError.message || 'Failed to save check-in');
+    }
+
+    console.log('✓ Check-in saved to database:', checkInData);
+
+    // Send confirmation email
+    console.log('Attempting to send email...');
+    const emailResult = await triggerCheckInEmail({
+      driverEmail: formData.driverEmail,
+      driverName: formData.driverName,
+      carrierName: formData.carrierName,
+      trailerNumber: formData.trailerNumber,
+      referenceNumber: formData.referenceNumber,
+      destinationCity: formData.destinationCity,
+      destinationState: formData.destinationState,
+      loadType: formData.loadType,
+      checkInTime: new Date().toISOString(),
+    });
+
+    if (!emailResult.success) {
+      console.error('Email failed:', emailResult.error);
+      setError(`Check-in successful, but email failed: ${emailResult.error}`);
+    } else {
+      console.log('✓ Email sent successfully');
+    }
+
+    setSuccess(true);
+    setTimeout(resetForm, 3000);
+
+  } catch (err) {
+    console.error('Check-in error:', err);
+    setError(err instanceof Error ? err.message : 'An error occurred during check-in');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
