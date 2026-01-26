@@ -4,13 +4,18 @@ import { emailService } from './emailService';
 interface TriggerData {
   driverEmail: string;
   driverName: string;
+  carrierName: string;
+  trailerNumber: string;
   referenceNumber: string;
+  destingationCity: String;
+  destinationState: String;
   loadType?: string;
   dockNumber?: string;
   appointmentTime?: string;
   oldStatus?: string;
   newStatus?: string;
   notes?: string;
+  checkInTime: string;
 }
 
 export async function triggerCheckInEmail(data: TriggerData) {
