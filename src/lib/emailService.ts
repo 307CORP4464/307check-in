@@ -252,13 +252,11 @@ class EmailService {
     driverName: string,
     checkInTime: string,
     referenceNumber: string,
-    loadType: string
   ): Promise<void> {
     const template = this.getCheckInConfirmationTemplate(
       driverName,
       checkInTime,
       referenceNumber,
-      loadType
     );
 
     await this.sendEmail({
