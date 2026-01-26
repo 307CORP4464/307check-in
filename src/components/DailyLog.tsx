@@ -165,6 +165,7 @@ interface CheckIn {
   reference_number?: string;
   dock_number?: string;
   appointment_time?: string | null;
+  appointment_date?: string | null;
   end_time?: string | null;
   start_time?: string | null;
   notes?: string;
