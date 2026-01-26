@@ -28,8 +28,8 @@ export async function createAppointment(input: AppointmentInput): Promise<Appoin
   }
 
   console.log('Creating appointment:', {
-    scheduled_date: input.scheduled_date,  // ✅ FIXED
-    scheduled_time: input.scheduled_time,  // ✅ FIXED
+    appointment_date: input.appointment_date,  // ✅ FIXED
+    appointment_time: input.appointment_time,  // ✅ FIXED
     sales_order: sales_order,
     delivery: delivery,
     notes: input.notes?.trim() || null,
@@ -39,8 +39,8 @@ export async function createAppointment(input: AppointmentInput): Promise<Appoin
   const { data, error } = await supabase
     .from('appointments')
     .insert([{
-      scheduled_date: input.scheduled_date,  // ✅ FIXED
-      scheduled_time: input.scheduled_time,  // ✅ FIXED
+      appointment_date: input.appointment_date,  // ✅ FIXED
+      appointment_time: input.appointment_time,  // ✅ FIXED
       sales_order: sales_order,
       delivery: delivery,
       notes: input.notes?.trim() || null,
@@ -65,8 +65,8 @@ export async function updateAppointment(
   const { data, error } = await supabase
     .from('appointments')
     .update({
-      scheduled_date: input.scheduled_date,  // ✅ FIXED
-      scheduled_time: input.scheduled_time,  // ✅ FIXED
+      appointment_date: input.appointment_date,  // ✅ FIXED
+      appointment_time: input.appointment_time,  // ✅ FIXED
       sales_order: input.sales_order?.trim() || null,
       delivery: input.delivery?.trim() || null,
       notes: input.notes?.trim() || null
@@ -89,16 +89,16 @@ export async function deleteAppointment(id: number): Promise<void> {
 }
 
 export async function checkDuplicateAppointment(
-  scheduled_date: string,
-  scheduled_time: string,
+  appointment_date: string,
+  appointment_time: string,
   sales_order?: string,
   delivery?: string
 ): Promise<boolean> {
   const query = supabase
     .from('appointments')
     .select('id')
-    .eq('scheduled_date', scheduled_date)
-    .eq('scheduled_time', scheduled_time);
+    .eq('appointment_date', appointment_date)
+    .eq('appointment_time', appointment_time);
 
   if (sales_order) {  // ✅ FIXED (was salesOrder)
     query.eq('sales_order', sales_order);
