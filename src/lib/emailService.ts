@@ -349,3 +349,11 @@ export default emailService;
 
 // Also export the class for testing purposes
 export { EmailService };
+
+// At the end of emailService.ts file
+export const emailService = new EmailService();
+
+// Export the sendEmail function
+export async function sendEmail(options: EmailOptions) {
+  return emailService.sendEmail(options);
+}
