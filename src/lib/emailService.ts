@@ -104,7 +104,7 @@ class EmailService {
       : '';
     
     return {
-      subject: `Dock Assignment - ${dockDisplay}`,
+      subject: `Dock Assignment`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -142,6 +142,14 @@ class EmailService {
                       </table>
                       
                       <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;"><strong>Please proceed to your assigned dock immediately.</strong></p>
+                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;">Follow these instructions:</p>
+                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;">1.Put 2 straps or loadbars on the back of your trailer.</p>
+                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;">2.Slide your tandems to the back.</p>
+                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;">3.Back in with your doors shut. We will open your doors inside the building! </p>
+                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;">4.Red light means you are being loaded or unloaded. </p>
+                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;">5.The light will go back to green when you are done. </p>
+                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;">5.You will also receive an email with a stutus update. </p>
+                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;">6.Please come into the office and show this email with your dock number to receive your paperwork. </p>
                     </td>
                   </tr>
                   
