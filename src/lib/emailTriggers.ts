@@ -18,6 +18,7 @@ interface TriggerData {
   checkInTime: string;
 }
 
+// lib/emailTriggers.ts
 export async function triggerCheckInEmail(data: TriggerData) {
   try {
     const checkInTime = new Date().toLocaleString('en-US', {
@@ -25,7 +26,7 @@ export async function triggerCheckInEmail(data: TriggerData) {
       timeStyle: 'short',
     });
 
-    await fetch('/api/send-email', {
+    const response = await fetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -39,10 +40,22 @@ export async function triggerCheckInEmail(data: TriggerData) {
         },
       }),
     });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to send email');
+    }
+
+    return { success: true };
   } catch (error) {
     console.error('Failed to trigger check-in email:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
   }
 }
+
 
 export async function triggerDockAssignmentEmail(data: TriggerData) {
   try {
