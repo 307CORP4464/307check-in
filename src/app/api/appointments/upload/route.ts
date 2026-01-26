@@ -127,8 +127,8 @@ export async function POST(request: NextRequest) {
         const { data: existingAppointments, error: checkError } = await supabase
           .from('appointments')
           .select('id, source')
-          .eq('scheduled_date', formattedDate)
-          .eq('scheduled_time', formattedTime)
+          .eq('appointment_date', formattedDate)
+          .eq('appointment_time', formattedTime)
           .eq('sales_order', String(sales_order).trim())
           .eq('delivery', String(delivery).trim());
 
@@ -145,8 +145,8 @@ export async function POST(request: NextRequest) {
 
         // Create appointment
         const appointmentData: AppointmentInput = {
-          scheduled_date: formattedDate,
-          scheduled_time: formattedTime,
+          appointment_date: formattedDate,
+          appointment_time: formattedTime,
           sales_order: String(sales_order).trim(),
           delivery: String(delivery).trim(),
           notes: '',
