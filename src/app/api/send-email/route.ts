@@ -1,15 +1,17 @@
-// src/app/api/send-email/route.ts
+// app/api/send-email/route.ts
 import { NextResponse } from 'next/server';
 import emailService from '@/lib/emailService';
 
 export async function POST(request: Request) {
   try {
-    const { type, data } = await request.json();
+    const { type, toEmail, data } = await request.json();
+
+    console.log('Email API called with type:', type); // Add logging
 
     switch (type) {
-      case 'driver-checkin':
+      case 'checkin':  // ✅ Changed from 'driver-checkin'
         await emailService.sendCheckInConfirmation(
-          data.driverEmail,
+          toEmail,  // ✅ Use toEmail from request
           data.driverName,
           data.checkInTime,
           data.referenceNumber,
@@ -17,9 +19,9 @@ export async function POST(request: Request) {
         );
         break;
 
-      case 'dock-assignment':
+      case 'dock_assignment':  // ✅ Changed from 'dock-assignment'
         await emailService.sendDockAssignment(
-          data.driverEmail,
+          toEmail,  // ✅ Use toEmail from request
           data.driverName,
           data.dockNumber,
           data.referenceNumber,
@@ -27,9 +29,9 @@ export async function POST(request: Request) {
         );
         break;
 
-      case 'status-change':
+      case 'status_change':  // ✅ Changed from 'status-change'
         await emailService.sendStatusChange(
-          data.driverEmail,
+          toEmail,  // ✅ Use toEmail from request
           data.driverName,
           data.referenceNumber,
           data.oldStatus,
@@ -39,12 +41,14 @@ export async function POST(request: Request) {
         break;
 
       default:
+        console.error('Invalid email type received:', type);
         return NextResponse.json(
-          { error: 'Invalid email type' },
+          { error: `Invalid email type: ${type}` },
           { status: 400 }
         );
     }
 
+    console.log('Email sent successfully for type:', type);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Email send error:', error);
@@ -58,3 +62,4 @@ export async function POST(request: Request) {
     );
   }
 }
+
