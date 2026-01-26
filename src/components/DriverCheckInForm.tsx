@@ -400,8 +400,8 @@ export default function DriverCheckInForm() {
         .select()
         .single();
 
-      if (insertError) {
-        throw insertError;
+      if (dbError) {
+        throw dbError;
       }
 
       // Send confirmation email
