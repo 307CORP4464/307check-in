@@ -385,12 +385,18 @@ const handleSubmit = async (e: React.FormEvent) => {
 
     // Trigger email notification
     try {
-      await triggerCheckInEmail({
-        driverName: formData.driverName,
-        checkInTime: checkInTimestamp,
-        referenceNumber: formData.referenceNumber,
-        driverEmail: formData.driverEmail,
-      });
+     // Around line 388, replace the triggerCheckInEmail call with:
+await triggerCheckInEmail({
+  driverName: formData.driverName,
+  carrierName: formData.carrierName,
+  referenceNumber: formData.referenceNumber,
+  loadType: formData.loadType,
+  driverEmail: formData.driverEmail,
+  trailerNumber: formData.trailerNumber,        // ADD THIS
+  destinationCity: formData.destinationCity,    // ADD THIS
+  destinationState: formData.destinationState,  // ADD THIS
+  checkInTime: checkInTimestamp,                // ADD THIS
+});
       console.log('Email notification sent');
     } catch (emailError) {
       console.error('Email notification failed:', emailError);
