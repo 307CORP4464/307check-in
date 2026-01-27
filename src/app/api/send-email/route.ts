@@ -39,7 +39,10 @@ export async function POST(request: Request) {
           data.driverName,
           data.dockNumber,
           data.referenceNumber,
-          data.appointmentTime
+          data.loadType || 'inbound', // Required: 'inbound' or 'outbound'
+          data.checkInTime, // Required
+          data.appointmentTime, // Optional
+          data.appointmentStatus // Optional: 'On Time', 'Early', 'Late', 'No Appointment'
         );
         console.log('✓ Dock assignment email sent successfully');
         break;
@@ -83,4 +86,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
