@@ -255,7 +255,7 @@ export default function CSRDashboard() {
         .from('check_ins')
         .select('*')
         .eq('status', 'pending')
-        .order('check_in_time', { ascending: false });
+        .order('check_in_time', { ascending: true });
 
       if (checkInsError) throw checkInsError;
 
