@@ -1,88 +1,195 @@
-// app/api/send-email/route.ts
-import { NextResponse } from 'next/server';
-import emailService from '@/lib/emailService';
+import nodemailer from 'nodemailer';
 
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { type, toEmail, data } = body;
+interface EmailTemplate {
+  subject: string;
+  html: string;
+}
 
-    console.log('=== EMAIL API CALLED ===');
-    console.log('Type:', type);
-    console.log('To Email:', toEmail);
-    console.log('Data:', JSON.stringify(data, null, 2));
+interface EmailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}
 
-    if (!type || !toEmail || !data) {
-      console.error('Missing required fields');
-      return NextResponse.json(
-        { error: 'Missing required fields: type, toEmail, or data' },
-        { status: 400 }
-      );
-    }
+class EmailService {
+  private transporter: nodemailer.Transporter;
 
-    switch (type) {
-      case 'checkin':
-        console.log('Sending check-in confirmation to:', toEmail);
-        await emailService.sendCheckInConfirmation(
-          toEmail,
-          data.driverName,
-          data.checkInTime,
-          data.referenceNumber,
-        );
-        console.log('✓ Check-in email sent successfully');
-        break;
-
-      case 'dock_assignment':
-        console.log('Sending dock assignment to:', toEmail);
-        await emailService.sendDockAssignment(
-          toEmail,
-          data.driverName,
-          data.dockNumber,
-          data.referenceNumber,
-          data.loadType || 'inbound', // Required: 'inbound' or 'outbound'
-          data.checkInTime, // Required
-          data.appointmentTime, // Optional
-          data.appointmentStatus // Optional: 'On Time', 'Early', 'Late', 'No Appointment'
-        );
-        console.log('✓ Dock assignment email sent successfully');
-        break;
-
-      case 'status_change':
-        console.log('Sending status change to:', toEmail);
-        await emailService.sendStatusChange(
-          toEmail,
-          data.driverName,
-          data.referenceNumber,
-          data.oldStatus,
-          data.newStatus,
-          data.notes
-        );
-        console.log('✓ Status change email sent successfully');
-        break;
-
-      default:
-        console.error('Invalid email type:', type);
-        return NextResponse.json(
-          { error: `Invalid email type: ${type}. Expected: checkin, dock_assignment, or status_change` },
-          { status: 400 }
-        );
-    }
-
-    return NextResponse.json({ success: true });
-
-  } catch (error) {
-    console.error('=== EMAIL API ERROR ===');
-    console.error('Error object:', error);
-    console.error('Error message:', error instanceof Error ? error.message : 'Unknown');
-    console.error('Error stack:', error instanceof Error ? error.stack : 'N/A');
-
-    return NextResponse.json(
-      { 
-        success: false,
-        error: 'Failed to send email',
-        details: error instanceof Error ? error.message : 'Unknown error'
+  constructor() {
+    this.transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST,
+      port: parseInt(process.env.EMAIL_PORT || '587'),
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
       },
-      { status: 500 }
-    );
+    });
+  }
+
+  // ============================================
+  // PUBLIC METHODS - ADD THESE RIGHT HERE!
+  // ============================================
+  
+  async sendCheckInConfirmation(
+    toEmail: string,
+    driverName: string,
+    checkInTime: string,
+    referenceNumber: string
+  ): Promise<void> {
+    try {
+      const template = this.getCheckInConfirmationTemplate(
+        driverName,
+        checkInTime,
+        referenceNumber
+      );
+
+      const mailOptions: EmailOptions = {
+        to: toEmail,
+        subject: template.subject,
+        html: template.html,
+      };
+
+      await this.transporter.sendMail(mailOptions);
+      console.log(`Check-in confirmation email sent to ${toEmail}`);
+    } catch (error) {
+      console.error('Error sending check-in confirmation email:', error);
+      throw new Error('Failed to send check-in confirmation email');
+    }
+  }
+
+  async sendDockAssignment(
+    toEmail: string,
+    driverName: string,
+    dockNumber: string,
+    referenceNumber: string,
+    loadType: 'inbound' | 'outbound',
+    checkInTime: string,
+    appointmentTime?: string,
+    appointmentStatus?: string
+  ): Promise<void> {
+    try {
+      const template = this.getDockAssignmentTemplate(
+        driverName,
+        dockNumber,
+        referenceNumber,
+        loadType,
+        checkInTime,
+        appointmentTime,
+        appointmentStatus
+      );
+
+      const mailOptions: EmailOptions = {
+        to: toEmail,
+        subject: template.subject,
+        html: template.html,
+      };
+
+      await this.transporter.sendMail(mailOptions);
+      console.log(`Dock assignment email sent to ${toEmail}`);
+    } catch (error) {
+      console.error('Error sending dock assignment email:', error);
+      throw new Error('Failed to send dock assignment email');
+    }
+  }
+
+  // ============================================
+  // PRIVATE TEMPLATE METHODS - KEEP ALL OF THESE
+  // ============================================
+
+  private getCheckInConfirmationTemplate(
+    driverName: string,
+    checkInTime: string,
+    referenceNumber: string,
+  ): EmailTemplate {
+    return {
+      subject: `Check-In Confirmed - ${referenceNumber}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px;">
+            <tr>
+              <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                  <tr>
+                    <td style="background-color: #4CAF50; padding: 30px; text-align: center;">
+                      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Check-In Confirmed</h1>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 40px 30px;">
+                      <p style="font-size: 16px; color: #333333; margin: 0 0 20px;">Hello ${driverName},</p>
+                      <p style="font-size: 16px; color: #333333; margin: 0 0 30px;">Your check-in has been successfully submitted.</p>
+                      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-left: 4px solid #4CAF50; margin: 20px 0;">
+                        <tr>
+                          <td style="padding: 20px;">
+                            <p style="margin: 0 0 10px; font-size: 14px; color: #666666;"><strong style="color: #333333;">Reference Number:</strong> ${referenceNumber}</p>
+                            <p style="margin: 0; font-size: 14px; color: #666666;"><strong style="color: #333333;">Check-In Time:</strong> ${checkInTime}</p>
+                          </td>
+                        </tr>
+                      </table>
+                      <p style="font-size: 16px; color: #333333; margin: 30px 0 20px;">You will receive another email shortly with your dock assignment and instructions.</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="background-color: #333333; padding: 20px; text-align: center;">
+                      <p style="color: #ffffff; margin: 0; font-size: 12px;">307 Corporation - Automated Notification</p>
+                      <p style="color: #999999; margin: 5px 0 0; font-size: 11px;">This is an automated message, please do not reply.</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `,
+    };
+  }
+
+  private getDockAssignmentTemplate(
+    driverName: string,
+    dockNumber: string,
+    referenceNumber: string,
+    loadType: 'inbound' | 'outbound',
+    checkInTime: string,
+    appointmentTime?: string,
+    appointmentStatus?: string
+  ): EmailTemplate {
+    const dockDisplay = dockNumber === 'Ramp' ? 'RAMP' : `DOCK ${dockNumber}`;
+    const statusColors: Record<string, { bg: string; text: string }> = {
+      'On Time': { bg: '#4CAF50', text: '#ffffff' },
+      'Early': { bg: '#2196F3', text: '#ffffff' },
+      'Late': { bg: '#FF9800', text: '#ffffff' },
+      'No Appointment': { bg: '#9E9E9E', text: '#ffffff' },
+    };
+    const statusStyle = statusColors[appointmentStatus || 'No Appointment'];
+    const instructions = loadType === 'inbound' 
+      ? this.getInboundInstructions()
+      : this.getOutboundInstructions();
+    
+    return {
+      subject: `Dock Assignment - ${loadType === 'inbound' ? 'Unloading' : 'Loading'}`,
+      html: `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;"><table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><tr><td style="background-color: #2196F3; padding: 30px; text-align: center;"><h1 style="color: #ffffff; margin: 0; font-size: 28px;">🚛 Dock Assignment - ${loadType === 'inbound' ? 'UNLOADING' : 'LOADING'}</h1></td></tr><tr><td style="padding: 40px 30px;"><p style="font-size: 16px; color: #333333; margin: 0 0 20px;">Hello ${driverName},</p><p style="font-size: 16px; color: #333333; margin: 0 0 30px;">Your dock has been assigned. Please proceed to:</p><table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fff3cd; border: 3px solid #ffc107; margin: 20px 0;"><tr><td style="padding: 30px; text-align: center;"><h2 style="color: #2196F3; margin: 0 0 15px; font-size: 42px; font-weight: bold;">${dockDisplay}</h2><p style="margin: 5px 0 0; font-size: 16px; color: #333333;">Reference: <strong>${referenceNumber}</strong></p>${appointmentStatus ? `<div style="display: inline-block; margin-top: 10px; padding: 6px 12px; background-color: ${statusStyle.bg}; border-radius: 4px;"><span style="color: ${statusStyle.text}; font-weight: bold; font-size: 14px;">${appointmentStatus}</span></div>` : ''}</td></tr></table><p style="font-size: 18px; color: #333333; margin: 30px 0 15px; text-align: center; font-weight: bold;">Please proceed to your assigned dock immediately.</p>${instructions}</td></tr><tr><td style="background-color: #333333; padding: 20px; text-align: center;"><p style="color: #ffffff; margin: 0; font-size: 12px;">307 Corporation - Automated Notification</p></td></tr></table></td></tr></table></body></html>`,
+    };
+  }
+
+  private getInboundInstructions(): string {
+    return `<div style="margin: 20px 0;"><h3 style="color: #2196F3; margin: 0 0 15px; font-size: 20px;">📦 Unloading Instructions:</h3><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>1.</strong> Do NOT cut your seal.</p></td></tr><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>2.</strong> Slide your tandems to the back.</p></td></tr><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>3.</strong> Back into the assigned dock.</p></td></tr><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>4.</strong> Wait in your truck for further instructions.</p></td></tr></table></div>`;
+  }
+
+  private getOutboundInstructions(): string {
+    return `<div style="margin: 20px 0;"><h3 style="color: #2196F3; margin: 0 0 15px; font-size: 20px;">🚚 Loading Instructions:</h3><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>1.</strong> Back into the assigned dock.</p></td></tr><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>2.</strong> Ensure your trailer is empty and clean.</p></td></tr><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>3.</strong> Wait in your truck during loading.</p></td></tr></table></div>`;
   }
 }
+
+// ============================================
+// EXPORT - VERY IMPORTANT!
+// ============================================
+export const emailService = new EmailService();
+export default EmailService;
