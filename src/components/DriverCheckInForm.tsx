@@ -387,7 +387,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     try {
       await triggerCheckInEmail({
         driverName: formData.driverName,
-        carrierName: formData.carrierName,
+        checkInTime: checkInTimestamp,
         referenceNumber: formData.referenceNumber,
         driverEmail: formData.driverEmail,
       });
