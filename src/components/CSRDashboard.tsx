@@ -12,10 +12,23 @@ const TIMEZONE = 'America/Indiana/Indianapolis';
 
 const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
   try {
+    // Add validation for empty or invalid strings
+    if (!isoString || isoString === '' || isoString === 'null' || isoString === 'undefined') {
+      console.error('Empty or invalid date string:', isoString);
+      return 'No Check-in Time';
+    }
+
     const date = new Date(isoString);
     
-    if (isNaN(date.getTime())) {
+    // Check if date is valid and not epoch
+    if (isNaN(date.getTime()) || date.getTime() < 0) {
       console.error('Invalid date:', isoString);
+      return 'Invalid Date';
+    }
+
+    // Check if date is unreasonably old (before year 2000)
+    if (date.getFullYear() < 2000) {
+      console.error('Date too old, likely invalid:', isoString, date);
       return 'Invalid Date';
     }
     
@@ -27,25 +40,19 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
     };
     
     if (includeDate) {
+      options.year = 'numeric';
       options.month = '2-digit';
       options.day = '2-digit';
-      options.year = 'numeric';
     }
     
     const formatter = new Intl.DateTimeFormat('en-US', options);
-    const formatted = formatter.format(date);
-    
-    // If including date, format as MM/DD/YYYY HH:MM
-    if (includeDate) {
-      return formatted.replace(',', '');
-    }
-    
-    return formatted;
+    return formatter.format(date);
   } catch (e) {
     console.error('Time formatting error:', e, isoString);
-    return isoString;
+    return 'Error';
   }
 };
+
 
 
 const formatPhoneNumber = (phone: string | undefined): string => {
