@@ -389,7 +389,6 @@ const handleSubmit = async (e: React.FormEvent) => {
         driverName: formData.driverName,
         carrierName: formData.carrierName,
         referenceNumber: formData.referenceNumber,
-        loadType: formData.loadType,
         driverEmail: formData.driverEmail,
       });
       console.log('Email notification sent');
