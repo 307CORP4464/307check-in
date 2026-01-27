@@ -27,18 +27,26 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
     };
     
     if (includeDate) {
-      options.year = 'numeric';
       options.month = '2-digit';
       options.day = '2-digit';
+      options.year = 'numeric';
     }
     
     const formatter = new Intl.DateTimeFormat('en-US', options);
-    return formatter.format(date);
+    const formatted = formatter.format(date);
+    
+    // If including date, format as MM/DD/YYYY HH:MM
+    if (includeDate) {
+      return formatted.replace(',', '');
+    }
+    
+    return formatted;
   } catch (e) {
     console.error('Time formatting error:', e, isoString);
     return isoString;
   }
 };
+
 
 const formatPhoneNumber = (phone: string | undefined): string => {
   if (!phone) return 'N/A';
@@ -443,7 +451,7 @@ export default function CSRDashboard() {
 
       {/* ✅ CHECK-IN TIME - When form was submitted */}
       <td className="px-4 py-3 whitespace-nowrap text-sm">
-        {formatTimeInIndianapolis(checkIn.check_in_time)}
+        {formatTimeInIndianapolis(checkIn.check_in_time, true)}
       </td>
 
      {/* ✅ APPOINTMENT DATE & TIME - With conditional highlighting */}
