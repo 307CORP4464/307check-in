@@ -76,7 +76,7 @@ class EmailService {
                   <!-- Footer -->
                   <tr>
                     <td style="background-color: #333333; padding: 20px; text-align: center;">
-                      <p style="color: #ffffff; margin: 0; font-size: 12px;">307 Logistics - Automated Notification</p>
+                      <p style="color: #ffffff; margin: 0; font-size: 12px;">307 Corporation - Automated Notification</p>
                       <p style="color: #999999; margin: 5px 0 0; font-size: 11px;">This is an automated message, please do not reply.</p>
                     </td>
                   </tr>
@@ -178,7 +178,7 @@ class EmailService {
                   <!-- Footer -->
                   <tr>
                     <td style="background-color: #333333; padding: 20px; text-align: center;">
-                      <p style="color: #ffffff; margin: 0; font-size: 12px;">307 Logistics - Automated Notification</p>
+                      <p style="color: #ffffff; margin: 0; font-size: 12px;">307 Corporation - Automated Notification</p>
                       <p style="color: #999999; margin: 5px 0 0; font-size: 11px;">This is an automated message, please do not reply.</p>
                     </td>
                   </tr>
@@ -199,7 +199,7 @@ class EmailService {
         <table width="100%" cellpadding="0" cellspacing="0">
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>1.</strong> Do NOT cut the seal.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>1.</strong>Do NOT cut your seal.</p>
             </td>
           </tr>
           <tr>
@@ -229,7 +229,7 @@ class EmailService {
           </tr>
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>7.</strong> Please come into the office and show this email with your dock number to get your paperwork signed.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>7.</strong> Please come into the office and show this email with your dock number to get your paperwork signed if needed.</p>
             </td>
           </tr>
         </table>
@@ -240,7 +240,7 @@ class EmailService {
   private getOutboundInstructions(): string {
     return `
       <div style="margin: 20px 0;">
-        <h3 style="color: #2196F3; margin: 0 0 15px; font-size: 20px;"> Loading Instructions:</h3>
+        <h3 style="color: #2196F3; margin: 0 0 15px; font-size: 20px;">📦 Loading Instructions:</h3>
         <table width="100%" cellpadding="0" cellspacing="0">
           <tr>
             <td style="padding: 8px 0;">
@@ -249,12 +249,12 @@ class EmailService {
           </tr>
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>2.</strong> Slide your tandems to the back. Place 2 load bard or staps in the back of the trailer.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>2.</strong> Slide your tandems to the back.</p>
             </td>
           </tr>
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>3.</strong> Back in with your doors closed. We will open your doors inside the building!</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>3.</strong> Back in with your doors shut. We will open your doors inside the building!</p>
             </td>
           </tr>
           <tr>
@@ -270,6 +270,11 @@ class EmailService {
           <tr>
             <td style="padding: 8px 0;">
               <p style="margin: 0; font-size: 15px; color: #333333;"><strong>6.</strong> You will receive an email notification when your load is ready.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>7.</strong> Come into the office with this email showing your dock number to receive your bill of lading and paperwork.</p>
             </td>
           </tr>
         </table>
@@ -352,7 +357,7 @@ class EmailService {
                   <!-- Footer -->
                   <tr>
                     <td style="background-color: #333333; padding: 20px; text-align: center;">
-                      <p style="color: #ffffff; margin: 0; font-size: 12px;">307 Logistics - Automated Notification</p>
+                      <p style="color: #ffffff; margin: 0; font-size: 12px;">307 Corporation - Automated Notification</p>
                       <p style="color: #999999; margin: 5px 0 0; font-size: 11px;">This is an automated message, please do not reply.</p>
                     </td>
                   </tr>
