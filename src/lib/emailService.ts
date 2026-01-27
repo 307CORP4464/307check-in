@@ -31,9 +31,7 @@ class EmailService {
     driverName: string,
     checkInTime: string,
     referenceNumber: string,
-  
   ): EmailTemplate {
-    
     return {
       subject: `Check-In Confirmed - ${referenceNumber}`,
       html: `
@@ -96,15 +94,30 @@ class EmailService {
     driverName: string,
     dockNumber: string,
     referenceNumber: string,
-    appointmentTime?: string
+    loadType: 'inbound' | 'outbound',
+    checkInTime: string,
+    appointmentTime?: string,
+    appointmentStatus?: string
   ): EmailTemplate {
     const dockDisplay = dockNumber === 'Ramp' ? 'RAMP' : `DOCK ${dockNumber}`;
-    const appointmentInfo = appointmentTime 
-      ? `<p style="margin: 5px 0 0; font-size: 14px; color: #666666;">Appointment: ${appointmentTime}</p>`
-      : '';
+    
+    // Status badge styling
+    const statusColors: Record<string, { bg: string; text: string }> = {
+      'On Time': { bg: '#4CAF50', text: '#ffffff' },
+      'Early': { bg: '#2196F3', text: '#ffffff' },
+      'Late': { bg: '#FF9800', text: '#ffffff' },
+      'No Appointment': { bg: '#9E9E9E', text: '#ffffff' },
+    };
+    
+    const statusStyle = statusColors[appointmentStatus || 'No Appointment'];
+    
+    // Instructions based on load type
+    const instructions = loadType === 'inbound' 
+      ? this.getInboundInstructions()
+      : this.getOutboundInstructions();
     
     return {
-      subject: `Dock Assignment`,
+      subject: `Dock Assignment - ${loadType === 'inbound' ? 'Unloading' : 'Loading'}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -120,7 +133,7 @@ class EmailService {
                   <!-- Header -->
                   <tr>
                     <td style="background-color: #2196F3; padding: 30px; text-align: center;">
-                      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🚛 Dock Assignment</h1>
+                      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🚛 Dock Assignment - ${loadType === 'inbound' ? 'UNLOADING' : 'LOADING'}</h1>
                     </td>
                   </tr>
                   
@@ -136,20 +149,29 @@ class EmailService {
                           <td style="padding: 30px; text-align: center;">
                             <h2 style="color: #2196F3; margin: 0 0 15px; font-size: 42px; font-weight: bold;">${dockDisplay}</h2>
                             <p style="margin: 5px 0 0; font-size: 16px; color: #333333;">Reference: <strong>${referenceNumber}</strong></p>
-                            ${appointmentInfo}
+                            ${appointmentStatus ? `
+                            <div style="display: inline-block; margin-top: 10px; padding: 6px 12px; background-color: ${statusStyle.bg}; border-radius: 4px;">
+                              <span style="color: ${statusStyle.text}; font-weight: bold; font-size: 14px;">${appointmentStatus}</span>
+                            </div>
+                            ` : ''}
                           </td>
                         </tr>
                       </table>
                       
-                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;"><strong>Please proceed to your assigned dock immediately.</strong></p>
-                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;">Follow these instructions:</p>
-                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;">1.Put 2 straps or loadbars on the back of your trailer.</p>
-                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;">2.Slide your tandems to the back.</p>
-                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;">3.Back in with your doors shut. We will open your doors inside the building! </p>
-                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;">4.Red light means you are being loaded or unloaded. </p>
-                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;">5.The light will go back to green when you are done. </p>
-                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;">5.You will also receive an email with a stutus update. </p>
-                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center;">6.Please come into the office and show this email with your dock number to receive your paperwork. </p>
+                      <!-- Time Information Box -->
+                      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-left: 4px solid #2196F3; margin: 20px 0;">
+                        <tr>
+                          <td style="padding: 20px;">
+                            <p style="margin: 0 0 10px; font-size: 14px; color: #666666;"><strong style="color: #333333;">Check-In Time:</strong> ${checkInTime}</p>
+                            ${appointmentTime ? `<p style="margin: 0; font-size: 14px; color: #666666;"><strong style="color: #333333;">Appointment Time:</strong> ${appointmentTime}</p>` : '<p style="margin: 0; font-size: 14px; color: #666666;"><strong style="color: #333333;">Appointment:</strong> Walk-In</p>'}
+                          </td>
+                        </tr>
+                      </table>
+                      
+                      <p style="font-size: 18px; color: #333333; margin: 30px 0 15px; text-align: center; font-weight: bold;">Please proceed to your assigned dock immediately.</p>
+                      
+                      <!-- Instructions -->
+                      ${instructions}
                     </td>
                   </tr>
                   
@@ -170,6 +192,91 @@ class EmailService {
     };
   }
 
+  private getInboundInstructions(): string {
+    return `
+      <div style="margin: 20px 0;">
+        <h3 style="color: #2196F3; margin: 0 0 15px; font-size: 20px;"> Unloading Instructions:</h3>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>1.</strong> Do NOT cut the seal.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>2.</strong> Slide your tandems to the back.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>3.</strong> Back in with your doors shut. We will open your doors inside the building!</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>4.</strong> <span style="color: #F44336; font-weight: bold;">Red light</span> means you are being unloaded.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>5.</strong> The light will go back to <span style="color: #4CAF50; font-weight: bold;">green</span> when you are done.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>6.</strong> You will also receive an email with a status update.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>7.</strong> Please come into the office and show this email with your dock number to get your paperwork signed.</p>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `;
+  }
+
+  private getOutboundInstructions(): string {
+    return `
+      <div style="margin: 20px 0;">
+        <h3 style="color: #2196F3; margin: 0 0 15px; font-size: 20px;"> Loading Instructions:</h3>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>1.</strong> Ensure your trailer is empty and swept clean.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>2.</strong> Slide your tandems to the back. Place 2 load bard or staps in the back of the trailer.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>3.</strong> Back in with your doors closed. We will open your doors inside the building!</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>4.</strong> <span style="color: #F44336; font-weight: bold;">Red light</span> means you are being loaded.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>5.</strong> The light will go back to <span style="color: #4CAF50; font-weight: bold;">green</span> when loading is complete.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>6.</strong> You will receive an email notification when your load is ready.</p>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `;
+  }
+
   private getStatusChangeTemplate(
     driverName: string,
     referenceNumber: string,
@@ -183,6 +290,7 @@ class EmailService {
       turned_away: '#FF9800',
       driver_left: '#9E9E9E',
       unloaded: '#4CAF50',
+      loaded: '#4CAF50',
     };
 
     const statusLabels: Record<string, string> = {
@@ -191,6 +299,7 @@ class EmailService {
       turned_away: 'Turned Away',
       driver_left: 'Driver Left',
       unloaded: 'Unloaded',
+      loaded: 'Loaded',
     };
 
     const color = statusColors[newStatus] || '#2196F3';
@@ -213,7 +322,7 @@ class EmailService {
                   <!-- Header -->
                   <tr>
                     <td style="background-color: ${color}; padding: 30px; text-align: center;">
-                      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">📋 Load Status Update</h1>
+                      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Status Update</h1>
                     </td>
                   </tr>
                   
@@ -234,7 +343,9 @@ class EmailService {
                         </tr>
                       </table>
                       
-                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0;">Thank you for choosing 307 Logistics!</p>
+                      ${newStatus === 'unloaded' || newStatus === 'loaded' ? `
+                      <p style="font-size: 16px; color: #333333; margin: 30px 0 0; text-align: center; font-weight: bold;">Please proceed to the office to collect your paperwork.</p>
+                      ` : ''}
                     </td>
                   </tr>
                   
@@ -255,23 +366,33 @@ class EmailService {
     };
   }
 
+  async sendEmail(options: EmailOptions): Promise<void> {
+    try {
+      await this.transporter.sendMail({
+        from: process.env.EMAIL_FROM || 'noreply@307logistics.com',
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        text: options.text,
+      });
+    } catch (error) {
+      console.error('Error sending email:', error);
+      throw error;
+    }
+  }
+
   async sendCheckInConfirmation(
     to: string,
     driverName: string,
     checkInTime: string,
-    referenceNumber: string,
+    referenceNumber: string
   ): Promise<void> {
     const template = this.getCheckInConfirmationTemplate(
       driverName,
       checkInTime,
-      referenceNumber,
+      referenceNumber
     );
-
-    await this.sendEmail({
-      to,
-      subject: template.subject,
-      html: template.html,
-    });
+    await this.sendEmail({ to, ...template });
   }
 
   async sendDockAssignment(
@@ -279,20 +400,21 @@ class EmailService {
     driverName: string,
     dockNumber: string,
     referenceNumber: string,
-    appointmentTime?: string
+    loadType: 'inbound' | 'outbound',
+    checkInTime: string,
+    appointmentTime?: string,
+    appointmentStatus?: string
   ): Promise<void> {
     const template = this.getDockAssignmentTemplate(
       driverName,
       dockNumber,
       referenceNumber,
-      appointmentTime
+      loadType,
+      checkInTime,
+      appointmentTime,
+      appointmentStatus
     );
-
-    await this.sendEmail({
-      to,
-      subject: template.subject,
-      html: template.html,
-    });
+    await this.sendEmail({ to, ...template });
   }
 
   async sendStatusChange(
@@ -310,51 +432,8 @@ class EmailService {
       newStatus,
       notes
     );
-
-    await this.sendEmail({
-      to,
-      subject: template.subject,
-      html: template.html,
-    });
-  }
-
-  async sendEmail(options: EmailOptions): Promise<void> {
-    try {
-      await this.transporter.sendMail({
-        from: `${process.env.EMAIL_FROM_NAME || '307 Logistics'} <${process.env.EMAIL_USER}>`,
-        to: options.to,
-        subject: options.subject,
-        html: options.html,
-        text: options.text,
-      });
-      console.log(`Email sent successfully to ${options.to}`);
-    } catch (error) {
-      console.error('Error sending email:', error);
-      throw new Error(`Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  async verifyConnection(): Promise<boolean> {
-    try {
-      await this.transporter.verify();
-      console.log('Email server connection verified');
-      return true;
-    } catch (error) {
-      console.error('Email server connection failed:', error);
-      return false;
-    }
+    await this.sendEmail({ to, ...template });
   }
 }
 
-// Export singleton instance
-const emailService = new EmailService();
-export default emailService;
-
-// Also export the class for testing purposes
-export { EmailService };
-
-// Export the sendEmail function
-export async function sendEmail(options: EmailOptions) {
-  return emailService.sendEmail(options);
-}
-
+export default EmailService;
