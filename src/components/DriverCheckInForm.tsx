@@ -303,7 +303,7 @@ export default function DriverCheckInForm() {
     setSuccess(false);
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   setLoading(true);
   setError(null);
@@ -345,65 +345,78 @@ export default function DriverCheckInForm() {
       return;
     }
 
-    // Submit to database
-    const { data: checkInData, error: dbError } = await supabase
+    const now = new Date();
+    const checkInTimestamp = now.toISOString();
+
+    console.log('=== CHECK-IN SUBMISSION ===');
+    console.log('Timestamp being saved:', checkInTimestamp);
+    console.log('As Date object:', now);
+    console.log('===========================');
+
+    // Insert the check-in record with the timestamp
+    const { data: checkInData, error: checkInError } = await supabase
       .from('check_ins')
-      .insert([{
-        driver_name: formData.driverName,
-        driver_phone: formData.driverPhone,
-        driver_email: formData.driverEmail,
-        carrier_name: formData.carrierName,
-        trailer_number: formData.trailerNumber,
-        trailer_length: formData.trailerLength,
-        reference_number: formData.referenceNumber,
-        load_type: formData.loadType,
-        destination_city: formData.destinationCity,
-        destination_state: formData.destinationState,
-        email_consent: formData.emailConsent,
-        status: 'pending',
-      }])
+      .insert([
+        {
+          driver_name: formData.driverName.trim(),
+          driver_phone: formData.driverPhone.replace(/\D/g, ''),
+          driver_email: formData.driverEmail.trim().toLowerCase(),
+          carrier_name: formData.carrierName.trim(),
+          trailer_number: formData.trailerNumber.trim().toUpperCase(),
+          trailer_length: formData.trailerLength,
+          reference_number: formData.referenceNumber.trim().toUpperCase(),
+          load_type: formData.loadType,
+          destination_city: formData.destinationCity.trim(),
+          destination_state: formData.destinationState,
+          status: 'pending',
+          check_in_time: checkInTimestamp, // **THIS IS THE KEY LINE**
+          email_consent: formData.emailConsent,
+        },
+      ])
       .select()
       .single();
 
-    if (dbError) {
-      console.error('Database error:', dbError);
-      throw new Error(dbError.message || 'Failed to save check-in');
+    if (checkInError) {
+      console.error('Supabase insert error:', checkInError);
+      throw new Error(`Failed to create check-in: ${checkInError.message}`);
     }
 
-    console.log('✓ Check-in saved to database:', checkInData);
+    console.log('Check-in created successfully:', checkInData);
 
-    // Send confirmation email
-    console.log('Attempting to send email...');
-    const emailResult = await triggerCheckInEmail({
-      driverEmail: formData.driverEmail,
-      driverName: formData.driverName,
-      carrierName: formData.carrierName,
-      trailerNumber: formData.trailerNumber,
-      referenceNumber: formData.referenceNumber,
-      destinationCity: formData.destinationCity,
-      destinationState: formData.destinationState,
-      loadType: formData.loadType,
-      checkInTime: new Date().toISOString(),
-    });
-
-    if (!emailResult.success) {
-      console.error('Email failed:', emailResult.error);
-      setError(`Check-in successful, but email failed: ${emailResult.error}`);
-    } else {
-      console.log('✓ Email sent successfully');
+    // Trigger email notification
+    try {
+      await triggerCheckInEmail({
+        driverName: formData.driverName,
+        carrierName: formData.carrierName,
+        referenceNumber: formData.referenceNumber,
+        loadType: formData.loadType,
+        driverEmail: formData.driverEmail,
+      });
+      console.log('Email notification sent');
+    } catch (emailError) {
+      console.error('Email notification failed:', emailError);
+      // Don't fail the check-in if email fails
     }
 
     setSuccess(true);
-    setTimeout(resetForm, 3000);
+    
+    // Reset form after showing success message
+    setTimeout(() => {
+      resetForm();
+    }, 3000);
 
   } catch (err) {
-    console.error('Check-in error:', err);
-    setError(err instanceof Error ? err.message : 'An error occurred during check-in');
+    console.error('Check-in submission error:', err);
+    setError(
+      err instanceof Error 
+        ? err.message 
+        : 'An error occurred while submitting your check-in. Please try again.'
+    );
+    setLocationStatus(null);
   } finally {
     setLoading(false);
   }
 };
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
