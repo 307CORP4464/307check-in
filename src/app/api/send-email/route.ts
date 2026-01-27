@@ -180,16 +180,11 @@ class EmailService {
   }
 
   private getInboundInstructions(): string {
-    return `<div style="margin: 20px 0;"><h3 style="color: #2196F3; margin: 0 0 15px; font-size: 20px;">📦 Unloading Instructions:</h3><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>1.</strong> Do NOT cut your seal.</p></td></tr><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>2.</strong> Slide your tandems to the back.</p></td></tr><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>3.</strong> Back into the assigned dock.</p></td></tr><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>4.</strong> Wait in your truck for further instructions.</p></td></tr></table></div>`;
+    return `<div style="margin: 20px 0;"><h3 style="color: #2196F3; margin: 0 0 15px; font-size: 20px;"> Unloading Instructions:</h3><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>1.</strong> Do NOT cut your seal.</p></td></tr><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>2.</strong> Slide your tandems to the back.</p></td></tr><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>3.</strong> Back into the assigned dock.</p></td></tr><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>4.</strong> Wait in your truck for further instructions.</p></td></tr></table></div>`;
   }
 
   private getOutboundInstructions(): string {
-    return `<div style="margin: 20px 0;"><h3 style="color: #2196F3; margin: 0 0 15px; font-size: 20px;">🚚 Loading Instructions:</h3><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>1.</strong> Back into the assigned dock.</p></td></tr><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>2.</strong> Ensure your trailer is empty and clean.</p></td></tr><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>3.</strong> Wait in your truck during loading.</p></td></tr></table></div>`;
+    return `<div style="margin: 20px 0;"><h3 style="color: #2196F3; margin: 0 0 15px; font-size: 20px;"> Loading Instructions:</h3><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>1.</strong> Back into the assigned dock.</p></td></tr><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>2.</strong> Ensure your trailer is empty and clean.</p></td></tr><tr><td style="padding: 8px 0;"><p style="margin: 0; font-size: 15px; color: #333333;"><strong>3.</strong> Wait in your truck during loading.</p></td></tr></table></div>`;
   }
 }
 
-// ============================================
-// EXPORT - VERY IMPORTANT!
-// ============================================
-export const emailService = new EmailService();
-export default EmailService;
