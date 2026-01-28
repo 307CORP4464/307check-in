@@ -75,7 +75,8 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   return appointmentTime;
 };
 
-const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
+
+   const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
   // Handle special appointment types first
   if (appointmentTime === 'work_in' || appointmentTime === 'Work In') return 'Work In';
   
@@ -91,26 +92,30 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
       let date: Date;
       
-      // Check if date is in MM/DD/YYYY format (from your database)
+      // Check if date is in MM/DD/YYYY format
       if (appointmentDate.includes('/')) {
         const [month, day, year] = appointmentDate.split('/').map(Number);
         date = new Date(year, month - 1, day);
-      } else {
-        // Otherwise try ISO format
+      } 
+      // Check if date is in YYYY-MM-DD format (ISO date only, no time)
+      else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = appointmentDate.split('-').map(Number);
+        // Create date in local timezone, not UTC
+        date = new Date(year, month - 1, day);
+      }
+      // Otherwise try ISO format with time
+      else {
         date = new Date(appointmentDate);
       }
       
       // Validate the date
       if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
         // Format the date to MM/DD/YYYY
-        const dateFormatter = new Intl.DateTimeFormat('en-US', {
-          timeZone: TIMEZONE,
-          month: '2-digit',
-          day: '2-digit',
-          year: 'numeric'
-        });
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const year = date.getFullYear();
         
-        formattedDate = dateFormatter.format(date);
+        formattedDate = `${month}/${day}/${year}`;
       }
     }
     
@@ -138,6 +143,7 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
 };
+
 
 const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
   if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'LTL') {
