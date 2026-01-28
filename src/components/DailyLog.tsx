@@ -76,24 +76,11 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
 };
 
 const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
-  // DEBUG - Log what we receive
-  console.log('🔍 formatAppointmentDateTime INPUT:', { 
-    appointmentDate, 
-    appointmentTime,
-    dateType: typeof appointmentDate,
-    timeType: typeof appointmentTime
-  });
-
   // Handle special appointment types first
-  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
-    console.log('✅ Returning Work In');
-    return 'Work In';
-  }
+  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') return 'Work In';
   
-  // If no date and no time, return N/A
-  if ((!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') && 
-      (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined')) {
-    console.log('❌ No date or time, returning N/A');
+  // If no time at all, return N/A
+  if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
     return 'N/A';
   }
   
@@ -104,17 +91,13 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
       let date: Date;
       
-      console.log('📅 Processing date:', appointmentDate);
-      
       // Check if date is in MM/DD/YYYY format (from your database)
       if (appointmentDate.includes('/')) {
         const [month, day, year] = appointmentDate.split('/').map(Number);
         date = new Date(year, month - 1, day);
-        console.log('📅 Parsed MM/DD/YYYY format:', date);
       } else {
         // Otherwise try ISO format
         date = new Date(appointmentDate);
-        console.log('📅 Parsed ISO format:', date);
       }
       
       // Validate the date
@@ -128,75 +111,35 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
         });
         
         formattedDate = dateFormatter.format(date);
-        console.log('✅ Formatted date:', formattedDate);
-      } else {
-        console.log('❌ Invalid date object');
       }
-    } else {
-      console.log('⚠️ No appointment date provided');
     }
     
-    // Format the time if available
+    // Format the time
     const formattedTime = formatAppointmentTime(appointmentTime);
-    console.log('⏰ Formatted time:', formattedTime);
+    
+    // **NEW LOGIC**: If no date, use the check-in date as fallback
+    if (!formattedDate) {
+      // We don't have the check-in date here, so just return time
+      return formattedTime !== 'N/A' ? formattedTime : 'N/A';
+    }
     
     // Combine date and time
     if (formattedDate && formattedTime && formattedTime !== 'N/A') {
-      const result = `${formattedDate}, ${formattedTime}`;
-      console.log('✅ FINAL RESULT (date + time):', result);
-      return result;
+      return `${formattedDate}, ${formattedTime}`;
     } else if (formattedDate) {
-      console.log('✅ FINAL RESULT (date only):', formattedDate);
       return formattedDate;
     } else if (formattedTime && formattedTime !== 'N/A') {
-      console.log('✅ FINAL RESULT (time only):', formattedTime);
       return formattedTime;
     }
     
-    console.log('❌ Falling back to N/A');
     return 'N/A';
   } catch (error) {
-    console.error('💥 Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
+    console.error('Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
     const formattedTime = formatAppointmentTime(appointmentTime);
     return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
 };
 
-
- const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
-  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'LTL') {
-    return false;
-  }
-  
-  try {
-    if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-      const appointmentHour = parseInt(appointmentTime.substring(0, 2));
-      const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
-      
-      const checkInDate = new Date(checkInTime);
-      const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: TIMEZONE,
-        hour: 'numeric',
-        minute: 'numeric',
-        hour12: false
-      });
-      
-      const timeString = formatter.format(checkInDate);
-      const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
-      
-      const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-      const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
-      
-      const difference = checkInTotalMinutes - appointmentTotalMinutes;
-      
-      return difference <= 15;
-    }
-  } catch (error) {
-    console.error('Error in isOnTime:', error);
-  }
-  
-  return false;
-};
 
 
 interface CheckIn {
@@ -636,10 +579,18 @@ return (
 
        {/* ✅ APPOINTMENT DATE & TIME - With conditional highlighting */}
 <td className="px-4 py-3 whitespace-nowrap text-sm">
-        {(() => {
-          if (!checkIn.appointment_time) {
-            return <span className="text-gray-600">N/A</span>;
-          }
+  {(() => {
+    // DEBUG - Add this temporarily
+    console.log('CheckIn data:', {
+      id: checkIn.id,
+      appointment_date: checkIn.appointment_date,
+      appointment_time: checkIn.appointment_time,
+      reference_number: checkIn.reference_number
+    });
+
+    if (!checkIn.appointment_time) {
+      return <span className="text-gray-600">N/A</span>;
+    }
 
           const checkInDate = new Date(checkIn.check_in_time);
           const checkInDateOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
@@ -672,13 +623,12 @@ return (
             label = `${Math.abs(dayDifference)} DAY(S) LATE`;
           }
 
-    
     return (
-      <span className={`${bgColor} text-white px-2 py-1 rounded font-semibold`}>
-        {label && <span className="mr-1">[{label}]</span>}
-        {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
-      </span>
-    );
+  <span className={`${bgColor} text-white px-2 py-1 rounded font-semibold`}>
+    {label && <span className="mr-1">[{label}]</span>}
+    {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
+  </span>
+);
   })()}
 </td>
 
