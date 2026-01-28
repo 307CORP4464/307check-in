@@ -399,7 +399,7 @@ export default function DailyLog() {
     );
   }
   
-  return (
+return (
   <div className="min-h-screen bg-gray-50">
     {/* Header */}
     <div className="bg-white border-b shadow-sm">
@@ -461,212 +461,251 @@ export default function DailyLog() {
       </div>
     </div>
 
-      {/* Main Content */}
-      <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
-       {/* Date Selector, Search & Counters */}
-<div className="mb-6 flex gap-4 items-end max-w-7xl mx-auto">
-  <div>
-    <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">
-      Select Date
-    </label>
-    <input
-      id="date-select"
-      type="date"
-      value={selectedDate}
-      onChange={(e) => setSelectedDate(e.target.value)}
-      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-    />
-  </div>
-  
-  <div className="flex-1">
-    <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
-      Search by Reference Number
-    </label>
-    <input
-      id="search"
-      type="text"
-      placeholder="Enter reference number..."
-      value={searchTerm}
-      onChange={(e) => setSearchTerm(e.target.value)}
-      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-    />
-  </div>
-
-  {/* Counters */}
-  <div className="flex gap-4">
-    <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
-      <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">
-        Total Checked In
-      </div>
-      <div className="text-2xl font-bold text-blue-900">
-        {filteredCheckIns.length}
-      </div>
-    </div>
-    
-    <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-      <div className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">
-        Total Complete
-      </div>
-      <div className="text-2xl font-bold text-green-900">
-        {filteredCheckIns.filter(checkIn => checkIn.end_time).length}
-      </div>
-    </div>
-  </div>
-</div>
-
-        {/* Table - Full Width */}
-        <div className="bg-white rounded-lg shadow">
-          <table className="w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Driver Info
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Trailer Info
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Destination
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Reference #
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Dock
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Check-In Time
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Appointment Time
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  End Time
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Detention
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Notes
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-  {checkIns.map((checkIn) => (
-    <tr key={checkIn.id} className="hover:bg-gray-50">
-      {/* Type */}
-      <td className="px-4 py-3 whitespace-nowrap">
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          checkIn.load_type === 'inbound' 
-            ? 'bg-blue-100 text-blue-800' 
-            : 'bg-orange-100 text-orange-800'
-        }`}>
-          {checkIn.load_type === 'inbound' ? 'I' : 'O'}
-        </span>
-      </td>
-                    {/* Driver Info */}
-                    <td className="px-4 py-4 text-sm">
-                      <div className="font-bold text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
-                      <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
-                      <div className="text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
-                    </td>
-
-                    {/* Trailer Info */}
-                    <td className="px-4 py-4 text-sm text-gray-900">
-                      <div>{checkIn.trailer_number || 'N/A'}</div>
-                      <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
-                    </td>
-
-                    {/* Destination */}
-                    <td className="px-4 py-4 text-sm text-gray-900">
-                      {checkIn.destination_city && checkIn.destination_state
-                        ? `${checkIn.destination_city}, ${checkIn.destination_state}`
-                        : 'N/A'}
-                    </td>
-
-                    {/* Reference Number */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                      {checkIn.reference_number || 'N/A'}
-                    </td>
-
-                    {/* Dock */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {checkIn.dock_number || 'N/A'}
-                    </td>
-
-                      {/* Check-In Time */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatTimeInIndianapolis(checkIn.check_in_time)}
-                    </td>
-                      {/* Appointment Time */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      <span
-                        className={`${
-                          isOnTime(checkIn.check_in_time, checkIn.appointment_time)
-                            ? 'bg-green-100 text-green-800 px-2 py-1 rounded font-medium'
-                            : 'text-gray-900'
-                        }`}
-                      >
-                        {formatAppointmentDateTime(checkIn.appointment_time)}
-                      </span>
-                    </td>
-
-                    {/* End Time */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time) : '-'}
-                    </td>
-
-                    {/* Detention */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {calculateDetention(checkIn)}
-                    </td>
-
-                    {/* Notes */}
-                    <td className="px-4 py-4 text-sm text-gray-900 max-w-xs">
-                      <div className="line-clamp-2">{checkIn.notes || '-'}</div>
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(checkIn.status)}`}>
-                        {getStatusLabel(checkIn.status)}
-                      </span>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEdit(checkIn)}
-                          className="text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(checkIn)}
-                          className="text-green-600 hover:text-green-800 font-medium"
-                        >
-                          Status
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+    {/* Main Content */}
+    <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
+      {/* Date Selector, Search & Counters */}
+      <div className="mb-6 flex gap-4 items-end max-w-7xl mx-auto">
+        <div>
+          <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">
+            Select Date
+          </label>
+          <input
+            id="date-select"
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
         </div>
-      </main>
+        
+        <div className="flex-1">
+          <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+            Search by Reference Number
+          </label>
+          <input
+            id="search"
+            type="text"
+            placeholder="Enter reference number..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
 
+        {/* Counters */}
+        <div className="flex gap-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+            <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">
+              Total Checked In
+            </div>
+            <div className="text-2xl font-bold text-blue-900">
+              {filteredCheckIns.length}
+            </div>
+          </div>
+          
+          <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+            <div className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">
+              Total Complete
+            </div>
+            <div className="text-2xl font-bold text-green-900">
+              {filteredCheckIns.filter(checkIn => checkIn.end_time).length}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Table - Full Width */}
+      <div className="bg-white rounded-lg shadow">
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Type
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Driver Info
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Trailer Info
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Destination
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Reference #
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Dock
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Check-In Time
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Appointment Time
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                End Time
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Detention
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Notes
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {filteredCheckIns.map((checkIn) => (
+              <tr key={checkIn.id} className="hover:bg-gray-50">
+                {/* Type */}
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    checkIn.load_type === 'inbound' 
+                      ? 'bg-blue-100 text-blue-800' 
+                      : 'bg-orange-100 text-orange-800'
+                  }`}>
+                    {checkIn.load_type === 'inbound' ? 'I' : 'O'}
+                  </span>
+                </td>
+
+                {/* Driver Info */}
+                <td className="px-4 py-4 text-sm">
+                  <div className="font-bold text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
+                  <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
+                  <div className="text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
+                </td>
+
+                {/* Trailer Info */}
+                <td className="px-4 py-4 text-sm text-gray-900">
+                  <div>{checkIn.trailer_number || 'N/A'}</div>
+                  <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
+                </td>
+
+                {/* Destination */}
+                <td className="px-4 py-4 text-sm text-gray-900">
+                  {checkIn.destination || 'N/A'}
+                </td>
+
+                {/* Reference # */}
+                <td className="px-4 py-4 text-sm text-gray-900">
+                  {checkIn.reference_number || 'N/A'}
+                </td>
+
+                {/* Dock */}
+                <td className="px-4 py-4 text-sm text-gray-900">
+                  {checkIn.dock_number || 'N/A'}
+                </td>
+
+                {/* ✅ CHECK-IN TIME - When form was submitted */}
+                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                  {formatTimeInIndianapolis(checkIn.check_in_time, true)}
+                </td>
+
+                {/* ✅ APPOINTMENT TIME - Formatted to match check-in time */}
+                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                  {(() => {
+                    if (!checkIn.appointment_time) {
+                      return <span className="text-gray-600">N/A</span>;
+                    }
+
+                    const checkInDate = new Date(checkIn.check_in_time);
+                    const checkInDateOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
+                    
+                    let appointmentDateOnly: Date;
+                    if (checkIn.appointment_date) {
+                      const aptDate = new Date(checkIn.appointment_date);
+                      appointmentDateOnly = new Date(aptDate.getFullYear(), aptDate.getMonth(), aptDate.getDate());
+                    } else {
+                      appointmentDateOnly = checkInDateOnly;
+                    }
+                    
+                    const dayDifference = Math.floor((appointmentDateOnly.getTime() - checkInDateOnly.getTime()) / (1000 * 60 * 60 * 24));
+                    const onTime = isOnTime(checkIn.check_in_time, checkIn.appointment_time);
+                    
+                    let bgColor = 'bg-gray-500';
+                    let label = '';
+                    
+                    if (dayDifference === 0 && onTime) {
+                      bgColor = 'bg-green-500';
+                      label = '';
+                    } else if (dayDifference === 0 && !onTime) {
+                      bgColor = 'bg-red-500';
+                      label = 'LATE';
+                    } else if (dayDifference > 0) {
+                      bgColor = 'bg-orange-500';
+                      label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
+                    } else if (dayDifference < 0) {
+                      bgColor = 'bg-yellow-500';
+                      label = `${Math.abs(dayDifference)} DAY(S) LATE`;
+                    }
+
+                    return (
+                      <div className="flex flex-col gap-1">
+                        <div className="font-medium">
+                          {formatTimeInIndianapolis(checkIn.appointment_time, true)}
+                        </div>
+                        {label && (
+                          <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-bold text-white ${bgColor}`}>
+                            {label}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </td>
+
+                {/* End Time */}
+                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                  {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time, true) : 'In Progress'}
+                </td>
+
+                {/* Detention */}
+                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                  {checkIn.detention_time || 'N/A'}
+                </td>
+
+                {/* Notes */}
+                <td className="px-4 py-3 text-sm">
+                  {checkIn.notes || 'N/A'}
+                </td>
+
+                {/* Status */}
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    checkIn.end_time
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {checkIn.end_time ? 'Complete' : 'In Progress'}
+                  </span>
+                </td>
+
+                {/* Actions */}
+                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                  <button
+                    onClick={() => handleEdit(checkIn)}
+                    className="text-blue-600 hover:text-blue-900 font-medium"
+                  >
+                    Edit
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+);
+
+
+  
       {/* Modals */}
       {selectedForStatusChange && (
         <StatusChangeModal
