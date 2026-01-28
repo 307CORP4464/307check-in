@@ -9,6 +9,7 @@ import EditCheckInModal from './EditCheckInModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
+// Update the formatTimeInIndianapolis function to match the appointment format
 const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
   try {
     const utcDate = new Date(isoString);
@@ -16,34 +17,29 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
     const options: Intl.DateTimeFormatOptions = {
       timeZone: TIMEZONE,
       hour12: false,
-      ...(includeDate && {
-        month: '2-digit',
-        day: '2-digit',
-      }),
       hour: '2-digit',
       minute: '2-digit',
     };
     
+    if (includeDate) {
+      options.month = '2-digit';
+      options.day = '2-digit';
+      options.year = 'numeric';
+    }
+    
     const formatter = new Intl.DateTimeFormat('en-US', options);
-    return formatter.format(utcDate);
+    const formatted = formatter.format(utcDate);
+    
+    // If includeDate is true, return in format: MM/DD/YYYY HH:mm
+    // If false, return just: HH:mm
+    return formatted;
   } catch (e) {
     console.error('Time formatting error:', e);
     return '-';
   }
 };
 
-const formatPhoneNumber = (phone: string | undefined): string => {
-  if (!phone) return 'N/A';
-  
-  const cleaned = phone.replace(/\D/g, '');
-  
-  if (cleaned.length === 10) {
-    return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
-  }
-  
-  return phone;
-};
-
+// Update formatAppointmentTime to match the check-in format
 const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
   if (!appointmentTime) return 'N/A';
   
@@ -52,6 +48,7 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
   if (appointmentTime === 'ltl') return 'LTL';
   
+  // Format 4-digit time to HH:mm (matching check-in format)
   if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
     const hours = appointmentTime.substring(0, 2);
     const minutes = appointmentTime.substring(2, 4);
@@ -61,40 +58,58 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   return appointmentTime;
 };
 
-const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
-  if (!appointmentTime || 
-      appointmentTime === 'work_in' || 
-      appointmentTime === 'paid_to_load' || 
-      appointmentTime === 'paid_charge_customer' ||
-      appointmentTime === 'ltl') {
-    return false;
-  }
-
-  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-    const appointmentHour = parseInt(appointmentTime.substring(0, 2));
-    const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
-    
-    const checkInDate = new Date(checkInTime);
-    
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: false
-    });
-    
-    const timeString = formatter.format(checkInDate);
-    const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
-    
-    const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-    const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
-    
-    const difference = checkInTotalMinutes - appointmentTotalMinutes;
-    return difference <= 0;
+// Add a new function to format appointment with date (if needed)
+const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
+  // Handle special appointment types
+  if (appointmentTime === 'work_in') return 'Work In';
+  if (appointmentTime === 'paid_to_load') return 'Paid - No Appt';
+  if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
+  if (appointmentTime === 'ltl') return 'LTL';
+  
+  // If no date provided, just show time
+  if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
+    return formatAppointmentTime(appointmentTime);
   }
   
-  return false;
+  try {
+    let date: Date;
+    
+    // Parse MM/DD/YYYY format
+    if (appointmentDate.includes('/')) {
+      const [month, day, year] = appointmentDate.split('/').map(Number);
+      date = new Date(year, month - 1, day);
+    } else {
+      date = new Date(appointmentDate);
+    }
+    
+    // Validate date
+    if (isNaN(date.getTime()) || date.getFullYear() < 2000) {
+      return formatAppointmentTime(appointmentTime);
+    }
+    
+    // Format date to MM/DD/YYYY
+    const dateFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: TIMEZONE,
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric'
+    });
+    
+    const formattedDate = dateFormatter.format(date);
+    const formattedTime = formatAppointmentTime(appointmentTime);
+    
+    // Return in format: MM/DD/YYYY HH:mm (matching check-in format)
+    if (formattedTime && formattedTime !== 'N/A') {
+      return `${formattedDate} ${formattedTime}`;
+    }
+    
+    return formattedDate;
+  } catch (error) {
+    console.error('Error formatting appointment date/time:', error);
+    return formatAppointmentTime(appointmentTime);
+  }
 };
+
 
 const calculateDetention = (checkIn: CheckIn): string => {
   if (!checkIn.appointment_time || !checkIn.end_time) {
@@ -106,8 +121,6 @@ const calculateDetention = (checkIn: CheckIn): string => {
   }
 
   if (checkIn.appointment_time === 'work_in' || 
-      checkIn.appointment_time === 'paid_to_load' || 
-      checkIn.appointment_time === 'paid_charge_customer' ||
       checkIn.appointment_time === 'ltl') {
     return '-';
   }
