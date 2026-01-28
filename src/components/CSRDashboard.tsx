@@ -12,7 +12,6 @@ const TIMEZONE = 'America/Indiana/Indianapolis';
 
 const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
   try {
-    // Add validation for empty or invalid strings
     if (!isoString || isoString === '' || isoString === 'null' || isoString === 'undefined') {
       console.error('Empty or invalid date string:', isoString);
       return 'No Check-in Time';
@@ -20,13 +19,11 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
 
     const date = new Date(isoString);
     
-    // Check if date is valid and not epoch
     if (isNaN(date.getTime()) || date.getTime() < 0) {
       console.error('Invalid date:', isoString);
       return 'Invalid Date';
     }
 
-    // Check if date is unreasonably old (before year 2000)
     if (date.getFullYear() < 2000) {
       console.error('Date too old, likely invalid:', isoString, date);
       return 'Invalid Date';
@@ -53,8 +50,6 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
   }
 };
 
-
-
 const formatPhoneNumber = (phone: string | undefined): string => {
   if (!phone) return 'N/A';
   
@@ -66,9 +61,27 @@ const formatPhoneNumber = (phone: string | undefined): string => {
   
   return phone;
 };
-// Add this new function to format appointment date and time together
+
+const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
+  if (!appointmentTime) return 'N/A';
+  
+  if (appointmentTime === 'work_in') return 'Work In';
+  if (appointmentTime === 'paid_to_load') return 'Paid to Load';
+  if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
+  if (appointmentTime === 'LTL' || appointmentTime === 'ltl') return 'LTL';
+  
+  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
+    const hours = appointmentTime.substring(0, 2);
+    const minutes = appointmentTime.substring(2, 4);
+    return `${hours}:${minutes}`;
+  }
+  
+  return appointmentTime;
+};
+
+// THIS MUST COME AFTER formatAppointmentTime
 const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
-  // Handle special appointment types
+  // Handle special appointment types first
   if (appointmentTime === 'work_in') return 'Work In';
   if (appointmentTime === 'paid_to_load') return 'Paid to Load';
   if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
@@ -80,16 +93,13 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
   }
   
   try {
-    // Parse the appointment date
     const date = new Date(appointmentDate);
     
-    // Validate the date
     if (isNaN(date.getTime()) || date.getFullYear() < 2000) {
       console.error('Invalid appointment date:', appointmentDate);
       return 'Invalid Date';
     }
     
-    // Format the date
     const dateFormatter = new Intl.DateTimeFormat('en-US', {
       timeZone: TIMEZONE,
       month: '2-digit',
@@ -112,8 +122,6 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     return 'Invalid Date';
   }
 };
-
-
 
 const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
   if (!appointmentTime || 
@@ -146,14 +154,6 @@ const isOnTime = (checkInTime: string, appointmentTime: string | null | undefine
       
       const difference = checkInTotalMinutes - appointmentTotalMinutes;
       
-      // Debug log
-      console.log('isOnTime check:', {
-        appointmentTime,
-        checkInTime: `${checkInHour}:${checkInMinute}`,
-        difference,
-        isOnTime: difference <= 15
-      });
-      
       return difference <= 15;
     }
   } catch (error) {
@@ -162,6 +162,9 @@ const isOnTime = (checkInTime: string, appointmentTime: string | null | undefine
   
   return false;
 };
+
+// Rest of your interfaces and component code continues here...
+
 
 interface CheckIn {
   id: string;
