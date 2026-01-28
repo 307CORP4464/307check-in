@@ -283,37 +283,81 @@ export default function DailyLog() {
   const [selectedForStatusChange, setSelectedForStatusChange] = useState<CheckIn | null>(null);
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
 
-  const fetchCheckInsForDate = async () => {
-    try {
-      setLoading(true);
-      
-      const startOfDayIndy = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
-      const endOfDayIndy = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
+ const fetchCheckInsForDate = async () => {
+  try {
+    setLoading(true);
+    
+    const startOfDayIndy = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
+    const endOfDayIndy = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
 
-      const { data, error } = await supabase
-        .from('check_ins')
-        .select('*')
-        .gte('check_in_time', startOfDayIndy.toISOString())
-        .lte('check_in_time', endOfDayIndy.toISOString())
-        .neq('status', 'pending')
-        .order('check_in_time', { ascending: false });
+    // Step 1: Fetch check-ins for the selected date
+    const { data: checkInsData, error: checkInsError } = await supabase
+      .from('check_ins')
+      .select('*')
+      .gte('check_in_time', startOfDayIndy.toISOString())
+      .lte('check_in_time', endOfDayIndy.toISOString())
+      .neq('status', 'pending')
+      .order('check_in_time', { ascending: false });
 
-      if (error) throw error;
-      
-      // DEBUG - Log the first record to see what fields we get
-      if (data && data.length > 0) {
-        console.log('📊 First check-in record from database:', data[0]);
-        console.log('📅 appointment_date field:', data[0].appointment_date);
-        console.log('⏰ appointment_time field:', data[0].appointment_time);
+    if (checkInsError) throw checkInsError;
+
+    // Step 2: Get reference numbers to look up appointments
+    const referenceNumbers = checkInsData
+      ?.map(ci => ci.reference_number)
+      .filter(ref => ref && ref.trim() !== '') || [];
+
+    let appointmentsMap = new Map();
+
+    // Step 3: Fetch appointment data from appointments table
+    if (referenceNumbers.length > 0) {
+      const { data: appointmentsData, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select('sales_order, delivery, appointment_time, appointment_date')
+        .or(`sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`);
+
+      if (appointmentsError) {
+        console.error('Error fetching appointments:', appointmentsError);
+      } else if (appointmentsData) {
+        appointmentsData.forEach(apt => {
+          const appointmentInfo = {
+            time: apt.appointment_time,
+            date: apt.appointment_date
+          };
+          if (apt.sales_order) {
+            appointmentsMap.set(apt.sales_order, appointmentInfo);
+          }
+          if (apt.delivery) {
+            appointmentsMap.set(apt.delivery, appointmentInfo);
+          }
+        });
       }
-      
-      setCheckIns(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
     }
-  };
+
+    // Step 4: Enrich check-ins with appointment data
+    const enrichedCheckIns = checkInsData?.map(checkIn => {
+      const appointmentInfo = appointmentsMap.get(checkIn.reference_number);
+      return {
+        ...checkIn,
+        appointment_time: appointmentInfo?.time || checkIn.appointment_time || null,
+        appointment_date: appointmentInfo?.date || checkIn.appointment_date || null
+      };
+    }) || [];
+
+    // DEBUG - Log the first record to see enriched data
+    if (enrichedCheckIns.length > 0) {
+      console.log('📊 First enriched check-in record:', enrichedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
+      console.log('📅 appointment_date field:', enrichedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_date);
+      console.log('⏰ appointment_time field:', enrichedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_time);
+    }
+    
+    setCheckIns(enrichedCheckIns);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'An error occurred');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     const getUser = async () => {
