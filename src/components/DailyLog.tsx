@@ -13,26 +13,38 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
   try {
     const utcDate = new Date(isoString);
     
-    const options: Intl.DateTimeFormatOptions = {
-      timeZone: TIMEZONE,
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-    };
-    
     if (includeDate) {
-      options.month = '2-digit';
-      options.day = '2-digit';
-      options.year = 'numeric';
+      // Format with date: MM/DD/YYYY HH:mm
+      const options: Intl.DateTimeFormatOptions = {
+        timeZone: TIMEZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      };
+      
+      const formatter = new Intl.DateTimeFormat('en-US', options);
+      return formatter.format(utcDate);
+    } else {
+      // Format time only: HH:mm
+      const options: Intl.DateTimeFormatOptions = {
+        timeZone: TIMEZONE,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      };
+      
+      const formatter = new Intl.DateTimeFormat('en-US', options);
+      return formatter.format(utcDate);
     }
-    
-    const formatter = new Intl.DateTimeFormat('en-US', options);
-    return formatter.format(utcDate);
   } catch (e) {
     console.error('Time formatting error:', e);
     return '-';
   }
 };
+
 
 const formatPhoneNumber = (phone: string | undefined): string => {
   if (!phone) return 'N/A';
