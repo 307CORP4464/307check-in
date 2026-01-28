@@ -141,7 +141,7 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
 
 
 
-  const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
+ const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
   if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'LTL') {
     return false;
   }
