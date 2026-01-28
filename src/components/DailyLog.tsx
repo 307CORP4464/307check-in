@@ -185,7 +185,7 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     return formattedDate;
   } catch (error) {
     console.error('Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
-    const formattedTime = formatAppointmentTime(appointmentTime);
+    const formattedTime = formatAppointmentDateTime(appointmentTime);
     return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
 };
