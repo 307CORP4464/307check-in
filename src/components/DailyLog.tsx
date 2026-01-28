@@ -383,10 +383,6 @@ export default function DailyLog() {
     return status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ');
   };
 
-  // ... continue with your JSX, but make sure to use getRowHighlight() in your table rows:
-  // <tr key={checkIn.id} className={getRowHighlight(checkIn)}>
-
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -673,7 +669,7 @@ export default function DailyLog() {
                             : 'text-gray-900'
                         }`}
                       >
-                        {formatAppointmentTime(checkIn.appointment_time)}
+                        {formatAppointmentDateTime(checkIn.appointment_time)}
                       </span>
                     </td>
 
