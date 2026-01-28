@@ -76,12 +76,24 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
 };
 
 const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
+  // DEBUG - Log what we receive
+  console.log('🔍 formatAppointmentDateTime INPUT:', { 
+    appointmentDate, 
+    appointmentTime,
+    dateType: typeof appointmentDate,
+    timeType: typeof appointmentTime
+  });
+
   // Handle special appointment types first
-  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') return 'Work In';
+  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
+    console.log('✅ Returning Work In');
+    return 'Work In';
+  }
   
   // If no date and no time, return N/A
   if ((!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') && 
       (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined')) {
+    console.log('❌ No date or time, returning N/A');
     return 'N/A';
   }
   
@@ -92,13 +104,17 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
       let date: Date;
       
+      console.log('📅 Processing date:', appointmentDate);
+      
       // Check if date is in MM/DD/YYYY format (from your database)
       if (appointmentDate.includes('/')) {
         const [month, day, year] = appointmentDate.split('/').map(Number);
         date = new Date(year, month - 1, day);
+        console.log('📅 Parsed MM/DD/YYYY format:', date);
       } else {
         // Otherwise try ISO format
         date = new Date(appointmentDate);
+        console.log('📅 Parsed ISO format:', date);
       }
       
       // Validate the date
@@ -112,28 +128,40 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
         });
         
         formattedDate = dateFormatter.format(date);
+        console.log('✅ Formatted date:', formattedDate);
+      } else {
+        console.log('❌ Invalid date object');
       }
+    } else {
+      console.log('⚠️ No appointment date provided');
     }
     
     // Format the time if available
     const formattedTime = formatAppointmentTime(appointmentTime);
+    console.log('⏰ Formatted time:', formattedTime);
     
     // Combine date and time
     if (formattedDate && formattedTime && formattedTime !== 'N/A') {
-      return `${formattedDate}, ${formattedTime}`;
+      const result = `${formattedDate}, ${formattedTime}`;
+      console.log('✅ FINAL RESULT (date + time):', result);
+      return result;
     } else if (formattedDate) {
+      console.log('✅ FINAL RESULT (date only):', formattedDate);
       return formattedDate;
     } else if (formattedTime && formattedTime !== 'N/A') {
+      console.log('✅ FINAL RESULT (time only):', formattedTime);
       return formattedTime;
     }
     
+    console.log('❌ Falling back to N/A');
     return 'N/A';
   } catch (error) {
-    console.error('Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
+    console.error('💥 Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
     const formattedTime = formatAppointmentTime(appointmentTime);
     return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
 };
+
 
  const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
   if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'LTL') {
