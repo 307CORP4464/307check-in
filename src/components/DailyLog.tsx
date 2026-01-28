@@ -690,15 +690,8 @@ export default function DailyLog() {
       <td className="px-4 py-3 whitespace-nowrap text-sm">
         {formatTimeInIndianapolis(checkIn.check_in_time, true)}
       </td>
-
-   {/* ✅ APPOINTMENT DATE & TIME - With conditional highlighting */}
-<td className="px-4 py-3 whitespace-nowrap text-sm">
+<td className="px-6 py-4">
   {(() => {
-    // If no appointment time, show N/A
-    if (!checkIn.appointment_time) {
-      return <span className="text-gray-600">N/A</span>;
-    }
-
     // Parse check-in date
     const checkInDate = new Date(checkIn.check_in_time);
     const checkInDateOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
@@ -749,6 +742,8 @@ export default function DailyLog() {
     );
   })()}
 </td>
+
+   
                     
                     {/* End Time */}
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
