@@ -66,9 +66,6 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   if (!appointmentTime) return 'N/A';
   
   if (appointmentTime === 'work_in') return 'Work In';
-  if (appointmentTime === 'paid_to_load') return 'Paid to Load';
-  if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
-  if (appointmentTime === 'LTL' || appointmentTime === 'ltl') return 'LTL';
   
   if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
     const hours = appointmentTime.substring(0, 2);
@@ -79,13 +76,10 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   return appointmentTime;
 };
 
-// THIS MUST COME AFTER formatAppointmentTime
+// Add this function after formatAppointmentTime in CSRDashboard.tsx
 const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
   // Handle special appointment types first
-  if (appointmentTime === 'work_in') return 'Work In';
-  if (appointmentTime === 'paid_to_load') return 'Paid to Load';
-  if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
-  if (appointmentTime === 'LTL' || appointmentTime === 'ltl') return 'LTL';
+  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') return 'Work In';
   
   // If no appointment date, just show time or N/A
   if (!appointmentDate) {
@@ -97,7 +91,7 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     
     if (isNaN(date.getTime()) || date.getFullYear() < 2000) {
       console.error('Invalid appointment date:', appointmentDate);
-      return 'Invalid Date';
+      return appointmentTime ? formatAppointmentTime(appointmentTime) : 'N/A';
     }
     
     const dateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -110,18 +104,19 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     const formattedDate = dateFormatter.format(date);
     
     // Format the time if available
-    if (appointmentTime && appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-      const hours = appointmentTime.substring(0, 2);
-      const minutes = appointmentTime.substring(2, 4);
-      return `${formattedDate} at ${hours}:${minutes}`;
+    const formattedTime = formatAppointmentTime(appointmentTime);
+    
+    if (formattedTime && formattedTime !== 'N/A') {
+      return `${formattedDate} at ${formattedTime}`;
     }
     
-    return `${formattedDate}${appointmentTime ? ' at ' + appointmentTime : ''}`;
+    return formattedDate;
   } catch (error) {
     console.error('Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
-    return 'Invalid Date';
+    return appointmentTime ? formatAppointmentTime(appointmentTime) : 'N/A';
   }
 };
+
 
 const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
   if (!appointmentTime || 
