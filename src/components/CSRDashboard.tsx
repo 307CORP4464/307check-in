@@ -96,7 +96,7 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     }
     
     // Create a date object combining date and time
-    const dateStr = appointmentDate.split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>; // Get just the date part
+    const dateStr = appointmentDate.split('T')[0];
     const combinedDateTime = new Date(`${dateStr}T${hours}:${minutes}:00`);
     
     // Validate the date
