@@ -66,23 +66,54 @@ const formatPhoneNumber = (phone: string | undefined): string => {
   
   return phone;
 };
-
-const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
-  if (!appointmentTime) return 'N/A';
-  
+// Add this new function to format appointment date and time together
+const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
+  // Handle special appointment types
   if (appointmentTime === 'work_in') return 'Work In';
   if (appointmentTime === 'paid_to_load') return 'Paid to Load';
   if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
   if (appointmentTime === 'LTL' || appointmentTime === 'ltl') return 'LTL';
   
-  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-    const hours = appointmentTime.substring(0, 2);
-    const minutes = appointmentTime.substring(2, 4);
-    return `${hours}:${minutes}`;
+  // If no appointment date, just show time or N/A
+  if (!appointmentDate) {
+    return appointmentTime ? formatAppointmentTime(appointmentTime) : 'N/A';
   }
   
-  return appointmentTime;
+  try {
+    // Parse the appointment date
+    const date = new Date(appointmentDate);
+    
+    // Validate the date
+    if (isNaN(date.getTime()) || date.getFullYear() < 2000) {
+      console.error('Invalid appointment date:', appointmentDate);
+      return 'Invalid Date';
+    }
+    
+    // Format the date
+    const dateFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: TIMEZONE,
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric'
+    });
+    
+    const formattedDate = dateFormatter.format(date);
+    
+    // Format the time if available
+    if (appointmentTime && appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
+      const hours = appointmentTime.substring(0, 2);
+      const minutes = appointmentTime.substring(2, 4);
+      return `${formattedDate} at ${hours}:${minutes}`;
+    }
+    
+    return `${formattedDate}${appointmentTime ? ' at ' + appointmentTime : ''}`;
+  } catch (error) {
+    console.error('Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
+    return 'Invalid Date';
+  }
 };
+
+
 
 const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
   if (!appointmentTime || 
