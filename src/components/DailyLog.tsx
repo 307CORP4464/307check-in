@@ -565,64 +565,32 @@ export default function DailyLog() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredCheckIns.length === 0 ? (
-                <tr>
-                  <td colSpan={13} className="px-4 py-8 text-center text-gray-500">
-                    No check-ins found for this date
-                  </td>
-                </tr>
-              ) : (
-                filteredCheckIns.map((checkIn) => (
-                  <tr key={checkIn.id} className="hover:bg-gray-50">
-                    {/* Type */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      <span
-                        className={`px-3 py-1 rounded text-sm font-medium ${
-                          checkIn.load_type === 'inbound'
-                            ? 'bg-orange-100 text-orange-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}
-                      >
-                        {checkIn.load_type === 'inbound' ? 'I' : 'O'}
-                      </span>
-                    </td>
+  {checkIns.map((checkIn) => (
+    <tr key={checkIn.id} className="hover:bg-gray-50">
+      {/* Type */}
+      <td className="px-4 py-3 whitespace-nowrap">
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          checkIn.load_type === 'inbound' 
+            ? 'bg-blue-100 text-blue-800' 
+            : 'bg-orange-100 text-orange-800'
+        }`}>
+          {checkIn.load_type === 'inbound' ? 'I' : 'O'}
+        </span>
+      </td>
 
-                    {/* Driver Info */}
-                    <td className="px-4 py-4 text-sm">
-                      <div className="font-bold text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
-                      <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
-                      <div className="text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
-                    </td>
-
-                    {/* Trailer Info */}
-                    <td className="px-4 py-4 text-sm text-gray-900">
-                      <div>{checkIn.trailer_number || 'N/A'}</div>
-                      <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
-                    </td>
-
-                    {/* Destination */}
-                    <td className="px-4 py-4 text-sm text-gray-900">
-                      {checkIn.destination_city && checkIn.destination_state
-                        ? `${checkIn.destination_city}, ${checkIn.destination_state}`
-                        : 'N/A'}
-                    </td>
-
-                    {/* Reference Number */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                      {checkIn.reference_number || 'N/A'}
-                    </td>
-
-                    {/* Dock */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {checkIn.dock_number || 'N/A'}
-                    </td>
-                    
- {/* ✅ CHECK-IN TIME - When form was submitted */}
+      {/* ✅ CHECK-IN TIME - When form was submitted */}
       <td className="px-4 py-3 whitespace-nowrap text-sm">
         {formatTimeInIndianapolis(checkIn.check_in_time, true)}
       </td>
-<td className="px-6 py-4">
+
+   {/* ✅ APPOINTMENT DATE & TIME - With conditional highlighting */}
+<td className="px-4 py-3 whitespace-nowrap text-sm">
   {(() => {
+    // If no appointment time, show N/A
+    if (!checkIn.appointment_time) {
+      return <span className="text-gray-600">N/A</span>;
+    }
+
     // Parse check-in date
     const checkInDate = new Date(checkIn.check_in_time);
     const checkInDateOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
@@ -652,30 +620,63 @@ export default function DailyLog() {
       bgColor = 'bg-green-500';
       label = '';
     } else if (dayDifference === 0 && !onTime) {
-      // Same day but late - Red
       bgColor = 'bg-red-500';
       label = 'LATE';
     } else if (dayDifference > 0) {
-      // Future date - Orange
       bgColor = 'bg-orange-500';
       label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
     } else if (dayDifference < 0) {
       // Past date - Red
-      bgColor = 'bg-red-500';
-      label = 'LATE';
+      bgColor = 'bg-yellow-500';
+      label = 'DAY(S) LATE';
     }
-    
-    return (
-      <span className={`${bgColor} text-white px-2 py-1 rounded font-semibold`}>
-        {label && <span className="mr-1">[{label}]</span>}
-        {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
-      </span>
-    );
-  })()}
-</td>
+                    {/* Driver Info */}
+                    <td className="px-4 py-4 text-sm">
+                      <div className="font-bold text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
+                      <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
+                      <div className="text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
+                    </td>
 
-   
-                    
+                    {/* Trailer Info */}
+                    <td className="px-4 py-4 text-sm text-gray-900">
+                      <div>{checkIn.trailer_number || 'N/A'}</div>
+                      <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
+                    </td>
+
+                    {/* Destination */}
+                    <td className="px-4 py-4 text-sm text-gray-900">
+                      {checkIn.destination_city && checkIn.destination_state
+                        ? `${checkIn.destination_city}, ${checkIn.destination_state}`
+                        : 'N/A'}
+                    </td>
+
+                    {/* Reference Number */}
+                    <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                      {checkIn.reference_number || 'N/A'}
+                    </td>
+
+                    {/* Dock */}
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {checkIn.dock_number || 'N/A'}
+                    </td>
+
+                      {/* Check-In Time */}
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatTimeInIndianapolis(checkIn.check_in_time)}
+                    </td>
+                      {/* Appointment Time */}
+                    <td className="px-4 py-4 whitespace-nowrap text-sm">
+                      <span
+                        className={`${
+                          isOnTime(checkIn.check_in_time, checkIn.appointment_time)
+                            ? 'bg-green-100 text-green-800 px-2 py-1 rounded font-medium'
+                            : 'text-gray-900'
+                        }`}
+                      >
+                        {formatAppointmentTime(checkIn.appointment_time)}
+                      </span>
+                    </td>
+
                     {/* End Time */}
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                       {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time) : '-'}
