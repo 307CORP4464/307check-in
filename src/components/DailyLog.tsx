@@ -612,8 +612,8 @@ return (
         {formatTimeInIndianapolis(checkIn.check_in_time, true)}
       </td>
 
-      {/* ✅ APPOINTMENT TIME - Formatted to match check-in time */}
-      <td className="px-4 py-3 whitespace-nowrap text-sm">
+       {/* ✅ APPOINTMENT DATE & TIME - With conditional highlighting */}
+<td className="px-4 py-3 whitespace-nowrap text-sm">
         {(() => {
           if (!checkIn.appointment_time) {
             return <span className="text-gray-600">N/A</span>;
@@ -650,20 +650,15 @@ return (
             label = `${Math.abs(dayDifference)} DAY(S) LATE`;
           }
 
-          return (
-            <div className="flex flex-col gap-1">
-              <div className="font-medium">
-                {formatTimeInIndianapolis(checkIn.appointment_time, true)}
-              </div>
-              {label && (
-                <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-bold text-white ${bgColor}`}>
-                  {label}
-                </span>
-              )}
-            </div>
-          );
-        })()}
-      </td>
+    
+    return (
+      <span className={`${bgColor} text-white px-2 py-1 rounded font-semibold`}>
+        {label && <span className="mr-1">[{label}]</span>}
+        {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
+      </span>
+    );
+  })()}
+</td>
 
       {/* End Time */}
       <td className="px-4 py-3 whitespace-nowrap text-sm">
