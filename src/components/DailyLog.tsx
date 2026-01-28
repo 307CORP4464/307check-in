@@ -8,6 +8,7 @@ import StatusChangeModal from './StatusChangeModal';
 import EditCheckInModal from './EditCheckInModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
+
 const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
   try {
     if (!isoString || isoString === '' || isoString === 'null' || isoString === 'undefined') {
