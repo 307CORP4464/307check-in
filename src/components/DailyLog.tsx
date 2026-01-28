@@ -45,7 +45,6 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
   }
 };
 
-
 const formatPhoneNumber = (phone: string | undefined): string => {
   if (!phone) return 'N/A';
   
@@ -149,10 +148,29 @@ const isOnTime = (checkInTime: string, appointmentTime: string | null | undefine
     const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
     
     const difference = checkInTotalMinutes - appointmentTotalMinutes;
-    return difference <= 0;
+    return difference <= 15;
   }
   
   return false;
+};
+
+// Helper function to get row highlight color based on on-time status
+const getRowHighlight = (checkIn: CheckIn): string => {
+  if (!checkIn.appointment_time || 
+      checkIn.appointment_time === 'work_in' || 
+      checkIn.appointment_time === 'paid_to_load' || 
+      checkIn.appointment_time === 'paid_charge_customer' ||
+      checkIn.appointment_time === 'ltl') {
+    return ''; // No highlight for special appointment types
+  }
+
+  const onTime = isOnTime(checkIn.check_in_time, checkIn.appointment_time);
+  
+  if (onTime) {
+    return 'bg-green-50 hover:bg-green-100'; // Light green for on-time
+  } else {
+    return 'bg-red-50 hover:bg-red-100'; // Light red for late
+  }
 };
 
 interface CheckIn {
@@ -363,6 +381,10 @@ export default function DailyLog() {
     return status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ');
   };
 
+  // ... continue with your JSX, but make sure to use getRowHighlight() in your table rows:
+  // <tr key={checkIn.id} className={getRowHighlight(checkIn)}>
+
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -518,10 +540,10 @@ export default function DailyLog() {
                   Dock
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Appointment
+                  Check-In Time
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Check-In
+                  CAppointment Time
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   End Time
@@ -592,19 +614,17 @@ export default function DailyLog() {
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                       {checkIn.dock_number || 'N/A'}
                     </td>
-
-{/* In your table body where you display times */}
-<td className="px-4 py-2 text-sm">
-  {formatTimeInIndianapolis(checkIn.check_in_time, true)}
-</td>
-
+                    
 <td className="px-4 py-2 text-sm">
   {checkIn.appointment_date || checkIn.appointment_time 
     ? formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)
     : 'N/A'
   }
 </td>
-
+{/* In your table body where you display times */}
+<td className="px-4 py-2 text-sm">
+  {formatTimeInIndianapolis(checkIn.check_in_time, true)}
+</td>
                     
                     {/* End Time */}
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
