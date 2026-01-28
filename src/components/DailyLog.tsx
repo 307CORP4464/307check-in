@@ -8,19 +8,172 @@ import StatusChangeModal from './StatusChangeModal';
 import EditCheckInModal from './EditCheckInModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
-
- {/* ✅ CHECK-IN TIME - When form was submitted */}
-      <td className="px-4 py-3 whitespace-nowrap text-sm">
-        {formatTimeInIndianapolis(checkIn.check_in_time, true)}
-      </td>
-
-   {/* ✅ APPOINTMENT DATE & TIME - With conditional highlighting */}
-<td className="px-4 py-3 whitespace-nowrap text-sm">
-  {(() => {
-    // If no appointment time, show N/A
-    if (!checkIn.appointment_time) {
-      return <span className="text-gray-600">N/A</span>;
+const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
+  try {
+    if (!isoString || isoString === '' || isoString === 'null' || isoString === 'undefined') {
+      console.error('Empty or invalid date string:', isoString);
+      return 'No Check-in Time';
     }
+
+    const date = new Date(isoString);
+    
+    if (isNaN(date.getTime()) || date.getTime() < 0) {
+      console.error('Invalid date:', isoString);
+      return 'Invalid Date';
+    }
+
+    if (date.getFullYear() < 2000) {
+      console.error('Date too old, likely invalid:', isoString, date);
+      return 'Invalid Date';
+    }
+    
+    const options: Intl.DateTimeFormatOptions = {
+      timeZone: TIMEZONE,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    };
+    
+    if (includeDate) {
+      options.year = 'numeric';
+      options.month = '2-digit';
+      options.day = '2-digit';
+    }
+    
+    const formatter = new Intl.DateTimeFormat('en-US', options);
+    return formatter.format(date);
+  } catch (e) {
+    console.error('Time formatting error:', e, isoString);
+    return 'Error';
+  }
+};
+
+const formatPhoneNumber = (phone: string | undefined): string => {
+  if (!phone) return 'N/A';
+  
+  const cleaned = phone.replace(/\D/g, '');
+  
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+  }
+  
+  return phone;
+};
+
+const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
+  if (!appointmentTime) return 'N/A';
+  
+  if (appointmentTime === 'work_in') return 'Work In';
+  
+  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
+    const hours = appointmentTime.substring(0, 2);
+    const minutes = appointmentTime.substring(2, 4);
+    return `${hours}:${minutes}`;
+  }
+  
+  return appointmentTime;
+};
+
+const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
+  // Handle special appointment types first
+  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') return 'Work In';
+  
+  // Add debug logging
+  console.log('formatAppointmentDateTime called with:', { appointmentDate, appointmentTime });
+  
+  // If no date, try to show just the time
+  if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
+    const formattedTime = formatAppointmentTime(appointmentTime);
+    return formattedTime !== 'N/A' ? formattedTime : 'N/A';
+  }
+  
+  try {
+    let date: Date;
+    
+    // Check if date is in MM/DD/YYYY format (from your database)
+    if (appointmentDate.includes('/')) {
+      const [month, day, year] = appointmentDate.split('/').map(Number);
+      date = new Date(year, month - 1, day);
+    } else {
+      // Otherwise try ISO format
+      date = new Date(appointmentDate);
+    }
+    
+    // Validate the date
+    if (isNaN(date.getTime())) {
+      console.error('Invalid date object from:', appointmentDate);
+      const formattedTime = formatAppointmentTime(appointmentTime);
+      return formattedTime !== 'N/A' ? formattedTime : 'N/A';
+    }
+    
+    if (date.getFullYear() < 2000) {
+      console.error('Date too old:', appointmentDate, date);
+      const formattedTime = formatAppointmentTime(appointmentTime);
+      return formattedTime !== 'N/A' ? formattedTime : 'N/A';
+    }
+    
+    // Format the date to match check-in format
+    const dateFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: TIMEZONE,
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric'
+    });
+    
+    const formattedDate = dateFormatter.format(date);
+    
+    // Format the time if available
+    const formattedTime = formatAppointmentTime(appointmentTime);
+    
+    // Combine date and time - remove "at" to match check-in format
+    if (formattedTime && formattedTime !== 'N/A') {
+      return `${formattedDate} ${formattedTime}`;
+    }
+    
+    return formattedDate;
+  } catch (error) {
+    console.error('Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
+    const formattedTime = formatAppointmentTime(appointmentTime);
+    return formattedTime !== 'N/A' ? formattedTime : 'N/A';
+  }
+};
+
+
+  const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
+  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'LTL') {
+    return false;
+  }
+  
+  try {
+    if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
+      const appointmentHour = parseInt(appointmentTime.substring(0, 2));
+      const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
+      
+      const checkInDate = new Date(checkInTime);
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: TIMEZONE,
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false
+      });
+      
+      const timeString = formatter.format(checkInDate);
+      const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
+      
+      const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
+      const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
+      
+      const difference = checkInTotalMinutes - appointmentTotalMinutes;
+      
+      return difference <= 15;
+    }
+  } catch (error) {
+    console.error('Error in isOnTime:', error);
+  }
+  
+  return false;
+};
+ 
 
     // Parse check-in date
     const checkInDate = new Date(checkIn.check_in_time);
