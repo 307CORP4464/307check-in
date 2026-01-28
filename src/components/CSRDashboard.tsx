@@ -80,40 +80,57 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
   // Handle special appointment types first
   if (appointmentTime === 'work_in' || appointmentTime === 'Work In') return 'Work In';
   
-  // If no appointment date or time, return N/A
-  if (!appointmentDate || !appointmentTime || appointmentTime === 'N/A') {
-    return 'N/A';
+  // Add debug logging
+  console.log('formatAppointmentDateTime called with:', { appointmentDate, appointmentTime });
+  
+  // If no date, try to show just the time
+  if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
+    const formattedTime = formatAppointmentTime(appointmentTime);
+    return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
   
   try {
-    // Parse appointment time (assuming format like "1430" = 14:30)
-    let hours = '00';
-    let minutes = '00';
-    
-    if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-      hours = appointmentTime.substring(0, 2);
-      minutes = appointmentTime.substring(2, 4);
-    }
-    
-    // Create a date object combining date and time
-    const dateStr = appointmentDate.split('T')[0];
-    const combinedDateTime = new Date(`${dateStr}T${hours}:${minutes}:00`);
+    // Try to parse the date
+    const date = new Date(appointmentDate);
     
     // Validate the date
-    if (isNaN(combinedDateTime.getTime()) || combinedDateTime.getFullYear() < 2000) {
-      console.error('Invalid appointment date:', appointmentDate);
-      return 'N/A';
+    if (isNaN(date.getTime())) {
+      console.error('Invalid date object from:', appointmentDate);
+      const formattedTime = formatAppointmentTime(appointmentTime);
+      return formattedTime !== 'N/A' ? formattedTime : 'N/A';
     }
     
-    // Use the same formatting as check-in time
-    return formatTimeInIndianapolis(combinedDateTime.toISOString(), true);
+    if (date.getFullYear() < 2000) {
+      console.error('Date too old:', appointmentDate, date);
+      const formattedTime = formatAppointmentTime(appointmentTime);
+      return formattedTime !== 'N/A' ? formattedTime : 'N/A';
+    }
+    
+    // Format the date
+    const dateFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: TIMEZONE,
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric'
+    });
+    
+    const formattedDate = dateFormatter.format(date);
+    
+    // Format the time if available
+    const formattedTime = formatAppointmentTime(appointmentTime);
+    
+    // Combine date and time
+    if (formattedTime && formattedTime !== 'N/A') {
+      return `${formattedDate} ${formattedTime}`;
+    }
+    
+    return formattedDate;
   } catch (error) {
     console.error('Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
-    return 'N/A';
+    const formattedTime = formatAppointmentTime(appointmentTime);
+    return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
 };
-
-
 
   const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
   if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'LTL') {
@@ -150,7 +167,6 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
   return false;
 };
 
-// Rest of your interfaces and component code continues here...
 
 
 interface CheckIn {
@@ -267,58 +283,67 @@ export default function CSRDashboard() {
     }
   };
 
-  const fetchCheckIns = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const { data: checkInsData, error: checkInsError } = await supabase
-        .from('check_ins')
-        .select('*')
-        .eq('status', 'pending')
-        .order('check_in_time', { ascending: true });
+const fetchCheckIns = async () => {
+  try {
+    setLoading(true);
+    setError(null);
+    
+    const { data: checkInsData, error: checkInsError } = await supabase
+      .from('check_ins')
+      .select('*')
+      .eq('status', 'pending')
+      .order('check_in_time', { ascending: true });
 
-      if (checkInsError) throw checkInsError;
+    if (checkInsError) throw checkInsError;
 
-      const referenceNumbers = checkInsData
-        ?.map(ci => ci.reference_number)
-        .filter(ref => ref && ref.trim() !== '') || [];
+    const referenceNumbers = checkInsData
+      ?.map(ci => ci.reference_number)
+      .filter(ref => ref && ref.trim() !== '') || [];
 
-      let appointmentsMap = new Map();
+    let appointmentsMap = new Map();
 
-      if (referenceNumbers.length > 0) {
-        const { data: appointmentsData, error: appointmentsError } = await supabase
-          .from('appointments')
-          .select('sales_order, delivery, appointment_time')
-          .or(`sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`);
+    if (referenceNumbers.length > 0) {
+      const { data: appointmentsData, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select('sales_order, delivery, appointment_time, appointment_date')
+        .or(`sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`);
 
-        if (appointmentsError) {
-          console.error('Error fetching appointments:', appointmentsError);
-        } else if (appointmentsData) {
-          appointmentsData.forEach(apt => {
-            if (apt.sales_order) {
-              appointmentsMap.set(apt.sales_order, apt.appointment_time);
-            }
-            if (apt.delivery) {
-              appointmentsMap.set(apt.delivery, apt.appointment_time);
-            }
-          });
-        }
+      if (appointmentsError) {
+        console.error('Error fetching appointments:', appointmentsError);
+      } else if (appointmentsData) {
+        appointmentsData.forEach(apt => {
+          const appointmentInfo = {
+            time: apt.appointment_time,
+            date: apt.appointment_date
+          };
+          if (apt.sales_order) {
+            appointmentsMap.set(apt.sales_order, appointmentInfo);
+          }
+          if (apt.delivery) {
+            appointmentsMap.set(apt.delivery, appointmentInfo);
+          }
+        });
       }
-
-      const enrichedCheckIns = checkInsData?.map(checkIn => ({
-        ...checkIn,
-        appointment_time: appointmentsMap.get(checkIn.reference_number) || checkIn.appointment_time || null
-      })) || [];
-
-      setCheckIns(enrichedCheckIns);
-    } catch (err) {
-      console.error('Fetch error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
     }
-  };
+
+    const enrichedCheckIns = checkInsData?.map(checkIn => {
+      const appointmentInfo = appointmentsMap.get(checkIn.reference_number);
+      return {
+        ...checkIn,
+        appointment_time: appointmentInfo?.time || checkIn.appointment_time || null,
+        appointment_date: appointmentInfo?.date || checkIn.appointment_date || null
+      };
+    }) || [];
+
+    setCheckIns(enrichedCheckIns);
+  } catch (err) {
+    console.error('Fetch error:', err);
+    setError('Failed to fetch check-ins');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleLogout = async () => {
     try {
