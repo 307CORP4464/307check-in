@@ -560,150 +560,149 @@ return (
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredCheckIns.map((checkIn) => (
-              <tr key={checkIn.id} className="hover:bg-gray-50">
-                {/* Type */}
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    checkIn.load_type === 'inbound' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-orange-100 text-orange-800'
-                  }`}>
-                    {checkIn.load_type === 'inbound' ? 'I' : 'O'}
-                  </span>
-                </td>
+          
+<tbody className="bg-white divide-y divide-gray-200">
+  {filteredCheckIns.map((checkIn) => (
+    <tr key={checkIn.id} className="hover:bg-gray-50">
+      {/* Type */}
+      <td className="px-4 py-3 whitespace-nowrap">
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          checkIn.load_type === 'inbound' 
+            ? 'bg-blue-100 text-blue-800' 
+            : 'bg-orange-100 text-orange-800'
+        }`}>
+          {checkIn.load_type === 'inbound' ? 'I' : 'O'}
+        </span>
+      </td>
 
-                {/* Driver Info */}
-                <td className="px-4 py-4 text-sm">
-                  <div className="font-bold text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
-                  <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
-                  <div className="text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
-                </td>
+      {/* Driver Info */}
+      <td className="px-4 py-4 text-sm">
+        <div className="font-bold text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
+        <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
+        <div className="text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
+      </td>
 
-                {/* Trailer Info */}
-                <td className="px-4 py-4 text-sm text-gray-900">
-                  <div>{checkIn.trailer_number || 'N/A'}</div>
-                  <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
-                </td>
+      {/* Trailer Info */}
+      <td className="px-4 py-4 text-sm text-gray-900">
+        <div>{checkIn.trailer_number || 'N/A'}</div>
+        <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
+      </td>
 
-                {/* Destination */}
-                <td className="px-4 py-4 text-sm text-gray-900">
-                  {checkIn.destination || 'N/A'}
-                </td>
+      {/* Destination */}
+      <td className="px-4 py-4 text-sm text-gray-900">
+        {checkIn.destination || 'N/A'}
+      </td>
 
-                {/* Reference # */}
-                <td className="px-4 py-4 text-sm text-gray-900">
-                  {checkIn.reference_number || 'N/A'}
-                </td>
+      {/* Reference # */}
+      <td className="px-4 py-4 text-sm text-gray-900">
+        {checkIn.reference_number || 'N/A'}
+      </td>
 
-                {/* Dock */}
-                <td className="px-4 py-4 text-sm text-gray-900">
-                  {checkIn.dock_number || 'N/A'}
-                </td>
+      {/* Dock */}
+      <td className="px-4 py-4 text-sm text-gray-900">
+        {checkIn.dock_number || 'N/A'}
+      </td>
 
-                {/* ✅ CHECK-IN TIME - When form was submitted */}
-                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                  {formatTimeInIndianapolis(checkIn.check_in_time, true)}
-                </td>
+      {/* ✅ CHECK-IN TIME - When form was submitted */}
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        {formatTimeInIndianapolis(checkIn.check_in_time, true)}
+      </td>
 
-                {/* ✅ APPOINTMENT TIME - Formatted to match check-in time */}
-                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                  {(() => {
-                    if (!checkIn.appointment_time) {
-                      return <span className="text-gray-600">N/A</span>;
-                    }
+      {/* ✅ APPOINTMENT TIME - Formatted to match check-in time */}
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        {(() => {
+          if (!checkIn.appointment_time) {
+            return <span className="text-gray-600">N/A</span>;
+          }
 
-                    const checkInDate = new Date(checkIn.check_in_time);
-                    const checkInDateOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
-                    
-                    let appointmentDateOnly: Date;
-                    if (checkIn.appointment_date) {
-                      const aptDate = new Date(checkIn.appointment_date);
-                      appointmentDateOnly = new Date(aptDate.getFullYear(), aptDate.getMonth(), aptDate.getDate());
-                    } else {
-                      appointmentDateOnly = checkInDateOnly;
-                    }
-                    
-                    const dayDifference = Math.floor((appointmentDateOnly.getTime() - checkInDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-                    const onTime = isOnTime(checkIn.check_in_time, checkIn.appointment_time);
-                    
-                    let bgColor = 'bg-gray-500';
-                    let label = '';
-                    
-                    if (dayDifference === 0 && onTime) {
-                      bgColor = 'bg-green-500';
-                      label = '';
-                    } else if (dayDifference === 0 && !onTime) {
-                      bgColor = 'bg-red-500';
-                      label = 'LATE';
-                    } else if (dayDifference > 0) {
-                      bgColor = 'bg-orange-500';
-                      label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
-                    } else if (dayDifference < 0) {
-                      bgColor = 'bg-yellow-500';
-                      label = `${Math.abs(dayDifference)} DAY(S) LATE`;
-                    }
+          const checkInDate = new Date(checkIn.check_in_time);
+          const checkInDateOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
+          
+          let appointmentDateOnly: Date;
+          if (checkIn.appointment_date) {
+            const aptDate = new Date(checkIn.appointment_date);
+            appointmentDateOnly = new Date(aptDate.getFullYear(), aptDate.getMonth(), aptDate.getDate());
+          } else {
+            appointmentDateOnly = checkInDateOnly;
+          }
+          
+          const dayDifference = Math.floor((appointmentDateOnly.getTime() - checkInDateOnly.getTime()) / (1000 * 60 * 60 * 24));
+          const onTime = isOnTime(checkIn.check_in_time, checkIn.appointment_time);
+          
+          let bgColor = 'bg-gray-500';
+          let label = '';
+          
+          if (dayDifference === 0 && onTime) {
+            bgColor = 'bg-green-500';
+            label = '';
+          } else if (dayDifference === 0 && !onTime) {
+            bgColor = 'bg-red-500';
+            label = 'LATE';
+          } else if (dayDifference > 0) {
+            bgColor = 'bg-orange-500';
+            label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
+          } else if (dayDifference < 0) {
+            bgColor = 'bg-yellow-500';
+            label = `${Math.abs(dayDifference)} DAY(S) LATE`;
+          }
 
-                    return (
-                      <div className="flex flex-col gap-1">
-                        <div className="font-medium">
-                          {formatTimeInIndianapolis(checkIn.appointment_time, true)}
-                        </div>
-                        {label && (
-                          <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-bold text-white ${bgColor}`}>
-                            {label}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })()} {
-                </td>
+          return (
+            <div className="flex flex-col gap-1">
+              <div className="font-medium">
+                {formatTimeInIndianapolis(checkIn.appointment_time, true)}
+              </div>
+              {label && (
+                <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-xs font-bold text-white ${bgColor}`}>
+                  {label}
+                </span>
+              )}
+            </div>
+          );
+        })()}
+      </td>
 
-                {/* End Time */}
-                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                  {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time, true) : 'In Progress'}
-                </td>
+      {/* End Time */}
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time, true) : (
+          <span className="text-yellow-600 font-medium">In Progress</span>
+        )}
+      </td>
 
-                {/* Detention */}
-                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                  {checkIn.detention_time || 'N/A'}
-                </td>
+      {/* Detention */}
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        {checkIn.detention_time || 'N/A'}
+      </td>
 
-                {/* Notes */}
-                <td className="px-4 py-3 text-sm">
-                  {checkIn.notes || 'N/A'}
-                </td>
+      {/* Notes */}
+      <td className="px-4 py-3 text-sm max-w-xs">
+        <div className="truncate" title={checkIn.notes || ''}>
+          {checkIn.notes || 'N/A'}
+        </div>
+      </td>
 
-                {/* Status */}
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    checkIn.end_time
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {checkIn.end_time ? 'Complete' : 'In Progress'}
-                  </span>
-                </td>
+      {/* Status */}
+      <td className="px-4 py-3 whitespace-nowrap">
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          checkIn.end_time
+            ? 'bg-green-100 text-green-800'
+            : 'bg-yellow-100 text-yellow-800'
+        }`}>
+          {checkIn.end_time ? 'Complete' : 'In Progress'}
+        </span>
+      </td>
 
-                {/* Actions */}
-                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                  <button
-                    onClick={() => handleEdit(checkIn)}
-                    className="text-blue-600 hover:text-blue-900 font-medium"
-                  >
-                    Edit
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </main>
-  </div>
-);
-
+      {/* Actions */}
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        <button
+          onClick={() => handleEdit(checkIn)}
+          className="text-blue-600 hover:text-blue-900 font-medium"
+        >
+          Edit
+        </button>
+      </td>
+    </tr>
+  ))}
+</tbody>
 
   
       {/* Modals */}
