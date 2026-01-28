@@ -117,9 +117,8 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     // Format the time
     const formattedTime = formatAppointmentTime(appointmentTime);
     
-    // **NEW LOGIC**: If no date, use the check-in date as fallback
+    // If no date, just return time
     if (!formattedDate) {
-      // We don't have the check-in date here, so just return time
       return formattedTime !== 'N/A' ? formattedTime : 'N/A';
     }
     
@@ -139,39 +138,41 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
 };
-const fetchCheckInsForDate = async () => {
-  try {
-    setLoading(true);
-    
-    const startOfDayIndy = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
-    const endOfDayIndy = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
 
-    const { data, error } = await supabase
-      .from('check_ins')
-      .select('*')
-      .gte('check_in_time', startOfDayIndy.toISOString())
-      .lte('check_in_time', endOfDayIndy.toISOString())
-      .neq('status', 'pending')
-      .order('check_in_time', { ascending: false });
-
-    if (error) throw error;
-    
-    // DEBUG - Log the first record to see what fields we get
-    if (data && data.length > 0) {
-      console.log('📊 First check-in record from database:', data[0]);
-      console.log('📅 appointment_date field:', data[0].appointment_date);
-      console.log('⏰ appointment_time field:', data[0].appointment_time);
-    }
-    
-    setCheckIns(data || []);
-  } catch (err) {
-    setError(err instanceof Error ? err.message : 'An error occurred');
-  } finally {
-    setLoading(false);
+const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
+  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'LTL') {
+    return false;
   }
+  
+  try {
+    if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
+      const appointmentHour = parseInt(appointmentTime.substring(0, 2));
+      const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
+      
+      const checkInDate = new Date(checkInTime);
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: TIMEZONE,
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false
+      });
+      
+      const timeString = formatter.format(checkInDate);
+      const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
+      
+      const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
+      const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
+      
+      const difference = checkInTotalMinutes - appointmentTotalMinutes;
+      
+      return difference <= 15;
+    }
+  } catch (error) {
+    console.error('Error in isOnTime:', error);
+  }
+  
+  return false;
 };
-
-
 
 interface CheckIn {
   id: string;
@@ -298,6 +299,14 @@ export default function DailyLog() {
         .order('check_in_time', { ascending: false });
 
       if (error) throw error;
+      
+      // DEBUG - Log the first record to see what fields we get
+      if (data && data.length > 0) {
+        console.log('📊 First check-in record from database:', data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
+        console.log('📅 appointment_date field:', data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_date);
+        console.log('⏰ appointment_time field:', data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_time);
+      }
+      
       setCheckIns(data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -396,7 +405,8 @@ export default function DailyLog() {
       </div>
     );
   }
-  
+
+
 return (
   <div className="min-h-screen bg-gray-50">
     {/* Header */}
