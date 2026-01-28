@@ -121,10 +121,6 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
 const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
   if (!appointmentTime || 
       appointmentTime === 'work_in' || 
-      appointmentTime === 'paid_to_load' || 
-      appointmentTime === 'paid_charge_customer' ||
-      appointmentTime === 'ltl' ||
-      appointmentTime === 'LTL') {
     return false;
   }
 
