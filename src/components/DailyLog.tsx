@@ -9,150 +9,69 @@ import EditCheckInModal from './EditCheckInModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
-const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
-  try {
-    const utcDate = new Date(isoString);
+ {/* ✅ CHECK-IN TIME - When form was submitted */}
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        {formatTimeInIndianapolis(checkIn.check_in_time, true)}
+      </td>
+
+   {/* ✅ APPOINTMENT DATE & TIME - With conditional highlighting */}
+<td className="px-4 py-3 whitespace-nowrap text-sm">
+  {(() => {
+    // If no appointment time, show N/A
+    if (!checkIn.appointment_time) {
+      return <span className="text-gray-600">N/A</span>;
+    }
+
+    // Parse check-in date
+    const checkInDate = new Date(checkIn.check_in_time);
+    const checkInDateOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
     
-    if (includeDate) {
-      // Format with date: MM/DD/YYYY HH:mm
-      const options: Intl.DateTimeFormatOptions = {
-        timeZone: TIMEZONE,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      };
-      
-      const formatter = new Intl.DateTimeFormat('en-US', options);
-      return formatter.format(utcDate);
+    // Parse appointment date
+    let appointmentDateOnly: Date;
+    if (checkIn.appointment_date) {
+      const aptDate = new Date(checkIn.appointment_date);
+      appointmentDateOnly = new Date(aptDate.getFullYear(), aptDate.getMonth(), aptDate.getDate());
     } else {
-      // Format time only: HH:mm
-      const options: Intl.DateTimeFormatOptions = {
-        timeZone: TIMEZONE,
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      };
-      
-      const formatter = new Intl.DateTimeFormat('en-US', options);
-      return formatter.format(utcDate);
-    }
-  } catch (e) {
-    console.error('Time formatting error:', e);
-    return '-';
-  }
-};
-
-const formatPhoneNumber = (phone: string | undefined): string => {
-  if (!phone) return 'N/A';
-  
-  const cleaned = phone.replace(/\D/g, '');
-  
-  if (cleaned.length === 10) {
-    return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
-  }
-  
-  return phone;
-};
-
-const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
-  if (!appointmentTime) return 'N/A';
-  
-  if (appointmentTime === 'work_in') return 'Work In';
-  if (appointmentTime === 'paid_to_load') return 'Paid - No Appt';
-  if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
-  if (appointmentTime === 'ltl') return 'LTL';
-  
-  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-    const hours = appointmentTime.substring(0, 2);
-    const minutes = appointmentTime.substring(2, 4);
-    return `${hours}:${minutes}`;
-  }
-  
-  return appointmentTime;
-};
-
-const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
-  if (appointmentTime === 'work_in') return 'Work In';
-  if (appointmentTime === 'paid_to_load') return 'Paid - No Appt';
-  if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
-  if (appointmentTime === 'ltl') return 'LTL';
-  
-  if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
-    return formatAppointmentTime(appointmentTime);
-  }
-  
-  try {
-    let date: Date;
-    
-    if (appointmentDate.includes('/')) {
-      const [month, day, year] = appointmentDate.split('/').map(Number);
-      date = new Date(year, month - 1, day);
-    } else {
-      date = new Date(appointmentDate);
+      // If no appointment_date, assume same day as check-in
+      appointmentDateOnly = checkInDateOnly;
     }
     
-    if (isNaN(date.getTime()) || date.getFullYear() < 2000) {
-      return formatAppointmentTime(appointmentTime);
+    // Calculate day difference
+    const dayDifference = Math.floor((appointmentDateOnly.getTime() - checkInDateOnly.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Check if on time (within 15 minutes of appointment time)
+    const onTime = isOnTime(checkIn.check_in_time, checkIn.appointment_time);
+    
+    // Determine color based on status
+    let bgColor = 'bg-gray-500'; // default for no appointment or past
+    let label = '';
+    
+    if (dayDifference === 0 && onTime) {
+      // Same day and on time - Green
+      bgColor = 'bg-green-500';
+      label = '';
+    } else if (dayDifference === 0 && !onTime) {
+      // Same day but late - Red
+      bgColor = 'bg-red-500';
+      label = 'LATE';
+    } else if (dayDifference > 0) {
+      // Future date - Orange
+      bgColor = 'bg-orange-500';
+      label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
+    } else if (dayDifference < 0) {
+      // Past date - Red
+      bgColor = 'bg-red-500';
+      label = 'LATE';
     }
     
-    const dateFormatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric'
-    });
-    
-    const formattedDate = dateFormatter.format(date);
-    const formattedTime = formatAppointmentTime(appointmentTime);
-    
-    if (formattedTime && formattedTime !== 'N/A') {
-      return `${formattedDate} ${formattedTime}`;
-    }
-    
-    return formattedDate;
-  } catch (error) {
-    console.error('Error formatting appointment date/time:', error);
-    return formatAppointmentTime(appointmentTime);
-  }
-};
-
-const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
-  if (!appointmentTime || 
-      appointmentTime === 'work_in' || 
-      appointmentTime === 'paid_to_load' || 
-      appointmentTime === 'paid_charge_customer' ||
-      appointmentTime === 'ltl') {
-    return false;
-  }
-
-  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-    const appointmentHour = parseInt(appointmentTime.substring(0, 2));
-    const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
-    
-    const checkInDate = new Date(checkInTime);
-    
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: false
-    });
-    
-    const timeString = formatter.format(checkInDate);
-    const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
-    
-    const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-    const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
-    
-    const difference = checkInTotalMinutes - appointmentTotalMinutes;
-    return difference <= 15;
-  }
-  
-  return false;
-};
+    return (
+      <span className={`${bgColor} text-white px-2 py-1 rounded font-semibold`}>
+        {label && <span className="mr-1">[{label}]</span>}
+        {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
+      </span>
+    );
+  })()}
+</td>
 
 // Helper function to get row highlight color based on on-time status
 const getRowHighlight = (checkIn: CheckIn): string => {
