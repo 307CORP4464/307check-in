@@ -173,76 +173,7 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
   
   return false;
 };
- 
 
-    // Parse check-in date
-    const checkInDate = new Date(checkIn.check_in_time);
-    const checkInDateOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
-    
-    // Parse appointment date
-    let appointmentDateOnly: Date;
-    if (checkIn.appointment_date) {
-      const aptDate = new Date(checkIn.appointment_date);
-      appointmentDateOnly = new Date(aptDate.getFullYear(), aptDate.getMonth(), aptDate.getDate());
-    } else {
-      // If no appointment_date, assume same day as check-in
-      appointmentDateOnly = checkInDateOnly;
-    }
-    
-    // Calculate day difference
-    const dayDifference = Math.floor((appointmentDateOnly.getTime() - checkInDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-    
-    // Check if on time (within 15 minutes of appointment time)
-    const onTime = isOnTime(checkIn.check_in_time, checkIn.appointment_time);
-    
-    // Determine color based on status
-    let bgColor = 'bg-gray-500'; // default for no appointment or past
-    let label = '';
-    
-    if (dayDifference === 0 && onTime) {
-      // Same day and on time - Green
-      bgColor = 'bg-green-500';
-      label = '';
-    } else if (dayDifference === 0 && !onTime) {
-      // Same day but late - Red
-      bgColor = 'bg-red-500';
-      label = 'LATE';
-    } else if (dayDifference > 0) {
-      // Future date - Orange
-      bgColor = 'bg-orange-500';
-      label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
-    } else if (dayDifference < 0) {
-      // Past date - Red
-      bgColor = 'bg-red-500';
-      label = 'LATE';
-    }
-    
-    return (
-      <span className={`${bgColor} text-white px-2 py-1 rounded font-semibold`}>
-        {label && <span className="mr-1">[{label}]</span>}
-        {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
-      </span>
-    );
-  })()}
-</td>
-
-// Helper function to get row highlight color based on on-time status
-const getRowHighlight = (checkIn: CheckIn): string => {
-  if (!checkIn.appointment_time || 
-      checkIn.appointment_time === 'work_in' || 
-      checkIn.appointment_time === 'paid_to_load' || 
-      checkIn.appointment_time === 'ltl') {
-    return ''; // No highlight for special appointment types
-  }
-
-  const onTime = isOnTime(checkIn.check_in_time, checkIn.appointment_time);
-  
-  if (onTime) {
-    return 'bg-green-50 hover:bg-green-100'; // Light green for on-time
-  } else {
-    return 'bg-red-50 hover:bg-red-100'; // Light red for late
-  }
-};
 
 interface CheckIn {
   id: string;
