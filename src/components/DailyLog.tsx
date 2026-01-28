@@ -88,7 +88,7 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
   
-  try {
+ try {
     let date: Date;
     
     // Check if date is in MM/DD/YYYY format (from your database)
@@ -138,6 +138,7 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
 };
+
 
 
   const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
