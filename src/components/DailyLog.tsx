@@ -345,9 +345,9 @@ export default function DailyLog() {
 
     // DEBUG - Log the first record to see enriched data
     if (enrichedCheckIns.length > 0) {
-      console.log('📊 First enriched check-in record:', enrichedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
-      console.log('📅 appointment_date field:', enrichedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_date);
-      console.log('⏰ appointment_time field:', enrichedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_time);
+      console.log('📊 First enriched check-in record:', enrichedCheckIns[0]);
+      console.log('📅 appointment_date field:', enrichedCheckIns[0].appointment_date);
+      console.log('⏰ appointment_time field:', enrichedCheckIns[0].appointment_time);
     }
     
     setCheckIns(enrichedCheckIns);
