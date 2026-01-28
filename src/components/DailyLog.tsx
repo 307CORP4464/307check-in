@@ -667,61 +667,62 @@ return (
       <td className="px-4 py-3 whitespace-nowrap text-sm">
         {formatTimeInIndianapolis(checkIn.check_in_time, true)}
       </td>
-
-       {/* ✅ APPOINTMENT DATE & TIME - With conditional highlighting */}
+{/* ✅ APPOINTMENT DATE & TIME - With conditional highlighting */}
 <td className="px-4 py-3 whitespace-nowrap text-sm">
   {(() => {
-    // DEBUG - Add this temporarily
-    console.log('CheckIn data:', {
-      id: checkIn.id,
-      appointment_date: checkIn.appointment_date,
-      appointment_time: checkIn.appointment_time,
-      reference_number: checkIn.reference_number
-    });
-
     if (!checkIn.appointment_time) {
       return <span className="text-gray-600">N/A</span>;
     }
 
-          const checkInDate = new Date(checkIn.check_in_time);
-          const checkInDateOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
-          
-          let appointmentDateOnly: Date;
-          if (checkIn.appointment_date) {
-            const aptDate = new Date(checkIn.appointment_date);
-            appointmentDateOnly = new Date(aptDate.getFullYear(), aptDate.getMonth(), aptDate.getDate());
-          } else {
-            appointmentDateOnly = checkInDateOnly;
-          }
-          
-          const dayDifference = Math.floor((appointmentDateOnly.getTime() - checkInDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-          const onTime = isOnTime(checkIn.check_in_time, checkIn.appointment_time);
-          
-          let bgColor = 'bg-gray-500';
-          let label = '';
-          
-          if (dayDifference === 0 && onTime) {
-            bgColor = 'bg-green-500';
-            label = '';
-          } else if (dayDifference === 0 && !onTime) {
-            bgColor = 'bg-red-500';
-            label = 'LATE';
-          } else if (dayDifference > 0) {
-            bgColor = 'bg-orange-500';
-            label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
-          } else if (dayDifference < 0) {
-            bgColor = 'bg-yellow-500';
-            label = `${Math.abs(dayDifference)} DAY(S) LATE`;
-          }
+    const checkInDate = new Date(checkIn.check_in_time);
+    const checkInDateOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
+    
+    let appointmentDateOnly: Date;
+    if (checkIn.appointment_date) {
+      // ✅ FIX: Parse YYYY-MM-DD format correctly (in local timezone)
+      if (checkIn.appointment_date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = checkIn.appointment_date.split('-').map(Number);
+        appointmentDateOnly = new Date(year, month - 1, day);
+      } else if (checkIn.appointment_date.includes('/')) {
+        const [month, day, year] = checkIn.appointment_date.split('/').map(Number);
+        appointmentDateOnly = new Date(year, month - 1, day);
+      } else {
+        const aptDate = new Date(checkIn.appointment_date);
+        appointmentDateOnly = new Date(aptDate.getFullYear(), aptDate.getMonth(), aptDate.getDate());
+      }
+    } else {
+      appointmentDateOnly = checkInDateOnly;
+    }
+    
+    const dayDifference = Math.floor((appointmentDateOnly.getTime() - checkInDateOnly.getTime()) / (1000 * 60 * 60 * 24));
+    const onTime = isOnTime(checkIn.check_in_time, checkIn.appointment_time);
+    
+    let bgColor = 'bg-gray-500';
+    let label = '';
+    
+    if (dayDifference === 0 && onTime) {
+      bgColor = 'bg-green-500';
+      label = '';
+    } else if (dayDifference === 0 && !onTime) {
+      bgColor = 'bg-red-500';
+      label = 'LATE';
+    } else if (dayDifference > 0) {
+      bgColor = 'bg-orange-500';
+      label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
+    } else if (dayDifference < 0) {
+      bgColor = 'bg-yellow-500';
+      label = `${Math.abs(dayDifference)} DAY${Math.abs(dayDifference) > 1 ? 'S' : ''} LATE`;
+    }
 
     return (
-  <span className={`${bgColor} text-white px-2 py-1 rounded font-semibold`}>
-    {label && <span className="mr-1">[{label}]</span>}
-    {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
-  </span>
-);
+      <span className={`${bgColor} text-white px-2 py-1 rounded font-semibold`}>
+        {label && <span className="mr-1">[{label}]</span>}
+        {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
+      </span>
+    );
   })()}
 </td>
+
 
       {/* End Time */}
       <td className="px-4 py-3 whitespace-nowrap text-sm">
