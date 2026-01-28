@@ -590,8 +590,10 @@ return (
 
       {/* Destination */}
       <td className="px-4 py-4 text-sm text-gray-900">
-        {checkIn.destination || 'N/A'}
-      </td>
+          {checkIn.destination_city && checkIn.destination_state
+           ? `${checkIn.destination_city}, ${checkIn.destination_state}`
+           : 'N/A'}
+       </td>
 
       {/* Reference # */}
       <td className="px-4 py-4 text-sm text-gray-900">
