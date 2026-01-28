@@ -82,11 +82,62 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
   // Add debug logging
   console.log('formatAppointmentDateTime called with:', { appointmentDate, appointmentTime });
   
-  // If no date, try to show just the time
-  if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
+  // If no date and no time, return N/A
+  if ((!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') && 
+      (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined')) {
+    return 'N/A';
+  }
+  
+  try {
+    let formattedDate = '';
+    
+    // Format the date if available
+    if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
+      let date: Date;
+      
+      // Check if date is in MM/DD/YYYY format (from your database)
+      if (appointmentDate.includes('/')) {
+        const [month, day, year] = appointmentDate.split('/').map(Number);
+        date = new Date(year, month - 1, day);
+      } else {
+        // Otherwise try ISO format
+        date = new Date(appointmentDate);
+      }
+      
+      // Validate the date
+      if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
+        // Format the date to MM/DD/YYYY
+        const dateFormatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: TIMEZONE,
+          month: '2-digit',
+          day: '2-digit',
+          year: 'numeric'
+        });
+        
+        formattedDate = dateFormatter.format(date);
+      }
+    }
+    
+    // Format the time if available
+    const formattedTime = formatAppointmentTime(appointmentTime);
+    
+    // Combine date and time
+    if (formattedDate && formattedTime && formattedTime !== 'N/A') {
+      return `${formattedDate}, ${formattedTime}`;
+    } else if (formattedDate) {
+      return formattedDate;
+    } else if (formattedTime && formattedTime !== 'N/A') {
+      return formattedTime;
+    }
+    
+    return 'N/A';
+  } catch (error) {
+    console.error('Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
     const formattedTime = formatAppointmentTime(appointmentTime);
     return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
+};
+
   
  try {
     let date: Date;
