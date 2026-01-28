@@ -156,8 +156,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
               >
                 <option value="">Select...</option>
                 <option value="work_in">Work In</option>
-                <option value="paid_to_load">Paid - No Appt</option>
-                <option value="paid_charge_customer">Paid - Charge Customer</option>
                 <option value="LTL">LTL</option>
                 <option value="0800">08:00</option>
                 <option value="0900">09:00</option>
