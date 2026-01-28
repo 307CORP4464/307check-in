@@ -90,8 +90,16 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
   }
   
   try {
-    // Try to parse the date
-    const date = new Date(appointmentDate);
+    let date: Date;
+    
+    // Check if date is in MM/DD/YYYY format (from your database)
+    if (appointmentDate.includes('/')) {
+      const [month, day, year] = appointmentDate.split('/').map(Number);
+      date = new Date(year, month - 1, day);
+    } else {
+      // Otherwise try ISO format
+      date = new Date(appointmentDate);
+    }
     
     // Validate the date
     if (isNaN(date.getTime())) {
@@ -106,7 +114,7 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
       return formattedTime !== 'N/A' ? formattedTime : 'N/A';
     }
     
-    // Format the date
+    // Format the date to match check-in format
     const dateFormatter = new Intl.DateTimeFormat('en-US', {
       timeZone: TIMEZONE,
       month: '2-digit',
@@ -119,7 +127,7 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     // Format the time if available
     const formattedTime = formatAppointmentTime(appointmentTime);
     
-    // Combine date and time
+    // Combine date and time - remove "at" to match check-in format
     if (formattedTime && formattedTime !== 'N/A') {
       return `${formattedDate} ${formattedTime}`;
     }
@@ -131,6 +139,7 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
 };
+
 
   const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
   if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'LTL') {
