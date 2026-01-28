@@ -520,44 +520,29 @@ const fetchCheckIns = async () => {
 <td className="px-4 py-3 whitespace-nowrap text-sm">
   {checkIn.appointment_time && isOnTime(checkIn.check_in_time, checkIn.appointment_time) ? (
     <>
-      {/* Check if appointment is same day or future date */}
-      {new Date(checkIn.appointment_time).toDateString() === new Date(checkIn.check_in_time).toDateString() ? (
-        // Same day appointment - Green highlight
-        <span className="bg-green-500 text-white px-2 py-1 rounded font-semibold">
-          {new Date(checkIn.appointment_time).toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric' 
-          })}
-          {' at '}
-          {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
-        </span>
-      ) : (
-        // Future date appointment - Orange highlight
-        <span className="bg-orange-500 text-white px-2 py-1 rounded font-semibold">
-          {new Date(checkIn.appointment_time).toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric' 
-          })}
-          {' at '}
-          {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
-        </span>
-      )}
+      {/* Determine if same day or future */}
+      {(() => {
+        const checkInDate = new Date(checkIn.check_in_time);
+        const appointmentDate = checkIn.appointment_date ? new Date(checkIn.appointment_date) : checkInDate;
+        const isSameDay = checkInDate.toDateString() === appointmentDate.toDateString();
+        
+        return isSameDay ? (
+          // Same day appointment - Green highlight
+          <span className="bg-green-500 text-white px-2 py-1 rounded font-semibold">
+            {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
+          </span>
+        ) : (
+          // Future date appointment - Orange highlight
+          <span className="bg-orange-500 text-white px-2 py-1 rounded font-semibold">
+            {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
+          </span>
+        );
+      })()}
     </>
   ) : (
     // Not on time or no appointment
     <span className="text-gray-600">
-      {checkIn.appointment_time ? (
-        <>
-          {new Date(checkIn.appointment_time).toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric' 
-          })}
-          {' at '}
-          {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
-        </>
-      ) : (
-        'N/A'
-      )}
+      {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
     </span>
   )}
 </td>
