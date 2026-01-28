@@ -76,46 +76,43 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   return appointmentTime;
 };
 
-// Add this function after formatAppointmentTime in CSRDashboard.tsx
 const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
   // Handle special appointment types first
   if (appointmentTime === 'work_in' || appointmentTime === 'Work In') return 'Work In';
   
-  // If no appointment date, just show time or N/A
-  if (!appointmentDate) {
-    return appointmentTime ? formatAppointmentTime(appointmentTime) : 'N/A';
+  // If no appointment date or time, return N/A
+  if (!appointmentDate || !appointmentTime || appointmentTime === 'N/A') {
+    return 'N/A';
   }
   
   try {
-    const date = new Date(appointmentDate);
+    // Parse appointment time (assuming format like "1430" = 14:30)
+    let hours = '00';
+    let minutes = '00';
     
-    if (isNaN(date.getTime()) || date.getFullYear() < 2000) {
+    if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
+      hours = appointmentTime.substring(0, 2);
+      minutes = appointmentTime.substring(2, 4);
+    }
+    
+    // Create a date object combining date and time
+    const dateStr = appointmentDate.split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>; // Get just the date part
+    const combinedDateTime = new Date(`${dateStr}T${hours}:${minutes}:00`);
+    
+    // Validate the date
+    if (isNaN(combinedDateTime.getTime()) || combinedDateTime.getFullYear() < 2000) {
       console.error('Invalid appointment date:', appointmentDate);
-      return appointmentTime ? formatAppointmentTime(appointmentTime) : 'N/A';
+      return 'N/A';
     }
     
-    const dateFormatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric'
-    });
-    
-    const formattedDate = dateFormatter.format(date);
-    
-    // Format the time if available
-    const formattedTime = formatAppointmentTime(appointmentTime);
-    
-    if (formattedTime && formattedTime !== 'N/A') {
-      return `${formattedDate} at ${formattedTime}`;
-    }
-    
-    return formattedDate;
+    // Use the same formatting as check-in time
+    return formatTimeInIndianapolis(combinedDateTime.toISOString(), true);
   } catch (error) {
     console.error('Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
-    return appointmentTime ? formatAppointmentTime(appointmentTime) : 'N/A';
+    return 'N/A';
   }
 };
+
 
 
   const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
