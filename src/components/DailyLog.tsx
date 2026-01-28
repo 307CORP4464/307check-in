@@ -703,7 +703,10 @@ return (
     </tr>
   ))}
 </tbody>
-
+        </table>
+      </div>
+    </main>
+        
   
       {/* Modals */}
       {selectedForStatusChange && (
