@@ -545,24 +545,19 @@ export default function DailyLog() {
                       {checkIn.dock_number || 'N/A'}
                     </td>
 
-                    {/* Appointment Time */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      <span
-                        className={`${
-                          isOnTime(checkIn.check_in_time, checkIn.appointment_time)
-                            ? 'bg-green-100 text-green-800 px-2 py-1 rounded font-medium'
-                            : 'text-gray-900'
-                        }`}
-                      >
-                        {formatAppointmentTime(checkIn.appointment_time)}
-                      </span>
-                    </td>
+{/* In your table body where you display times */}
+<td className="px-4 py-2 text-sm">
+  {formatTimeInIndianapolis(checkIn.check_in_time, true)}
+</td>
 
-                    {/* Check-In Time */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatTimeInIndianapolis(checkIn.check_in_time)}
-                    </td>
+<td className="px-4 py-2 text-sm">
+  {checkIn.appointment_date || checkIn.appointment_time 
+    ? formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)
+    : 'N/A'
+  }
+</td>
 
+                    
                     {/* End Time */}
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                       {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time) : '-'}
