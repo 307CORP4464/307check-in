@@ -505,7 +505,7 @@ export default function CSRDashboard() {
             day: 'numeric' 
           })}
           {' at '}
-          {formatAppointmentTime(checkIn.appointment_time)}
+          {formatAppointmentTime(checkIn.appointment_date, checkIn.appointment_time)}
         </span>
       ) : (
         // Future date appointment - Orange highlight
