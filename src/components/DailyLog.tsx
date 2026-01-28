@@ -231,7 +231,6 @@ const getRowHighlight = (checkIn: CheckIn): string => {
   if (!checkIn.appointment_time || 
       checkIn.appointment_time === 'work_in' || 
       checkIn.appointment_time === 'paid_to_load' || 
-      checkIn.appointment_time === 'paid_charge_customer' ||
       checkIn.appointment_time === 'ltl') {
     return ''; // No highlight for special appointment types
   }
