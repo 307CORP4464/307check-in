@@ -61,26 +61,9 @@ const formatPhoneNumber = (phone: string | undefined): string => {
   return phone;
 };
 
-const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
-  if (!appointmentTime) return 'N/A';
-  
-  if (appointmentTime === 'work_in') return 'Work In';
-  
-  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-    const hours = appointmentTime.substring(0, 2);
-    const minutes = appointmentTime.substring(2, 4);
-    return `${hours}:${minutes}`;
-  }
-  
-  return appointmentTime;
-};
-
 const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
   // Handle special appointment types first
   if (appointmentTime === 'work_in' || appointmentTime === 'Work In') return 'Work In';
-  
-  // Add debug logging
-  console.log('formatAppointmentDateTime called with:', { appointmentDate, appointmentTime });
   
   // If no date and no time, return N/A
   if ((!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') && 
@@ -138,57 +121,6 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
   }
 };
 
-  
- try {
-    let date: Date;
-    
-    // Check if date is in MM/DD/YYYY format (from your database)
-    if (appointmentDate.includes('/')) {
-      const [month, day, year] = appointmentDate.split('/').map(Number);
-      date = new Date(year, month - 1, day);
-    } else {
-      // Otherwise try ISO format
-      date = new Date(appointmentDate);
-    }
-    
-    // Validate the date
-    if (isNaN(date.getTime())) {
-      console.error('Invalid date object from:', appointmentDate);
-      const formattedTime = formatAppointmentTime(appointmentTime);
-      return formattedTime !== 'N/A' ? formattedTime : 'N/A';
-    }
-    
-    if (date.getFullYear() < 2000) {
-      console.error('Date too old:', appointmentDate, date);
-      const formattedTime = formatAppointmentTime(appointmentTime);
-      return formattedTime !== 'N/A' ? formattedTime : 'N/A';
-    }
-    
-    // Format the date to match check-in format
-    const dateFormatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric'
-    });
-    
-    const formattedDate = dateFormatter.format(date);
-    
-    // Format the time if available
-    const formattedTime = formatAppointmentTime(appointmentTime);
-    
-    // Combine date and time - remove "at" to match check-in format
-    if (formattedTime && formattedTime !== 'N/A') {
-      return `${formattedDate} ${formattedTime}`;
-    }
-    
-    return formattedDate;
-  } catch (error) {
-    console.error('Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
-    const formattedTime = formatAppointmentDateTime(appointmentTime);
-    return formattedTime !== 'N/A' ? formattedTime : 'N/A';
-  }
-};
 
 
 
