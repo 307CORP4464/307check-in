@@ -9,7 +9,6 @@ import EditCheckInModal from './EditCheckInModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
-// Update the formatTimeInIndianapolis function to match the appointment format
 const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
   try {
     const utcDate = new Date(isoString);
@@ -28,18 +27,25 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
     }
     
     const formatter = new Intl.DateTimeFormat('en-US', options);
-    const formatted = formatter.format(utcDate);
-    
-    // If includeDate is true, return in format: MM/DD/YYYY HH:mm
-    // If false, return just: HH:mm
-    return formatted;
+    return formatter.format(utcDate);
   } catch (e) {
     console.error('Time formatting error:', e);
     return '-';
   }
 };
 
-// Update formatAppointmentTime to match the check-in format
+const formatPhoneNumber = (phone: string | undefined): string => {
+  if (!phone) return 'N/A';
+  
+  const cleaned = phone.replace(/\D/g, '');
+  
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+  }
+  
+  return phone;
+};
+
 const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
   if (!appointmentTime) return 'N/A';
   
@@ -48,7 +54,6 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
   if (appointmentTime === 'ltl') return 'LTL';
   
-  // Format 4-digit time to HH:mm (matching check-in format)
   if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
     const hours = appointmentTime.substring(0, 2);
     const minutes = appointmentTime.substring(2, 4);
@@ -58,15 +63,12 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   return appointmentTime;
 };
 
-// Add a new function to format appointment with date (if needed)
 const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
-  // Handle special appointment types
   if (appointmentTime === 'work_in') return 'Work In';
   if (appointmentTime === 'paid_to_load') return 'Paid - No Appt';
   if (appointmentTime === 'paid_charge_customer') return 'Paid - Charge Customer';
   if (appointmentTime === 'ltl') return 'LTL';
   
-  // If no date provided, just show time
   if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
     return formatAppointmentTime(appointmentTime);
   }
@@ -74,7 +76,6 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
   try {
     let date: Date;
     
-    // Parse MM/DD/YYYY format
     if (appointmentDate.includes('/')) {
       const [month, day, year] = appointmentDate.split('/').map(Number);
       date = new Date(year, month - 1, day);
@@ -82,12 +83,10 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
       date = new Date(appointmentDate);
     }
     
-    // Validate date
     if (isNaN(date.getTime()) || date.getFullYear() < 2000) {
       return formatAppointmentTime(appointmentTime);
     }
     
-    // Format date to MM/DD/YYYY
     const dateFormatter = new Intl.DateTimeFormat('en-US', {
       timeZone: TIMEZONE,
       month: '2-digit',
@@ -98,7 +97,6 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     const formattedDate = dateFormatter.format(date);
     const formattedTime = formatAppointmentTime(appointmentTime);
     
-    // Return in format: MM/DD/YYYY HH:mm (matching check-in format)
     if (formattedTime && formattedTime !== 'N/A') {
       return `${formattedDate} ${formattedTime}`;
     }
@@ -110,6 +108,62 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
   }
 };
 
+const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
+  if (!appointmentTime || 
+      appointmentTime === 'work_in' || 
+      appointmentTime === 'paid_to_load' || 
+      appointmentTime === 'paid_charge_customer' ||
+      appointmentTime === 'ltl') {
+    return false;
+  }
+
+  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
+    const appointmentHour = parseInt(appointmentTime.substring(0, 2));
+    const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
+    
+    const checkInDate = new Date(checkInTime);
+    
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: TIMEZONE,
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false
+    });
+    
+    const timeString = formatter.format(checkInDate);
+    const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
+    
+    const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
+    const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
+    
+    const difference = checkInTotalMinutes - appointmentTotalMinutes;
+    return difference <= 0;
+  }
+  
+  return false;
+};
+
+interface CheckIn {
+  id: string;
+  check_in_time: string;
+  check_out_time?: string | null;
+  status: string;
+  driver_name?: string;
+  driver_phone?: string;
+  carrier_name?: string;
+  trailer_number?: string;
+  trailer_length?: string;
+  load_type?: 'inbound' | 'outbound';
+  reference_number?: string;
+  dock_number?: string;
+  appointment_time?: string | null;
+  appointment_date?: string | null;
+  end_time?: string | null;
+  start_time?: string | null;
+  notes?: string;
+  destination_city?: string;
+  destination_state?: string;
+}
 
 const calculateDetention = (checkIn: CheckIn): string => {
   if (!checkIn.appointment_time || !checkIn.end_time) {
@@ -121,6 +175,8 @@ const calculateDetention = (checkIn: CheckIn): string => {
   }
 
   if (checkIn.appointment_time === 'work_in' || 
+      checkIn.appointment_time === 'paid_to_load' || 
+      checkIn.appointment_time === 'paid_charge_customer' ||
       checkIn.appointment_time === 'ltl') {
     return '-';
   }
@@ -163,28 +219,6 @@ const calculateDetention = (checkIn: CheckIn): string => {
   
   return `${detentionMinutes} min`;
 };
-
-interface CheckIn {
-  id: string;
-  check_in_time: string;
-  check_out_time?: string | null;
-  status: string;
-  driver_name?: string;
-  driver_phone?: string;
-  carrier_name?: string;
-  trailer_number?: string;
-  trailer_length?: string;
-  load_type?: 'inbound' | 'outbound';
-  reference_number?: string;
-  dock_number?: string;
-  appointment_time?: string | null;
-  appointment_date?: string | null;
-  end_time?: string | null;
-  start_time?: string | null;
-  notes?: string;
-  destination_city?: string;
-  destination_state?: string;
-}
 
 export default function DailyLog() {
   const router = useRouter();
@@ -312,7 +346,9 @@ export default function DailyLog() {
     if (status === 'checked_out') return 'Checked Out';
     if (status === 'driver_left') return 'Driver Left';
     if (status === 'turned_away') return 'Turned Away';
-    return status.charAt(0).toUpperCase() + status.slice(1);
+    if (status === 'unloaded') return 'Unloaded';
+    if (status === 'rejected') return 'Rejected';
+    return status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ');
   };
 
   if (loading) {
