@@ -670,10 +670,11 @@ return (
         )}
       </td>
 
-      {/* Detention */}
-      <td className="px-4 py-3 whitespace-nowrap text-sm">
-        {checkIn.detention_time || 'N/A'}
-      </td>
+       {/* Detention */}
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {calculateDetention(checkIn)}
+                    </td>
+
 
       {/* Notes */}
       <td className="px-4 py-3 text-sm max-w-xs">
@@ -683,15 +684,12 @@ return (
       </td>
 
       {/* Status */}
-      <td className="px-4 py-3 whitespace-nowrap">
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          checkIn.end_time
-            ? 'bg-green-100 text-green-800'
-            : 'bg-yellow-100 text-yellow-800'
-        }`}>
-          {checkIn.end_time ? 'Complete' : 'In Progress'}
-        </span>
-      </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(checkIn.status)}`}>
+                        {getStatusLabel(checkIn.status)}
+                      </span>
+                    </td>
+
 
       {/* Actions */}
       <td className="px-4 py-3 whitespace-nowrap text-sm">
@@ -700,7 +698,14 @@ return (
           className="text-blue-600 hover:text-blue-900 font-medium"
         >
           Edit
-        </button>
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange(checkIn)}
+                          className="text-green-600 hover:text-green-800 font-medium"
+                        >
+                          Status
+                        </button>
+
       </td>
     </tr>
   ))}
