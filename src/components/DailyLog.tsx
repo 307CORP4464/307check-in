@@ -158,9 +158,9 @@ const fetchCheckInsForDate = async () => {
     
     // DEBUG - Log the first record to see what fields we get
     if (data && data.length > 0) {
-      console.log('📊 First check-in record from database:', data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
-      console.log('📅 appointment_date field:', data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_date);
-      console.log('⏰ appointment_time field:', data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_time);
+      console.log('📊 First check-in record from database:', data[0]);
+      console.log('📅 appointment_date field:', data[0].appointment_date);
+      console.log('⏰ appointment_time field:', data[0].appointment_time);
     }
     
     setCheckIns(data || []);
