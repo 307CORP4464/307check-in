@@ -479,27 +479,14 @@ export default function CSRDashboard() {
         )}
 
         {/* Modals */}
-        {selectedForDock && (
-          <AssignDockModal
-            checkIn={selectedForDock}
-            onClose={() => setSelectedForDock(null)}
-            onUpdate={() => {
-              setSelectedForDock(null);
-              fetchCheckIns();
-            }}
-          />
-        )}
+         {selectedForDock && (
+        <AssignDockModal isOpen={!!selectedForDock} checkIn={selectedForDock} onClose={() => setSelectedForDock(null)} onSuccess={handleDockAssignSuccess} />
+      )}
 
-        {selectedForEdit && (
-          <EditCheckInModal
-            checkIn={selectedForEdit}
-            onClose={() => setSelectedForEdit(null)}
-            onUpdate={() => {
-              setSelectedForEdit(null);
-              fetchCheckIns();
-            }}
-          />
-        )}
+
+       {selectedForEdit && (
+        <EditCheckInModal checkIn={selectedForEdit} onClose={() => setSelectedForEdit(null)} onSuccess={handleEditSuccess} isOpen={!!selectedForEdit} />
+      )}
 
         {selectedForDeny && (
           <DenyCheckInModal
