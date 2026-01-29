@@ -518,43 +518,83 @@ const fetchCheckIns = async () => {
 
    {/* ✅ APPOINTMENT DATE & TIME - With conditional highlighting */}
 <td className="px-4 py-3 whitespace-nowrap text-sm">
-        {(() => {
-          if (!checkIn.appointment_time) {
-            return <span className="text-gray-600">N/A</span>;
-          }
+  {(() => {
+    if (!checkIn.appointment_time) {
+      return <span className="text-gray-600">N/A</span>;
+    }
 
-          const checkInDate = new Date(checkIn.check_in_time);
-          const checkInDateOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
-          
-          let appointmentDateOnly: Date;
-          if (checkIn.appointment_date) {
-            const aptDate = new Date(checkIn.appointment_date);
-            appointmentDateOnly = new Date(aptDate.getFullYear(), aptDate.getMonth(), aptDate.getDate());
-          } else {
-            appointmentDateOnly = checkInDateOnly;
-          }
-          
-          const dayDifference = Math.floor((appointmentDateOnly.getTime() - checkInDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-          const onTime = isOnTime(checkIn.check_in_time, checkIn.appointment_time);
-          
-          let bgColor = 'bg-gray-500';
-          let label = '';
-          
-          if (dayDifference === 0 && onTime) {
-            bgColor = 'bg-green-500';
-            label = '';
-          } else if (dayDifference === 0 && !onTime) {
-            bgColor = 'bg-red-500';
-            label = 'LATE';
-          } else if (dayDifference > 0) {
-            bgColor = 'bg-orange-500';
-            label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
-          } else if (dayDifference < 0) {
-            bgColor = 'bg-yellow-500';
-            label = `${Math.abs(dayDifference)} DAY(S) LATE`;
-          }
-
+    const checkInDate = new Date(checkIn.check_in_time);
+    const checkInDateOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
     
+    let appointmentDateOnly: Date;
+    if (checkIn.appointment_date) {
+      // Parse YYYY-MM-DD format correctly (in local timezone)
+      if (checkIn.appointment_date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = checkIn.appointment_date.split('-').map(Number);
+        appointmentDateOnly = new Date(year, month - 1, day);
+      } else if (checkIn.appointment_date.includes('/')) {
+        const [month, day, year] = checkIn.appointment_date.split('/').map(Number);
+        appointmentDateOnly = new Date(year, month - 1, day);
+      } else {
+        const aptDate = new Date(checkIn.appointment_date);
+        appointmentDateOnly = new Date(aptDate.getFullYear(), aptDate.getMonth(), aptDate.getDate());
+      }
+    } else {
+      appointmentDateOnly = checkInDateOnly;
+    }
+    
+    const dayDifference = Math.floor((appointmentDateOnly.getTime() - checkInDateOnly.getTime()) / (1000 * 60 * 60 * 24));
+    
+    let bgColor = 'bg-gray-500';
+    let label = '';
+    
+    // Check if it's the same day first
+    if (dayDifference === 0) {
+      // Same day - check if on time or late based on actual time
+      if (checkIn.appointment_time.length === 4 && /^\d{4}$/.test(checkIn.appointment_time)) {
+        const appointmentHour = parseInt(checkIn.appointment_time.substring(0, 2));
+        const appointmentMinute = parseInt(checkIn.appointment_time.substring(2, 4));
+        
+        const checkInFormatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: TIMEZONE,
+          hour: 'numeric',
+          minute: 'numeric',
+          hour12: false
+        });
+        
+        const timeString = checkInFormatter.format(checkInDate);
+        const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
+        
+        const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
+        const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
+        
+        const minutesDifference = checkInTotalMinutes - appointmentTotalMinutes;
+        
+        // If they arrived MORE than 10 minutes AFTER appointment time
+        if (minutesDifference > 10) {
+          bgColor = 'bg-red-500';
+          label = 'LATE';
+        } 
+        // If they arrived early or up to 10 minutes late - GREEN
+        else {
+          bgColor = 'bg-green-500';
+          label = '';
+        }
+      } else {
+        // Not a standard time format - default to green for same day
+        bgColor = 'bg-green-500';
+        label = '';
+      }
+    } else if (dayDifference > 0) {
+      // Appointment is in the future - they're early (YELLOW)
+      bgColor = 'bg-yellow-500';
+      label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
+    } else if (dayDifference < 0) {
+      // Appointment was in the past - they're late (YELLOW)
+      bgColor = 'bg-yellow-500';
+      label = `${Math.abs(dayDifference)} DAY${Math.abs(dayDifference) > 1 ? 'S' : ''} LATE`;
+    }
+
     return (
       <span className={`${bgColor} text-white px-2 py-1 rounded font-semibold`}>
         {label && <span className="mr-1">[{label}]</span>}
@@ -563,7 +603,6 @@ const fetchCheckIns = async () => {
     );
   })()}
 </td>
-
 
 
       {/* Reference Number */}
