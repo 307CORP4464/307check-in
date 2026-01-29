@@ -7,6 +7,7 @@ interface DenyCheckInModalProps {
   checkIn: {
     id: string;
     driver_name?: string;
+    driver_email?: string; // Add email field
     driver_phone?: string;
     reference_number?: string;
     carrier_name?: string;
@@ -17,7 +18,6 @@ interface DenyCheckInModalProps {
 
 export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheckInModalProps) {
   const [notes, setNotes] = useState('');
-  const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,22 +26,9 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const predefinedReasons = [
-    'Checked in too early',
-    'Order pushed out',
-    'Order cancelled',
-    'Does not pick up from our location',
-    'Other'
-  ];
-
   const handleDeny = async () => {
-    if (!reason) {
-      setError('Please select a reason');
-      return;
-    }
-
-    if (reason === 'Other' && !notes.trim()) {
-      setError('Please provide details in the notes');
+    if (!notes.trim()) {
+      setError('Please provide a reason for denial');
       return;
     }
 
@@ -54,7 +41,7 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
         .from('check_ins')
         .update({ 
           status: 'denied',
-          notes: `DENIED: ${reason}${notes ? ` - ${notes}` : ''}`
+          notes: `DENIED: ${notes}`
         })
         .eq('id', checkIn.id);
 
@@ -62,11 +49,10 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
 
       // Send email to driver
       const emailBody = {
-        to: checkIn.driver_phone || '', // You might want to collect email separately
+        to: checkIn.driver_email || '',
         driverName: checkIn.driver_name || 'Driver',
         carrierName: checkIn.carrier_name || 'N/A',
         referenceNumber: checkIn.reference_number || 'N/A',
-        reason: reason,
         notes: notes,
         checkInId: checkIn.id
       };
@@ -117,32 +103,15 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
           </div>
         )}
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Reason for Denial <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isSubmitting}
-          >
-            <option value="">Select a reason...</option>
-            {predefinedReasons.map((r) => (
-              <option key={r} value={r}>{r}</option>
-            ))}
-          </select>
-        </div>
-
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Additional Notes {reason === 'Other' && <span className="text-red-500">*</span>}
+            Reason for Denial <span className="text-red-500">*</span>
           </label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Provide additional details..."
-            rows={4}
+            placeholder="Please provide the reason for denying this check-in..."
+            rows={5}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             disabled={isSubmitting}
           />
