@@ -7,6 +7,7 @@ import { differenceInMinutes } from 'date-fns';
 import Link from 'next/link';
 import AssignDockModal from './AssignDockModal';
 import EditCheckInModal from './EditCheckInModal';
+import DenyCheckInModal from './DenyCheckInModal'; // Add this import
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
@@ -182,7 +183,6 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
 };
 
 
-
 interface CheckIn {
   id: string;
   check_in_time: string;
@@ -230,6 +230,7 @@ export default function CSRDashboard() {
   const [userEmail, setUserEmail] = useState<string>('');
   const [selectedForDock, setSelectedForDock] = useState<CheckIn | null>(null);
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
+  const [selectedForDeny, setSelectedForDeny] = useState<CheckIn | null>(null); // Add this state
 
   useEffect(() => {
     const getUser = async () => {
@@ -410,6 +411,10 @@ const fetchCheckIns = async () => {
     if (minutes > 60) return 'text-orange-600';
     return 'text-gray-900';
   };
+ const handleDenyComplete = () => {
+    fetchCheckIns(); // Refresh the check-ins list
+  };
+  
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -655,26 +660,62 @@ const fetchCheckIns = async () => {
             onClick={() => handleEdit(checkIn)}
             className="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 transition-colors text-xs"
           >
-            Edit
-          </button>
-        </div>
-      </td>
-    </tr>
-  ))}
-</tbody>
+               Edit
+                      </button>
+                      <button
+                        onClick={() => setSelectedForDock(checkIn)}
+                        className="text-green-600 hover:text-green-900"
+                      >
+                        Assign Dock
+                      </button>
+                      {/* Add the Deny button here */}
+                      <button
+                        onClick={() => setSelectedForDeny(checkIn)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        Deny
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-              </table>
-            </div>
-          )}
-        </div>
+     
+        {/* Existing Modals */}
+        {selectedForDock && (
+          <AssignDockModal
+            checkIn={selectedForDock}
+            onClose={() => setSelectedForDock(null)}
+            onAssign={() => {
+              setSelectedForDock(null);
+              fetchCheckIns();
+            }}
+          />
+        )}
+
+        {selectedForEdit && (
+          <EditCheckInModal
+            checkIn={selectedForEdit}
+            onClose={() => setSelectedForEdit(null)}
+            onUpdate={() => {
+              setSelectedForEdit(null);
+              fetchCheckIns();
+            }}
+          />
+        )}
+
+        {/* Add the Deny Check-in Modal */}
+        {selectedForDeny && (
+          <DenyCheckInModal
+            checkIn={selectedForDeny}
+            onClose={() => setSelectedForDeny(null)}
+            onDeny={handleDenyComplete}
+          />
+        )}
       </div>
-
-      {selectedForDock && (
-        <AssignDockModal isOpen={!!selectedForDock} checkIn={selectedForDock} onClose={() => setSelectedForDock(null)} onSuccess={handleDockAssignSuccess} />
-      )}
-      {selectedForEdit && (
-        <EditCheckInModal checkIn={selectedForEdit} onClose={() => setSelectedForEdit(null)} onSuccess={handleEditSuccess} isOpen={!!selectedForEdit} />
-      )}
     </div>
   );
 }
