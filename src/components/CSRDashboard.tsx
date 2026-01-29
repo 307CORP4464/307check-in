@@ -719,3 +719,4 @@ const fetchCheckIns = async () => {
     </div>
   </div>
 );
+}
