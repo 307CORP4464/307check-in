@@ -390,19 +390,15 @@ const fetchCheckIns = async () => {
     setSelectedForEdit(null);
   };
 
-  const calculateWaitTime = (checkIn: CheckIn): string => {
-    const start = new Date(checkIn.check_in_time);
-    const now = new Date();
-    const minutes = differenceInMinutes(now, start);
-    
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    
-    if (hours > 0) {
-      return `${hours}h ${mins}m`;
-    }
-    return `${mins}m`;
-  };
+  // Update your calculateWaitTime function to return a number
+const calculateWaitTime = (checkInTime: string): number => {
+  const checkIn = new Date(checkInTime);
+  const now = new Date();
+  const diffMs = now.getTime() - checkIn.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  return diffMins;
+};
+
 
   const getWaitTimeColor = (checkIn: CheckIn): string => {
     const start = new Date(checkIn.check_in_time);
@@ -650,13 +646,13 @@ const fetchCheckIns = async () => {
                     </td>
 
                         {/* Wait Time */}
-      <td className="px-4 py-3 whitespace-nowrap text-sm">
-        <span className={`font-medium ${
-          calculateWaitTime(checkIn.check_in_time) > 60 ? 'text-red-600' : 'text-gray-900'
-        }`}>
-          {Math.floor(calculateWaitTime(checkIn.check_in_time))} min
-        </span>
-      </td>
+<td className="px-4 py-3 whitespace-nowrap text-sm">
+  <span className={`font-medium ${
+    calculateWaitTime(checkIn.check_in_time) > 60 ? 'text-red-600' : 'text-gray-900'
+  }`}>
+    {Math.floor(calculateWaitTime(checkIn.check_in_time))} min
+  </span>
+</td>
 
       {/* Actions */}
       <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium space-x-2">
