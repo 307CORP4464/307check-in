@@ -23,11 +23,10 @@ export interface Appointment {
   id: number;
   appointment_date: string;
   appointment_time: string;
-  sales_order: string;
-  delivery?: string;
-  notes?: string;
-  source: AppointmentSource;  // Use the same type
-  created_at?: string;
+  sales_order?: string | null;
+  delivery?: string | null;
+  notes?: string | null;
+  source: 'upload' | 'manual';
+  created_at: string; // Make sure this is NOT optional
   updated_at?: string;
 }
-
