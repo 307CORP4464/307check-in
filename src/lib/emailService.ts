@@ -327,5 +327,6 @@ class EmailService {
   }
 }
 
+
 // Export singleton instance
 export default EmailService;
