@@ -611,8 +611,8 @@ export default function CSRDashboard() {
       bgColor = 'bg-yellow-500';
       label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
     } else if (dayDifference < 0) {
-      // Appointment was in the past - they're late (YELLOW)
-      bgColor = 'bg-yellow-500';
+      // Appointment was in the past - they're late (RED)
+      bgColor = 'bg-red-500';
       label = `${Math.abs(dayDifference)} DAY${Math.abs(dayDifference) > 1 ? 'S' : ''} LATE`;
     }
 
