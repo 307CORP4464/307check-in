@@ -684,26 +684,11 @@ const calculateWaitTime = (checkInTime: string): number => {
         </div>
 
         {selectedForDock && (
-          <AssignDockModal
-            checkIn={selectedForDock}
-            onClose={() => setSelectedForDock(null)}
-            onAssign={() => {
-              setSelectedForDock(null);
-              fetchCheckIns();
-            }}
-          />
-        )}
-
-        {selectedForEdit && (
-          <EditCheckInModal
-            checkIn={selectedForEdit}
-            onClose={() => setSelectedForEdit(null)}
-            onUpdate={() => {
-              setSelectedForEdit(null);
-              fetchCheckIns();
-            }}
-          />
-        )}
+        <AssignDockModal isOpen={!!selectedForDock} checkIn={selectedForDock} onClose={() => setSelectedForDock(null)} onSuccess={handleDockAssignSuccess} />
+      )}
+      {selectedForEdit && (
+        <EditCheckInModal checkIn={selectedForEdit} onClose={() => setSelectedForEdit(null)} onSuccess={handleEditSuccess} isOpen={!!selectedForEdit} />
+      )}
 
         {selectedForDeny && (
           <DenyCheckInModal
