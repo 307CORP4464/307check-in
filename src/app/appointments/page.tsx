@@ -83,22 +83,21 @@ export default function AppointmentsPage() {
   }, [selectedDate]);
 
   const loadAppointments = async () => {
-    setLoading(true);
-    try {
-      console.log('🔍 Loading appointments for date:', selectedDate);
-      const data = await getAppointmentsByDate(selectedDate);
-      console.log('📦 Received appointments:', data);
-      console.log('📊 Total appointments:', data.length);
-      console.log('🔨 Manual appointments:', data.filter(a => a.source === 'manual'));
-      setAppointments(data);
-      console.log('✅ State updated with appointments');
-    } catch (error) {
-      console.error('❌ Error loading appointments:', error);
-      setAppointments([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  setLoading(true);
+  try {
+    console.log('🔍 Loading appointments for date:', selectedDate);
+    const data = await getAppointmentsByDate(selectedDate);
+    console.log('📦 Received appointments:', data);
+    console.log('📊 Appointment times:', data.map(a => a.appointment_time));
+    console.log('📋 TIME_SLOTS:', TIME_SLOTS);
+    setAppointments(data);
+  } catch (error) {
+    console.error('❌ Error loading appointments:', error);
+    setAppointments([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleLogout = async () => {
     try {
@@ -345,11 +344,10 @@ export default function AppointmentsPage() {
 
         {/* Appointments Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="p-6 border-b">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold">
-                Appointments for {formatDateForDisplay(selectedDate)}
-              </h2>
+  <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
+    <h2 className="text-lg font-bold">
+      Appointments for {formatDateForDisplay(selectedDate)}
+    </h2>
               <div className="text-sm text-gray-600">
                 Total: {totalAppointmentsCount} | Work In: {workInCount}
               </div>
@@ -400,51 +398,32 @@ export default function AppointmentsPage() {
                         </tr>
                       );
                     }
-
-                    // Show appointments for this slot
-                    return slotAppointments.map((apt, index) => (
-                      <tr 
-                        key={apt.id}
-                        className={`hover:bg-gray-50 ${
-                          apt.source === 'manual' ? 'bg-blue-50' : ''
-                        }`}
-                      >
-                        {index === 0 && (
-                          <td 
-                            className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
-                            rowSpan={slotAppointments.length}
-                          >
-                            {slot}
-                          </td>
-                        )}
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {apt.sales_order}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {apt.delivery || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {apt.notes || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded ${
-                            apt.source === 'manual' 
-                              ? 'bg-blue-100 text-blue-800' 
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {apt.source === 'manual' ? 'Manual' : 'Excel'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={() => handleEdit(apt)}
-                            className="text-blue-600 hover:text-blue-900 mr-4"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(apt.id)}
-                            className="text-red-600 hover:text-red-900"
+ return slotAppointments.map((apt, idx) => (
+              <tr key={apt.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-sm font-medium">{slot}</td>
+                <td className="px-4 py-3 text-sm">{apt.sales_order || '-'}</td>
+                <td className="px-4 py-3 text-sm">{apt.delivery || '-'}</td>
+                <td className="px-4 py-3 text-sm">{apt.notes || '-'}</td>
+                <td className="px-4 py-3 text-sm">
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                    apt.source === 'manual' 
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {apt.source}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-sm text-right">
+                  <button
+                    onClick={() => handleEdit(apt)}
+                    className="text-blue-600 hover:text-blue-800 mr-3"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(apt.id)}
+                    className="text-red-600 hover:text-red-800"
+                   
                           >
                             Delete
                           </button>
