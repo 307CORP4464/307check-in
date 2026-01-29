@@ -796,6 +796,7 @@ return (
                           onClick={() => handleStatusChange(checkIn)}
                           className="text-green-600 hover:text-green-800 font-medium"
                         >
+                          
                           Status
                         </button>
 
