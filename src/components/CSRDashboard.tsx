@@ -649,74 +649,74 @@ const fetchCheckIns = async () => {
                         : 'N/A'}
                     </td>
 
-                    {/* Wait Time */}
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <span className={`font-medium ${
-                        getWaitTime(checkIn.check_in_time) > 60 ? 'text-red-600' : 'text-gray-900'
-                      }`}>
-                        {Math.floor(getWaitTime(checkIn.check_in_time))} min
-                      </span>
-                    </td>
+                        {/* Wait Time */}
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        <span className={`font-medium ${
+          getWaitTime(checkIn.check_in_time) > 60 ? 'text-red-600' : 'text-gray-900'
+        }`}>
+          {Math.floor(getWaitTime(checkIn.check_in_time))} min
+        </span>
+      </td>
 
-                    {/* Actions */}
-                    <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium space-x-2">
-                      <button
-                        onClick={() => setSelectedForEdit(checkIn)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setSelectedForDock(checkIn)}
-                        className="text-green-600 hover:text-green-900"
-                      >
-                        Assign Dock
-                      </button>
-                      <button
-                        onClick={() => setSelectedForDeny(checkIn)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Deny
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      {/* Actions */}
+      <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium space-x-2">
+        <button
+          onClick={() => setSelectedForEdit(checkIn)}
+          className="text-blue-600 hover:text-blue-900"
+        >
+          Edit
+        </button>
+        <button
+          onClick={() => setSelectedForDock(checkIn)}
+          className="text-green-600 hover:text-green-900"
+        >
+          Assign Dock
+        </button>
+        <button
+          onClick={() => setSelectedForDeny(checkIn)}
+          className="text-red-600 hover:text-red-900"
+        >
+          Deny
+        </button>
+      </td>
+    </tr>
+  ))}
+</tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {selectedForDock && (
+          <AssignDockModal
+            checkIn={selectedForDock}
+            onClose={() => setSelectedForDock(null)}
+            onAssign={() => {
+              setSelectedForDock(null);
+              fetchCheckIns();
+            }}
+          />
+        )}
+
+        {selectedForEdit && (
+          <EditCheckInModal
+            checkIn={selectedForEdit}
+            onClose={() => setSelectedForEdit(null)}
+            onUpdate={() => {
+              setSelectedForEdit(null);
+              fetchCheckIns();
+            }}
+          />
+        )}
+
+        {selectedForDeny && (
+          <DenyCheckInModal
+            checkIn={selectedForDeny}
+            onClose={() => setSelectedForDeny(null)}
+            onDeny={handleDenyComplete}
+          />
         )}
       </div>
-
-      {selectedForDock && (
-        <AssignDockModal
-          checkIn={selectedForDock}
-          onClose={() => setSelectedForDock(null)}
-          onAssign={() => {
-            setSelectedForDock(null);
-            fetchCheckIns();
-          }}
-        />
-      )}
-
-      {selectedForEdit && (
-        <EditCheckInModal
-          checkIn={selectedForEdit}
-          onClose={() => setSelectedForEdit(null)}
-          onUpdate={() => {
-            setSelectedForEdit(null);
-            fetchCheckIns();
-          }}
-        />
-      )}
-
-      {selectedForDeny && (
-        <DenyCheckInModal
-          checkIn={selectedForDeny}
-          onClose={() => setSelectedForDeny(null)}
-          onDeny={handleDenyComplete}
-        />
-      )}
     </div>
-  </div>
-);
+  );
 }
