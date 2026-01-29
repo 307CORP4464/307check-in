@@ -652,9 +652,9 @@ const fetchCheckIns = async () => {
                         {/* Wait Time */}
       <td className="px-4 py-3 whitespace-nowrap text-sm">
         <span className={`font-medium ${
-          getWaitTime(checkIn.check_in_time) > 60 ? 'text-red-600' : 'text-gray-900'
+          calculatetWaitTime(checkIn.check_in_time) > 60 ? 'text-red-600' : 'text-gray-900'
         }`}>
-          {Math.floor(getWaitTime(checkIn.check_in_time))} min
+          {Math.floor(calculateWaitTime(checkIn.check_in_time))} min
         </span>
       </td>
 
