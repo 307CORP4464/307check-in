@@ -1,16 +1,23 @@
+// app/api/send-email/route.ts or pages/api/send-email.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { emailService } from '@/lib/emailService';
+import EmailService from '@/lib/emailService';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { type, toEmail, data } = body;
 
-    console.log('Email request received:', { type, toEmail });
+    if (!toEmail) {
+      return NextResponse.json(
+        { success: false, error: 'Email address is required' },
+        { status: 400 }
+      );
+    }
+
+    const emailService = new EmailService();
 
     switch (type) {
       case 'checkin':
-        console.log('Sending check-in confirmation to:', toEmail);
         await emailService.sendCheckInConfirmation(
           toEmail,
           data.driverName,
@@ -19,14 +26,13 @@ export async function POST(request: NextRequest) {
         );
         break;
 
-      case 'dock-assignment':
-        console.log('Sending dock assignment to:', toEmail);
+      case 'dock_assignment':
         await emailService.sendDockAssignment(
           toEmail,
           data.driverName,
           data.dockNumber,
           data.referenceNumber,
-          data.loadType,
+          data.loadType || 'inbound',
           data.checkInTime,
           data.appointmentTime,
           data.appointmentStatus
@@ -35,24 +41,21 @@ export async function POST(request: NextRequest) {
 
       default:
         return NextResponse.json(
-          { error: 'Invalid email type' },
+          { success: false, error: 'Invalid email type' },
           { status: 400 }
         );
     }
 
-    return NextResponse.json(
-      { success: true, message: 'Email sent successfully' },
-      { status: 200 }
-    );
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error sending email:', error);
+    console.error('Email sending error:', error);
     return NextResponse.json(
-      { error: 'Failed to send email' },
+      {
+        success: false,
+        error: 'Failed to send email',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
       { status: 500 }
     );
   }
 }
-
-
-
-
