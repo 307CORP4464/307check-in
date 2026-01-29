@@ -679,7 +679,7 @@ return (
     
     let appointmentDateOnly: Date;
     if (checkIn.appointment_date) {
-      // ✅ FIX: Parse YYYY-MM-DD format correctly (in local timezone)
+      // Parse YYYY-MM-DD format correctly (in local timezone)
       if (checkIn.appointment_date.match(/^\d{4}-\d{2}-\d{2}$/)) {
         const [year, month, day] = checkIn.appointment_date.split('-').map(Number);
         appointmentDateOnly = new Date(year, month - 1, day);
@@ -695,21 +695,60 @@ return (
     }
     
     const dayDifference = Math.floor((appointmentDateOnly.getTime() - checkInDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-    const onTime = isOnTime(checkIn.check_in_time, checkIn.appointment_time);
     
     let bgColor = 'bg-gray-500';
     let label = '';
     
-    if (dayDifference === 0 && onTime) {
-      bgColor = 'bg-green-500';
-      label = '';
-    } else if (dayDifference === 0 && !onTime) {
-      bgColor = 'bg-red-500';
-      label = 'LATE';
+    // Check if it's the same day first
+    if (dayDifference === 0) {
+      // Same day - check if on time or late based on actual time
+      const onTime = isOnTime(checkIn.check_in_time, checkIn.appointment_time);
+      
+      // Calculate if they're actually late (arrived AFTER appointment time)
+      if (checkIn.appointment_time.length === 4 && /^\d{4}$/.test(checkIn.appointment_time)) {
+        const appointmentHour = parseInt(checkIn.appointment_time.substring(0, 2));
+        const appointmentMinute = parseInt(checkIn.appointment_time.substring(2, 4));
+        
+        const checkInFormatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: TIMEZONE,
+          hour: 'numeric',
+          minute: 'numeric',
+          hour12: false
+        });
+        
+        const timeString = checkInFormatter.format(checkInDate);
+        const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
+        
+        const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
+        const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
+        
+        const minutesDifference = checkInTotalMinutes - appointmentTotalMinutes;
+        
+        // If they arrived AFTER the appointment time by more than 15 minutes
+        if (minutesDifference > 15) {
+          bgColor = 'bg-red-500';
+          label = 'LATE';
+        } 
+        // If they arrived within the window (15 min before to 15 min after)
+        else if (minutesDifference >= -15 && minutesDifference <= 15) {
+          bgColor = 'bg-green-500';
+          label = '';
+        }
+        // If they arrived early (more than 15 min before)
+        else {
+          bgColor = 'bg-green-500';
+          label = '';
+        }
+      } else {
+        // Not a standard time format
+        bgColor = 'bg-gray-500';
+      }
     } else if (dayDifference > 0) {
+      // Appointment is in the future - they're early
       bgColor = 'bg-orange-500';
       label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
     } else if (dayDifference < 0) {
+      // Appointment was in the past - they're late
       bgColor = 'bg-yellow-500';
       label = `${Math.abs(dayDifference)} DAY${Math.abs(dayDifference) > 1 ? 'S' : ''} LATE`;
     }
@@ -722,6 +761,7 @@ return (
     );
   })()}
 </td>
+
 
 
       {/* End Time */}
