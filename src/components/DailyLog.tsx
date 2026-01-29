@@ -667,7 +667,8 @@ return (
       <td className="px-4 py-3 whitespace-nowrap text-sm">
         {formatTimeInIndianapolis(checkIn.check_in_time, true)}
       </td>
-{/* ✅ APPOINTMENT DATE & TIME - With conditional highlighting */}
+
+      {/* ✅ APPOINTMENT DATE & TIME - With conditional highlighting */}
 <td className="px-4 py-3 whitespace-nowrap text-sm">
   {(() => {
     if (!checkIn.appointment_time) {
@@ -702,9 +703,6 @@ return (
     // Check if it's the same day first
     if (dayDifference === 0) {
       // Same day - check if on time or late based on actual time
-      const onTime = isOnTime(checkIn.check_in_time, checkIn.appointment_time);
-      
-      // Calculate if they're actually late (arrived AFTER appointment time)
       if (checkIn.appointment_time.length === 4 && /^\d{4}$/.test(checkIn.appointment_time)) {
         const appointmentHour = parseInt(checkIn.appointment_time.substring(0, 2));
         const appointmentMinute = parseInt(checkIn.appointment_time.substring(2, 4));
@@ -724,31 +722,27 @@ return (
         
         const minutesDifference = checkInTotalMinutes - appointmentTotalMinutes;
         
-        // If they arrived AFTER the appointment time by more than 15 minutes
-        if (minutesDifference > 15) {
+        // If they arrived MORE than 10 minutes AFTER appointment time
+        if (minutesDifference > 10) {
           bgColor = 'bg-red-500';
           label = 'LATE';
         } 
-        // If they arrived within the window (15 min before to 15 min after)
-        else if (minutesDifference >= -15 && minutesDifference <= 15) {
-          bgColor = 'bg-green-500';
-          label = '';
-        }
-        // If they arrived early (more than 15 min before)
+        // If they arrived early or up to 10 minutes late - GREEN
         else {
           bgColor = 'bg-green-500';
           label = '';
         }
       } else {
-        // Not a standard time format
-        bgColor = 'bg-gray-500';
+        // Not a standard time format - default to green for same day
+        bgColor = 'bg-green-500';
+        label = '';
       }
     } else if (dayDifference > 0) {
-      // Appointment is in the future - they're early
-      bgColor = 'bg-orange-500';
+      // Appointment is in the future - they're early (YELLOW)
+      bgColor = 'bg-yellow-500';
       label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
     } else if (dayDifference < 0) {
-      // Appointment was in the past - they're late
+      // Appointment was in the past - they're late (YELLOW)
       bgColor = 'bg-yellow-500';
       label = `${Math.abs(dayDifference)} DAY${Math.abs(dayDifference) > 1 ? 'S' : ''} LATE`;
     }
@@ -761,6 +755,7 @@ return (
     );
   })()}
 </td>
+
 
 
 
