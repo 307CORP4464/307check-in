@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,7 +8,6 @@ import { differenceInMinutes } from 'date-fns';
 import Link from 'next/link';
 import AssignDockModal from './AssignDockModal';
 import EditCheckInModal from './EditCheckInModal';
-import DenyCheckInModal from './DenyCheckInModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
@@ -77,9 +77,12 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   return appointmentTime;
 };
 
-const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
+
+   const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
+  // Handle special appointment types first
   if (appointmentTime === 'work_in' || appointmentTime === 'Work In') return 'Work In';
   
+  // If no time at all, return N/A
   if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
     return 'N/A';
   }
@@ -87,22 +90,29 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
   try {
     let formattedDate = '';
     
+    // Format the date if available
     if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
       let date: Date;
       
+      // Check if date is in MM/DD/YYYY format
       if (appointmentDate.includes('/')) {
         const [month, day, year] = appointmentDate.split('/').map(Number);
         date = new Date(year, month - 1, day);
       } 
+      // Check if date is in YYYY-MM-DD format (ISO date only, no time)
       else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
         const [year, month, day] = appointmentDate.split('-').map(Number);
+        // Create date in local timezone, not UTC
         date = new Date(year, month - 1, day);
       }
+      // Otherwise try ISO format with time
       else {
         date = new Date(appointmentDate);
       }
       
+      // Validate the date
       if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
+        // Format the date to MM/DD/YYYY
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         const year = date.getFullYear();
@@ -111,12 +121,15 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
       }
     }
     
+    // Format the time
     const formattedTime = formatAppointmentTime(appointmentTime);
     
+    // If no date, just return time
     if (!formattedDate) {
       return formattedTime !== 'N/A' ? formattedTime : 'N/A';
     }
     
+    // Combine date and time
     if (formattedDate && formattedTime && formattedTime !== 'N/A') {
       return `${formattedDate}, ${formattedTime}`;
     } else if (formattedDate) {
@@ -133,7 +146,8 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
   }
 };
 
-const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
+
+  const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
   if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'LTL') {
     return false;
   }
@@ -167,6 +181,8 @@ const isOnTime = (checkInTime: string, appointmentTime: string | null | undefine
   
   return false;
 };
+
+
 
 interface CheckIn {
   id: string;
@@ -215,7 +231,6 @@ export default function CSRDashboard() {
   const [userEmail, setUserEmail] = useState<string>('');
   const [selectedForDock, setSelectedForDock] = useState<CheckIn | null>(null);
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
-  const [selectedForDeny, setSelectedForDeny] = useState<CheckIn | null>(null);
 
   useEffect(() => {
     const getUser = async () => {
@@ -283,59 +298,120 @@ export default function CSRDashboard() {
     }
   };
 
-  const fetchCheckIns = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const { data: checkInsData, error: checkInsError } = await supabase
-        .from('check_ins')
-        .select('*')
-        .eq('status', 'pending')
-        .order('check_in_time', { ascending: true });
+const fetchCheckIns = async () => {
+  try {
+    setLoading(true);
+    setError(null);
+    
+    const { data: checkInsData, error: checkInsError } = await supabase
+      .from('check_ins')
+      .select('*')
+      .eq('status', 'pending')
+      .order('check_in_time', { ascending: true });
 
-      if (checkInsError) throw checkInsError;
+    if (checkInsError) throw checkInsError;
 
-      const referenceNumbers = checkInsData
-        ?.map(ci => ci.reference_number)
-        .filter(ref => ref && ref.trim() !== '') || [];
+    const referenceNumbers = checkInsData
+      ?.map(ci => ci.reference_number)
+      .filter(ref => ref && ref.trim() !== '') || [];
 
-      let appointmentsMap = new Map();
+    let appointmentsMap = new Map();
 
-      if (referenceNumbers.length > 0) {
-        const { data: appointmentsData, error: appointmentsError } = await supabase
-          .from('appointments')
-          .select('sales_order, delivery, appointment_time, appointment_date, carrier_name, load_type')
-          .or(referenceNumbers.map(ref => `sales_order.eq.${ref},delivery.eq.${ref}`).join(','));
+    if (referenceNumbers.length > 0) {
+      const { data: appointmentsData, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select('sales_order, delivery, appointment_time, appointment_date')
+        .or(`sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`);
 
-        if (!appointmentsError && appointmentsData) {
-          appointmentsData.forEach(apt => {
-            if (apt.sales_order) appointmentsMap.set(apt.sales_order, apt);
-            if (apt.delivery) appointmentsMap.set(apt.delivery, apt);
-          });
-        }
+      if (appointmentsError) {
+        console.error('Error fetching appointments:', appointmentsError);
+      } else if (appointmentsData) {
+        appointmentsData.forEach(apt => {
+          const appointmentInfo = {
+            time: apt.appointment_time,
+            date: apt.appointment_date
+          };
+          if (apt.sales_order) {
+            appointmentsMap.set(apt.sales_order, appointmentInfo);
+          }
+          if (apt.delivery) {
+            appointmentsMap.set(apt.delivery, appointmentInfo);
+          }
+        });
       }
+    }
 
-      const enrichedCheckIns = checkInsData?.map(checkIn => {
-        const appointment = checkIn.reference_number ? appointmentsMap.get(checkIn.reference_number) : null;
-        
-        return {
-          ...checkIn,
-          appointment_time: checkIn.appointment_time || appointment?.appointment_time || null,
-          appointment_date: checkIn.appointment_date || appointment?.appointment_date || null,
-          carrier_name: checkIn.carrier_name || appointment?.carrier_name || checkIn.carrier_name,
-          load_type: checkIn.load_type || appointment?.load_type || checkIn.load_type
-        };
-      }) || [];
+    const enrichedCheckIns = checkInsData?.map(checkIn => {
+      const appointmentInfo = appointmentsMap.get(checkIn.reference_number);
+      return {
+        ...checkIn,
+        appointment_time: appointmentInfo?.time || checkIn.appointment_time || null,
+        appointment_date: appointmentInfo?.date || checkIn.appointment_date || null
+      };
+    }) || [];
 
-      setCheckIns(enrichedCheckIns);
-    } catch (err) {
-      console.error('Fetch error:', err);
-      setError('Failed to load check-ins');
-    } finally {
-      setLoading(false);
+    setCheckIns(enrichedCheckIns);
+  } catch (err) {
+    console.error('Fetch error:', err);
+    setError('Failed to fetch check-ins');
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.push('/login');
+      router.refresh();
+    } catch (error) {
+      console.error('Error logging out:', error);
     }
   };
+
+  const handleAssignDock = (checkIn: CheckIn) => {
+    setSelectedForDock(checkIn);
+  };
+
+  const handleDockAssignSuccess = () => {
+    fetchCheckIns();
+    setSelectedForDock(null);
+  };
+
+  const handleEdit = (checkIn: CheckIn) => {
+    setSelectedForEdit(checkIn);
+  };
+
+  const handleEditSuccess = () => {
+    fetchCheckIns();
+    setSelectedForEdit(null);
+  };
+
+  const calculateWaitTime = (checkIn: CheckIn): string => {
+    const start = new Date(checkIn.check_in_time);
+    const now = new Date();
+    const minutes = differenceInMinutes(now, start);
+    
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${mins}m`;
+    }
+    return `${mins}m`;
+  };
+
+  const getWaitTimeColor = (checkIn: CheckIn): string => {
+    const start = new Date(checkIn.check_in_time);
+    const now = new Date();
+    const minutes = differenceInMinutes(now, start);
+    
+    if (minutes > 120) return 'text-red-600';
+    if (minutes > 60) return 'text-orange-600';
+    return 'text-gray-900';
+  };
+
 
   const handleDenyComplete = () => {
     fetchCheckIns();
