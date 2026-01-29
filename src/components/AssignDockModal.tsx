@@ -160,42 +160,72 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     }
   };
 
-  const sendEmailNotification = async (dock: string, email: string) => {
-    try {
-      const response = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type: 'dock_assignment',
-          toEmail: email,
-          data: {
-            driverName: checkIn.driver_name || 'Driver',
-            dockNumber: dock,
-            referenceNumber: checkIn.reference_number || 'N/A',
-            appointmentTime: checkIn.appointment_time 
-              ? formatAppointmentTime(checkIn.appointment_time) 
-              : undefined,
-          },
-        }),
-      });
-
-      const result = await response.json();
+const sendEmailNotification = async (dock: string, email: string) => {
+  try {
+    // Calculate appointment status
+    let appointmentStatus = 'No Appointment';
+    if (checkIn.appointment_time && checkIn.check_in_time) {
+      const checkInDate = new Date(checkIn.check_in_time);
+      const appointmentTimeStr = checkIn.appointment_time;
       
-      if (result.success) {
-        setEmailStatus('Email sent successfully ✓');
-        return true;
-      } else {
-        setEmailStatus(`Email failed: ${result.error}`);
-        return false;
+      // Parse appointment time (format: "0800", "0930", etc.)
+      if (/^\d{4}$/.test(appointmentTimeStr)) {
+        const hours = parseInt(appointmentTimeStr.substring(0, 2));
+        const minutes = parseInt(appointmentTimeStr.substring(2, 4));
+        const appointmentDate = new Date(checkInDate);
+        appointmentDate.setHours(hours, minutes, 0, 0);
+        
+        const diffMinutes = (checkInDate.getTime() - appointmentDate.getTime()) / (1000 * 60);
+        
+        if (diffMinutes < -15) {
+          appointmentStatus = 'Early';
+        } else if (diffMinutes > 15) {
+          appointmentStatus = 'Late';
+        } else {
+          appointmentStatus = 'On Time';
+        }
       }
-    } catch (err) {
-      console.error('Error sending email:', err);
-      setEmailStatus('Email sending failed');
+    }
+
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: 'dock_assignment',
+        toEmail: email,
+        data: {
+          driverName: checkIn.driver_name || 'Driver',
+          dockNumber: dock,
+          referenceNumber: checkIn.reference_number || 'N/A',
+          loadType: checkIn.load_type || 'inbound',
+          checkInTime: formatCheckInTime(checkIn.check_in_time) || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          appointmentTime: checkIn.appointment_time 
+            ? formatAppointmentTime(checkIn.appointment_time) 
+            : undefined,
+          appointmentStatus: appointmentStatus,
+        },
+      }),
+    });
+
+    const result = await response.json();
+    
+    if (result.success) {
+      setEmailStatus('Email sent successfully ✓');
+      return true;
+    } else {
+      setEmailStatus(`Email failed: ${result.error}`);
+      console.error('Email send error:', result);
       return false;
     }
-  };
+  } catch (err) {
+    console.error('Error sending email:', err);
+    setEmailStatus('Email sending failed');
+    return false;
+  }
+};
+
 
   const handleAssign = async () => {
     if (!dockNumber) {
