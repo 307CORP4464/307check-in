@@ -286,7 +286,6 @@ export default function AppointmentsPage() {
                 <div className="text-center">
                   <div className="text-5xl font-bold mb-2">{totalAppointmentsCount}</div>
                   <div className="text-xl font-medium">Total Appointments</div>
-                  <div className="text-sm opacity-90 mt-1">for {formatDateForDisplay(selectedDate)}</div>
                 </div>
               </div>
               
@@ -294,7 +293,6 @@ export default function AppointmentsPage() {
                 <div className="text-center">
                   <div className="text-5xl font-bold mb-2">{workInCount}</div>
                   <div className="text-xl font-medium">Work In Appointments</div>
-                  <div className="text-sm opacity-90 mt-1">Unscheduled appointments</div>
                 </div>
               </div>
             </div>
