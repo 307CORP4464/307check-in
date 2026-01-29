@@ -16,7 +16,7 @@ export interface AppointmentInput {
   sales_order: string;
   delivery?: string;
   notes?: string;
-  source?: AppointmentSource;  // Use the same type
+  source?: AppointmentSource;  
 }
 
 export interface Appointment {
@@ -26,7 +26,7 @@ export interface Appointment {
   sales_order?: string | null;
   delivery?: string | null;
   notes?: string | null;
-  source: 'upload' | 'manual';
-  created_at: string; // Make sure this is NOT optional
+  source: 'excel' | 'manual';
+  created_at: string; 
   updated_at?: string;
 }
