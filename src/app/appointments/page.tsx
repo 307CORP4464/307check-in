@@ -421,7 +421,7 @@ export default function AppointmentsPage() {
                                       <p className="text-sm text-gray-600 mt-1">{apt.notes}</p>
                                     )}
                                     <div className="text-xs text-gray-500 mt-1">
-                                      Created: {new Date(apt.created_at).toLocaleString()}
+                                      Created: {apt.created_at ? new Date(apt.created_at).toLocaleString() : 'N/A'}
                                     </div>
                                   </div>
                                   <div className="flex gap-1 flex-shrink-0">
