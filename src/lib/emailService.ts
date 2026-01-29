@@ -328,5 +328,4 @@ class EmailService {
 }
 
 // Export singleton instance
-export const emailService = new EmailService();
 export default EmailService;
