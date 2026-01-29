@@ -39,7 +39,6 @@ const formatTimeInIndianapolis = (isoString: string): string => {
   }
 };
 
-// Format date for display
 const formatDateForDisplay = (dateString: string): string => {
   const [year, month, day] = dateString.split('-');
   const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
@@ -60,7 +59,7 @@ export default function AppointmentsPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -83,39 +82,28 @@ export default function AppointmentsPage() {
   }, [selectedDate]);
 
   const loadAppointments = async () => {
-  setLoading(true);
-  try {
-    console.log('🔍 Loading appointments for date:', selectedDate);
-    const data = await getAppointmentsByDate(selectedDate);
-    console.log('📦 Received appointments:', data);
-    console.log('📊 Appointment times:', data.map(a => a.appointment_time));
-    console.log('📋 TIME_SLOTS:', TIME_SLOTS);
-    setAppointments(data);
-  } catch (error) {
-    console.error('❌ Error loading appointments:', error);
-    setAppointments([]);
-  } finally {
-    setLoading(false);
-  }
-};
-
-  const handleLogout = async () => {
+    setLoading(true);
     try {
-      await supabase.auth.signOut();
-      router.push('/login');
-      router.refresh();
+      console.log('🔍 Loading appointments for date:', selectedDate);
+      const data = await getAppointmentsByDate(selectedDate);
+      console.log('📦 Received appointments:', data);
+      console.log('📊 Appointment times:', data.map(a => a.appointment_time));
+      console.log('📋 TIME_SLOTS:', TIME_SLOTS);
+      setAppointments(data);
     } catch (error) {
-      console.error('Error logging out:', error);
+      console.error('❌ Error loading appointments:', error);
+      setAppointments([]);
+    } finally {
+      setLoading(false);
     }
   };
 
   const changeDateByDays = (days: number) => {
     const currentDate = new Date(selectedDate);
     currentDate.setDate(currentDate.getDate() + days);
-    setSelectedDate(currentDate.toISOString().split('T')[0]);
+    setSelectedDate(currentDate.toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   };
 
-  // Filter appointments based on search query
   const filteredAppointments = appointments.filter(apt => {
     if (!searchQuery.trim()) return true;
     
@@ -136,7 +124,6 @@ export default function AppointmentsPage() {
 
   const handleSave = async (data: AppointmentInput) => {
     try {
-      // Add the selected date and source for new appointments
       const appointmentData: AppointmentInput = {
         ...data,
         source: editingAppointment ? data.source : 'manual'
@@ -179,69 +166,63 @@ export default function AppointmentsPage() {
   };
 
   return (
-  <div className="min-h-screen bg-gray-50">
-    {/* Header */}
-    <div className="bg-white border-b shadow-sm">
-      <div className="max-w-[1600px] mx-auto px-4 py-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Appointment Scheduling</h1>
-            {userEmail && (
-              <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
-            )}
-            <p className="text-xs text-gray-500">
-              Current time: {formatTimeInIndianapolis(new Date().toISOString())}
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Link 
-              href="/appointments" 
-              className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
-            >
-              Appointments
-            </Link>  
-
-            <Link
-              href="/dock-status"
-              className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
-            >
-              Dock Status
-            </Link>    
-
-            <Link
-              href="/dashboard"
-              className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
-            >
-              Dashboard
-            </Link>
-            
-            <Link
-              href="/logs"
-              className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium"
-            >
-              Daily Logs
-            </Link>
-            
-            <Link
-              href="/tracking"
-              className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium"
-            >
-              Tracking
-            </Link>
-            
-            <Link
-              href="/check-in"
-              className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
-            >
-              Check-In Form
-            </Link>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b shadow-sm">
+        <div className="max-w-[1600px] mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Appointment Scheduling</h1>
+              {userEmail && (
+                <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
+              )}
+              <p className="text-xs text-gray-500">
+                Current time: {formatTimeInIndianapolis(new Date().toISOString())}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Link 
+                href="/appointments" 
+                className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+              >
+                Appointments
+              </Link>  
+              <Link
+                href="/dock-status"
+                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
+              >
+                Dock Status
+              </Link>    
+              <Link
+                href="/dashboard"
+                className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/logs"
+                className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium"
+              >
+                Daily Logs
+              </Link>
+              <Link
+                href="/tracking"
+                className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium"
+              >
+                Tracking
+              </Link>
+              <Link
+                href="/check-in"
+                className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
+              >
+                Check-In Form
+              </Link>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-
-       {/* Main Content */}
+      {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <div className="lg:col-span-2">
@@ -254,7 +235,8 @@ export default function AppointmentsPage() {
               <button
                 onClick={() => changeDateByDays(-1)}
                 className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors font-medium"
-                title="Previous Day">
+                title="Previous Day"
+              >
                 ← Prev
               </button>
               <input
@@ -266,7 +248,8 @@ export default function AppointmentsPage() {
               <button
                 onClick={() => changeDateByDays(1)}
                 className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors font-medium"
-                title="Next Day">
+                title="Next Day"
+              >
                 Next →
               </button>
             </div>
@@ -275,11 +258,12 @@ export default function AppointmentsPage() {
                 setEditingAppointment(null);
                 setModalOpen(true);
               }}
-              className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition-colors font-medium">
+              className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition-colors font-medium"
+            >
               + Add Manual Appointment
             </button>
 
-            {/* Counters - Moved here and made larger */}
+            {/* Counters */}
             <div className="mt-6 space-y-4">
               <div className="bg-blue-500 text-white p-6 rounded-lg shadow-lg">
                 <div className="text-center">
@@ -287,150 +271,102 @@ export default function AppointmentsPage() {
                   <div className="text-xl font-medium">Total Appointments</div>
                 </div>
               </div>
-              
-              <div className="bg-purple-500 text-white p-6 rounded-lg shadow-lg">
+
+              <div className="bg-green-500 text-white p-6 rounded-lg shadow-lg">
                 <div className="text-center">
                   <div className="text-5xl font-bold mb-2">{workInCount}</div>
-                  <div className="text-xl font-medium">Work In Appointments</div>
+                  <div className="text-xl font-medium">Work In</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <label className="block text-sm font-medium mb-2 text-gray-700">
-            Search by Reference Number
-          </label>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
+        {/* Appointments Table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
+            <h2 className="text-lg font-bold">
+              Appointments for {formatDateForDisplay(selectedDate)}
+            </h2>
+            
+            <div className="relative w-64">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Enter Sales Order or Delivery number..."
-                className="w-full p-3 pl-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Search SO or Delivery..."
+                className="w-full pl-10 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               />
-              <svg 
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
-                />
+              <svg className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-            </div>
-            {searchQuery && (
-              <button
-                onClick={clearSearch}
-                className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-          {searchQuery && (
-            <p className="text-sm text-gray-600 mt-2">
-              Found {filteredAppointments.length} appointment(s)
-              </p>
-          )}
-        </div>
-
-        {/* Appointments Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-  <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
-    <h2 className="text-lg font-bold">
-      Appointments for {formatDateForDisplay(selectedDate)}
-    </h2>
-              <div className="text-sm text-gray-600">
-                Total: {totalAppointmentsCount} | Work In: {workInCount}
-              </div>
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                >
+                  ×
+                </button>
+              )}
             </div>
           </div>
 
           {loading ? (
-            <div className="text-center py-8">Loading appointments...</div>
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading appointments...</p>
+            </div>
+          ) : filteredAppointments.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              {appointments.length === 0 
+                ? 'No appointments scheduled for this date'
+                : 'No appointments match your search'}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-gray-100 border-b">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Time Slot
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Sales Order
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Delivery
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Notes
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Source
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Time</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Sales Order</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Delivery</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Notes</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Source</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {TIME_SLOTS.map((slot) => {
-                    const slotAppointments = groupedAppointments[slot] || [];
-                    
-                    if (slotAppointments.length === 0) {
-                      // Show empty slot
-                      return (
-                        <tr key={slot} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {slot}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-400" colSpan={5}>
-                            No appointments scheduled
-                          </td>
-                        </tr>
-                      );
-                    }
- return slotAppointments.map((apt, idx) => (
-              <tr key={apt.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 text-sm font-medium">{slot}</td>
-                <td className="px-4 py-3 text-sm">{apt.sales_order || '-'}</td>
-                <td className="px-4 py-3 text-sm">{apt.delivery || '-'}</td>
-                <td className="px-4 py-3 text-sm">{apt.notes || '-'}</td>
-                <td className="px-4 py-3 text-sm">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    apt.source === 'manual' 
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-blue-100 text-blue-800'
-                  }`}>
-                    {apt.source}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-sm text-right">
-                  <button
-                    onClick={() => handleEdit(apt)}
-                    className="text-blue-600 hover:text-blue-800 mr-3"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(apt.id)}
-                    className="text-red-600 hover:text-red-800"
-                   
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ));
-                  })}
+                <tbody className="divide-y">
+                  {filteredAppointments.map((apt) => (
+                    <tr key={apt.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium">{apt.appointment_time}</td>
+                      <td className="px-4 py-3 text-sm">{apt.sales_order || '-'}</td>
+                      <td className="px-4 py-3 text-sm">{apt.delivery || '-'}</td>
+                      <td className="px-4 py-3 text-sm">{apt.notes || '-'}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          apt.source === 'manual' 
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {apt.source}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right">
+                        <button
+                          onClick={() => handleEdit(apt)}
+                          className="text-blue-600 hover:text-blue-800 mr-3"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(apt.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -442,12 +378,13 @@ export default function AppointmentsPage() {
       {modalOpen && (
         <AppointmentModal
           isOpen={modalOpen}
-          appointment={editingAppointment}
           onClose={() => {
             setModalOpen(false);
             setEditingAppointment(null);
           }}
           onSave={handleSave}
+          appointment={editingAppointment}
+          initialDate={selectedDate}
         />
       )}
     </div>
