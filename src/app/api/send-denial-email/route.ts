@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     const { to, driverName, carrierName, referenceNumber, reason, notes } = body;
 
     // Configure your email transporter
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST, // e.g., smtp.gmail.com
       port: parseInt(process.env.EMAIL_PORT || '587'),
       secure: process.env.EMAIL_SECURE === 'true',
@@ -61,3 +61,4 @@ export async function POST(request: Request) {
     );
   }
 }
+
