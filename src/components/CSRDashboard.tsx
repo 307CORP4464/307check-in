@@ -168,6 +168,51 @@ const isOnTime = (checkInTime: string, appointmentTime: string | null | undefine
   return false;
 };
 
+// ADD THESE TWO FUNCTIONS HERE:
+const calculateWaitTime = (checkIn: CheckIn): string => {
+  try {
+    const checkInTime = new Date(checkIn.check_in_time);
+    const now = new Date();
+    const diffMinutes = differenceInMinutes(now, checkInTime);
+    
+    if (diffMinutes < 0) return '0 min';
+    
+    const hours = Math.floor(diffMinutes / 60);
+    const minutes = diffMinutes % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  } catch (error) {
+    console.error('Error calculating wait time:', error);
+    return 'N/A';
+  }
+};
+
+const getWaitTimeColor = (checkIn: CheckIn): string => {
+  try {
+    const checkInTime = new Date(checkIn.check_in_time);
+    const now = new Date();
+    const diffMinutes = differenceInMinutes(now, checkInTime);
+    
+    // Green: 0-30 minutes
+    if (diffMinutes <= 30) return 'text-green-600';
+    
+    // Yellow: 31-60 minutes
+    if (diffMinutes <= 60) return 'text-yellow-600';
+    
+    // Orange: 61-90 minutes
+    if (diffMinutes <= 90) return 'text-orange-600';
+    
+    // Red: 90+ minutes
+    return 'text-red-600';
+  } catch (error) {
+    console.error('Error getting wait time color:', error);
+    return 'text-gray-600';
+  }
+};
+
 interface CheckIn {
   id: string;
   check_in_time: string;
