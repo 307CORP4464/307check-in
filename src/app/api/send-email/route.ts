@@ -1,4 +1,3 @@
-// app/api/send-email/route.ts or pages/api/send-email.ts
 import { NextRequest, NextResponse } from 'next/server';
 import EmailService from '@/lib/emailService';
 
@@ -14,6 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Create a new instance of EmailService
     const emailService = new EmailService();
 
     switch (type) {
@@ -38,6 +38,13 @@ export async function POST(request: NextRequest) {
           data.appointmentStatus
         );
         break;
+
+      case 'status_change':
+        // Add status change email handling if needed
+        return NextResponse.json(
+          { success: false, error: 'Status change emails not yet implemented' },
+          { status: 400 }
+        );
 
       default:
         return NextResponse.json(
