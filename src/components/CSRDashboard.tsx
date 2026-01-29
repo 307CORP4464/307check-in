@@ -7,6 +7,7 @@ import { differenceInMinutes } from 'date-fns';
 import Link from 'next/link';
 import AssignDockModal from './AssignDockModal';
 import EditCheckInModal from './EditCheckInModal';
+import DenyCheckInModal from './DenyCheckInModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
