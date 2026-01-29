@@ -19,22 +19,17 @@ const TIMEZONE = 'America/Indiana/Indianapolis';
 const formatTimeInIndianapolis = (isoString: string): string => {
   try {
     const date = new Date(isoString);
+    if (isNaN(date.getTime())) return 'Invalid Date';
     
-    if (isNaN(date.getTime())) {
-      return 'Invalid Date';
-    }
-    
-    const options: Intl.DateTimeFormatOptions = {
+    const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: TIMEZONE,
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
-    };
-    
-    const formatter = new Intl.DateTimeFormat('en-US', options);
+    });
     return formatter.format(date);
   } catch (e) {
-    console.error('Time formatting error:', e, isoString);
+    console.error('Time formatting error:', e);
     return isoString;
   }
 };
@@ -59,7 +54,7 @@ export default function AppointmentsPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -87,8 +82,13 @@ export default function AppointmentsPage() {
       console.log('🔍 Loading appointments for date:', selectedDate);
       const data = await getAppointmentsByDate(selectedDate);
       console.log('📦 Received appointments:', data);
-      console.log('📊 Appointment times:', data.map(a => a.appointment_time));
-      console.log('📋 TIME_SLOTS:', TIME_SLOTS);
+      console.log('📊 Total count:', data.length);
+      
+      if (data.length > 0) {
+        console.log('🔍 First appointment:', data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
+        console.log('🕐 Appointment times:', data.map(a => a.appointment_time));
+      }
+      
       setAppointments(data);
     } catch (error) {
       console.error('❌ Error loading appointments:', error);
@@ -101,7 +101,7 @@ export default function AppointmentsPage() {
   const changeDateByDays = (days: number) => {
     const currentDate = new Date(selectedDate);
     currentDate.setDate(currentDate.getDate() + days);
-    setSelectedDate(currentDate.toISOString().split('T')[0]);
+    setSelectedDate(currentDate.toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   };
 
   const filteredAppointments = appointments.filter(apt => {
@@ -114,12 +114,6 @@ export default function AppointmentsPage() {
     return salesOrder.includes(query) || delivery.includes(query);
   });
 
-  const groupedAppointments = TIME_SLOTS.reduce((acc, slot) => {
-    acc[slot] = filteredAppointments.filter(apt => apt.appointment_time === slot);
-    return acc;
-  }, {} as Record<string, Appointment[]>);
-
-  const workInCount = groupedAppointments['Work In']?.length || 0;
   const totalAppointmentsCount = filteredAppointments.length;
 
   const handleSave = async (data: AppointmentInput) => {
@@ -181,40 +175,22 @@ export default function AppointmentsPage() {
               </p>
             </div>
             <div className="flex gap-3">
-              <Link 
-                href="/appointments" 
-                className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
-              >
+              <Link href="/appointments" className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium">
                 Appointments
               </Link>  
-              <Link
-                href="/dock-status"
-                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
-              >
+              <Link href="/dock-status" className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium">
                 Dock Status
               </Link>    
-              <Link
-                href="/dashboard"
-                className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
-              >
+              <Link href="/dashboard" className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium">
                 Dashboard
               </Link>
-              <Link
-                href="/logs"
-                className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium"
-              >
+              <Link href="/logs" className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium">
                 Daily Logs
               </Link>
-              <Link
-                href="/tracking"
-                className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium"
-              >
+              <Link href="/tracking" className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium">
                 Tracking
               </Link>
-              <Link
-                href="/check-in"
-                className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
-              >
+              <Link href="/check-in" className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium">
                 Check-In Form
               </Link>
             </div>
@@ -235,7 +211,6 @@ export default function AppointmentsPage() {
               <button
                 onClick={() => changeDateByDays(-1)}
                 className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors font-medium"
-                title="Previous Day"
               >
                 ← Prev
               </button>
@@ -248,7 +223,6 @@ export default function AppointmentsPage() {
               <button
                 onClick={() => changeDateByDays(1)}
                 className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors font-medium"
-                title="Next Day"
               >
                 Next →
               </button>
@@ -263,19 +237,12 @@ export default function AppointmentsPage() {
               + Add Manual Appointment
             </button>
 
-            {/* Counters */}
-            <div className="mt-6 space-y-4">
+            {/* Counter */}
+            <div className="mt-6">
               <div className="bg-blue-500 text-white p-6 rounded-lg shadow-lg">
                 <div className="text-center">
                   <div className="text-5xl font-bold mb-2">{totalAppointmentsCount}</div>
                   <div className="text-xl font-medium">Total Appointments</div>
-                </div>
-              </div>
-
-              <div className="bg-green-500 text-white p-6 rounded-lg shadow-lg">
-                <div className="text-center">
-                  <div className="text-5xl font-bold mb-2">{workInCount}</div>
-                  <div className="text-xl font-medium">Work In</div>
                 </div>
               </div>
             </div>
@@ -303,7 +270,7 @@ export default function AppointmentsPage() {
               {searchQuery && (
                 <button
                   onClick={clearSearch}
-                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-xl"
                 >
                   ×
                 </button>
@@ -319,8 +286,8 @@ export default function AppointmentsPage() {
           ) : filteredAppointments.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
               {appointments.length === 0 
-                ? 'No appointments scheduled for this date'
-                : 'No appointments match your search'}
+                ? '📅 No appointments scheduled for this date. Click "Add Manual Appointment" or upload a file to get started.'
+                : '🔍 No appointments match your search.'}
             </div>
           ) : (
             <div className="overflow-x-auto">
