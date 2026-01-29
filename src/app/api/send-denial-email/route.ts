@@ -1,62 +1,90 @@
-import { NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import { NextRequest, NextResponse } from 'next/server';
+import { Resend } from 'resend';
 
-export async function POST(request: Request) {
+// Initialize Resend with your API key
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { to, driverName, carrierName, referenceNumber, reason, notes } = body;
+    const { to, driverName, carrierName, referenceNumber, notes, checkInId } = body;
 
-    // Configure your email transporter
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST, // e.g., smtp.gmail.com
-      port: parseInt(process.env.EMAIL_PORT || '587'),
-      secure: process.env.EMAIL_SECURE === 'true',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
+    if (!to) {
+      return NextResponse.json(
+        { error: 'Driver email is required' },
+        { status: 400 }
+      );
+    }
+
+    // Send email using Resend
+    const { data, error } = await resend.emails.send({
+      from: 'Your Company <noreply@yourdomain.com>', // Update with your domain
+      to: [to],
+      subject: 'Check-in Request Denied',
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background-color: #dc2626; color: white; padding: 20px; border-radius: 5px 5px 0 0; }
+              .content { background-color: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; }
+              .info-row { margin: 10px 0; }
+              .label { font-weight: bold; }
+              .reason-box { background-color: #fee2e2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0; }
+              .footer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1 style="margin: 0;">Check-in Request Denied</h1>
+              </div>
+              <div class="content">
+                <p>Hello ${driverName},</p>
+                <p>Your check-in request has been denied. Please see the details below:</p>
+                
+                <div class="info-row">
+                  <span class="label">Reference Number:</span> ${referenceNumber}
+                </div>
+                <div class="info-row">
+                  <span class="label">Carrier:</span> ${carrierName}
+                </div>
+                <div class="info-row">
+                  <span class="label">Check-in ID:</span> ${checkInId}
+                </div>
+                
+                <div class="reason-box">
+                  <div class="label">Reason for Denial:</div>
+                  <p style="margin: 10px 0 0 0;">${notes}</p>
+                </div>
+                
+                <p>If you have any questions or believe this is an error, please contact our office.</p>
+                <p>Thank you,<br>Your Company Name</p>
+              </div>
+              <div class="footer">
+                <p>This is an automated message. Please do not reply to this email.</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `,
     });
 
-    const emailContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #dc2626;">Check-in Denied</h2>
-        
-        <p>Dear ${driverName},</p>
-        
-        <p>Your check-in request has been <strong>denied</strong> for the following reason:</p>
-        
-        <div style="background-color: #fee2e2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0;">
-          <p style="margin: 0; font-weight: bold;">Reason: ${reason}</p>
-          ${notes ? `<p style="margin: 10px 0 0 0;">Details: ${notes}</p>` : ''}
-        </div>
-        
-        <div style="background-color: #f3f4f6; padding: 15px; margin: 20px 0; border-radius: 5px;">
-          <p style="margin: 5px 0;"><strong>Reference Number:</strong> ${referenceNumber}</p>
-          <p style="margin: 5px 0;"><strong>Carrier:</strong> ${carrierName}</p>
-        </div>
-        
-        <p>Please contact the facility for further instructions or to reschedule your appointment.</p>
-        
-        <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
-        
-        <p style="color: #6b7280; font-size: 12px;">
-          This is an automated message. Please do not reply to this email.
-        </p>
-      </div>
-    `;
+    if (error) {
+      console.error('Resend error:', error);
+      return NextResponse.json(
+        { error: 'Failed to send email' },
+        { status: 500 }
+      );
+    }
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      to: to,
-      subject: `Check-in Denied - Reference: ${referenceNumber}`,
-      html: emailContent,
-    });
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, data });
   } catch (error) {
-    console.error('Email send error:', error);
+    console.error('Email API error:', error);
     return NextResponse.json(
-      { error: 'Failed to send email' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
