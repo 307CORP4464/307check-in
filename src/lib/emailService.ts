@@ -278,12 +278,17 @@ class EmailService {
           </tr>
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>4.</strong> Wait in your truck for further instructions.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>4.</strong> The light will turn red when you are being unloaded.</p>
             </td>
           </tr>
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>5.</strong> Do not leave your truck until authorized.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>5.</strong>When you are done the light will turn green.</p>
+            </td>
+            </tr>
+             <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>6.</strong>If you need your paperwork signed please bring a copy to the office when you are unloaded.</p>
             </td>
           </tr>
         </table>
@@ -298,27 +303,32 @@ class EmailService {
         <table width="100%" cellpadding="0" cellspacing="0">
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>1.</strong> Back into the assigned dock.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>1.</strong> Place 2 load bard or straps in your trailer.</p>
             </td>
           </tr>
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>2.</strong> Ensure your trailer is empty and clean.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>2.</strong> Leave your doors closed. We will open inside the building.</p>
             </td>
           </tr>
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>3.</strong> Wait in your truck during loading.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>3.</strong> Slife your tandems to the back.</p>
             </td>
           </tr>
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>4.</strong> You will be notified when loading is complete.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>4.</strong> The light will change to red when you are being loaded.</p>
             </td>
           </tr>
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>5.</strong> Pick up your paperwork at the shipping office.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>5.</strong> When you are done the light will go back to green. You will also receive an email with your updated status.</p>
+            </td>
+            </tr>
+          <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>6.</strong> Please come into the office to receive your paperwork.</p>
             </td>
           </tr>
         </table>
