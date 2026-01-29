@@ -8,6 +8,7 @@ import { differenceInMinutes } from 'date-fns';
 import Link from 'next/link';
 import AssignDockModal from './AssignDockModal';
 import EditCheckInModal from './EditCheckInModal';
+import DenyCheckInModal from './DenyCheckInModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
@@ -231,6 +232,7 @@ export default function CSRDashboard() {
   const [userEmail, setUserEmail] = useState<string>('');
   const [selectedForDock, setSelectedForDock] = useState<CheckIn | null>(null);
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
+  const [selectedForDeny, setSelectedForDeny] = useState<CheckIn | null>(null);
 
   useEffect(() => {
     const getUser = async () => {
