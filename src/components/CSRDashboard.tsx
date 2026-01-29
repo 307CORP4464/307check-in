@@ -7,7 +7,7 @@ import { differenceInMinutes } from 'date-fns';
 import Link from 'next/link';
 import AssignDockModal from './AssignDockModal';
 import EditCheckInModal from './EditCheckInModal';
-import DenyCheckInModal from './DenyCheckInModal'; // Add this import
+import DenyCheckInModal from './DenyCheckInModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
@@ -77,12 +77,9 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   return appointmentTime;
 };
 
-
-   const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
-  // Handle special appointment types first
+const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
   if (appointmentTime === 'work_in' || appointmentTime === 'Work In') return 'Work In';
   
-  // If no time at all, return N/A
   if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
     return 'N/A';
   }
@@ -90,29 +87,22 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   try {
     let formattedDate = '';
     
-    // Format the date if available
     if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
       let date: Date;
       
-      // Check if date is in MM/DD/YYYY format
       if (appointmentDate.includes('/')) {
         const [month, day, year] = appointmentDate.split('/').map(Number);
         date = new Date(year, month - 1, day);
       } 
-      // Check if date is in YYYY-MM-DD format (ISO date only, no time)
       else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
         const [year, month, day] = appointmentDate.split('-').map(Number);
-        // Create date in local timezone, not UTC
         date = new Date(year, month - 1, day);
       }
-      // Otherwise try ISO format with time
       else {
         date = new Date(appointmentDate);
       }
       
-      // Validate the date
       if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
-        // Format the date to MM/DD/YYYY
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         const year = date.getFullYear();
@@ -121,15 +111,12 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
       }
     }
     
-    // Format the time
     const formattedTime = formatAppointmentTime(appointmentTime);
     
-    // If no date, just return time
     if (!formattedDate) {
       return formattedTime !== 'N/A' ? formattedTime : 'N/A';
     }
     
-    // Combine date and time
     if (formattedDate && formattedTime && formattedTime !== 'N/A') {
       return `${formattedDate}, ${formattedTime}`;
     } else if (formattedDate) {
@@ -146,8 +133,7 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   }
 };
 
-
-  const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
+const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
   if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'LTL') {
     return false;
   }
@@ -181,7 +167,6 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   
   return false;
 };
-
 
 interface CheckIn {
   id: string;
@@ -230,7 +215,7 @@ export default function CSRDashboard() {
   const [userEmail, setUserEmail] = useState<string>('');
   const [selectedForDock, setSelectedForDock] = useState<CheckIn | null>(null);
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
-  const [selectedForDeny, setSelectedForDeny] = useState<CheckIn | null>(null); // Add this state
+  const [selectedForDeny, setSelectedForDeny] = useState<CheckIn | null>(null);
 
   useEffect(() => {
     const getUser = async () => {
@@ -298,369 +283,180 @@ export default function CSRDashboard() {
     }
   };
 
-const fetchCheckIns = async () => {
-  try {
-    setLoading(true);
-    setError(null);
-    
-    const { data: checkInsData, error: checkInsError } = await supabase
-      .from('check_ins')
-      .select('*')
-      .eq('status', 'pending')
-      .order('check_in_time', { ascending: true });
-
-    if (checkInsError) throw checkInsError;
-
-    const referenceNumbers = checkInsData
-      ?.map(ci => ci.reference_number)
-      .filter(ref => ref && ref.trim() !== '') || [];
-
-    let appointmentsMap = new Map();
-
-    if (referenceNumbers.length > 0) {
-      const { data: appointmentsData, error: appointmentsError } = await supabase
-        .from('appointments')
-        .select('sales_order, delivery, appointment_time, appointment_date')
-        .or(`sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`);
-
-      if (appointmentsError) {
-        console.error('Error fetching appointments:', appointmentsError);
-      } else if (appointmentsData) {
-        appointmentsData.forEach(apt => {
-          const appointmentInfo = {
-            time: apt.appointment_time,
-            date: apt.appointment_date
-          };
-          if (apt.sales_order) {
-            appointmentsMap.set(apt.sales_order, appointmentInfo);
-          }
-          if (apt.delivery) {
-            appointmentsMap.set(apt.delivery, appointmentInfo);
-          }
-        });
-      }
-    }
-
-    const enrichedCheckIns = checkInsData?.map(checkIn => {
-      const appointmentInfo = appointmentsMap.get(checkIn.reference_number);
-      return {
-        ...checkIn,
-        appointment_time: appointmentInfo?.time || checkIn.appointment_time || null,
-        appointment_date: appointmentInfo?.date || checkIn.appointment_date || null
-      };
-    }) || [];
-
-    setCheckIns(enrichedCheckIns);
-  } catch (err) {
-    console.error('Fetch error:', err);
-    setError('Failed to fetch check-ins');
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-  const handleLogout = async () => {
+  const fetchCheckIns = async () => {
     try {
-      await supabase.auth.signOut();
-      router.push('/login');
-      router.refresh();
-    } catch (error) {
-      console.error('Error logging out:', error);
+      setLoading(true);
+      setError(null);
+      
+      const { data: checkInsData, error: checkInsError } = await supabase
+        .from('check_ins')
+        .select('*')
+        .eq('status', 'pending')
+        .order('check_in_time', { ascending: true });
+
+      if (checkInsError) throw checkInsError;
+
+      const referenceNumbers = checkInsData
+        ?.map(ci => ci.reference_number)
+        .filter(ref => ref && ref.trim() !== '') || [];
+
+      let appointmentsMap = new Map();
+
+      if (referenceNumbers.length > 0) {
+        const { data: appointmentsData, error: appointmentsError } = await supabase
+          .from('appointments')
+          .select('sales_order, delivery, appointment_time, appointment_date, carrier_name, load_type')
+          .or(referenceNumbers.map(ref => `sales_order.eq.${ref},delivery.eq.${ref}`).join(','));
+
+        if (!appointmentsError && appointmentsData) {
+          appointmentsData.forEach(apt => {
+            if (apt.sales_order) appointmentsMap.set(apt.sales_order, apt);
+            if (apt.delivery) appointmentsMap.set(apt.delivery, apt);
+          });
+        }
+      }
+
+      const enrichedCheckIns = checkInsData?.map(checkIn => {
+        const appointment = checkIn.reference_number ? appointmentsMap.get(checkIn.reference_number) : null;
+        
+        return {
+          ...checkIn,
+          appointment_time: checkIn.appointment_time || appointment?.appointment_time || null,
+          appointment_date: checkIn.appointment_date || appointment?.appointment_date || null,
+          carrier_name: checkIn.carrier_name || appointment?.carrier_name || checkIn.carrier_name,
+          load_type: checkIn.load_type || appointment?.load_type || checkIn.load_type
+        };
+      }) || [];
+
+      setCheckIns(enrichedCheckIns);
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError('Failed to load check-ins');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleAssignDock = (checkIn: CheckIn) => {
-    setSelectedForDock(checkIn);
-  };
-
-  const handleDockAssignSuccess = () => {
+  const handleDenyComplete = () => {
     fetchCheckIns();
-    setSelectedForDock(null);
   };
-
-  const handleEdit = (checkIn: CheckIn) => {
-    setSelectedForEdit(checkIn);
-  };
-
-  const handleEditSuccess = () => {
-    fetchCheckIns();
-    setSelectedForEdit(null);
-  };
-
-  const calculateWaitTime = (checkIn: CheckIn): string => {
-    const start = new Date(checkIn.check_in_time);
-    const now = new Date();
-    const minutes = differenceInMinutes(now, start);
-    
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    
-    if (hours > 0) {
-      return `${hours}h ${mins}m`;
-    }
-    return `${mins}m`;
-  };
-
-  const getWaitTimeColor = (checkIn: CheckIn): string => {
-    const start = new Date(checkIn.check_in_time);
-    const now = new Date();
-    const minutes = differenceInMinutes(now, start);
-    
-    if (minutes > 120) return 'text-red-600';
-    if (minutes > 60) return 'text-orange-600';
-    return 'text-gray-900';
-  };
- const handleDenyComplete = () => {
-    fetchCheckIns(); // Refresh the check-ins list
-  };
-  
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b shadow-sm">
-        <div className="max-w-[1600px] mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-              {userEmail && (
-                <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
-              )}
-              <p className="text-xs text-gray-500">
-                Current time: {formatTimeInIndianapolis(new Date().toISOString())}
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <Link 
-                href="/appointments" 
-                className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
-              >
-                Appointments
-              </Link>  
-              <Link
-                href="/dock-status"
-                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
-              >
-                Dock Status
-              </Link>    
-              <Link
-                href="/dashboard"
-                className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/logs"
-                className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium"
-              >
-                Daily Logs
-              </Link>
-              <Link
-                href="/tracking"
-                className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium"
-              >
-                Tracking
-              </Link>
-              <Link
-                href="/check-in"
-                className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
-              >
-                Check-In Form
-              </Link>
-            </div>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-800">CSR Dashboard</h1>
+          <div className="flex gap-3">
+            <Link
+              href="/csr/appointments"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              View Appointments
+            </Link>
+            <button
+              onClick={() => router.push('/csr')}
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+            >
+              Back to CSR
+            </button>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-[1600px] mx-auto px-4 py-6">
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-            Error: {error}
+        {loading && (
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="mt-2 text-gray-600">Loading check-ins...</p>
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Pending Check-Ins</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              {checkIns.length} driver{checkIns.length !== 1 ? 's' : ''} waiting
-            </p>
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
           </div>
+        )}
 
-          {checkIns.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              No pending check-ins at this time
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-in Time</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference Number</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver Info</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destination</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wait Time</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-<tbody className="bg-white divide-y divide-gray-200">
-  {checkIns.map((checkIn) => (
-    <tr key={checkIn.id} className="hover:bg-gray-50">
-      {/* Type */}
-      <td className="px-4 py-3 whitespace-nowrap">
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          checkIn.load_type === 'inbound' 
-            ? 'bg-blue-100 text-blue-800' 
-            : 'bg-orange-100 text-orange-800'
-        }`}>
-          {checkIn.load_type === 'inbound' ? 'I' : 'O'}
-        </span>
-      </td>
+        {!loading && checkIns.length === 0 && (
+          <div className="bg-white rounded-lg shadow p-8 text-center">
+            <p className="text-gray-600">No pending check-ins at the moment.</p>
+          </div>
+        )}
 
-      {/* ✅ CHECK-IN TIME - When form was submitted */}
-      <td className="px-4 py-3 whitespace-nowrap text-sm">
-        {formatTimeInIndianapolis(checkIn.check_in_time, true)}
-      </td>
-
-   {/* ✅ APPOINTMENT DATE & TIME - With conditional highlighting */}
-<td className="px-4 py-3 whitespace-nowrap text-sm">
-  {(() => {
-    if (!checkIn.appointment_time) {
-      return <span className="text-gray-600">N/A</span>;
-    }
-
-    const checkInDate = new Date(checkIn.check_in_time);
-    const checkInDateOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
-    
-    let appointmentDateOnly: Date;
-    if (checkIn.appointment_date) {
-      // Parse YYYY-MM-DD format correctly (in local timezone)
-      if (checkIn.appointment_date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        const [year, month, day] = checkIn.appointment_date.split('-').map(Number);
-        appointmentDateOnly = new Date(year, month - 1, day);
-      } else if (checkIn.appointment_date.includes('/')) {
-        const [month, day, year] = checkIn.appointment_date.split('/').map(Number);
-        appointmentDateOnly = new Date(year, month - 1, day);
-      } else {
-        const aptDate = new Date(checkIn.appointment_date);
-        appointmentDateOnly = new Date(aptDate.getFullYear(), aptDate.getMonth(), aptDate.getDate());
-      }
-    } else {
-      appointmentDateOnly = checkInDateOnly;
-    }
-    
-    const dayDifference = Math.floor((appointmentDateOnly.getTime() - checkInDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-    
-    let bgColor = 'bg-gray-500';
-    let label = '';
-    
-    // Check if it's the same day first
-    if (dayDifference === 0) {
-      // Same day - check if on time or late based on actual time
-      if (checkIn.appointment_time.length === 4 && /^\d{4}$/.test(checkIn.appointment_time)) {
-        const appointmentHour = parseInt(checkIn.appointment_time.substring(0, 2));
-        const appointmentMinute = parseInt(checkIn.appointment_time.substring(2, 4));
-        
-        const checkInFormatter = new Intl.DateTimeFormat('en-US', {
-          timeZone: TIMEZONE,
-          hour: 'numeric',
-          minute: 'numeric',
-          hour12: false
-        });
-        
-        const timeString = checkInFormatter.format(checkInDate);
-        const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
-        
-        const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-        const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
-        
-        const minutesDifference = checkInTotalMinutes - appointmentTotalMinutes;
-        
-        // If they arrived MORE than 10 minutes AFTER appointment time
-        if (minutesDifference > 10) {
-          bgColor = 'bg-red-500';
-          label = 'LATE';
-        } 
-        // If they arrived early or up to 10 minutes late - GREEN
-        else {
-          bgColor = 'bg-green-500';
-          label = '';
-        }
-      } else {
-        // Not a standard time format - default to green for same day
-        bgColor = 'bg-green-500';
-        label = '';
-      }
-    } else if (dayDifference > 0) {
-      // Appointment is in the future - they're early (YELLOW)
-      bgColor = 'bg-yellow-500';
-      label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
-    } else if (dayDifference < 0) {
-      // Appointment was in the past - they're late (YELLOW)
-      bgColor = 'bg-yellow-500';
-      label = `${Math.abs(dayDifference)} DAY${Math.abs(dayDifference) > 1 ? 'S' : ''} LATE`;
-    }
-
-    return (
-      <span className={`${bgColor} text-white px-2 py-1 rounded font-semibold`}>
-        {label && <span className="mr-1">[{label}]</span>}
-        {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
-      </span>
-    );
-  })()}
-</td>
-
-
-      {/* Reference Number */}
-      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
-        {checkIn.reference_number || 'N/A'}
-      </td>
-
-      {/* Driver Info */}
-      <td className="px-4 py-3 text-sm">
-        <div>{checkIn.driver_name || 'N/A'}</div>
-        <div className="text-gray-500 text-xs">{formatPhoneNumber(checkIn.driver_phone)}</div>
-        <div className="text-gray-500 text-xs">{checkIn.carrier_name || 'N/A'}</div>
-      </td>
-
-      {/* Trailer */}
-      <td className="px-4 py-3 text-sm">
-        <div>{checkIn.trailer_number || 'N/A'}</div>
-        <div className="text-gray-500 text-xs">{checkIn.trailer_length || 'N/A'}</div>
-      </td>
-
-      {/* Destination */}
-      <td className="px-4 py-3 text-sm">
-        {checkIn.destination_city && checkIn.destination_state
-          ? `${checkIn.destination_city}, ${checkIn.destination_state}`
-          : 'N/A'}
-      </td>
-
-      {/* Wait Time */}
-      <td className="px-4 py-3 whitespace-nowrap text-sm">
-        <span className={`font-semibold ${getWaitTimeColor(checkIn)}`}>
-          {calculateWaitTime(checkIn)}
-        </span>
-      </td>
-
-      {/* Actions */}
-      <td className="px-4 py-3 whitespace-nowrap text-center text-sm">
-        <div className="flex gap-2 justify-center">
-          <button
-            onClick={() => handleAssignDock(checkIn)}
-            className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors text-xs"
-          >
-            Assign Dock
-          </button>
-          <button
-            onClick={() => handleEdit(checkIn)}
-            className="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600 transition-colors text-xs"
-          >
-               Edit
+        {!loading && checkIns.length > 0 && (
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Check-in Time
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Driver
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Carrier
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Reference
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Appointment
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Load Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {checkIns.map((checkIn) => (
+                  <tr key={checkIn.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatTimeInIndianapolis(checkIn.check_in_time, true)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {checkIn.driver_name || 'N/A'}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {formatPhoneNumber(checkIn.driver_phone)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {checkIn.carrier_name || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {checkIn.reference_number || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
+                      </div>
+                      {checkIn.appointment_time && 
+                       checkIn.appointment_time !== 'work_in' && 
+                       checkIn.appointment_time !== 'N/A' && 
+                       isOnTime(checkIn.check_in_time, checkIn.appointment_time) && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                          On Time
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        checkIn.load_type === 'inbound' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-purple-100 text-purple-800'
+                      }`}>
+                        {checkIn.load_type || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                      <button
+                        onClick={() => setSelectedForEdit(checkIn)}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        Edit
                       </button>
                       <button
                         onClick={() => setSelectedForDock(checkIn)}
@@ -668,7 +464,6 @@ const fetchCheckIns = async () => {
                       >
                         Assign Dock
                       </button>
-                      {/* Add the Deny button here */}
                       <button
                         onClick={() => setSelectedForDeny(checkIn)}
                         className="text-red-600 hover:text-red-900"
@@ -683,8 +478,6 @@ const fetchCheckIns = async () => {
           </div>
         )}
 
-     
-        {/* Existing Modals */}
         {selectedForDock && (
           <AssignDockModal
             checkIn={selectedForDock}
@@ -707,7 +500,6 @@ const fetchCheckIns = async () => {
           />
         )}
 
-        {/* Add the Deny Check-in Modal */}
         {selectedForDeny && (
           <DenyCheckInModal
             checkIn={selectedForDeny}
@@ -719,3 +511,4 @@ const fetchCheckIns = async () => {
     </div>
   );
 }
+
