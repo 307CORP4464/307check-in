@@ -478,11 +478,12 @@ export default function CSRDashboard() {
           </div>
         )}
 
+        {/* Modals */}
         {selectedForDock && (
           <AssignDockModal
             checkIn={selectedForDock}
             onClose={() => setSelectedForDock(null)}
-            onAssign={() => {
+            onUpdate={() => {
               setSelectedForDock(null);
               fetchCheckIns();
             }}
