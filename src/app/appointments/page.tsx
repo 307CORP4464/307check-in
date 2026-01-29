@@ -180,68 +180,69 @@ export default function AppointmentsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b shadow-sm">
-        <div className="max-w-[1600px] mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Appointment Scheduling</h1>
-              {userEmail && (
-                <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
-              )}
-              <p className="text-xs text-gray-500">
-                Current time: {formatTimeInIndianapolis(new Date().toISOString())}
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <Link 
-                href="/appointments" 
-                className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
-              >
-                Appointments
-              </Link>  
+  <div className="min-h-screen bg-gray-50">
+    {/* Header */}
+    <div className="bg-white border-b shadow-sm">
+      <div className="max-w-[1600px] mx-auto px-4 py-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Appointment Scheduling</h1>
+            {userEmail && (
+              <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
+            )}
+            <p className="text-xs text-gray-500">
+              Current time: {formatTimeInIndianapolis(new Date().toISOString())}
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Link 
+              href="/appointments" 
+              className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+            >
+              Appointments
+            </Link>  
 
-              <Link
-                href="/dock-status"
-                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
-              >
-                Dock Status
-              </Link>    
+            <Link
+              href="/dock-status"
+              className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
+            >
+              Dock Status
+            </Link>    
 
-              <Link
-                href="/dashboard"
-                className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
-              >
-                Dashboard
-              </Link>
-              
-              <Link
-                href="/logs"
-                className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium"
-              >
-                Daily Logs
-              </Link>
-              
-              <Link
-                href="/tracking"
-                className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium"
-              >
-                Tracking
-              </Link>
-              
-              <Link
-                href="/check-in"
-                className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
-              >
-                Check-In Form
-              </Link>
-            </div>
+            <Link
+              href="/dashboard"
+              className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
+            >
+              Dashboard
+            </Link>
+            
+            <Link
+              href="/logs"
+              className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium"
+            >
+              Daily Logs
+            </Link>
+            
+            <Link
+              href="/tracking"
+              className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium"
+            >
+              Tracking
+            </Link>
+            
+            <Link
+              href="/check-in"
+              className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
+            >
+              Check-In Form
+            </Link>
           </div>
         </div>
       </div>
+    </div>
 
-      {/* Main Content */}
+
+       {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <div className="lg:col-span-2">
@@ -311,166 +312,167 @@ export default function AppointmentsPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by Sales Order or Delivery number..."
-                className="w-full p-3 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter Sales Order or Delivery number..."
+                className="w-full p-3 pl-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
-              {searchQuery && (
-                <button
-                  onClick={clearSearch}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  title="Clear search"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
+              <svg 
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
+                />
+              </svg>
             </div>
-            <button
-              onClick={clearSearch}
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-            >
-              Clear
-            </button>
+            {searchQuery && (
+              <button
+                onClick={clearSearch}
+                className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                Clear
+              </button>
+            )}
           </div>
           {searchQuery && (
             <p className="text-sm text-gray-600 mt-2">
-              Showing {filteredAppointments.length} result{filteredAppointments.length !== 1 ? 's' : ''} for "{searchQuery}"
-            </p>
+              Found {filteredAppointments.length} appointment(s)
+              </p>
           )}
         </div>
 
-        {/* Selected Date Display */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <h2 className="text-2xl font-bold text-center text-gray-900">
-            {formatDateForDisplay(selectedDate)}
-          </h2>
-        </div>
+        {/* Appointments Table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="p-6 border-b">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold">
+                Appointments for {formatDateForDisplay(selectedDate)}
+              </h2>
+              <div className="text-sm text-gray-600">
+                Total: {totalAppointmentsCount} | Work In: {workInCount}
+              </div>
+            </div>
+          </div>
 
-        {/* Appointments List */}
-        <div className="bg-white rounded-lg shadow">
           {loading ? (
-            <div className="p-8 text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <p className="mt-2 text-gray-600">Loading appointments...</p>
-            </div>
-          ) : filteredAppointments.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <p className="text-lg font-medium">
-                {searchQuery ? 'No appointments found matching your search' : 'No appointments scheduled for this date'}
-              </p>
-              {searchQuery && (
-                <button
-                  onClick={clearSearch}
-                  className="mt-4 text-blue-600 hover:text-blue-800 underline"
-                >
-                  Clear search
-                </button>
-              )}
-            </div>
+            <div className="text-center py-8">Loading appointments...</div>
           ) : (
-            <div className="divide-y">
-              {TIME_SLOTS.map((timeSlot) => {
-                const slotAppointments = groupedAppointments[timeSlot] || [];
-                
-                return (
-                  <div key={timeSlot} className="p-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-start gap-4">
-                      <div className="min-w-[100px]">
-                        <div className="font-semibold text-gray-900">{timeSlot}</div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {slotAppointments.length} appointment{slotAppointments.length !== 1 ? 's' : ''}
-                        </div>
-                      </div>
-                      
-                      <div className="flex-1">
-                        {slotAppointments.length === 0 ? (
-                          <div className="text-gray-400 italic text-sm">No appointments</div>
-                        ) : (
-                          <div className="space-y-2">
-                            {slotAppointments.map((apt) => (
-                              <div
-                                key={apt.id}
-                                className="bg-gray-50 border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow"
-                              >
-                                <div className="flex justify-between items-start gap-2">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                      {apt.sales_order && (
-                                        <span className="text-sm font-semibold text-gray-900">
-                                          SO: {apt.sales_order}
-                                        </span>
-                                      )}
-                                      {apt.delivery && (
-                                        <span className="text-sm font-semibold text-gray-900">
-                                          Del: {apt.delivery}
-                                        </span>
-                                      )}
-                                      <span className={`text-xs px-2 py-1 rounded ${
-                                        apt.source === 'manual' 
-                                          ? 'bg-green-100 text-green-700' 
-                                          : 'bg-blue-100 text-blue-700'
-                                      }`}>
-                                        {apt.source === 'manual' ? 'Manual' : 'Upload'}
-                                      </span>
-                                    </div>
-                                    {apt.notes && (
-                                      <p className="text-sm text-gray-600 mt-1">{apt.notes}</p>
-                                    )}
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      Created: {apt.created_at ? new Date(apt.created_at).toLocaleString() : 'N/A'}
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-1 flex-shrink-0">
-                                    <button
-                                      onClick={() => handleEdit(apt)}
-                                      className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                      title="Edit"
-                                    >
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                      </svg>
-                                    </button>
-                                    <button
-                                      onClick={() => handleDelete(apt.id)}
-                                      className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
-                                      title="Delete"
-                                    >
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                      </svg>
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Time Slot
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Sales Order
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Delivery
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Notes
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Source
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {TIME_SLOTS.map((slot) => {
+                    const slotAppointments = groupedAppointments[slot] || [];
+                    
+                    if (slotAppointments.length === 0) {
+                      // Show empty slot
+                      return (
+                        <tr key={slot} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {slot}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-400" colSpan={5}>
+                            No appointments scheduled
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    // Show appointments for this slot
+                    return slotAppointments.map((apt, index) => (
+                      <tr 
+                        key={apt.id}
+                        className={`hover:bg-gray-50 ${
+                          apt.source === 'manual' ? 'bg-blue-50' : ''
+                        }`}
+                      >
+                        {index === 0 && (
+                          <td 
+                            className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                            rowSpan={slotAppointments.length}
+                          >
+                            {slot}
+                          </td>
                         )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {apt.sales_order}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {apt.delivery || '-'}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {apt.notes || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded ${
+                            apt.source === 'manual' 
+                              ? 'bg-blue-100 text-blue-800' 
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {apt.source === 'manual' ? 'Manual' : 'Excel'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button
+                            onClick={() => handleEdit(apt)}
+                            className="text-blue-600 hover:text-blue-900 mr-4"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(apt.id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ));
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
       </div>
 
       {/* Modal */}
-      <AppointmentModal
-        isOpen={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          setEditingAppointment(null);
-        }}
-        onSave={handleSave}
-        appointment={editingAppointment}
-        initialDate={selectedDate}
-      />
+      {modalOpen && (
+        <AppointmentModal
+          isOpen={modalOpen}
+          appointment={editingAppointment}
+          onClose={() => {
+            setModalOpen(false);
+            setEditingAppointment(null);
+          }}
+          onSave={handleSave}
+        />
+      )}
     </div>
   );
 }
-
