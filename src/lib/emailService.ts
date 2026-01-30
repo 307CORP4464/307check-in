@@ -183,6 +183,81 @@ class EmailService {
     };
   }
 
+  private getCheckInDenialTemplate(
+  driverName: string,
+  carrierName: string,
+  referenceNumber: string,
+  denialReason: string
+): EmailTemplate {
+  return {
+    subject: `Check-In Request Denied - ${referenceNumber}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px;">
+          <tr>
+            <td align="center">
+              <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <!-- Header -->
+                <tr>
+                  <td style="background-color: #f44336; padding: 30px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 28px;">⚠️ Check-In Request Denied</h1>
+                  </td>
+                </tr>
+                
+                <!-- Body -->
+                <tr>
+                  <td style="padding: 40px 30px;">
+                    <p style="font-size: 16px; color: #333333; margin: 0 0 20px;">Hello ${driverName},</p>
+                    <p style="font-size: 16px; color: #333333; margin: 0 0 30px;">Unfortunately, your check-in request has been denied.</p>
+                    
+                    <!-- Info Box -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-left: 4px solid #f44336; margin: 20px 0;">
+                      <tr>
+                        <td style="padding: 20px;">
+                          <p style="margin: 0 0 10px; font-size: 14px; color: #666666;"><strong style="color: #333333;">Reference Number:</strong> ${referenceNumber}</p>
+                          <p style="margin: 0 0 10px; font-size: 14px; color: #666666;"><strong style="color: #333333;">Carrier:</strong> ${carrierName}</p>
+                          <p style="margin: 0; font-size: 14px; color: #666666;"><strong style="color: #333333;">Time:</strong> ${new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                        </td>
+                      </tr>
+                    </table>
+                    
+                    <!-- Reason Box -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fff3cd; border: 2px solid #ffc107; margin: 20px 0;">
+                      <tr>
+                        <td style="padding: 20px;">
+                          <p style="margin: 0 0 10px; font-size: 14px; color: #333333; font-weight: bold;">Reason for Denial:</p>
+                          <p style="margin: 0; font-size: 14px; color: #666666; line-height: 1.6;">${denialReason}</p>
+                        </td>
+                      </tr>
+                    </table>
+                    
+                    <p style="font-size: 16px; color: #333333; margin: 30px 0 20px;">Please contact the facility for further assistance or clarification.</p>
+                  </td>
+                </tr>
+                
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #333333; padding: 20px; text-align: center;">
+                    <p style="color: #ffffff; margin: 0; font-size: 12px;">307 Corporation - Automated Notification</p>
+                    <p style="color: #999999; margin: 5px 0 0; font-size: 11px;">This is an automated message, please do not reply.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `,
+  };
+}
+
   private getDockAssignmentTemplate(
     driverName: string,
     dockNumber: string,
