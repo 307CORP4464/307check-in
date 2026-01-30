@@ -7,7 +7,7 @@ interface DenyCheckInModalProps {
   checkIn: {
     id: string;
     driver_name?: string;
-    driver_email?: string;
+    driver_email?: string; // Add email field
     driver_phone?: string;
     reference_number?: string;
     carrier_name?: string;
@@ -36,8 +36,6 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
     setError(null);
 
     try {
-      console.log('Starting denial process for check-in:', checkIn.id);
-      
       // Update check-in status to denied
       const { error: updateError } = await supabase
         .from('check_ins')
@@ -47,24 +45,17 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
         })
         .eq('id', checkIn.id);
 
-      if (updateError) {
-        console.error('Database update error:', updateError);
-        throw updateError;
-      }
-
-      console.log('Check-in status updated successfully');
+      if (updateError) throw updateError;
 
       // Send email to driver
       const emailBody = {
-        to: checkIn.driver_email || checkIn.driver_phone || '',
+        to: checkIn.driver_email || '',
         driverName: checkIn.driver_name || 'Driver',
         carrierName: checkIn.carrier_name || 'N/A',
         referenceNumber: checkIn.reference_number || 'N/A',
         notes: notes,
         checkInId: checkIn.id
       };
-
-      console.log('Attempting to send email to:', emailBody.to);
 
       // Call your email API endpoint
       const emailResponse = await fetch('/api/send-denial-email', {
@@ -75,23 +66,12 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
         body: JSON.stringify(emailBody),
       });
 
-      const emailResult = await emailResponse.json();
-      console.log('Email API response:', emailResult);
-
       if (!emailResponse.ok) {
-        console.error('Email failed:', emailResult);
-        // Show warning but don't fail the denial
-        setError(`Check-in denied, but email failed to send: ${emailResult.error || 'Unknown error'}`);
-      } else {
-        console.log('Email sent successfully');
+        console.error('Failed to send email, but check-in was denied');
       }
 
       onDeny();
-      
-      // Only close if no email error
-      if (emailResponse.ok) {
-        onClose();
-      }
+      onClose();
     } catch (err) {
       console.error('Error denying check-in:', err);
       setError('Failed to deny check-in. Please try again.');
@@ -110,9 +90,6 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
             <strong>Driver:</strong> {checkIn.driver_name || 'N/A'}
           </p>
           <p className="text-sm text-gray-600">
-            <strong>Email:</strong> {checkIn.driver_email || 'Not provided'}
-          </p>
-          <p className="text-sm text-gray-600">
             <strong>Reference:</strong> {checkIn.reference_number || 'N/A'}
           </p>
           <p className="text-sm text-gray-600">
@@ -121,7 +98,7 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
             {error}
           </div>
         )}
