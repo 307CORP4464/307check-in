@@ -119,6 +119,8 @@ class EmailService {
   }
 }
 
+  
+
   // PRIVATE TEMPLATE METHODS
   private getCheckInConfirmationTemplate(
     driverName: string,
@@ -387,12 +389,12 @@ class EmailService {
           </tr>
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>5.</strong>When you are done the light will turn green.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>5.</strong> When you are done the light will turn green.</p>
             </td>
             </tr>
              <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>6.</strong>If you need your paperwork signed please bring a copy to the office when you are unloaded.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>6.</strong> If you need your paperwork signed please bring a copy to the office when you are unloaded.</p>
             </td>
           </tr>
         </table>
@@ -417,22 +419,27 @@ class EmailService {
           </tr>
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>3.</strong> Slife your tandems to the back.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>3.</strong> Slide your tandems to the back.</p>
             </td>
           </tr>
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>4.</strong> The light will change to red when you are being loaded.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>4.</strong> Back into the assigned dock once open. </p>
             </td>
           </tr>
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>5.</strong> When you are done the light will go back to green. You will also receive an email with your updated status.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>5.</strong> The light will change to red when you are being loaded. </p>
             </td>
             </tr>
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>6.</strong> Please come into the office to receive your paperwork.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>6.</strong> You will also receive an email with your updated status. </p>
+            </td>
+          </tr>
+           <tr>
+            <td style="padding: 8px 0;">
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>7.</strong> When you are done the light will go back to green. You will also receive an email with your updated status. </p>
             </td>
           </tr>
         </table>
