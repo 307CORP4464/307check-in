@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
+import { triggerCheckInDenialEmail } from '@/lib/emailTriggers';
 
 interface DenyCheckInModalProps {
   checkIn: {
@@ -47,15 +48,17 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
 
       if (updateError) throw updateError;
 
-      // Send email to driver
-      const emailBody = {
-        to: checkIn.driver_email || '',
-        driverName: checkIn.driver_name || 'Driver',
-        carrierName: checkIn.carrier_name || 'N/A',
-        referenceNumber: checkIn.reference_number || 'N/A',
-        notes: notes,
-        checkInId: checkIn.id
-      };
+      const emailResult = await triggerCheckInDenialEmail({
+  driverEmail: checkIn.driver_email || '',
+  driverName: checkIn.driver_name || 'Driver',
+  carrierName: checkIn.carrier_name || 'N/A',
+  referenceNumber: checkIn.reference_number || 'N/A',
+  denialReason: notes,
+});
+
+if (!emailResult.success) {
+  console.error('Failed to send denial email:', emailResult.error);
+}
 
       // Call your email API endpoint
       const emailResponse = await fetch('/api/send-denial-email', {
