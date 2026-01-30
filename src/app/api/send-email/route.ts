@@ -69,19 +69,24 @@ export async function POST(request: NextRequest) {
         );
         break;
 
-      case 'status_change':
-        if (!data.driverName || !data.referenceNumber || !data.newStatus) {
-          return NextResponse.json(
-            { error: 'Missing required status change data' },
-            { status: 400 }
-          );
-        }
-        // You'll need to add this method to EmailService if not already present
-        // await emailService.sendStatusChange(...);
-        return NextResponse.json(
-          { error: 'Status change emails not yet implemented' },
-          { status: 501 }
-        );
+     case 'status_change':
+  if (!data.driverName || !data.referenceNumber || !data.oldStatus || !data.newStatus) {
+    return NextResponse.json(
+      { error: 'Missing required status change data' },
+      { status: 400 }
+    );
+  }
+  await emailService.sendStatusChange(
+    toEmail,
+    data.driverName,
+    data.referenceNumber,
+    data.oldStatus,
+    data.newStatus,
+    data.notes,
+    data.endTime
+  );
+  break;
+
 
       default:
         return NextResponse.json(
