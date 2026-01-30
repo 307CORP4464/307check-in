@@ -151,7 +151,7 @@ async sendStatusChange(
     throw new Error('Failed to send status change email');
   }
 }
-  
+
 
   // PRIVATE TEMPLATE METHODS
   private getCheckInConfirmationTemplate(
