@@ -15,6 +15,54 @@ interface TriggerData {
   notes?: string;
   checkInTime: string;
 }
+export async function triggerStatusChangeEmail(data: {
+  driverEmail: string;
+  driverName: string;
+  referenceNumber: string;
+  oldStatus: string;
+  newStatus: string;
+  notes?: string;
+  endTime?: string;
+  // Make other fields optional for this trigger
+  carrierName?: string;
+  trailerNumber?: string;
+  destinationCity?: string;
+  destinationState?: string;
+  checkInTime?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'status_change',
+        toEmail: data.driverEmail,
+        data: {
+          driverName: data.driverName,
+          referenceNumber: data.referenceNumber,
+          oldStatus: data.oldStatus,
+          newStatus: data.newStatus,
+          notes: data.notes,
+          endTime: data.endTime,
+        },
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to send email');
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to trigger status change email:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+}
 
 export async function triggerCheckInEmail(data: TriggerData): Promise<{ success: boolean; error?: string }> {
   try {
