@@ -90,6 +90,35 @@ class EmailService {
     }
   }
 
+  async sendCheckInDenial(
+  toEmail: string,
+  driverName: string,
+  carrierName: string,
+  referenceNumber: string,
+  denialReason: string
+): Promise<void> {
+  try {
+    const template = this.getCheckInDenialTemplate(
+      driverName,
+      carrierName,
+      referenceNumber,
+      denialReason
+    );
+
+    const mailOptions: EmailOptions = {
+      to: toEmail,
+      subject: template.subject,
+      html: template.html,
+    };
+
+    await this.transporter.sendMail(mailOptions);
+    console.log(`Check-in denial email sent to ${toEmail}`);
+  } catch (error) {
+    console.error('Error sending check-in denial email:', error);
+    throw new Error('Failed to send check-in denial email');
+  }
+}
+
   // PRIVATE TEMPLATE METHODS
   private getCheckInConfirmationTemplate(
     driverName: string,
