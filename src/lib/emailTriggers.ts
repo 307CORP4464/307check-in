@@ -53,6 +53,44 @@ export async function triggerCheckInEmail(data: TriggerData): Promise<{ success:
     };
   }
 }
+export async function triggerCheckInDenialEmail(data: {
+  driverEmail: string;
+  driverName: string;
+  carrierName: string;
+  referenceNumber: string;
+  denialReason: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'check_in_denial',
+        toEmail: data.driverEmail,
+        data: {
+          driverName: data.driverName,
+          carrierName: data.carrierName,
+          referenceNumber: data.referenceNumber,
+          denialReason: data.denialReason,
+        },
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || result.details || 'Failed to send denial email');
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to trigger check-in denial email:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error sending denial email' 
+    };
+  }
+}
 
 export async function triggerDockAssignmentEmail(data: TriggerData): Promise<{ success: boolean; error?: string }> {
   try {
