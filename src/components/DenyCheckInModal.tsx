@@ -8,7 +8,7 @@ interface DenyCheckInModalProps {
   checkIn: {
     id: string;
     driver_name?: string;
-    driver_email?: string; // Add email field
+    driver_email?: string;
     driver_phone?: string;
     reference_number?: string;
     carrier_name?: string;
@@ -48,29 +48,18 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
 
       if (updateError) throw updateError;
 
+      // Send denial email using the email trigger
       const emailResult = await triggerCheckInDenialEmail({
-  driverEmail: checkIn.driver_email || '',
-  driverName: checkIn.driver_name || 'Driver',
-  carrierName: checkIn.carrier_name || 'N/A',
-  referenceNumber: checkIn.reference_number || 'N/A',
-  denialReason: notes,
-});
-
-if (!emailResult.success) {
-  console.error('Failed to send denial email:', emailResult.error);
-}
-
-      // Call your email API endpoint
-      const emailResponse = await fetch('/api/send-denial-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(emailBody),
+        driverEmail: checkIn.driver_email || '',
+        driverName: checkIn.driver_name || 'Driver',
+        carrierName: checkIn.carrier_name || 'N/A',
+        referenceNumber: checkIn.reference_number || 'N/A',
+        denialReason: notes,
       });
 
-      if (!emailResponse.ok) {
-        console.error('Failed to send email, but check-in was denied');
+      if (!emailResult.success) {
+        console.error('Failed to send denial email:', emailResult.error);
+        // Don't throw error - denial was successful even if email fails
       }
 
       onDeny();
