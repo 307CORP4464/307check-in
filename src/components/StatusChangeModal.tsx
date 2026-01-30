@@ -2,13 +2,16 @@
 
 import { useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
+import { triggerStatusChangeEmail } from '@/lib/emailTriggers';
 
 interface StatusChangeModalProps {
   checkIn: {
     id: string;
     reference_number?: string;
     driver_name?: string;
+    driver_email?: string; // Add this
     end_time?: string | null;
+    status?: string; // Add this to track old status
   };
   onClose: () => void;
   onSuccess: () => void;
@@ -75,6 +78,33 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
 
       if (!data || data.length === 0) {
         throw new Error('No rows were updated. Check if the record exists.');
+      }
+
+      // Send status change email
+      if (checkIn.driver_email) {
+        const emailResult = await triggerStatusChangeEmail({
+          driverEmail: checkIn.driver_email,
+          driverName: checkIn.driver_name || 'Driver',
+          referenceNumber: checkIn.reference_number || 'N/A',
+          oldStatus: checkIn.status || 'at_dock',
+          newStatus: status,
+          notes: notes || undefined,
+          endTime: endTimeISO ? new Date(endTimeISO).toLocaleString('en-US', { 
+            dateStyle: 'medium', 
+            timeStyle: 'short' 
+          }) : undefined,
+          // Required fields for TriggerData interface (even if not used)
+          carrierName: '',
+          trailerNumber: '',
+          destinationCity: '',
+          destinationState: '',
+          checkInTime: '',
+        });
+
+        if (!emailResult.success) {
+          console.error('Failed to send status change email:', emailResult.error);
+          // Don't throw - status update was successful
+        }
       }
 
       onSuccess();
