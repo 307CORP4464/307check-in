@@ -6,18 +6,26 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { type, toEmail, data } = body;
 
-    if (!toEmail) {
+    // Validate required fields
+    if (!type || !toEmail) {
       return NextResponse.json(
-        { success: false, error: 'Email address is required' },
+        { error: 'Missing required fields: type and toEmail' },
         { status: 400 }
       );
     }
 
-    // Create a new instance of EmailService
+    // Initialize email service
     const emailService = new EmailService();
 
+    // Route to appropriate email method based on type
     switch (type) {
       case 'checkin':
+        if (!data.driverName || !data.checkInTime || !data.referenceNumber) {
+          return NextResponse.json(
+            { error: 'Missing required check-in data' },
+            { status: 400 }
+          );
+        }
         await emailService.sendCheckInConfirmation(
           toEmail,
           data.driverName,
@@ -27,42 +35,78 @@ export async function POST(request: NextRequest) {
         break;
 
       case 'dock_assignment':
+        if (!data.driverName || !data.dockNumber || !data.referenceNumber || !data.loadType || !data.checkInTime) {
+          return NextResponse.json(
+            { error: 'Missing required dock assignment data' },
+            { status: 400 }
+          );
+        }
         await emailService.sendDockAssignment(
           toEmail,
           data.driverName,
           data.dockNumber,
           data.referenceNumber,
-          data.loadType || 'inbound',
+          data.loadType,
           data.checkInTime,
           data.appointmentTime,
           data.appointmentStatus
         );
         break;
 
+      case 'check_in_denial':
+        if (!data.driverName || !data.carrierName || !data.referenceNumber || !data.denialReason) {
+          return NextResponse.json(
+            { error: 'Missing required denial data' },
+            { status: 400 }
+          );
+        }
+        await emailService.sendCheckInDenial(
+          toEmail,
+          data.driverName,
+          data.carrierName,
+          data.referenceNumber,
+          data.denialReason
+        );
+        break;
+
       case 'status_change':
-        // Add status change email handling if needed
+        if (!data.driverName || !data.referenceNumber || !data.newStatus) {
+          return NextResponse.json(
+            { error: 'Missing required status change data' },
+            { status: 400 }
+          );
+        }
+        // You'll need to add this method to EmailService if not already present
+        // await emailService.sendStatusChange(...);
         return NextResponse.json(
-          { success: false, error: 'Status change emails not yet implemented' },
-          { status: 400 }
+          { error: 'Status change emails not yet implemented' },
+          { status: 501 }
         );
 
       default:
         return NextResponse.json(
-          { success: false, error: 'Invalid email type' },
+          { error: `Unknown email type: ${type}` },
           { status: 400 }
         );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true,
+      message: `${type} email sent successfully to ${toEmail}`
+    });
+
   } catch (error) {
-    console.error('Email sending error:', error);
+    console.error('Email API error:', error);
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    
     return NextResponse.json(
-      {
-        success: false,
+      { 
         error: 'Failed to send email',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        details: errorMessage
       },
       { status: 500 }
     );
   }
 }
+
