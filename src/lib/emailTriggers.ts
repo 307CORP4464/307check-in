@@ -15,38 +15,6 @@ interface TriggerData {
   notes?: string;
   checkInTime: string;
 }
-export async function triggerStatusChangeEmail(data: {
-  driverEmail: string;
-  driverName: string;
-  referenceNumber: string;
-  oldStatus: string;
-  newStatus: string;
-  notes?: string;
-  endTime?: string;
-  // Make other fields optional for this trigger
-  carrierName?: string;
-  trailerNumber?: string;
-  destinationCity?: string;
-  destinationState?: string;
-  checkInTime?: string;
-}): Promise<{ success: boolean; error?: string }> {
-  try {
-    const response = await fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'status_change',
-        toEmail: data.driverEmail,
-        data: {
-          driverName: data.driverName,
-          referenceNumber: data.referenceNumber,
-          oldStatus: data.oldStatus,
-          newStatus: data.newStatus,
-          notes: data.notes,
-          endTime: data.endTime,
-        },
-      }),
-    });
 
     const result = await response.json();
 
@@ -173,7 +141,21 @@ export async function triggerDockAssignmentEmail(data: TriggerData): Promise<{ s
   }
 }
 
-export async function triggerStatusChangeEmail(data: TriggerData): Promise<{ success: boolean; error?: string }> {
+export async function triggerStatusChangeEmail(data: {
+  driverEmail: string;
+  driverName: string;
+  referenceNumber: string;
+  oldStatus: string;
+  newStatus: string;
+  notes?: string;
+  endTime?: string;
+  // Make other fields optional for this trigger
+  carrierName?: string;
+  trailerNumber?: string;
+  destinationCity?: string;
+  destinationState?: string;
+  checkInTime?: string;
+}): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch('/api/send-email', {
       method: 'POST',
@@ -187,9 +169,11 @@ export async function triggerStatusChangeEmail(data: TriggerData): Promise<{ suc
           oldStatus: data.oldStatus,
           newStatus: data.newStatus,
           notes: data.notes,
+          endTime: data.endTime,
         },
       }),
     });
+
 
     const result = await response.json();
 
