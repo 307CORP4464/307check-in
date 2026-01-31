@@ -43,6 +43,7 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
         return new Date(now.getTime() - offset).toISOString().slice(0, 16);
       })()
 );
+
   const [statusAction, setStatusAction] = useState<StatusAction>('complete');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
