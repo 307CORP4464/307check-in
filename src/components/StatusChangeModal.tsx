@@ -44,6 +44,7 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
       })()
 );
 
+
   const [statusAction, setStatusAction] = useState<StatusAction>('complete');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
