@@ -12,6 +12,11 @@ interface StatusChangeModalProps {
     driver_email?: string; // Add this
     end_time?: string | null;
     status?: string; // Add this to track old status
+    carrierName?: string;
+    trailerNumber?: string;
+    destinationCity?: string;
+    destinationState?: string;
+    checkInTime?: string;
   };
   onClose: () => void;
   onSuccess: () => void;
