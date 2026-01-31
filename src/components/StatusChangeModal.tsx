@@ -299,4 +299,3 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
     </div>
   );
 }
-
