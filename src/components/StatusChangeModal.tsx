@@ -25,26 +25,15 @@ interface StatusChangeModalProps {
 type StatusAction = 'complete' | 'unloaded' | 'rejected' | 'turned_away' | 'driver_left';
 
 export default function StatusChangeModal({ checkIn, onClose, onSuccess }: StatusChangeModalProps) {
-  // Helper function to get current datetime in local format for datetime-local input
-  const getCurrentDateTime = () => {
-    const now = new Date();
-    // Adjust for timezone offset
-    const offset = now.getTimezoneOffset() * 60000;
-    const localISOTime = new Date(now - offset).toISOString().slice(0, 16);
-    return localISOTime;
-  };
-
   const [endTime, setEndTime] = useState(
-  checkIn.end_time 
-    ? new Date(checkIn.end_time).toISOString().slice(0, 16) 
-    : (() => {
-        const now = new Date();
-        const offset = now.getTimezoneOffset() * 60000;
-        return new Date(now.getTime() - offset).toISOString().slice(0, 16);
-      })()
-);
-
-
+    checkIn.end_time 
+      ? new Date(checkIn.end_time).toISOString().slice(0, 16) 
+      : (() => {
+          const now = new Date();
+          const offset = now.getTimezoneOffset() * 60000;
+          return new Date(now.getTime() - offset).toISOString().slice(0, 16);
+        })()
+  );
   const [statusAction, setStatusAction] = useState<StatusAction>('complete');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
