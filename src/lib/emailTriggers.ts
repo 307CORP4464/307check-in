@@ -16,22 +16,6 @@ interface TriggerData {
   checkInTime: string;
 }
 
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.error || 'Failed to send email');
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error('Failed to trigger status change email:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    };
-  }
-}
-
 export async function triggerCheckInEmail(data: TriggerData): Promise<{ success: boolean; error?: string }> {
   try {
     const checkInTime = new Date().toLocaleString('en-US', {
@@ -69,6 +53,40 @@ export async function triggerCheckInEmail(data: TriggerData): Promise<{ success:
     };
   }
 }
+
+export async function triggerDockAssignmentEmail(data: TriggerData): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'dock_assignment',
+        toEmail: data.driverEmail,
+        data: {
+          driverName: data.driverName,
+          dockNumber: data.dockNumber,
+          referenceNumber: data.referenceNumber,
+          appointmentTime: data.appointmentTime,
+        },
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to send email');
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to trigger dock assignment email:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
+  }
+}
+
 export async function triggerCheckInDenialEmail(data: {
   driverEmail: string;
   driverName: string;
@@ -108,39 +126,6 @@ export async function triggerCheckInDenialEmail(data: {
   }
 }
 
-export async function triggerDockAssignmentEmail(data: TriggerData): Promise<{ success: boolean; error?: string }> {
-  try {
-    const response = await fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'dock_assignment',
-        toEmail: data.driverEmail,
-        data: {
-          driverName: data.driverName,
-          dockNumber: data.dockNumber,
-          referenceNumber: data.referenceNumber,
-          appointmentTime: data.appointmentTime,
-        },
-      }),
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.error || 'Failed to send email');
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error('Failed to trigger dock assignment email:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    };
-  }
-}
-
 export async function triggerStatusChangeEmail(data: {
   driverEmail: string;
   driverName: string;
@@ -149,12 +134,6 @@ export async function triggerStatusChangeEmail(data: {
   newStatus: string;
   notes?: string;
   endTime?: string;
-  // Make other fields optional for this trigger
-  carrierName?: string;
-  trailerNumber?: string;
-  destinationCity?: string;
-  destinationState?: string;
-  checkInTime?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch('/api/send-email', {
@@ -174,7 +153,6 @@ export async function triggerStatusChangeEmail(data: {
       }),
     });
 
-
     const result = await response.json();
 
     if (!response.ok) {
@@ -190,3 +168,4 @@ export async function triggerStatusChangeEmail(data: {
     };
   }
 }
+
