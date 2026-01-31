@@ -35,10 +35,14 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
   };
 
   const [endTime, setEndTime] = useState(
-    checkIn.end_time 
-      ? new Date(checkIn.end_time).toISOString().slice(0, 16) 
-      : getCurrentDateTime() // Default to current date/time
-  );
+  checkIn.end_time 
+    ? new Date(checkIn.end_time).toISOString().slice(0, 16) 
+    : (() => {
+        const now = new Date();
+        const offset = now.getTimezoneOffset() * 60000;
+        return new Date(now.getTime() - offset).toISOString().slice(0, 16);
+      })()
+);
   const [statusAction, setStatusAction] = useState<StatusAction>('complete');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
