@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { triggerStatusChangeEmail } from '@/lib/emailTriggers';
 
@@ -9,9 +9,9 @@ interface StatusChangeModalProps {
     id: string;
     reference_number?: string;
     driver_name?: string;
-    driver_email?: string; // Add this
+    driver_email?: string;
     end_time?: string | null;
-    status?: string; // Add this to track old status
+    status?: string;
     carrier_name?: string;
     trailer_number?: string;
     destination_city?: string;
@@ -25,10 +25,19 @@ interface StatusChangeModalProps {
 type StatusAction = 'complete' | 'unloaded' | 'rejected' | 'turned_away' | 'driver_left';
 
 export default function StatusChangeModal({ checkIn, onClose, onSuccess }: StatusChangeModalProps) {
+  // Helper function to get current datetime in local format for datetime-local input
+  const getCurrentDateTime = () => {
+    const now = new Date();
+    // Adjust for timezone offset
+    const offset = now.getTimezoneOffset() * 60000;
+    const localISOTime = new Date(now - offset).toISOString().slice(0, 16);
+    return localISOTime;
+  };
+
   const [endTime, setEndTime] = useState(
     checkIn.end_time 
       ? new Date(checkIn.end_time).toISOString().slice(0, 16) 
-      : ''
+      : getCurrentDateTime() // Default to current date/time
   );
   const [statusAction, setStatusAction] = useState<StatusAction>('complete');
   const [notes, setNotes] = useState('');
@@ -39,6 +48,13 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
+
+  // Update to current time when modal opens (if no existing end_time)
+  useEffect(() => {
+    if (!checkIn.end_time) {
+      setEndTime(getCurrentDateTime());
+    }
+  }, [checkIn.end_time]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,21 +101,20 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
         throw new Error('No rows were updated. Check if the record exists.');
       }
 
-     // Send status change email
-if (checkIn.driver_email) {
-  const emailResult = await triggerStatusChangeEmail({
-    driverEmail: checkIn.driver_email,
-    driverName: checkIn.driver_name || 'Driver',
-    referenceNumber: checkIn.reference_number || 'N/A',
-    oldStatus: checkIn.status || 'at_dock',
-    newStatus: status,
-    notes: notes || undefined,
-    endTime: endTimeISO ? new Date(endTimeISO).toLocaleString('en-US', { 
-      dateStyle: 'medium', 
-      timeStyle: 'short' 
-    }) : undefined,
-  });
-
+      // Send status change email
+      if (checkIn.driver_email) {
+        const emailResult = await triggerStatusChangeEmail({
+          driverEmail: checkIn.driver_email,
+          driverName: checkIn.driver_name || 'Driver',
+          referenceNumber: checkIn.reference_number || 'N/A',
+          oldStatus: checkIn.status || 'at_dock',
+          newStatus: status,
+          notes: notes || undefined,
+          endTime: endTimeISO ? new Date(endTimeISO).toLocaleString('en-US', { 
+            dateStyle: 'medium', 
+            timeStyle: 'short' 
+          }) : undefined,
+        });
 
         if (!emailResult.success) {
           console.error('Failed to send status change email:', emailResult.error);
@@ -168,6 +183,9 @@ if (checkIn.driver_email) {
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Defaults to current time, click to edit
+              </p>
             </div>
           </div>
 
@@ -271,7 +289,7 @@ if (checkIn.driver_email) {
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 font-medium disabled:bg-gray-200"
+              className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 font-medium"
             >
               Cancel
             </button>
@@ -281,3 +299,4 @@ if (checkIn.driver_email) {
     </div>
   );
 }
+
