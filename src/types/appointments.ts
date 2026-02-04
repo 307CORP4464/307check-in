@@ -15,6 +15,7 @@ export interface AppointmentInput {
   appointment_time: string;
   sales_order: string;
   delivery?: string;
+  customer: string | null;
   notes?: string;
   source?: AppointmentSource;  
 }
@@ -25,6 +26,7 @@ export interface Appointment {
   appointment_time: string;
   sales_order?: string | null;
   delivery?: string | null;
+  customer?: string | null;
   notes?: string | null;
   source: 'excel' | 'manual';
   created_at: string; 
