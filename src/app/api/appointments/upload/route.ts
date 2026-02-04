@@ -35,7 +35,7 @@ function parseTime(timeValue: any): string {
     // Already formatted time string
     const match = timeValue.match(/(\d{1,2}):(\d{2})/);
     if (match) {
-      return `${match<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>.padStart(2, '0')}:${match<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[2]</a>}`;
+      return `${match[1].padStart(2, '0')}:${match[2]}`;
     }
   }
   
@@ -69,12 +69,12 @@ export async function POST(request: NextRequest) {
       workbook = XLSX.read(buffer, { type: 'buffer' });
     }
 
-    const sheetName = workbook.SheetNames<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+    const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     const data = XLSX.utils.sheet_to_json(worksheet);
 
     console.log('📊 Parsed rows:', data.length);
-    console.log('📋 First row sample:', data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
+    console.log('📋 First row sample:', data[0]);
 
     const results = {
       success: 0,
