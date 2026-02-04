@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     const results = {
       success: 0,
       failed: 0,
-      skipped: 0,  // ✅ NEW: Track skipped duplicates
+      skipped: 0,
       errors: [] as string[],
       total: rawData.length
     };
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
           throw new Error(`Unsupported time format: ${startTime}`);
         }
 
-        // ✅ NEW: Check if appointment already exists
+        // Check if appointment already exists
         const { data: existingAppointments, error: checkError } = await supabase
           .from('appointments')
           .select('id, source')
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
           throw new Error(`Database check failed: ${checkError.message}`);
         }
 
-        // ✅ Skip if exact duplicate exists
+        // Skip if exact duplicate exists
         if (existingAppointments && existingAppointments.length > 0) {
           results.skipped++;
           console.log(`Row ${rowNumber} skipped: Duplicate appointment`);
