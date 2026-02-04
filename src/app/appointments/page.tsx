@@ -115,49 +115,48 @@ export default function AppointmentsPage() {
   });
 
   const totalAppointmentsCount = filteredAppointments.length;
+const handleSave = async (data: AppointmentInput) => {
+  try {
+    const appointmentData: AppointmentInput = {
+      ...data,
+      source: editingAppointment ? data.source : 'manual'
+    };
 
-  const handleSave = async (data: AppointmentInput) => {
-    try {
-      const appointmentData: AppointmentInput = {
-        ...data,
-        source: editingAppointment ? data.source : 'manual'
-      };
-
-      if (editingAppointment) {
-        await updateAppointment(editingAppointment.id, appointmentData);
-      } else {
-        await createAppointment(appointmentData);
-      }
-      
-      setModalOpen(false);
-      setEditingAppointment(null);
-      await loadAppointments();
-    } catch (error: any) {
-      console.error('Error saving appointment:', error);
-      alert(error.message || 'Error saving appointment');
-      throw error;
+    if (editingAppointment) {
+      await updateAppointment(editingAppointment.id, appointmentData);
+    } else {
+      await createAppointment(appointmentData);
     }
-  };
-
-  const handleEdit = (appointment: Appointment) => {
-    setEditingAppointment(appointment);
-    setModalOpen(true);
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this appointment?')) return;
     
-    try {
-      await deleteAppointment(id);
-      await loadAppointments();
-    } catch (error: any) {
-      alert(error.message || 'Error deleting appointment');
-    }
-  };
+    setModalOpen(false);
+    setEditingAppointment(null);
+    await loadAppointments();
+  } catch (error: any) {
+    console.error('Error saving appointment:', error);
+    alert(error.message || 'Error saving appointment');
+    throw error;
+  }
+};
 
-  const clearSearch = () => {
-    setSearchQuery('');
-  };
+const handleEdit = (appointment: Appointment) => {
+  setEditingAppointment(appointment);
+  setModalOpen(true);
+};
+
+const handleDelete = async (id: number) => {
+  if (!confirm('Are you sure you want to delete this appointment?')) return;
+  
+  try {
+    await deleteAppointment(id);
+    await loadAppointments();
+  } catch (error: any) {
+    alert(error.message || 'Error deleting appointment');
+  }
+};
+
+const clearSearch = () => {
+  setSearchQuery('');
+};
 
   return (
     <div className="min-h-screen bg-gray-50">
