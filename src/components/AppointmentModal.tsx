@@ -141,13 +141,12 @@ export default function AppointmentModal({
                 Customer <span className="text-red-500">*</span>
               </label>
               <input
-                type="text"
-                value={formData.customer}
-                onChange={(e) => setFormData({ ...formData, customer: e.target.value })}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter customer name"
-                required
-              />
+  type="text"
+  value={formData.customer || ''}
+  onChange={(e) => setFormData({ ...formData, customer: e.target.value })}
+  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+  placeholder="Enter customer name"
+/>
             </div>
 
             <div>
