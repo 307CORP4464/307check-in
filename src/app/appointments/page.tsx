@@ -300,6 +300,7 @@ export default function AppointmentsPage() {
                     <th className="px-4 py-3 text-left text-sm font-semibold">Customer</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Notes</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Source</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
                     <th className="px-4 py-3 text-right text-sm font-semibold">Actions</th>
                   </tr>
                 </thead>
@@ -307,9 +308,10 @@ export default function AppointmentsPage() {
                   {filteredAppointments.map((apt) => (
                     <tr key={apt.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm font-medium">{apt.appointment_time}</td>
-                      <td className="px-4 py-3 text-sm">{apt.customer || '-'}</td>
                       <td className="px-4 py-3 text-sm">{apt.sales_order || '-'}</td>
                       <td className="px-4 py-3 text-sm">{apt.delivery || '-'}</td>
+                      <td className="px-4 py-3 text-sm">{apt.customer || '-'}</td>
+                      
                       <td className="px-4 py-3 text-sm">{apt.notes || '-'}</td>
                       <td className="px-4 py-3 text-sm">
                         <span className={`px-2 py-1 rounded text-xs font-medium ${
