@@ -26,7 +26,7 @@ export interface Appointment {
   appointment_time: string;
   sales_order?: string | null;
   delivery?: string | null;
-  customer?: string | null;
+  customer: string | null;
   notes?: string | null;
   source: 'excel' | 'manual';
   created_at: string; 
