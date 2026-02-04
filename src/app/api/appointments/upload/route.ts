@@ -180,6 +180,7 @@ export async function POST(request: NextRequest) {
           sales_order: String(sales_order).trim(),
           delivery: String(delivery).trim(),
           notes: '',
+          customer: '',
           source: 'upload'
         };
 
