@@ -1,8 +1,7 @@
+// @/components/AppointmentUpload.tsx
 'use client';
 
 import { useState } from 'react';
-import { createAppointment, checkDuplicateAppointment } from '@/lib/appointmentsService';
-import { AppointmentInput } from '@/types/appointments';
 
 interface AppointmentUploadProps {
   onUploadComplete: () => void;
@@ -14,10 +13,9 @@ export default function AppointmentUpload({ onUploadComplete }: AppointmentUploa
   const [file, setFile] = useState<File | null>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
+    const selectedFile = e.target.files?.<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
     if (!selectedFile) return;
 
-    // Validate file type
     const validExtensions = ['.xls', '.xlsx', '.csv', '.txt'];
     const fileExtension = selectedFile.name.substring(selectedFile.name.lastIndexOf('.')).toLowerCase();
     
@@ -52,7 +50,6 @@ export default function AppointmentUpload({ onUploadComplete }: AppointmentUploa
         throw new Error(result.error || 'Upload failed');
       }
 
-      // Build result message
       let resultMessage = `✅ Upload complete!\n\n`;
       resultMessage += `📊 Summary:\n`;
       resultMessage += `  • ${result.success} appointments created\n`;
@@ -73,11 +70,9 @@ export default function AppointmentUpload({ onUploadComplete }: AppointmentUploa
       setMessage(resultMessage);
       setFile(null);
       
-      // Reset file input
       const fileInput = document.getElementById('file-input') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
       
-      // Refresh appointments list
       onUploadComplete();
     } catch (error: any) {
       console.error('Upload error:', error);
@@ -89,10 +84,10 @@ export default function AppointmentUpload({ onUploadComplete }: AppointmentUploa
 
   const downloadTemplate = () => {
     const csv = [
-      'Apt. Start Date,Start Time,Sales Order,Delivery',
-      '01/09/2026,08:00:00,2616791,86630766',
-      '01/09/2026,09:00:00,2624547,86634397',
-      '01/09/2026,10:30:00,2616755,86630763'
+      'Apt. Start Date,Start Time,Customer,Sales Order,Delivery', // ✅ UPDATED
+      '01/09/2026,08:00:00,ACME Corp,2616791,86630766',
+      '01/09/2026,09:00:00,TechCo,2624547,86634397',
+      '01/09/2026,10:30:00,BuildCo,2616755,86630763'
     ].join('\n');
     
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -115,6 +110,7 @@ export default function AppointmentUpload({ onUploadComplete }: AppointmentUploa
         <ul className="text-sm text-blue-700 list-disc list-inside space-y-1">
           <li><strong>Apt. Start Date</strong> - Format: MM/DD/YYYY (e.g., 01/09/2026)</li>
           <li><strong>Start Time</strong> - Format: HH:MM:SS (e.g., 08:00:00)</li>
+          <li><strong>Customer</strong> - Customer name (required)</li> {/* ✅ ADDED */}
           <li><strong>Sales Order</strong> - Sales order number</li>
           <li><strong>Delivery</strong> - Delivery number</li>
         </ul>
@@ -244,4 +240,3 @@ export default function AppointmentUpload({ onUploadComplete }: AppointmentUploa
     </div>
   );
 }
-
