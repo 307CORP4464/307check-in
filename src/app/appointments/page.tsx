@@ -237,17 +237,62 @@ export default function AppointmentsPage() {
               + Add Manual Appointment
             </button>
 
-            {/* Counter */}
-            <div className="mt-6">
-              <div className="bg-blue-500 text-white p-6 rounded-lg shadow-lg">
-                <div className="text-center">
-                  <div className="text-5xl font-bold mb-2">{totalAppointmentsCount}</div>
-                  <div className="text-xl font-medium">Total Appointments</div>
-                </div>
-              </div>
-            </div>
+            {/* Enhanced Counter */}
+<div className="mt-6 space-y-4">
+  {/* Total Appointments */}
+  <div className="bg-blue-500 text-white p-6 rounded-lg shadow-lg">
+    <div className="text-center">
+      <div className="text-5xl font-bold mb-2">{totalAppointmentsCount}</div>
+      <div className="text-xl font-medium">Total Appointments</div>
+    </div>
+  </div>
+
+  {/* Work-In Appointments */}
+  <div className="bg-orange-500 text-white p-4 rounded-lg shadow-lg">
+    <div className="text-center">
+      <div className="text-3xl font-bold mb-1">
+        {filteredAppointments.filter(apt => apt.type === 'Work In').length}
+      </div>
+      <div className="text-sm font-medium">Work In Appointments</div>
+    </div>
+  </div>
+
+  {/* Appointments by Customer */}
+  <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4">
+    <h3 className="text-sm font-bold text-gray-700 mb-3 text-center">
+      Appointments by Customer
+    </h3>
+    <div className="space-y-2 max-h-60 overflow-y-auto">
+      {Object.entries(
+        filteredAppointments.reduce((acc, apt) => {
+          const customer = apt.delivery || 'Unknown Customer';
+          acc[customer] = (acc[customer] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      )
+        .sort(([, a], [, b]) => b - a) // Sort by count descending
+        .map(([customer, count]) => (
+          <div
+            key={customer}
+            className="flex justify-between items-center p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+          >
+            <span className="text-sm font-medium text-gray-700 truncate flex-1">
+              {customer}
+            </span>
+            <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full ml-2">
+              {count}
+            </span>
           </div>
-        </div>
+        ))}
+      {filteredAppointments.length === 0 && (
+        <p className="text-center text-gray-400 text-sm py-4">
+          No appointments for this date
+        </p>
+      )}
+    </div>
+  </div>
+</div>
+
 
         {/* Appointments Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
