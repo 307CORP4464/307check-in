@@ -13,7 +13,7 @@ export default function AppointmentUpload({ onUploadComplete }: AppointmentUploa
   const [file, setFile] = useState<File | null>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+    const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
     const validExtensions = ['.xls', '.xlsx', '.csv', '.txt'];
