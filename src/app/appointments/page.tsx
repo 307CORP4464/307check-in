@@ -236,7 +236,7 @@ const clearSearch = () => {
               + Add Manual Appointment
             </button>
 
-        {/* Enhanced Counter */}
+{/* Enhanced Counter */}
 <div className="mt-6 space-y-4">
   {/* Total Appointments */}
   <div className="bg-blue-500 text-white p-6 rounded-lg shadow-lg">
@@ -273,24 +273,20 @@ const clearSearch = () => {
         .map(([customer, count]) => (
           <div
             key={customer}
-            className="flex justify-between items-center p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+            className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded"
           >
-            <span className="text-sm font-medium text-gray-700 truncate flex-1">
+            <span className="text-sm text-gray-700 font-medium truncate">
               {customer}
             </span>
-            <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full ml-2">
+            <span className="text-sm font-bold text-blue-600 ml-2">
               {count}
             </span>
           </div>
         ))}
-      {filteredAppointments.length === 0 && (
-        <p className="text-center text-gray-400 text-sm py-4">
-          No appointments for this date
-        </p>
-      )}
     </div>
   </div>
 </div>
+
     
 
 
