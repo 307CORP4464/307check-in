@@ -237,7 +237,7 @@ export default function AppointmentsPage() {
               + Add Manual Appointment
             </button>
 
-            {/* Enhanced Counter */}
+        {/* Enhanced Counter */}
 <div className="mt-6 space-y-4">
   {/* Total Appointments */}
   <div className="bg-blue-500 text-white p-6 rounded-lg shadow-lg">
@@ -270,7 +270,7 @@ export default function AppointmentsPage() {
           return acc;
         }, {} as Record<string, number>)
       )
-        .sort(([, a], [, b]) => b - a) // Sort by count descending
+        .sort(([, a], [, b]) => b - a)
         .map(([customer, count]) => (
           <div
             key={customer}
@@ -292,6 +292,7 @@ export default function AppointmentsPage() {
     </div>
   </div>
 </div>
+    
 
 
         {/* Appointments Table */}
