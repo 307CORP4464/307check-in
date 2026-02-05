@@ -251,7 +251,7 @@ export default function AppointmentsPage() {
               <div className="bg-orange-500 text-white p-4 rounded-lg shadow-lg">
                 <div className="text-center">
                   <div className="text-3xl font-bold mb-1">
-                    {filteredAppointments.filter(apt => apt.type === 'Work In').length}
+                    {filteredAppointments.filter(apt => apt.time === 'Work In').length}
                   </div>
                   <div className="text-sm font-medium">Work In Appointments</div>
                 </div>
