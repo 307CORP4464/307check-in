@@ -242,7 +242,7 @@ export default function AppointmentsPage() {
               {/* Total Appointments */}
               <div className="bg-blue-500 text-white p-6 rounded-lg shadow-lg">
                 <div className="text-center">
-                  <div className="text-5xl font-bold mb-2">{totalAppointmentsCount}</div>
+                  <div className="text-3xl font-bold mb-2">{totalAppointmentsCount}</div>
                   <div className="text-xl font-medium">Total Appointments</div>
                 </div>
               </div>
@@ -250,7 +250,7 @@ export default function AppointmentsPage() {
               {/* Work-In Appointments */}
               <div className="bg-orange-500 text-white p-4 rounded-lg shadow-lg">
                 <div className="text-center">
-                  <div className="text-3xl font-bold mb-1">
+                  <div className="text-1xl font-bold mb-1">
                     {filteredAppointments.filter(apt => 
                       apt.appointment_time.toLowerCase().includes('work in')
                     ).length}
@@ -267,7 +267,7 @@ export default function AppointmentsPage() {
                 <div className="space-y-2 max-h-60 overflow-y-auto">
                   {Object.entries(
                     filteredAppointments.reduce((acc, apt) => {
-                      const customer = apt.delivery || 'Unknown Customer';
+                      const customer = apt.customer || 'Unknown Customer';
                       acc[customer] = (acc[customer] || 0) + 1;
                       return acc;
                     }, {} as Record<string, number>)
