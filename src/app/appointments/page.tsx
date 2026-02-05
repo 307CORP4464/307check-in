@@ -248,14 +248,15 @@ export default function AppointmentsPage() {
               </div>
 
               {/* Work-In Appointments */}
-              <div className="bg-orange-500 text-white p-4 rounded-lg shadow-lg">
-                <div className="text-center">
-                  <div className="text-3xl font-bold mb-1">
-                    {filteredAppointments.filter(apt => apt.time === 'Work In').length}
-                  </div>
-                  <div className="text-sm font-medium">Work In Appointments</div>
-                </div>
-              </div>
+<div className="bg-orange-500 text-white p-4 rounded-lg shadow-lg">
+  <div className="text-center">
+    <div className="text-3xl font-bold mb-1">
+      {filteredAppointments.filter(apt => apt.time_slot === 'Work In').length}
+    </div>
+    <div className="text-sm font-medium">Work In Appointments</div>
+  </div>
+</div>
+
 
               {/* Appointments by Customer */}
               <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4">
