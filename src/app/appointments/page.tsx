@@ -386,7 +386,7 @@ export default function AppointmentsPage() {
       <AppointmentModal
   isOpen={modalOpen}
   onClose={() => {
-    setIsModalOpen(false);
+    setModalOpen(false);
     setEditingAppointment(null);
   }}
   onSave={handleSave}
