@@ -12,19 +12,21 @@ interface AppointmentModalProps {
   initialDate?: string;
 }
 
+const CUSTOMERS = ['TATE', 'PRIM', 'XARC', 'BAGS', 'TRAX', 'ADM'];
+
 export default function AppointmentModal({
   isOpen,
   onClose,
   onSave,
   appointment,
-  initialDate = new Date().toISOString().split('T')[0]
+  initialDate = new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>
 }: AppointmentModalProps) {
   const [formData, setFormData] = useState<AppointmentInput>({
     appointment_date: initialDate,
     appointment_time: '08:00',
     sales_order: '',
     delivery: '',
-    customer: '', // ✅ ADD THIS
+    customer: '',
     notes: '',
     source: 'manual'
   });
@@ -38,7 +40,7 @@ export default function AppointmentModal({
         appointment_time: appointment.appointment_time,
         sales_order: appointment.sales_order || '',
         delivery: appointment.delivery || '',
-        customer: appointment.customer || '', // ✅ ADD THIS
+        customer: appointment.customer || '',
         notes: appointment.notes || '',
         source: appointment.source
       });
@@ -48,7 +50,7 @@ export default function AppointmentModal({
         appointment_time: '08:00',
         sales_order: '',
         delivery: '',
-        customer: '', // ✅ ADD THIS
+        customer: '',
         notes: '',
         source: 'manual'
       });
@@ -135,18 +137,24 @@ export default function AppointmentModal({
               </select>
             </div>
 
-            {/* ✅ ADD CUSTOMER FIELD */}
+            {/* ✅ UPDATED CUSTOMER FIELD - NOW A DROPDOWN */}
             <div>
               <label className="block text-sm font-medium mb-1">
                 Customer <span className="text-red-500">*</span>
               </label>
-              <input
-  type="text"
-  value={formData.customer || ''}
-  onChange={(e) => setFormData({ ...formData, customer: e.target.value })}
-  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-  placeholder="Enter customer name"
-/>
+              <select
+                value={formData.customer || ''}
+                onChange={(e) => setFormData({ ...formData, customer: e.target.value })}
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                <option value="">Select a customer</option>
+                {CUSTOMERS.map((customer) => (
+                  <option key={customer} value={customer}>
+                    {customer}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -211,3 +219,4 @@ export default function AppointmentModal({
     </div>
   );
 }
+
