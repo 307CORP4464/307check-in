@@ -54,7 +54,7 @@ export default function AppointmentsPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -85,7 +85,7 @@ export default function AppointmentsPage() {
       console.log('📊 Total count:', data.length);
       
       if (data.length > 0) {
-        console.log('🔍 First appointment:', data[0]);
+        console.log('🔍 First appointment:', data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
         console.log('🕐 Appointment times:', data.map(a => a.appointment_time));
       }
       
@@ -101,7 +101,7 @@ export default function AppointmentsPage() {
   const changeDateByDays = (days: number) => {
     const currentDate = new Date(selectedDate);
     currentDate.setDate(currentDate.getDate() + days);
-    setSelectedDate(currentDate.toISOString().split('T')[0]);
+    setSelectedDate(currentDate.toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   };
 
   const filteredAppointments = appointments.filter(apt => {
@@ -238,58 +238,59 @@ export default function AppointmentsPage() {
             </button>
 
             {/* Enhanced Counter */}
-<div className="mt-6 space-y-4">
-  {/* Total Appointments */}
-  <div className="bg-blue-500 text-white p-6 rounded-lg shadow-lg">
-    <div className="text-center">
-      <div className="text-5xl font-bold mb-2">{totalAppointmentsCount}</div>
-      <div className="text-xl font-medium">Total Appointments</div>
-    </div>
-  </div>
+            <div className="mt-6 space-y-4">
+              {/* Total Appointments */}
+              <div className="bg-blue-500 text-white p-6 rounded-lg shadow-lg">
+                <div className="text-center">
+                  <div className="text-5xl font-bold mb-2">{totalAppointmentsCount}</div>
+                  <div className="text-xl font-medium">Total Appointments</div>
+                </div>
+              </div>
 
-  {/* Work-In Appointments */}
-  <div className="bg-orange-500 text-white p-4 rounded-lg shadow-lg">
-    <div className="text-center">
-      <div className="text-3xl font-bold mb-1">
-        {filteredAppointments.filter(apt => 
-          apt.appointment_time.toLowerCase().includes('work in')
-        ).length}
-      </div>
-      <div className="text-sm font-medium">Work In Appointments</div>
-    </div>
-  </div>
+              {/* Work-In Appointments */}
+              <div className="bg-orange-500 text-white p-4 rounded-lg shadow-lg">
+                <div className="text-center">
+                  <div className="text-3xl font-bold mb-1">
+                    {filteredAppointments.filter(apt => 
+                      apt.appointment_time.toLowerCase().includes('work in')
+                    ).length}
+                  </div>
+                  <div className="text-sm font-medium">Work In Appointments</div>
+                </div>
+              </div>
 
-  {/* Appointments by Customer */}
-  <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4">
-    <h3 className="text-sm font-bold text-gray-700 mb-3 text-center">
-      Appointments by Customer
-    </h3>
-    <div className="space-y-2 max-h-60 overflow-y-auto">
-      {Object.entries(
-        filteredAppointments.reduce((acc, apt) => {
-          const customer = apt.delivery || 'Unknown Customer';
-          acc[customer] = (acc[customer] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>)
-      )
-        .sort(([, a], [, b]) => b - a)
-        .map(([customer, count]) => (
-          <div
-            key={customer}
-            className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded"
-          >
-            <span className="text-sm text-gray-700 font-medium truncate">
-              {customer}
-            </span>
-            <span className="text-sm font-bold text-blue-600 ml-2">
-              {count}
-            </span>
+              {/* Appointments by Customer */}
+              <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4">
+                <h3 className="text-sm font-bold text-gray-700 mb-3 text-center">
+                  Appointments by Customer
+                </h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {Object.entries(
+                    filteredAppointments.reduce((acc, apt) => {
+                      const customer = apt.delivery || 'Unknown Customer';
+                      acc[customer] = (acc[customer] || 0) + 1;
+                      return acc;
+                    }, {} as Record<string, number>)
+                  )
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([customer, count]) => (
+                      <div
+                        key={customer}
+                        className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded"
+                      >
+                        <span className="text-sm text-gray-700 font-medium truncate">
+                          {customer}
+                        </span>
+                        <span className="text-sm font-bold text-blue-600 ml-2">
+                          {count}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
           </div>
-        ))}
-    </div>
-  </div>
-</div>
-
+        </div>
 
         {/* Search Bar */}
         <div className="bg-white p-4 rounded-lg shadow mb-6">
@@ -332,7 +333,6 @@ export default function AppointmentsPage() {
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Time</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Type</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Sales Order</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Customer</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Carrier</th>
@@ -346,10 +346,6 @@ export default function AppointmentsPage() {
                       <td className="px-4 py-3 text-sm">
                         {formatTimeInIndianapolis(apt.appointment_time)}
                       </td>
-                      <td className="px-4 py-3 text-sm">
-  {formatTimeInIndianapolis(apt.appointment_time)}
-</td>
-
                       <td className="px-4 py-3 text-sm font-medium">{apt.sales_order}</td>
                       <td className="px-4 py-3 text-sm">{apt.delivery}</td>
                       <td className="px-4 py-3 text-sm">{apt.carrier || '-'}</td>
