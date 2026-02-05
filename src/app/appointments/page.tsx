@@ -334,8 +334,8 @@ export default function AppointmentsPage() {
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Time</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Sales Order</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Delivery</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Customer</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Carrier</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Source</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
                   </tr>
