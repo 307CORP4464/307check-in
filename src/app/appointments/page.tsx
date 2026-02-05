@@ -363,7 +363,9 @@ export default function AppointmentsPage() {
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Sales Order</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Delivery</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Customer</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Notes</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Source</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
                   </tr>
                 </thead>
@@ -376,6 +378,7 @@ export default function AppointmentsPage() {
                       <td className="px-4 py-3 text-sm font-medium">{apt.sales_order}</td>
                       <td className="px-4 py-3 text-sm">{apt.delivery}</td>
                       <td className="px-4 py-3 text-sm">{apt.customer || '-'}</td>
+                      <td className="px-4 py-3 text-sm">{apt.notes || '-'}</td>
                       <td className="px-4 py-3 text-sm">
                         <span className={`px-2 py-1 rounded text-xs ${
                           apt.source === 'manual' 
