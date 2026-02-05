@@ -291,12 +291,33 @@ export default function AppointmentsPage() {
                   Appointments by Customer
                 </h3>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {/* Your customer appointment breakdown code here */}
+                  {Object.entries(
+                    filteredAppointments.reduce((acc, apt) => {
+                      const customer = apt.customer || 'Unknown Customer';
+                      acc[customer] = (acc[customer] || 0) + 1;
+                      return acc;
+                    }, {} as Record<string, number>)
+                  )
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([customer, count]) => (
+                      <div
+                        key={customer}
+                        className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded"
+                      >
+                        <span className="text-sm text-gray-700 font-medium truncate">
+                          {customer}
+                        </span>
+                        <span className="text-sm font-bold text-blue-600 ml-2">
+                          {count}
+                        </span>
+                      </div>
+                    ))}
                 </div>
               </div>
             </div>
           </div>
         </div>
+
 
         {/* Search Bar */}
         <div className="bg-white p-4 rounded-lg shadow mb-6">
