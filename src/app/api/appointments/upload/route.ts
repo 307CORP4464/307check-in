@@ -49,89 +49,159 @@ export async function POST(request: NextRequest) {
     }
 
     // STEP 1: Try standard parse (header on row 1)
-    let rawData = XLSX.utils.sheet_to_json(worksheet, {
-      raw: false,
-      defval: ''
-    }) as any[];
+let rawData = XLSX.utils.sheet_to_json(worksheet, {
+  raw: false,
+  defval: ''
+}) as any[];
 
-    console.log('=== UPLOAD DEBUG ===');
-    console.log('Sheet ref:', worksheet['!ref']);
-    console.log('Standard parse row count:', rawData.length);
+console.log('=== UPLOAD DEBUG ===');
+console.log('Sheet ref:', worksheet['!ref']);
+console.log('Standard parse row count:', rawData.length);
 
-    // STEP 2: If empty, try to find header row
-    if (!rawData || rawData.length === 0) {
-      console.log('Standard parse empty. Scanning for header row...');
+// Log actual cell contents for debugging
+const ref = worksheet['!ref'];
+if (ref) {
+  // Log first 10 cells to see what's actually in the sheet
+  const cellsToCheck = ['A1','B1','C1','D1','E1','A2','B2','C2','D2','E2'];
+  for (const addr of cellsToCheck) {
+    const cell = worksheet[addr];
+    console.log(`Cell ${addr}:`, cell ? JSON.stringify(cell) : 'undefined');
+  }
+}
 
-      const allRows = XLSX.utils.sheet_to_json(worksheet, {
+// STEP 2: If empty, try to find header row with enhanced detection
+if (!rawData || rawData.length === 0) {
+  console.log('Standard parse empty. Scanning for header row...');
+
+  const allRows = XLSX.utils.sheet_to_json(worksheet, {
+    raw: false,
+    defval: '',
+    header: 1
+  }) as any[][];
+
+  console.log('Raw array row count:', allRows.length);
+  if (allRows.length > 0) {
+    console.log('First 5 raw rows:', JSON.stringify(allRows.slice(0, 5)));
+  }
+
+  // NEW: Check if data might be in a single column (TMS export issue)
+  // Some TMS systems export with tab or pipe delimiters inside a single Excel column
+  if (allRows.length > 0 && allRows<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.length === 1) {
+    console.log('Single column detected - attempting to re-parse as delimited text');
+
+    const singleColText = allRows
+      .map((row) => String(row<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a> || '').trim())
+      .filter((line) => line.length > 0);
+
+    if (singleColText.length > 0) {
+      // Detect delimiter: tab, pipe, or comma
+      const firstLine = singleColText<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+      let delimiter = '\t';
+      if (firstLine.includes('|')) delimiter = '|';
+      else if (firstLine.includes(',') && !firstLine.includes('\t')) delimiter = ',';
+
+      const headers = firstLine.split(delimiter).map((h: string) => h.trim());
+      console.log('Detected headers from single column:', headers);
+
+      if (headers.length >= 3) {
+        rawData = singleColText.slice(1).map((line) => {
+          const values = line.split(delimiter).map((v: string) => v.trim());
+          const obj: any = {};
+          headers.forEach((h: string, idx: number) => {
+            obj[h] = values[idx] || '';
+          });
+          return obj;
+        }).filter((row: any) => {
+          // Filter out completely empty rows
+          return Object.values(row).some((v: any) => String(v || '').trim().length > 0);
+        });
+
+        console.log('Re-parsed from single column, row count:', rawData.length);
+      }
+    }
+  }
+
+  // If still empty, do the normal header row scan
+  if (!rawData || rawData.length === 0) {
+    let headerIndex = -1;
+    for (let r = 0; r < Math.min(allRows.length, 30); r++) {
+      if (!allRows[r]) continue;
+
+      // Skip rows where all cells are empty
+      const nonEmptyCells = allRows[r].filter(
+        (cell: any) => String(cell || '').trim().length > 0
+      );
+      if (nonEmptyCells.length === 0) continue;
+
+      const rowText = allRows[r]
+        .map((cell: any) => String(cell || '').toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ').trim())
+        .join('|');
+
+      console.log(`Scanning row ${r}: "${rowText}"`);
+
+      if (
+        (rowText.includes('sales order') || rowText.includes('salesorder')) &&
+        (rowText.includes('delivery') || rowText.includes('del'))
+      ) {
+        headerIndex = r;
+        console.log(`Header found at row ${r}`);
+        break;
+      }
+
+      if (rowText.includes('apt') || rowText.includes('start date') || rowText.includes('appointment')) {
+        headerIndex = r;
+        console.log(`Header found (lenient) at row ${r}`);
+        break;
+      }
+    }
+
+    if (headerIndex >= 0) {
+      rawData = XLSX.utils.sheet_to_json(worksheet, {
         raw: false,
         defval: '',
-        header: 1 // Array of arrays
-      }) as any[][];
-
-      console.log('Raw array row count:', allRows.length);
-      if (allRows.length > 0) {
-        console.log('First 3 raw rows:', JSON.stringify(allRows.slice(0, 3)));
-      }
-
-      // Search first 20 rows for header
-      let headerIndex = -1;
-      for (let r = 0; r < Math.min(allRows.length, 20); r++) {
-        if (!allRows[r]) continue;
-        const rowText = allRows[r]
-          .map((cell: any) => String(cell || '').toLowerCase().replace(/\./g, ''))
-          .join('|');
-
-        // Look for key identifiers
-        if (
-          (rowText.includes('sales order') || rowText.includes('salesorder')) &&
-          (rowText.includes('delivery') || rowText.includes('del'))
-        ) {
-          headerIndex = r;
-          console.log(`Header found at raw row index ${r}: ${JSON.stringify(allRows[r])}`);
-          break;
-        }
-      }
-
-      if (headerIndex === -1) {
-        // Even more lenient: look for "apt" or "start date"
-        for (let r = 0; r < Math.min(allRows.length, 20); r++) {
-          if (!allRows[r]) continue;
-          const rowText = allRows[r]
-            .map((cell: any) => String(cell || '').toLowerCase())
-            .join('|');
-          if (rowText.includes('apt') || rowText.includes('start date')) {
-            headerIndex = r;
-            console.log(`Header found (lenient) at row ${r}: ${JSON.stringify(allRows[r])}`);
-            break;
-          }
-        }
-      }
-
-      if (headerIndex >= 0) {
-        rawData = XLSX.utils.sheet_to_json(worksheet, {
-          raw: false,
-          defval: '',
-          range: headerIndex
-        }) as any[];
-        console.log('Re-parsed with range, row count:', rawData.length);
-      } else {
-        // Last resort: use first row as data
-        const firstRowContent = allRows.length > 0 ? JSON.stringify(allRows[0]) : 'empty';
-        return NextResponse.json(
-          {
-            error: `Could not identify header row. First row content: ${firstRowContent}. Expected columns like: Apt. Start Date, Start Time, Customer, Sales Order, Delivery`
-          },
-          { status: 400 }
-        );
-      }
+        range: headerIndex
+      }) as any[];
+      console.log('Re-parsed with range, row count:', rawData.length);
     }
+  }
 
-    if (!rawData || rawData.length === 0) {
-      return NextResponse.json(
-        { error: 'No data rows found after header detection.' },
-        { status: 400 }
-      );
+  // LAST RESORT: Try re-reading the buffer with different options
+  if (!rawData || rawData.length === 0) {
+    console.log('All parse attempts failed. Trying cellDates + different read options...');
+    try {
+      const wb2 = XLSX.read(buffer, {
+        type: 'buffer',
+        raw: true,
+        cellDates: true,
+        cellNF: false,
+        cellText: true,
+        WTF: true // Throw on unexpected records to surface hidden issues
+      });
+      const ws2 = wb2.Sheets[wb2.SheetNames[0]];
+      if (ws2) {
+        rawData = XLSX.utils.sheet_to_json(ws2, { raw: false, defval: '' }) as any[];
+        console.log('Retry with raw:true succeeded, row count:', rawData.length);
+      }
+    } catch (retryErr) {
+      console.error('Retry parse error:', retryErr);
     }
+  }
+
+  if (!rawData || rawData.length === 0) {
+    const firstNonEmpty = allRows.find(
+      (row) => row && row.some((cell: any) => String(cell || '').trim().length > 0)
+    );
+    return NextResponse.json(
+      {
+        error: `Could not identify header row. First non-empty content: ${
+          firstNonEmpty ? JSON.stringify(firstNonEmpty) : 'all rows empty'
+        }. Expected columns: Apt. Start Date, Start Time, Customer, Sales Order, Delivery. Try re-saving your file: Open in Excel → Select all data → Copy → Paste into a NEW workbook → Save as .xlsx`
+      },
+      { status: 400 }
+    );
+  }
+}
+
 
     // STEP 3: Map columns flexibly
     const firstRow = rawData[0];
