@@ -682,7 +682,7 @@ await triggerCheckInEmail({
                   className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                     referenceError ? 'border-red-300' : 'border-gray-300'
                   }`}
-                  placeholder="2123456 or 44123456789"
+                  placeholder="2123456 or 4123456 or 86123456"
                 />
                 {referenceError && (
                   <p className="mt-1 text-sm text-red-600">{referenceError}</p>
