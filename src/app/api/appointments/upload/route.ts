@@ -4,6 +4,29 @@ import { AppointmentInput } from '@/types/appointments';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/lib/supabase';
 
+// Helper to normalize column names (handles whitespace, case, special chars)
+function normalizeColumnName(col: string): string {
+  return col
+    .trim()
+    .replace(/\s+/g, ' ')        // collapse multiple spaces
+    .replace(/[^\x20-\x7E]/g, '') // remove non-printable/BOM characters
+    .toLowerCase();
+}
+
+// Map normalized names to expected field names
+function findColumn(row: any, possibleNames: string[]): string | undefined {
+  const keys = Object.keys(row);
+  for (const key of keys) {
+    const normalized = normalizeColumnName(key);
+    for (const name of possibleNames) {
+      if (normalized === name.toLowerCase()) {
+        return key; // return the ORIGINAL key so we can access row[key]
+      }
+    }
+  }
+  return undefined;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -20,10 +43,14 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Parse Excel file
+    // Parse file
     let workbook;
     try {
-      workbook = XLSX.read(buffer, { type: 'buffer', raw: false });
+      workbook = XLSX.read(buffer, { 
+        type: 'buffer', 
+        raw: false,
+        codepage: 65001  // Force UTF-8
+      });
     } catch (error) {
       return NextResponse.json(
         { error: 'Failed to parse file. Please ensure it is a valid Excel or CSV file.' },
@@ -31,35 +58,117 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const sheetName = workbook.SheetNames[0];
+    const sheetName = workbook.SheetNames<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
     const worksheet = workbook.Sheets[sheetName];
-    
-    // Convert to JSON
-    const rawData = XLSX.utils.sheet_to_json(worksheet, { 
+
+    if (!worksheet) {
+      return NextResponse.json(
+        { error: 'No worksheet found in file.' },
+        { status: 400 }
+      );
+    }
+
+    // Log the sheet range for debugging
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+    console.log('Sheet range:', worksheet['!ref']);
+    console.log('Rows:', range.e.r - range.s.r + 1, 'Cols:', range.e.c - range.s.c + 1);
+
+    // Try parsing with different options
+    let rawData = XLSX.utils.sheet_to_json(worksheet, { 
       raw: false, 
       defval: '' 
     }) as any[];
 
-    console.log('Parsed data sample:', rawData.slice(0, 2));
+    // If empty, try with header detection from different rows
+    if (!rawData || rawData.length === 0) {
+      console.log('First parse returned empty. Trying with range option...');
+      
+      // Try reading raw cell values to find where data starts
+      const allRows = XLSX.utils.sheet_to_json(worksheet, { 
+        raw: false, 
+        defval: '',
+        header: 1  // Returns array of arrays instead of objects
+      }) as any[][];
+
+      console.log('Raw rows found:', allRows.length);
+      console.log('First 5 rows:', JSON.stringify(allRows.slice(0, 5)));
+
+      if (allRows.length === 0) {
+        return NextResponse.json(
+          { error: 'No data found in file. The file appears to be empty.' },
+          { status: 400 }
+        );
+      }
+
+      // Find the header row (the one containing "Sales Order" or similar)
+      let headerRowIndex = -1;
+      for (let r = 0; r < Math.min(allRows.length, 10); r++) {
+        const rowStr = allRows[r].map((c: any) => String(c).toLowerCase()).join(' ');
+        if (rowStr.includes('sales order') || rowStr.includes('delivery') || rowStr.includes('apt.')) {
+          headerRowIndex = r;
+          break;
+        }
+      }
+
+      if (headerRowIndex === -1) {
+        return NextResponse.json(
+          { 
+            error: `Could not find header row. First row contains: ${JSON.stringify(allRows<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>)}. Expected columns: Apt. Start Date, Start Time, Customer, Sales Order, Delivery` 
+          },
+          { status: 400 }
+        );
+      }
+
+      console.log('Header row found at index:', headerRowIndex);
+
+      // Re-parse with correct header row
+      if (headerRowIndex > 0) {
+        rawData = XLSX.utils.sheet_to_json(worksheet, { 
+          raw: false, 
+          defval: '',
+          range: headerRowIndex  // Skip rows before header
+        }) as any[];
+        console.log('Re-parsed data count:', rawData.length);
+      }
+    }
 
     if (!rawData || rawData.length === 0) {
       return NextResponse.json(
-        { error: 'No data found in file' },
+        { error: 'No data rows found after header. Please check your file format.' },
         { status: 400 }
       );
     }
 
-    // Verify required columns
-    const firstRow = rawData[0];
-    const requiredColumns = ['Apt. Start Date', 'Start Time', 'Sales Order', 'Delivery'];
-    const missingColumns = requiredColumns.filter(col => !(col in firstRow));
+    // Log what we found
+    const firstRow = rawData<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+    const foundColumns = Object.keys(firstRow);
+    console.log('Found columns:', foundColumns);
+    console.log('Parsed data sample:', rawData.slice(0, 2));
 
-    if (missingColumns.length > 0) {
+    // Use flexible column matching
+    const dateCol = findColumn(firstRow, ['Apt. Start Date', 'Apt Start Date', 'Start Date', 'Date', 'Appointment Date']);
+    const timeCol = findColumn(firstRow, ['Start Time', 'Time', 'Appointment Time']);
+    const customerCol = findColumn(firstRow, ['Customer', 'Customer Name', 'Cust', 'Client']);
+    const salesOrderCol = findColumn(firstRow, ['Sales Order', 'Sales_Order', 'SalesOrder', 'SO', 'Order']);
+    const deliveryCol = findColumn(firstRow, ['Delivery', 'Delivery Number', 'Del', 'Delivery#']);
+
+    // Check required columns
+    const missing: string[] = [];
+    if (!dateCol) missing.push('Apt. Start Date');
+    if (!timeCol) missing.push('Start Time');
+    if (!salesOrderCol) missing.push('Sales Order');
+    if (!deliveryCol) missing.push('Delivery');
+
+    if (missing.length > 0) {
       return NextResponse.json(
-        { error: `Missing required columns: ${missingColumns.join(', ')}. Found columns: ${Object.keys(firstRow).join(', ')}` },
+        { 
+          error: `Missing required columns: ${missing.join(', ')}. Found columns: ${foundColumns.join(', ')}` 
+        },
         { status: 400 }
       );
     }
+
+    console.log('Column mapping:', { dateCol, timeCol, customerCol, salesOrderCol, deliveryCol });
 
     const results = {
       success: 0,
@@ -69,103 +178,126 @@ export async function POST(request: NextRequest) {
       total: rawData.length
     };
 
-for (let i = 0; i < rawData.length; i++) {
-  const row = rawData[i];
-  const rowNumber = i + 2;
+    for (let i = 0; i < rawData.length; i++) {
+      const row = rawData[i];
+      const rowNumber = i + 2;
 
-  try {
-    // Extract values
-    const startDate = row['Apt. Start Date'] || '';
-    const startTime = row['Start Time'] || '';
-    const customer = row['Customer'] || '';          // ✅ ADDED
-    const sales_order = row['Sales Order'] || '';
-    const delivery = row['Delivery'] || '';
+      try {
+        // Extract values using matched column names
+        const startDate = row[dateCol!] || '';
+        const startTime = row[timeCol!] || '';
+        const customer = customerCol ? (row[customerCol] || '') : '';  // ✅ CUSTOMER EXTRACTED
+        const sales_order = row[salesOrderCol!] || '';
+        const delivery = row[deliveryCol!] || '';
 
-    // Validate required fields
-    if (!startDate || !startTime || !sales_order || !delivery) {
-      throw new Error('Missing required field(s)');
-    }
-
-    // Parse date (MM/DD/YYYY to YYYY-MM-DD)
-    let formattedDate = '';
-    if (typeof startDate === 'string' && startDate.includes('/')) {
-      const [month, day, year] = startDate.split('/');
-      if (!month || !day || !year) {
-        throw new Error(`Invalid date format: ${startDate}`);
-      }
-      formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    } else {
-      throw new Error(`Unsupported date format: ${startDate}`);
-    }
-
-    // Parse time (HH:MM:SS to HH:MM)
-    let formattedTime = '';
-    if (typeof startTime === 'string') {
-      const cleanTime = startTime.trim();
-      
-      if (cleanTime.includes(':')) {
-        const timeParts = cleanTime.split(':');
-        if (timeParts.length >= 2) {
-          const hours = timeParts[0].padStart(2, '0');
-          const minutes = timeParts[1].padStart(2, '0');
-          formattedTime = `${hours}:${minutes}`;
-        } else {
-          throw new Error(`Invalid time format: ${startTime}`);
+        // Skip completely empty rows
+        if (!startDate && !startTime && !sales_order && !delivery) {
+          results.total--;
+          continue;
         }
-      } else {
-        throw new Error(`Invalid time format: ${startTime}`);
+
+        // Validate required fields
+        if (!startDate || !startTime || !sales_order || !delivery) {
+          throw new Error(`Missing required field(s) - Date: "${startDate}", Time: "${startTime}", SO: "${sales_order}", Del: "${delivery}"`);
+        }
+
+        // Parse date (MM/DD/YYYY to YYYY-MM-DD)
+        let formattedDate = '';
+        const dateStr = String(startDate).trim();
+        
+        if (dateStr.includes('/')) {
+          const parts = dateStr.split('/');
+          if (parts.length === 3) {
+            let [month, day, year] = parts;
+            // Handle 2-digit year
+            if (year.length === 2) year = '20' + year;
+            formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          } else {
+            throw new Error(`Invalid date format: ${startDate}`);
+          }
+        } else if (dateStr.includes('-')) {
+          // Already in YYYY-MM-DD or similar
+          formattedDate = dateStr;
+        } else {
+          throw new Error(`Unsupported date format: ${startDate}`);
+        }
+
+        // Parse time
+        let formattedTime = '';
+        const timeVal = startTime;
+        
+        if (typeof timeVal === 'string') {
+          const cleanTime = timeVal.trim();
+          if (cleanTime.includes(':')) {
+            const timeParts = cleanTime.split(':');
+            if (timeParts.length >= 2) {
+              const hours = timeParts<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.padStart(2, '0');
+              const minutes = timeParts<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>.padStart(2, '0');
+              formattedTime = `${hours}:${minutes}`;
+            } else {
+              throw new Error(`Invalid time format: ${startTime}`);
+            }
+          } else if (/^\d+(\.\d+)?$/.test(cleanTime)) {
+            // Handle decimal time (Excel serial time)
+            const decimal = parseFloat(cleanTime);
+            const totalMinutes = Math.round(decimal * 24 * 60);
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+          } else {
+            throw new Error(`Invalid time format: ${startTime}`);
+          }
+        } else if (typeof timeVal === 'number') {
+          const totalMinutes = Math.round(timeVal * 24 * 60);
+          const hours = Math.floor(totalMinutes / 60);
+          const minutes = totalMinutes % 60;
+          formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        } else {
+          throw new Error(`Unsupported time format: ${startTime}`);
+        }
+
+        // Check for duplicates
+        const { data: existingAppointments, error: checkError } = await supabase
+          .from('appointments')
+          .select('id, source')
+          .eq('appointment_date', formattedDate)
+          .eq('appointment_time', formattedTime)
+          .eq('sales_order', String(sales_order).trim())
+          .eq('delivery', String(delivery).trim());
+
+        if (checkError) {
+          throw new Error(`Database check failed: ${checkError.message}`);
+        }
+
+        if (existingAppointments && existingAppointments.length > 0) {
+          results.skipped++;
+          console.log(`Row ${rowNumber} skipped: Duplicate appointment`);
+          continue;
+        }
+
+        // Create appointment
+        const appointmentData: AppointmentInput = {
+          appointment_date: formattedDate,
+          appointment_time: formattedTime,
+          sales_order: String(sales_order).trim(),
+          delivery: String(delivery).trim(),
+          notes: '',
+          customer: String(customer).trim(),  // ✅ CUSTOMER NOW INCLUDED
+          source: 'excel' as const
+        };
+
+        console.log(`Row ${rowNumber} processed:`, appointmentData);
+
+        await createAppointment(appointmentData);
+        results.success++;
+      } catch (error) {
+        results.failed++;
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        results.errors.push(`Row ${rowNumber}: ${errorMessage}`);
+        console.error(`Row ${rowNumber} error:`, error);
       }
-    } else if (typeof startTime === 'number') {
-      const totalMinutes = Math.round(startTime * 24 * 60);
-      const hours = Math.floor(totalMinutes / 60);
-      const minutes = totalMinutes % 60;
-      formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-    } else {
-      throw new Error(`Unsupported time format: ${startTime}`);
     }
 
-    // Check if appointment already exists
-    const { data: existingAppointments, error: checkError } = await supabase
-      .from('appointments')
-      .select('id, source')
-      .eq('appointment_date', formattedDate)
-      .eq('appointment_time', formattedTime)
-      .eq('sales_order', String(sales_order).trim())
-      .eq('delivery', String(delivery).trim());
-
-    if (checkError) {
-      throw new Error(`Database check failed: ${checkError.message}`);
-    }
-
-    // Skip if exact duplicate exists
-    if (existingAppointments && existingAppointments.length > 0) {
-      results.skipped++;
-      console.log(`Row ${rowNumber} skipped: Duplicate appointment`);
-      continue;
-    }
-
-    // Create appointment
-    const appointmentData: AppointmentInput = {
-      appointment_date: formattedDate,
-      appointment_time: formattedTime,
-      sales_order: String(sales_order).trim(),
-      delivery: String(delivery).trim(),
-      notes: '',
-      customer: String(customer).trim(),           // ✅ FIXED
-      source: 'excel' as const
-    };
-
-    console.log(`Row ${rowNumber} processed:`, appointmentData);
-
-    await createAppointment(appointmentData);
-    results.success++;
-  } catch (error) {
-    results.failed++;
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    results.errors.push(`Row ${rowNumber}: ${errorMessage}`);
-    console.error(`Row ${rowNumber} error:`, error);
-  }
-}
     console.log('Upload results:', results);
 
     return NextResponse.json(results, { status: 200 });
