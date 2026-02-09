@@ -86,16 +86,16 @@ if (!rawData || rawData.length === 0) {
 
   // NEW: Check if data might be in a single column (TMS export issue)
   // Some TMS systems export with tab or pipe delimiters inside a single Excel column
-  if (allRows.length > 0 && allRows<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.length === 1) {
+  if (allRows.length > 0 && allRows[0].length === 1) {
     console.log('Single column detected - attempting to re-parse as delimited text');
 
     const singleColText = allRows
-      .map((row) => String(row<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a> || '').trim())
+      .map((row) => String(row[0] || '').trim())
       .filter((line) => line.length > 0);
 
     if (singleColText.length > 0) {
       // Detect delimiter: tab, pipe, or comma
-      const firstLine = singleColText<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+      const firstLine = singleColText[0];
       let delimiter = '\t';
       if (firstLine.includes('|')) delimiter = '|';
       else if (firstLine.includes(',') && !firstLine.includes('\t')) delimiter = ',';
