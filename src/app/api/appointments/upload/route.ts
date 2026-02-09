@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const sheetName = workbook.SheetNames<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+    const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
 
     if (!worksheet) {
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       if (headerRowIndex === -1) {
         return NextResponse.json(
           { 
-            error: `Could not find header row. First row contains: ${JSON.stringify(allRows<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>)}. Expected columns: Apt. Start Date, Start Time, Customer, Sales Order, Delivery` 
+            error: `Could not find header row. First row contains: ${JSON.stringify(allRows[0])}. Expected columns: Apt. Start Date, Start Time, Customer, Sales Order, Delivery` 
           },
           { status: 400 }
         );
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Log what we found
-    const firstRow = rawData<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+    const firstRow = rawData[0];
     const foundColumns = Object.keys(firstRow);
     console.log('Found columns:', foundColumns);
     console.log('Parsed data sample:', rawData.slice(0, 2));
@@ -231,8 +231,8 @@ export async function POST(request: NextRequest) {
           if (cleanTime.includes(':')) {
             const timeParts = cleanTime.split(':');
             if (timeParts.length >= 2) {
-              const hours = timeParts<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.padStart(2, '0');
-              const minutes = timeParts<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>.padStart(2, '0');
+              const hours = timeParts[0].padStart(2, '0');
+              const minutes = timeParts[1].padStart(2, '0');
               formattedTime = `${hours}:${minutes}`;
             } else {
               throw new Error(`Invalid time format: ${startTime}`);
