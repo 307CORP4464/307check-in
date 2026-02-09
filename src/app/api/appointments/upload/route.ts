@@ -69,103 +69,103 @@ export async function POST(request: NextRequest) {
       total: rawData.length
     };
 
-    for (let i = 0; i < rawData.length; i++) {
-      const row = rawData[i];
-      const rowNumber = i + 2;
+for (let i = 0; i < rawData.length; i++) {
+  const row = rawData[i];
+  const rowNumber = i + 2;
 
-      try {
-        // Extract values
-        const startDate = row['Apt. Start Date'] || '';
-        const startTime = row['Start Time'] || '';
-        const sales_order = row['Sales Order'] || '';
-        const delivery = row['Delivery'] || '';
+  try {
+    // Extract values
+    const startDate = row['Apt. Start Date'] || '';
+    const startTime = row['Start Time'] || '';
+    const customer = row['Customer'] || '';          // ✅ ADDED
+    const sales_order = row['Sales Order'] || '';
+    const delivery = row['Delivery'] || '';
 
-        // Validate required fields
-        if (!startDate || !startTime || !sales_order || !delivery) {
-          throw new Error('Missing required field(s)');
-        }
-
-        // Parse date (MM/DD/YYYY to YYYY-MM-DD)
-        let formattedDate = '';
-        if (typeof startDate === 'string' && startDate.includes('/')) {
-          const [month, day, year] = startDate.split('/');
-          if (!month || !day || !year) {
-            throw new Error(`Invalid date format: ${startDate}`);
-          }
-          formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        } else {
-          throw new Error(`Unsupported date format: ${startDate}`);
-        }
-
-        // Parse time (HH:MM:SS to HH:MM)
-        let formattedTime = '';
-        if (typeof startTime === 'string') {
-          const cleanTime = startTime.trim();
-          
-          if (cleanTime.includes(':')) {
-            const timeParts = cleanTime.split(':');
-            if (timeParts.length >= 2) {
-              const hours = timeParts[0].padStart(2, '0');
-              const minutes = timeParts[1].padStart(2, '0');
-              formattedTime = `${hours}:${minutes}`;
-            } else {
-              throw new Error(`Invalid time format: ${startTime}`);
-            }
-          } else {
-            throw new Error(`Invalid time format: ${startTime}`);
-          }
-        } else if (typeof startTime === 'number') {
-          const totalMinutes = Math.round(startTime * 24 * 60);
-          const hours = Math.floor(totalMinutes / 60);
-          const minutes = totalMinutes % 60;
-          formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-        } else {
-          throw new Error(`Unsupported time format: ${startTime}`);
-        }
-
-        // Check if appointment already exists
-        const { data: existingAppointments, error: checkError } = await supabase
-          .from('appointments')
-          .select('id, source')
-          .eq('appointment_date', formattedDate)
-          .eq('appointment_time', formattedTime)
-          .eq('sales_order', String(sales_order).trim())
-          .eq('delivery', String(delivery).trim());
-
-        if (checkError) {
-          throw new Error(`Database check failed: ${checkError.message}`);
-        }
-
-        // Skip if exact duplicate exists
-        if (existingAppointments && existingAppointments.length > 0) {
-          results.skipped++;
-          console.log(`Row ${rowNumber} skipped: Duplicate appointment`);
-          continue;
-        }
-
-        // Create appointment
-        const appointmentData: AppointmentInput = {
-          appointment_date: formattedDate,
-          appointment_time: formattedTime,
-          sales_order: String(sales_order).trim(),
-          delivery: String(delivery).trim(),
-          notes: '',
-          customer: '',
-          source: 'excel' as const
-        };
-
-        console.log(`Row ${rowNumber} processed:`, appointmentData);
-
-        await createAppointment(appointmentData);
-        results.success++;
-      } catch (error) {
-        results.failed++;
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        results.errors.push(`Row ${rowNumber}: ${errorMessage}`);
-        console.error(`Row ${rowNumber} error:`, error);
-      }
+    // Validate required fields
+    if (!startDate || !startTime || !sales_order || !delivery) {
+      throw new Error('Missing required field(s)');
     }
 
+    // Parse date (MM/DD/YYYY to YYYY-MM-DD)
+    let formattedDate = '';
+    if (typeof startDate === 'string' && startDate.includes('/')) {
+      const [month, day, year] = startDate.split('/');
+      if (!month || !day || !year) {
+        throw new Error(`Invalid date format: ${startDate}`);
+      }
+      formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    } else {
+      throw new Error(`Unsupported date format: ${startDate}`);
+    }
+
+    // Parse time (HH:MM:SS to HH:MM)
+    let formattedTime = '';
+    if (typeof startTime === 'string') {
+      const cleanTime = startTime.trim();
+      
+      if (cleanTime.includes(':')) {
+        const timeParts = cleanTime.split(':');
+        if (timeParts.length >= 2) {
+          const hours = timeParts<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.padStart(2, '0');
+          const minutes = timeParts<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>.padStart(2, '0');
+          formattedTime = `${hours}:${minutes}`;
+        } else {
+          throw new Error(`Invalid time format: ${startTime}`);
+        }
+      } else {
+        throw new Error(`Invalid time format: ${startTime}`);
+      }
+    } else if (typeof startTime === 'number') {
+      const totalMinutes = Math.round(startTime * 24 * 60);
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    } else {
+      throw new Error(`Unsupported time format: ${startTime}`);
+    }
+
+    // Check if appointment already exists
+    const { data: existingAppointments, error: checkError } = await supabase
+      .from('appointments')
+      .select('id, source')
+      .eq('appointment_date', formattedDate)
+      .eq('appointment_time', formattedTime)
+      .eq('sales_order', String(sales_order).trim())
+      .eq('delivery', String(delivery).trim());
+
+    if (checkError) {
+      throw new Error(`Database check failed: ${checkError.message}`);
+    }
+
+    // Skip if exact duplicate exists
+    if (existingAppointments && existingAppointments.length > 0) {
+      results.skipped++;
+      console.log(`Row ${rowNumber} skipped: Duplicate appointment`);
+      continue;
+    }
+
+    // Create appointment
+    const appointmentData: AppointmentInput = {
+      appointment_date: formattedDate,
+      appointment_time: formattedTime,
+      sales_order: String(sales_order).trim(),
+      delivery: String(delivery).trim(),
+      notes: '',
+      customer: String(customer).trim(),           // ✅ FIXED
+      source: 'excel' as const
+    };
+
+    console.log(`Row ${rowNumber} processed:`, appointmentData);
+
+    await createAppointment(appointmentData);
+    results.success++;
+  } catch (error) {
+    results.failed++;
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    results.errors.push(`Row ${rowNumber}: ${errorMessage}`);
+    console.error(`Row ${rowNumber} error:`, error);
+  }
+}
     console.log('Upload results:', results);
 
     return NextResponse.json(results, { status: 200 });
