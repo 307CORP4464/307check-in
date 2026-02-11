@@ -473,16 +473,6 @@ export default function AppointmentsPage() {
                           {apt.source}
                         </span>
                       </td>
-                      <tbody className="divide-y divide-gray-200">
-  {filteredAppointments.map((apt) => (
-    <tr key={apt.id} className="hover:bg-gray-50">
-      <td className="px-4 py-3 text-sm">
-        {formatTimeInIndianapolis(apt.appointment_time)}
-      </td>
-      <td className="px-4 py-3 text-sm">{apt.sales_order || '-'}</td>
-      <td className="px-4 py-3 text-sm">{apt.delivery || '-'}</td>
-      <td className="px-4 py-3 text-sm">{apt.customer || '-'}</td>
-      <td className="px-4 py-3 text-sm">
         {getStatusBadge(getDailyLogStatus(apt))}
       </td>
       {/* ... other cells */}
