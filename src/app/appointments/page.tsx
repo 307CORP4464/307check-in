@@ -76,11 +76,11 @@ const getDailyLogStatus = (appointment: Appointment): string | null => {
   const salesOrder = appointment.sales_order?.trim().toLowerCase();
   const delivery = appointment.delivery?.trim().toLowerCase();
   
-  if (salesOrder && checkInStatuses[salesOrder]) {
-    return checkInStatuses[salesOrder];
+  if (salesOrder && checkIn.status[salesOrder]) {
+    return checkIn.status[salesOrder];
   }
-  if (delivery && checkInStatuses[delivery]) {
-    return checkInStatuses[delivery];
+  if (delivery && checkIn.status[delivery]) {
+    return checkIn.status[delivery];
   }
   return null;
 };
@@ -133,7 +133,7 @@ export default function AppointmentsPage() {
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [checkInStatuses, setCheckInStatuses] = useState<Record<string, string>>({});
+  const [checkI.status, setCheckIn.statuse = useState<Record<string, string>>({});
 
   useEffect(() => {
     const getUser = async () => {
