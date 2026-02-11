@@ -450,7 +450,6 @@ const fetchCheckInStatuses = async () => {
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Time</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Type</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Sales Order</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Delivery</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Customer</th>
@@ -466,16 +465,6 @@ const fetchCheckInStatuses = async () => {
                       <td className="px-4 py-3 text-sm">
                         {formatTimeInIndianapolis(apt.appointment_time)}
                       </td>
-                      {/* Type */}
-      <td className="px-4 py-3 whitespace-nowrap">
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          checkIn.load_type === 'inbound' 
-            ? 'bg-blue-100 text-blue-800' 
-            : 'bg-orange-100 text-orange-800'
-        }`}>
-          {checkIn.load_type === 'inbound' ? 'I' : 'O'}
-        </span>
-      </td>
                       <td className="px-4 py-3 text-sm font-medium">{apt.sales_order}</td>
                       <td className="px-4 py-3 text-sm">{apt.delivery}</td>
                       <td className="px-4 py-3 text-sm">{apt.customer || '-'}</td>
