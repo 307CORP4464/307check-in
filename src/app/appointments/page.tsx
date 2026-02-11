@@ -133,7 +133,7 @@ export default function AppointmentsPage() {
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [checkI.status, setCheckIn.statuse = useState<Record<string, string>>({});
+  const [checkIn.status, setCheckIn.status = useState<Record<string, string>>({});
 
   useEffect(() => {
     const getUser = async () => {
