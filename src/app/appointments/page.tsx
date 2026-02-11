@@ -103,7 +103,7 @@ const getStatusBadge = (status: string | null) => {
     'completed': 'bg-gray-100 text-gray-800',
     'checked_out': 'bg-gray-100 text-gray-800',
     'driver_left': 'bg-indigo-100 text-indigo-800',
-    'turned_away'': 'bg-orange-100 text-orange-800',
+    'turned_away': 'bg-orange-100 text-orange-800',
   };
 
   const style = statusStyles[status.toLowerCase()] || 'bg-gray-100 text-gray-800';
