@@ -70,6 +70,54 @@ const getCurrentTimeInIndianapolis = (): string => {
   });
   return formatter.format(now);
 };
+// Helper to get the Daily Log status for an appointment
+const getDailyLogStatus = (appointment: Appointment): string | null => {
+  // Try matching by sales_order first, then delivery
+  const salesOrder = appointment.sales_order?.trim().toLowerCase();
+  const delivery = appointment.delivery?.trim().toLowerCase();
+  
+  if (salesOrder && checkInStatuses[salesOrder]) {
+    return checkInStatuses[salesOrder];
+  }
+  if (delivery && checkInStatuses[delivery]) {
+    return checkInStatuses[delivery];
+  }
+  return null;
+};
+
+// Helper to get status badge styling
+const getStatusBadge = (status: string | null) => {
+  if (!status) {
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+        Not Checked In
+      </span>
+    );
+  }
+
+  const statusStyles: Record<string, string> = {
+    'checked_in': 'bg-purple-100 text-purple-800',
+    'pending': 'bg-yellow-100 text-yellow-800',
+    'rejected': 'bg-red-100 text-red-800',
+    'unloaded': 'bg-green-100 text-green-800',
+    'completed': 'bg-gray-100 text-gray-800',
+    'checked_out': 'bg-gray-100 text-gray-800',
+    'driver_left': 'bg-indigo-100 text-indigo-800',
+    'turned_away'': 'bg-orange-100 text-orange-800',
+  };
+
+  const style = statusStyles[status.toLowerCase()] || 'bg-gray-100 text-gray-800';
+  const displayStatus = status
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (l: string) => l.toUpperCase());
+
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style}`}>
+      {displayStatus}
+    </span>
+  );
+};
+
 
 export default function AppointmentsPage() {
   const router = useRouter();
@@ -402,6 +450,7 @@ const fetchCheckInStatuses = async () => {
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Time</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Type</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Sales Order</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Delivery</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Customer</th>
@@ -417,6 +466,16 @@ const fetchCheckInStatuses = async () => {
                       <td className="px-4 py-3 text-sm">
                         {formatTimeInIndianapolis(apt.appointment_time)}
                       </td>
+                      {/* Type */}
+      <td className="px-4 py-3 whitespace-nowrap">
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          checkIn.load_type === 'inbound' 
+            ? 'bg-blue-100 text-blue-800' 
+            : 'bg-orange-100 text-orange-800'
+        }`}>
+          {checkIn.load_type === 'inbound' ? 'I' : 'O'}
+        </span>
+      </td>
                       <td className="px-4 py-3 text-sm font-medium">{apt.sales_order}</td>
                       <td className="px-4 py-3 text-sm">{apt.delivery}</td>
                       <td className="px-4 py-3 text-sm">{apt.customer || '-'}</td>
@@ -430,6 +489,31 @@ const fetchCheckInStatuses = async () => {
                           {apt.source}
                         </span>
                       </td>
+                      <tbody className="divide-y divide-gray-200">
+  {filteredAppointments.map((apt) => (
+    <tr key={apt.id} className="hover:bg-gray-50">
+      <td className="px-4 py-3 text-sm">
+        {formatTimeInIndianapolis(apt.appointment_time)}
+      </td>
+      <td className="px-4 py-3 text-sm">{apt.sales_order || '-'}</td>
+      <td className="px-4 py-3 text-sm">{apt.delivery || '-'}</td>
+      <td className="px-4 py-3 text-sm">{apt.carrier || '-'}</td>
+      <td className="px-4 py-3 text-sm">{apt.load_type || '-'}</td>
+      <td className="px-4 py-3 text-sm">
+        {getStatusBadge(getDailyLogStatus(apt))}
+      </td>
+      {/* ... other cells */}
+      <td className="px-4 py-3 text-sm">
+        <button onClick={() => handleEdit(apt)} className="text-blue-600 hover:text-blue-800 mr-2">
+          Edit
+        </button>
+        <button onClick={() => handleDelete(apt.id)} className="text-red-600 hover:text-red-800">
+          Delete
+        </button>
+      </td>
+    </tr>
+  ))}
+</tbody>
                       <td className="px-4 py-3 text-sm">
                         <div className="flex gap-2">
                           <button
