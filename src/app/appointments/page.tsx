@@ -85,6 +85,7 @@ export default function AppointmentsPage() {
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [checkInStatuses, setCheckInStatuses] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const getUser = async () => {
@@ -96,9 +97,10 @@ export default function AppointmentsPage() {
     getUser();
   }, [supabase]);
 
-  useEffect(() => {
-    loadAppointments();
-  }, [selectedDate]);
+ useEffect(() => {
+  loadAppointments();
+  fetchCheckInStatuses();
+}, [selectedDate]);
 
   const loadAppointments = async () => {
     setLoading(true);
@@ -142,29 +144,69 @@ export default function AppointmentsPage() {
 
   const totalAppointmentsCount = filteredAppointments.length;
 
-  const handleSave = async (data: AppointmentInput) => {
-    try {
-      const appointmentData: AppointmentInput = {
-        ...data,
-        source: editingAppointment ? data.source : 'manual'
-      };
+const handleSave = async (data: AppointmentInput) => {
+  try {
+    const appointmentData: AppointmentInput = {
+      ...data,
+      source: editingAppointment ? data.source : 'manual'
+    };
 
-      if (editingAppointment) {
-        await updateAppointment(editingAppointment.id, appointmentData);
-      } else {
-        await createAppointment(appointmentData);
-      }
-      
-      setModalOpen(false);
-      setEditingAppointment(null);
-      await loadAppointments();
-    } catch (error: any) {
-      console.error('Error saving appointment:', error);
-      alert(error.message || 'Error saving appointment');
-      throw error;
+    if (editingAppointment) {
+      await updateAppointment(editingAppointment.id, appointmentData);
+    } else {
+      await createAppointment(appointmentData);
     }
-  };
+    
+    setModalOpen(false);
+    setEditingAppointment(null);
+    await loadAppointments();
+    await fetchCheckInStatuses(); // <-- Add this
+  } catch (error: any) {
+    console.error('Error saving appointment:', error);
+    alert(error.message || 'Error saving appointment');
+    throw error;
+  }
+};
 
+const fetchCheckInStatuses = async () => {
+  try {
+    // Query check_ins for the selected date
+    // Adjust the date range to match Indianapolis timezone
+    const startOfDay = new Date(`${selectedDate}T00:00:00`);
+    const endOfDay = new Date(`${selectedDate}T23:59:59`);
+    
+    // Convert to UTC for query (Indianapolis is UTC-5 or UTC-4 depending on DST)
+    const { zonedTimeToUtc } = await import('date-fns-tz');
+    const startUtc = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
+    const endUtc = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
+
+    const { data, error } = await supabase
+      .from('check_ins')
+      .select('reference_number, status')
+      .gte('check_in_time', startUtc.toISOString())
+      .lte('check_in_time', endUtc.toISOString())
+      .not('reference_number', 'is', null);
+
+    if (error) {
+      console.error('Error fetching check-in statuses:', error);
+      return;
+    }
+
+    if (data) {
+      const statusMap: Record<string, string> = {};
+      data.forEach((checkIn: { reference_number: string; status: string }) => {
+        if (checkIn.reference_number) {
+          // Store the latest status for each reference number
+          statusMap[checkIn.reference_number.trim().toLowerCase()] = checkIn.status;
+        }
+      });
+      setCheckInStatuses(statusMap);
+      console.log('📋 Check-in statuses loaded:', statusMap);
+    }
+  } catch (err) {
+    console.error('Error in fetchCheckInStatuses:', err);
+  }
+};
   const handleEdit = (appointment: Appointment) => {
     setEditingAppointment(appointment);
     setModalOpen(true);
