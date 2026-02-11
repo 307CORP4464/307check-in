@@ -473,6 +473,7 @@ export default function AppointmentsPage() {
                           {apt.source}
                         </span>
                       </td>
+                      <td
         {getStatusBadge(getDailyLogStatus(apt))}
       </td>
       {/* ... other cells */}
