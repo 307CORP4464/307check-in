@@ -403,7 +403,6 @@ export default function AppointmentsPage() {
           </div>
         </div>
 
-
         {/* Search Bar */}
         <div className="bg-white p-4 rounded-lg shadow mb-6">
           <div className="flex gap-2">
@@ -473,21 +472,20 @@ export default function AppointmentsPage() {
                           {apt.source}
                         </span>
                       </td>
-                      <td
-        {getStatusBadge(getDailyLogStatus(apt))}
-      </td>
-      {/* ... other cells */}
-      <td className="px-4 py-3 text-sm">
-        <button onClick={() => handleEdit(apt)} className="text-blue-600 hover:text-blue-800 mr-2">
-          Edit
-        </button>
-        <button onClick={() => handleDelete(apt.id)} className="text-red-600 hover:text-red-800">
-          Delete
-        </button>
-      </td>
-    </tr>
-  ))}
-</tbody>
+                      <td className="px-4 py-3 text-sm">
+                        {getStatusBadge(getDailyLogStatus(apt))}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <button onClick={() => handleEdit(apt)} className="text-blue-600 hover:text-blue-800 mr-2">
+                          Edit
+                        </button>
+                        <button onClick={() => handleDelete(apt.id)} className="text-red-600 hover:text-red-800">
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
           )}
@@ -495,15 +493,15 @@ export default function AppointmentsPage() {
       </div>
 
       <AppointmentModal
-  isOpen={modalOpen}
-  onClose={() => {
-    setModalOpen(false);
-    setEditingAppointment(null);
-  }}
-  onSave={handleSave}
-  initialDate={selectedDate}  // ✅ Changed from selectedDate
-  appointment={editingAppointment}
-/>
+        isOpen={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          setEditingAppointment(null);
+        }}
+        onSave={handleSave}
+        initialDate={selectedDate}
+        appointment={editingAppointment}
+      />
 
     </div>
   );
