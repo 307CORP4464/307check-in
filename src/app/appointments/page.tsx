@@ -482,7 +482,6 @@ export default function AppointmentsPage() {
       <td className="px-4 py-3 text-sm">{apt.sales_order || '-'}</td>
       <td className="px-4 py-3 text-sm">{apt.delivery || '-'}</td>
       <td className="px-4 py-3 text-sm">{apt.customer || '-'}</td>
-      <td className="px-4 py-3 text-sm">{apt.load_type || '-'}</td>
       <td className="px-4 py-3 text-sm">
         {getStatusBadge(getDailyLogStatus(apt))}
       </td>
