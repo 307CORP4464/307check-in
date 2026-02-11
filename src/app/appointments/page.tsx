@@ -31,8 +31,8 @@ const formatTimeInIndianapolis = (timeString: string): string => {
     const match = timeString.match(timePattern);
     
     if (match) {
-      const hours = match[1];
-      const minutes = match[2];
+      const hours = match<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>;
+      const minutes = match<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[2]</a>;
       return `${hours}:${minutes}`;
     }
     
@@ -69,20 +69,6 @@ const getCurrentTimeInIndianapolis = (): string => {
     hour12: false
   });
   return formatter.format(now);
-};
-// Helper to get the Daily Log status for an appointment
-const getDailyLogStatus = (appointment: Appointment): string | null => {
-  // Try matching by sales_order first, then delivery
-  const salesOrder = appointment.sales_order?.trim().toLowerCase();
-  const delivery = appointment.delivery?.trim().toLowerCase();
-  
-  if (salesOrder && checkIn.status[salesOrder]) {
-    return checkIn.status[salesOrder];
-  }
-  if (delivery && checkIn.status[delivery]) {
-    return checkIn.status[delivery];
-  }
-  return null;
 };
 
 // Helper to get status badge styling
@@ -126,14 +112,29 @@ export default function AppointmentsPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [checkIn.status, setCheckIn.status = useState<Record<string, string>>({});
+  const [checkInStatuses, setCheckInStatuses] = useState<Record<string, string>>({});
+
+  // Helper to get the Daily Log status for an appointment
+  // Moved INSIDE the component so it can access checkInStatuses state
+  const getDailyLogStatus = (appointment: Appointment): string | null => {
+    const salesOrder = appointment.sales_order?.trim().toLowerCase();
+    const delivery = appointment.delivery?.trim().toLowerCase();
+
+    if (salesOrder && checkInStatuses[salesOrder]) {
+      return checkInStatuses[salesOrder];
+    }
+    if (delivery && checkInStatuses[delivery]) {
+      return checkInStatuses[delivery];
+    }
+    return null;
+  };
 
   useEffect(() => {
     const getUser = async () => {
@@ -145,10 +146,10 @@ export default function AppointmentsPage() {
     getUser();
   }, [supabase]);
 
- useEffect(() => {
-  loadAppointments();
-  fetchCheckInStatuses();
-}, [selectedDate]);
+  useEffect(() => {
+    loadAppointments();
+    fetchCheckInStatuses();
+  }, [selectedDate]);
 
   const loadAppointments = async () => {
     setLoading(true);
@@ -159,10 +160,10 @@ export default function AppointmentsPage() {
       console.log('📊 Total count:', data.length);
       
       if (data.length > 0) {
-        console.log('🔍 First appointment:', data[0]);
+        console.log('🔍 First appointment:', data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
         console.log('🕐 Appointment times:', data.map(a => a.appointment_time));
-        console.log('🕐 First appointment_time type:', typeof data[0].appointment_time);
-        console.log('🕐 First appointment_time value:', data[0].appointment_time);
+        console.log('🕐 First appointment_time type:', typeof data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_time);
+        console.log('🕐 First appointment_time value:', data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_time);
       }
       
       setAppointments(data);
@@ -177,7 +178,7 @@ export default function AppointmentsPage() {
   const changeDateByDays = (days: number) => {
     const currentDate = new Date(selectedDate);
     currentDate.setDate(currentDate.getDate() + days);
-    setSelectedDate(currentDate.toISOString().split('T')[0]);
+    setSelectedDate(currentDate.toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   };
 
   const filteredAppointments = appointments.filter(apt => {
@@ -192,69 +193,63 @@ export default function AppointmentsPage() {
 
   const totalAppointmentsCount = filteredAppointments.length;
 
-const handleSave = async (data: AppointmentInput) => {
-  try {
-    const appointmentData: AppointmentInput = {
-      ...data,
-      source: editingAppointment ? data.source : 'manual'
-    };
+  const handleSave = async (data: AppointmentInput) => {
+    try {
+      const appointmentData: AppointmentInput = {
+        ...data,
+        source: editingAppointment ? data.source : 'manual'
+      };
 
-    if (editingAppointment) {
-      await updateAppointment(editingAppointment.id, appointmentData);
-    } else {
-      await createAppointment(appointmentData);
+      if (editingAppointment) {
+        await updateAppointment(editingAppointment.id, appointmentData);
+      } else {
+        await createAppointment(appointmentData);
+      }
+      
+      setModalOpen(false);
+      setEditingAppointment(null);
+      await loadAppointments();
+      await fetchCheckInStatuses();
+    } catch (error: any) {
+      console.error('Error saving appointment:', error);
+      alert(error.message || 'Error saving appointment');
+      throw error;
     }
-    
-    setModalOpen(false);
-    setEditingAppointment(null);
-    await loadAppointments();
-    await fetchCheckInStatuses(); // <-- Add this
-  } catch (error: any) {
-    console.error('Error saving appointment:', error);
-    alert(error.message || 'Error saving appointment');
-    throw error;
-  }
-};
+  };
 
-const fetchCheckInStatuses = async () => {
-  try {
-    // Query check_ins for the selected date
-    // Adjust the date range to match Indianapolis timezone
-    const startOfDay = new Date(`${selectedDate}T00:00:00`);
-    const endOfDay = new Date(`${selectedDate}T23:59:59`);
-    
-    // Convert to UTC for query (Indianapolis is UTC-5 or UTC-4 depending on DST)
-    const { zonedTimeToUtc } = await import('date-fns-tz');
-    const startUtc = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
-    const endUtc = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
+  const fetchCheckInStatuses = async () => {
+    try {
+      const { zonedTimeToUtc } = await import('date-fns-tz');
+      const startUtc = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
+      const endUtc = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
 
-    const { data, error } = await supabase
-      .from('check_ins')
-      .select('reference_number, status')
-      .gte('check_in_time', startUtc.toISOString())
-      .lte('check_in_time', endUtc.toISOString())
-      .not('reference_number', 'is', null);
+      const { data, error } = await supabase
+        .from('check_ins')
+        .select('reference_number, status')
+        .gte('check_in_time', startUtc.toISOString())
+        .lte('check_in_time', endUtc.toISOString())
+        .not('reference_number', 'is', null);
 
-    if (error) {
-      console.error('Error fetching check-in statuses:', error);
-      return;
+      if (error) {
+        console.error('Error fetching check-in statuses:', error);
+        return;
+      }
+
+      if (data) {
+        const statusMap: Record<string, string> = {};
+        data.forEach((checkIn: { reference_number: string; status: string }) => {
+          if (checkIn.reference_number) {
+            statusMap[checkIn.reference_number.trim().toLowerCase()] = checkIn.status;
+          }
+        });
+        setCheckInStatuses(statusMap);
+        console.log('📋 Check-in statuses loaded:', statusMap);
+      }
+    } catch (err) {
+      console.error('Error in fetchCheckInStatuses:', err);
     }
+  };
 
-    if (data) {
-      const statusMap: Record<string, string> = {};
-      data.forEach((checkIn: { reference_number: string; status: string }) => {
-        if (checkIn.reference_number) {
-          // Store the latest status for each reference number
-          statusMap[checkIn.reference_number.trim().toLowerCase()] = checkIn.status;
-        }
-      });
-      setCheckInStatuses(statusMap);
-      console.log('📋 Check-in statuses loaded:', statusMap);
-    }
-  } catch (err) {
-    console.error('Error in fetchCheckInStatuses:', err);
-  }
-};
   const handleEdit = (appointment: Appointment) => {
     setEditingAppointment(appointment);
     setModalOpen(true);
