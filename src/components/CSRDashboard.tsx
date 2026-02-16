@@ -343,7 +343,6 @@ export default function CSRDashboard() {
       console.error('Error fetching check-ins:', err);
       setError(err.message);
       setLoading(false);
-    }
   };
 
   return (
