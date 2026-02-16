@@ -110,7 +110,7 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
   }
 };
 
-// Helper function to get date components in Indianapolis timezone
+// NEW HELPER FUNCTIONS - Add these
 const getDateComponentsInIndianapolis = (isoString: string): { year: number, month: number, day: number, hour: number, minute: number } => {
   const date = new Date(isoString);
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -133,7 +133,6 @@ const getDateComponentsInIndianapolis = (isoString: string): { year: number, mon
   };
 };
 
-// Helper function to calculate day difference
 const getDayDifference = (checkInComponents: any, appointmentDate: Date): number => {
   const checkInDate = new Date(checkInComponents.year, checkInComponents.month - 1, checkInComponents.day);
   const aptDate = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate());
@@ -141,33 +140,27 @@ const getDayDifference = (checkInComponents: any, appointmentDate: Date): number
   return Math.round(diffTime / (1000 * 60 * 60 * 24));
 };
 
-// Main function to determine appointment status
 const getAppointmentStatus = (
   checkInTime: string, 
   appointmentTime: string | null | undefined,
   appointmentDate: string | null | undefined
 ): { color: 'green' | 'orange' | 'red' | 'none', message: string | null } => {
   
-  // Handle work-in appointments - RED
   if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
     return { color: 'red', message: null };
   }
 
-  // Validate appointment time format
   if (!appointmentTime.match(/^\d{4}$/)) {
     return { color: 'none', message: null };
   }
 
-  // No appointment date
   if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
     return { color: 'none', message: null };
   }
 
   try {
-    // Get check-in date/time components in Indianapolis timezone
     const checkInComponents = getDateComponentsInIndianapolis(checkInTime);
     
-    // Parse appointment date
     let appointmentDateObj: Date;
     if (appointmentDate.includes('/')) {
       const [month, day, year] = appointmentDate.split('/').map(Number);
@@ -180,15 +173,12 @@ const getAppointmentStatus = (
       appointmentDateObj = new Date(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate());
     }
 
-    // Check if dates are valid
     if (isNaN(appointmentDateObj.getTime())) {
       return { color: 'none', message: null };
     }
 
-    // Calculate day difference
     const dayDiff = getDayDifference(checkInComponents, appointmentDateObj);
 
-    // Check-in is early (day before or more) - ORANGE
     if (dayDiff < 0) {
       const daysEarly = Math.abs(dayDiff);
       return { 
@@ -197,7 +187,6 @@ const getAppointmentStatus = (
       };
     }
 
-    // Check-in is late (day after or more) - ORANGE
     if (dayDiff > 0) {
       return { 
         color: 'orange', 
@@ -205,7 +194,6 @@ const getAppointmentStatus = (
       };
     }
 
-    // Same day - check time
     const appointmentHour = parseInt(appointmentTime.substring(0, 2));
     const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
     
@@ -213,12 +201,10 @@ const getAppointmentStatus = (
     const checkInTotalMinutes = checkInComponents.hour * 60 + checkInComponents.minute;
     const minuteDifference = checkInTotalMinutes - appointmentTotalMinutes;
 
-    // Same day, checked in on time (before or up to 15 minutes after) - GREEN
     if (minuteDifference <= 15) {
       return { color: 'green', message: null };
     }
 
-    // Same day, but checked in late (more than 15 minutes after) - RED
     return { color: 'red', message: null };
 
   } catch (error) {
