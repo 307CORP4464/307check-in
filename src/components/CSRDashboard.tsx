@@ -110,33 +110,117 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
   }
 };
 
-const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
-  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'LTL') {
-    return false;
-  }
-  try {
-    if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-      const appointmentHour = parseInt(appointmentTime.substring(0, 2));
-      const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
-      const checkInDate = new Date(checkInTime);
-      const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: TIMEZONE,
-        hour: 'numeric',
-        minute: 'numeric',
-        hour12: false
-      });
-      const timeString = formatter.format(checkInDate);
-      const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
-      const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-      const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
-      const difference = checkInTotalMinutes - appointmentTotalMinutes;
-      return difference <= 15;
-    }
-  } catch (error) {
-    console.error('Error in isOnTime:', error);
-  }
-  return false;
+// Add this helper function to compare dates (same day check)
+const isSameDay = (date1: Date, date2: Date): boolean => {
+  return date1.getFullYear() === date2.getFullYear() &&
+         date1.getMonth() === date2.getMonth() &&
+         date1.getDate() === date2.getDate();
 };
+
+// Add this function to calculate day difference
+const getDayDifference = (checkInDate: Date, appointmentDate: Date): number => {
+  const checkIn = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
+  const appointment = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate());
+  const diffTime = checkIn.getTime() - appointment.getTime();
+  return Math.round(diffTime / (1000 * 60 * 60 * 24));
+};
+
+// Replace the isOnTime function with this enhanced version
+const getAppointmentStatus = (
+  checkInTime: string, 
+  appointmentTime: string | null | undefined,
+  appointmentDate: string | null | undefined
+): { color: 'green' | 'orange' | 'red', message: string } => {
+  
+  // Handle work-in appointments
+  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
+    return { color: 'red', message: 'Work In' };
+  }
+
+  // Validate appointment time format
+  if (!appointmentTime.match(/^\d{4}$/)) {
+    return { color: 'red', message: 'Invalid Appointment' };
+  }
+
+  try {
+    const checkInDate = new Date(checkInTime);
+    
+    // Parse appointment date
+    let appointmentDateObj: Date;
+    if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
+      if (appointmentDate.includes('/')) {
+        const [month, day, year] = appointmentDate.split('/').map(Number);
+        appointmentDateObj = new Date(year, month - 1, day);
+      } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = appointmentDate.split('-').map(Number);
+        appointmentDateObj = new Date(year, month - 1, day);
+      } else {
+        appointmentDateObj = new Date(appointmentDate);
+      }
+    } else {
+      // No appointment date provided
+      return { color: 'red', message: 'No Appointment Date' };
+    }
+
+    // Check if dates are valid
+    if (isNaN(checkInDate.getTime()) || isNaN(appointmentDateObj.getTime())) {
+      return { color: 'red', message: 'Invalid Date' };
+    }
+
+    // Calculate day difference
+    const dayDiff = getDayDifference(checkInDate, appointmentDateObj);
+
+    // Check-in is early (day before or more)
+    if (dayDiff < 0) {
+      const daysEarly = Math.abs(dayDiff);
+      return { 
+        color: 'orange', 
+        message: `${daysEarly} day${daysEarly > 1 ? 's' : ''} early` 
+      };
+    }
+
+    // Check-in is late (day after or more)
+    if (dayDiff > 0) {
+      return { 
+        color: 'orange', 
+        message: `${dayDiff} day${dayDiff > 1 ? 's' : ''} late` 
+      };
+    }
+
+    // Same day - check time
+    const appointmentHour = parseInt(appointmentTime.substring(0, 2));
+    const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
+    
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: TIMEZONE,
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false
+    });
+    const timeString = formatter.format(checkInDate);
+    const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
+    
+    const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
+    const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
+    const minuteDifference = checkInTotalMinutes - appointmentTotalMinutes;
+
+    // Same day, checked in before or up to 15 minutes after appointment
+    if (minuteDifference <= 15) {
+      return { color: 'green', message: 'On Time' };
+    }
+
+    // Same day, but checked in late (more than 15 minutes after appointment)
+    return { 
+      color: 'red', 
+      message: `Late (${Math.floor(minuteDifference / 60)}h ${minuteDifference % 60}m)` 
+    };
+
+  } catch (error) {
+    console.error('Error in getAppointmentStatus:', error);
+    return { color: 'red', message: 'Error' };
+  }
+};
+
 
 interface CheckIn {
   id: string;
@@ -478,81 +562,26 @@ export default function CSRDashboard() {
 
                       {/* Appointment Date & Time */}
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {(() => {
-                          if (!checkIn.appointment_time) {
-                            return <span className="text-gray-600">N/A</span>;
-                          }
+                        // In your table rendering, replace the appointment time cell with:
+{(() => {
+  const status = getAppointmentStatus(
+    checkIn.check_in_time, 
+    checkIn.appointment_time,
+    checkIn.appointment_date
+  );
+  
+  return (
+    <td className={`px-4 py-3 text-sm ${
+      status.color === 'green' ? 'bg-green-100 text-green-800' :
+      status.color === 'orange' ? 'bg-orange-100 text-orange-800' :
+      'bg-red-100 text-red-800'
+    }`}>
+      <div>{formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}</div>
+      <div className="text-xs font-semibold mt-1">{status.message}</div>
+    </td>
+  );
+})()}
 
-                          const checkInDate = new Date(checkIn.check_in_time);
-                          const checkInDateOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
-
-                          let appointmentDateOnly: Date;
-                          if (checkIn.appointment_date) {
-                            if (checkIn.appointment_date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                              const [year, month, day] = checkIn.appointment_date.split('-').map(Number);
-                              appointmentDateOnly = new Date(year, month - 1, day);
-                            } else if (checkIn.appointment_date.includes('/')) {
-                              const [month, day, year] = checkIn.appointment_date.split('/').map(Number);
-                              appointmentDateOnly = new Date(year, month - 1, day);
-                            } else {
-                              const aptDate = new Date(checkIn.appointment_date);
-                              appointmentDateOnly = new Date(aptDate.getFullYear(), aptDate.getMonth(), aptDate.getDate());
-                            }
-                          } else {
-                            appointmentDateOnly = checkInDateOnly;
-                          }
-
-                          const dayDifference = Math.floor((appointmentDateOnly.getTime() - checkInDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-
-                          let bgColor = 'bg-gray-500';
-                          let label = '';
-
-                          if (dayDifference === 0) {
-                            if (checkIn.appointment_time.length === 4 && /^\d{4}$/.test(checkIn.appointment_time)) {
-                              const appointmentHour = parseInt(checkIn.appointment_time.substring(0, 2));
-                              const appointmentMinute = parseInt(checkIn.appointment_time.substring(2, 4));
-
-                              const checkInFormatter = new Intl.DateTimeFormat('en-US', {
-                                timeZone: TIMEZONE,
-                                hour: 'numeric',
-                                minute: 'numeric',
-                                hour12: false
-                              });
-
-                              const timeString = checkInFormatter.format(checkInDate);
-                              const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
-
-                              const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-                              const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
-
-                              const minutesDifference = checkInTotalMinutes - appointmentTotalMinutes;
-
-                              if (minutesDifference > 10) {
-                                bgColor = 'bg-red-500';
-                                label = 'LATE';
-                              } else {
-                                bgColor = 'bg-green-500';
-                                label = '';
-                              }
-                            } else {
-                              bgColor = 'bg-green-500';
-                              label = '';
-                            }
-                          } else if (dayDifference > 0) {
-                            bgColor = 'bg-yellow-500';
-                            label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
-                          } else if (dayDifference < 0) {
-                            bgColor = 'bg-yellow-500';
-                            label = `${Math.abs(dayDifference)} DAY${Math.abs(dayDifference) > 1 ? 'S' : ''} LATE`;
-                          }
-
-                          return (
-                            <span className={`${bgColor} text-white px-2 py-1 rounded font-semibold`}>
-                              {label && <span className="mr-1">[{label}]</span>}
-                              {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
-                            </span>
-                          );
-                        })()}
                       </td>
 
                       {/* Reference Number */}
