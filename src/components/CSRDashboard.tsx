@@ -557,7 +557,6 @@ export default function CSRDashboard() {
 
                       {/* Appointment Date & Time */}
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        // In your table rendering, replace the appointment time cell with:
 {(() => {
   const status = getAppointmentStatus(
     checkIn.check_in_time, 
