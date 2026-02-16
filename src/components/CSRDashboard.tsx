@@ -419,6 +419,7 @@ const calculateWaitTime = (checkInTime: string): number => {
 
   const handleDenyComplete = () => {
     fetchCheckIns();
+  }
   };
 
  return (
