@@ -326,24 +326,59 @@ export default function CSRDashboard() {
     }
   };
 
-  const fetchCheckIns = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const { data: checkInsData, error: checkInsError } = await supabase
-        .from('check_ins')
-        .select('*')
-        .eq('status', 'pending')
-        .order('check_in_time', { ascending: true });
-      if (checkInsError) throw checkInsError;
+const fetchCheckIns = async () => {
+  try {
+    setLoading(true);
+    setError(null);
+    const { data: checkInsData, error: checkInsError } = await supabase
+      .from('check_ins')
+      .select('*')
+      .eq('status', 'pending')
+      .order('check_in_time', { ascending: true });
+    
+    if (checkInsError) throw checkInsError;
 
-      setCheckIns(checkInsData || []);
-      setLoading(false);
-    } catch (err: any) {
-      console.error('Error fetching check-ins:', err);
-      setError(err.message);
-      setLoading(false);
-  };
+    const referenceNumbers = checkInsData
+      ?.map((ci: any) => ci.reference_number)
+      .filter((ref: any) => ref && ref.trim() !== '') || [];
+    
+    let appointmentsMap = new Map();
+    
+    if (referenceNumbers.length > 0) {
+      const { data: appointmentsData, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select('sales_order, delivery, appointment_time, appointment_date')
+        .or(`sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`);
+      
+      if (appointmentsError) {
+        console.error('Error fetching appointments:', appointmentsError);
+      } else if (appointmentsData) {
+        appointmentsData.forEach((apt: any) => {
+          const appointmentInfo = { time: apt.appointment_time, date: apt.appointment_date };
+          if (apt.sales_order) appointmentsMap.set(apt.sales_order, appointmentInfo);
+          if (apt.delivery) appointmentsMap.set(apt.delivery, appointmentInfo);
+        });
+      }
+    }
+
+    // Merge appointment data into check-ins
+    const enrichedCheckIns = checkInsData?.map((ci: any) => {
+      const aptInfo = ci.reference_number ? appointmentsMap.get(ci.reference_number) : null;
+      return {
+        ...ci,
+        appointment_time: ci.appointment_time || aptInfo?.time,
+        appointment_date: ci.appointment_date || aptInfo?.date
+      };
+    }) || [];
+
+    setCheckIns(enrichedCheckIns);
+    setLoading(false);
+  } catch (err: any) {
+    console.error('Error fetching check-ins:', err);
+    setError(err.message);
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-50">
