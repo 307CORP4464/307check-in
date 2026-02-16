@@ -110,13 +110,6 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
   }
 };
 
-// Add this helper function to compare dates (same day check)
-const isSameDay = (date1: Date, date2: Date): boolean => {
-  return date1.getFullYear() === date2.getFullYear() &&
-         date1.getMonth() === date2.getMonth() &&
-         date1.getDate() === date2.getDate();
-};
-
 // Helper function to get date components in Indianapolis timezone
 const getDateComponentsInIndianapolis = (isoString: string): { year: number, month: number, day: number, hour: number, minute: number } => {
   const date = new Date(isoString);
@@ -148,7 +141,7 @@ const getDayDifference = (checkInComponents: any, appointmentDate: Date): number
   return Math.round(diffTime / (1000 * 60 * 60 * 24));
 };
 
-// Replace the isOnTime function with this complete solution
+// Main function to determine appointment status
 const getAppointmentStatus = (
   checkInTime: string, 
   appointmentTime: string | null | undefined,
@@ -233,7 +226,6 @@ const getAppointmentStatus = (
     return { color: 'none', message: null };
   }
 };
-
 
 interface CheckIn {
   id: string;
@@ -344,93 +336,14 @@ export default function CSRDashboard() {
         .eq('status', 'pending')
         .order('check_in_time', { ascending: true });
       if (checkInsError) throw checkInsError;
-      const referenceNumbers = checkInsData
-        ?.map((ci: any) => ci.reference_number)
-        .filter((ref: any) => ref && ref.trim() !== '') || [];
-      let appointmentsMap = new Map();
-      if (referenceNumbers.length > 0) {
-        const { data: appointmentsData, error: appointmentsError } = await supabase
-          .from('appointments')
-          .select('sales_order, delivery, appointment_time, appointment_date')
-          .or(`sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`);
-        if (appointmentsError) {
-          console.error('Error fetching appointments:', appointmentsError);
-        } else if (appointmentsData) {
-          appointmentsData.forEach((apt: any) => {
-            const appointmentInfo = { time: apt.appointment_time, date: apt.appointment_date };
-            if (apt.sales_order) appointmentsMap.set(apt.sales_order, appointmentInfo);
-            if (apt.delivery) appointmentsMap.set(apt.delivery, appointmentInfo);
-          });
-        }
-      }
-      const enrichedCheckIns = checkInsData?.map((checkIn: any) => {
-        const appointmentInfo = appointmentsMap.get(checkIn.reference_number);
-        return {
-          ...checkIn,
-          appointment_time: appointmentInfo?.time || checkIn.appointment_time || null,
-          appointment_date: appointmentInfo?.date || checkIn.appointment_date || null
-        };
-      }) || [];
-      setCheckIns(enrichedCheckIns);
-    } catch (err) {
-      console.error('Fetch error:', err);
-      setError('Failed to fetch check-ins');
-    } finally {
+
+      setCheckIns(checkInsData || []);
+      setLoading(false);
+    } catch (err: any) {
+      console.error('Error fetching check-ins:', err);
+      setError(err.message);
       setLoading(false);
     }
-  };
-
-  const handleManualCheckInSuccess = () => {
-    fetchCheckIns();
-    fetchAppointments();
-  };
-
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      router.push('/login');
-      router.refresh();
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
-  };
-
-  const handleAssignDock = (checkIn: CheckIn) => {
-    setSelectedForDock(checkIn);
-  };
-
-  const handleDockAssignSuccess = () => {
-    fetchCheckIns();
-    setSelectedForDock(null);
-  };
-
-  const handleEdit = (checkIn: CheckIn) => {
-    setSelectedForEdit(checkIn);
-  };
-
-  const handleEditSuccess = () => {
-    fetchCheckIns();
-    setSelectedForEdit(null);
-  };
-
-  const calculateWaitTime = (checkInTime: string): number => {
-    const checkIn = new Date(checkInTime);
-    const now = new Date();
-    const diffMs = now.getTime() - checkIn.getTime();
-    return Math.floor(diffMs / 60000);
-  };
-
-  const getWaitTimeColor = (checkIn: CheckIn): string => {
-    const start = new Date(checkIn.check_in_time);
-    const now = new Date();
-    const minutes = differenceInMinutes(now, start);
-    if (minutes > 120) return 'text-red-600';
-    if (minutes > 60) return 'text-orange-600';
-    return 'text-gray-900';
-  };
-
-  const handleDenyComplete = () => {
-    fetchCheckIns();
   };
 
   return (
