@@ -405,7 +405,6 @@ const calculateWaitTime = (checkInTime: string): number => {
   return diffMins;
 };
 
-
   const getWaitTimeColor = (checkIn: CheckIn): string => {
     const start = new Date(checkIn.check_in_time);
     const now = new Date();
@@ -416,10 +415,8 @@ const calculateWaitTime = (checkInTime: string): number => {
     return 'text-gray-900';
   };
 
-
   const handleDenyComplete = () => {
     fetchCheckIns();
-  }
   };
 
  return (
