@@ -503,7 +503,6 @@ export default function CSRDashboard() {
                       </td>
 
                       {/* Appointment Date & Time */}
-                      
 <td className={`px-4 py-3 text-sm ${
   (() => {
     const status = getAppointmentStatus(
@@ -530,11 +529,6 @@ export default function CSRDashboard() {
     ) : null;
   })()}
 </td>
-
-  );
-})()}
-
-                      </td>
 
                       {/* Reference Number */}
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
