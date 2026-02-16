@@ -251,7 +251,6 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
                     name="driver_name"
                     value={formData.driver_name}
                     onChange={handleChange}
-                    required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -264,6 +263,7 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
                     name="driver_phone"
                     value={formData.driver_phone}
                     onChange={handleChange}
+                    required
                     placeholder="(555) 555-5555"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
