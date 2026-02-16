@@ -714,26 +714,37 @@ const calculateWaitTime = (checkInTime: string): number => {
           )}
         </div>
 
-        {selectedForDock && (
-        <AssignDockModal isOpen={!!selectedForDock} checkIn={selectedForDock} onClose={() => setSelectedForDock(null)} onSuccess={handleDockAssignSuccess} />
+              {/* Existing Modals */}
+      {selectedForDock && (
+        <AssignDockModal
+          checkIn={selectedForDock}
+          onClose={() => setSelectedForDock(null)}
+          onAssign={handleDockAssignSuccess}
+        />
       )}
+
       {selectedForEdit && (
-        <EditCheckInModal checkIn={selectedForEdit} onClose={() => setSelectedForEdit(null)} onSuccess={handleEditSuccess} isOpen={!!selectedForEdit} />
+        <EditCheckInModal
+          checkIn={selectedForEdit}
+          onClose={() => setSelectedForEdit(null)}
+          onUpdate={handleEditSuccess}
+        />
       )}
 
-        {selectedForDeny && (
-          <DenyCheckInModal
-            checkIn={selectedForDeny}
-            onClose={() => setSelectedForDeny(null)}
-            onDeny={handleDenyComplete}
+      {selectedForDeny && (
+        <DenyCheckInModal
+          checkIn={selectedForDeny}
+          onClose={() => setSelectedForDeny(null)}
+          onDeny={handleDenyComplete}
+        />
+      )}
 
-            <ManualCheckInModal
-  isOpen={showManualCheckIn}
-  onClose={() => setShowManualCheckIn(false)}
-  onSuccess={handleManualCheckInSuccess}
-/>
-        )}
-      </div>
+      {/* Add Manual Check-In Modal */}
+      <ManualCheckInModal
+        isOpen={showManualCheckIn}
+        onClose={() => setShowManualCheckIn(false)}
+        onSuccess={handleManualCheckInSuccess}
+      />
     </div>
   );
 }
