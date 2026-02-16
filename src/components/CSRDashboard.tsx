@@ -218,14 +218,13 @@ interface Appointment {
   load_type?: string;
   status?: string;
 }
-
 export default function CSRDashboard() {
   const router = useRouter();
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
-  
+
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [appointments, setAppointments] = useState<Map<string, Appointment>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -249,7 +248,7 @@ export default function CSRDashboard() {
   useEffect(() => {
     fetchCheckIns();
     fetchAppointments();
-    
+
     const channel = supabase
       .channel('dashboard_changes')
       .on(
@@ -286,7 +285,7 @@ export default function CSRDashboard() {
         .lte('appointment_date', endOfDay);
 
       if (error) throw error;
-      
+
       const appointmentMap = new Map<string, Appointment>();
       data?.forEach(apt => {
         if (apt.sales_order) {
@@ -302,70 +301,71 @@ export default function CSRDashboard() {
     }
   };
 
-const fetchCheckIns = async () => {
-  try {
-    setLoading(true);
-    setError(null);
-    
-    const { data: checkInsData, error: checkInsError } = await supabase
-      .from('check_ins')
-      .select('*')
-      .eq('status', 'pending')
-      .order('check_in_time', { ascending: true });
+  const fetchCheckIns = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    if (checkInsError) throw checkInsError;
+      const { data: checkInsData, error: checkInsError } = await supabase
+        .from('check_ins')
+        .select('*')
+        .eq('status', 'pending')
+        .order('check_in_time', { ascending: true });
 
-    const referenceNumbers = checkInsData
-      ?.map(ci => ci.reference_number)
-      .filter(ref => ref && ref.trim() !== '') || [];
+      if (checkInsError) throw checkInsError;
 
-    let appointmentsMap = new Map();
+      const referenceNumbers = checkInsData
+        ?.map(ci => ci.reference_number)
+        .filter(ref => ref && ref.trim() !== '') || [];
 
-    if (referenceNumbers.length > 0) {
-      const { data: appointmentsData, error: appointmentsError } = await supabase
-        .from('appointments')
-        .select('sales_order, delivery, appointment_time, appointment_date')
-        .or(`sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`);
+      let appointmentsMap = new Map();
 
-      if (appointmentsError) {
-        console.error('Error fetching appointments:', appointmentsError);
-      } else if (appointmentsData) {
-        appointmentsData.forEach(apt => {
-          const appointmentInfo = {
-            time: apt.appointment_time,
-            date: apt.appointment_date
-          };
-          if (apt.sales_order) {
-            appointmentsMap.set(apt.sales_order, appointmentInfo);
-          }
-          if (apt.delivery) {
-            appointmentsMap.set(apt.delivery, appointmentInfo);
-          }
-        });
+      if (referenceNumbers.length > 0) {
+        const { data: appointmentsData, error: appointmentsError } = await supabase
+          .from('appointments')
+          .select('sales_order, delivery, appointment_time, appointment_date')
+          .or(`sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`);
+
+        if (appointmentsError) {
+          console.error('Error fetching appointments:', appointmentsError);
+        } else if (appointmentsData) {
+          appointmentsData.forEach(apt => {
+            const appointmentInfo = {
+              time: apt.appointment_time,
+              date: apt.appointment_date
+            };
+            if (apt.sales_order) {
+              appointmentsMap.set(apt.sales_order, appointmentInfo);
+            }
+            if (apt.delivery) {
+              appointmentsMap.set(apt.delivery, appointmentInfo);
+            }
+          });
+        }
       }
+
+      const enrichedCheckIns = checkInsData?.map(checkIn => {
+        const appointmentInfo = appointmentsMap.get(checkIn.reference_number);
+        return {
+          ...checkIn,
+          appointment_time: appointmentInfo?.time || checkIn.appointment_time || null,
+          appointment_date: appointmentInfo?.date || checkIn.appointment_date || null
+        };
+      }) || [];
+
+      setCheckIns(enrichedCheckIns);
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError('Failed to fetch check-ins');
+    } finally {
+      setLoading(false);
     }
-
-    const enrichedCheckIns = checkInsData?.map(checkIn => {
-      const appointmentInfo = appointmentsMap.get(checkIn.reference_number);
-      return {
-        ...checkIn,
-        appointment_time: appointmentInfo?.time || checkIn.appointment_time || null,
-        appointment_date: appointmentInfo?.date || checkIn.appointment_date || null
-      };
-    }) || [];
-
-    setCheckIns(enrichedCheckIns);
-  } catch (err) {
-    console.error('Fetch error:', err);
-    setError('Failed to fetch check-ins');
-  } finally {
-    setLoading(false);
-};
+  };
 
   const handleManualCheckInSuccess = () => {
-  fetchCheckIns();
-  fetchAppointments();
-};
+    fetchCheckIns();
+    fetchAppointments();
+  };
 
   const handleLogout = async () => {
     try {
@@ -374,6 +374,7 @@ const fetchCheckIns = async () => {
       router.refresh();
     } catch (error) {
       console.error('Error logging out:', error);
+    }
   };
 
   const handleAssignDock = (checkIn: CheckIn) => {
@@ -394,23 +395,24 @@ const fetchCheckIns = async () => {
     setSelectedForEdit(null);
   };
 
-  // Update your calculateWaitTime function to return a number
-const calculateWaitTime = (checkInTime: string): number => {
-  const checkIn = new Date(checkInTime);
-  const now = new Date();
-  const diffMs = now.getTime() - checkIn.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  return diffMins;
-};
+  const calculateWaitTime = (checkInTime: string): number => {
+    const checkIn = new Date(checkInTime);
+    const now = new Date();
+    const diffMs = now.getTime() - checkIn.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    return diffMins;
+  };
 
   const getWaitTimeColor = (checkIn: CheckIn): string => {
     const start = new Date(checkIn.check_in_time);
     const now = new Date();
     const minutes = differenceInMinutes(now, start);
+
     if (minutes > 120) return 'text-red-600';
     if (minutes > 60) return 'text-orange-600';
     return 'text-gray-900';
   };
+
   const handleDenyComplete = () => {
     fetchCheckIns();
   };
