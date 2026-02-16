@@ -110,7 +110,6 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
   }
 };
 
-// NEW HELPER FUNCTIONS - Add these
 const getDateComponentsInIndianapolis = (isoString: string): { year: number, month: number, day: number, hour: number, minute: number } => {
   const date = new Date(isoString);
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -132,7 +131,6 @@ const getDateComponentsInIndianapolis = (isoString: string): { year: number, mon
     minute: parseInt(parts.find(p => p.type === 'minute')?.value || '0')
   };
 };
-
 const getDayDifference = (checkInComponents: any, appointmentDate: Date): number => {
   const checkInDate = new Date(checkInComponents.year, checkInComponents.month - 1, checkInComponents.day);
   const aptDate = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate());
@@ -311,6 +309,7 @@ export default function CSRDashboard() {
       console.error('Fetch appointments error:', err);
     }
   };
+
   const fetchCheckIns = async () => {
     try {
       setLoading(true);
@@ -346,7 +345,6 @@ export default function CSRDashboard() {
         }
       }
 
-      // Merge appointment data into check-ins
       const enrichedCheckIns = checkInsData?.map((ci: any) => {
         const aptInfo = ci.reference_number ? appointmentsMap.get(ci.reference_number) : null;
         return {
@@ -364,6 +362,7 @@ export default function CSRDashboard() {
       setLoading(false);
     }
   };
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b shadow-sm">
