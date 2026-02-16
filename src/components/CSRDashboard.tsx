@@ -613,14 +613,14 @@ export default function CSRDashboard() {
           <DenyCheckInModal
             checkIn={selectedForDeny}
             onClose={() => setSelectedForDeny(null)}
-            onDeny={handleDenyComplete}
-          />
+            onDeny={handleDenyComplete} />
         )}
         <ManualCheckInModal
           isOpen={showManualCheckIn}
           onClose={() => setShowManualCheckIn(false)}
           onSuccess={handleManualCheckInSuccess}
         />
+        )}
       </div>
     </div>
   );
