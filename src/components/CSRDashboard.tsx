@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -19,32 +18,26 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
       console.error('Empty or invalid date string:', isoString);
       return 'No Check-in Time';
     }
-
     const date = new Date(isoString);
-    
     if (isNaN(date.getTime()) || date.getTime() < 0) {
       console.error('Invalid date:', isoString);
       return 'Invalid Date';
     }
-
     if (date.getFullYear() < 2000) {
       console.error('Date too old, likely invalid:', isoString, date);
       return 'Invalid Date';
     }
-    
     const options: Intl.DateTimeFormatOptions = {
       timeZone: TIMEZONE,
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
     };
-    
     if (includeDate) {
       options.year = 'numeric';
       options.month = '2-digit';
       options.day = '2-digit';
     }
-    
     const formatter = new Intl.DateTimeFormat('en-US', options);
     return formatter.format(date);
   } catch (e) {
@@ -55,83 +48,53 @@ const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = fals
 
 const formatPhoneNumber = (phone: string | undefined): string => {
   if (!phone) return 'N/A';
-  
   const cleaned = phone.replace(/\D/g, '');
-  
   if (cleaned.length === 10) {
     return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
   }
-  
   return phone;
 };
 
 const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
   if (!appointmentTime) return 'N/A';
-  
   if (appointmentTime === 'work_in') return 'Work In';
-  
   if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
     const hours = appointmentTime.substring(0, 2);
     const minutes = appointmentTime.substring(2, 4);
     return `${hours}:${minutes}`;
   }
-  
   return appointmentTime;
 };
 
-
-   const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
-  // Handle special appointment types first
+const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
   if (appointmentTime === 'work_in' || appointmentTime === 'Work In') return 'Work In';
-  
-  // If no time at all, return N/A
   if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
     return 'N/A';
   }
-  
   try {
     let formattedDate = '';
-    
-    // Format the date if available
     if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
       let date: Date;
-      
-      // Check if date is in MM/DD/YYYY format
       if (appointmentDate.includes('/')) {
         const [month, day, year] = appointmentDate.split('/').map(Number);
         date = new Date(year, month - 1, day);
-      } 
-      // Check if date is in YYYY-MM-DD format (ISO date only, no time)
-      else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
         const [year, month, day] = appointmentDate.split('-').map(Number);
-        // Create date in local timezone, not UTC
         date = new Date(year, month - 1, day);
-      }
-      // Otherwise try ISO format with time
-      else {
+      } else {
         date = new Date(appointmentDate);
       }
-      
-      // Validate the date
       if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
-        // Format the date to MM/DD/YYYY
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         const year = date.getFullYear();
-        
         formattedDate = `${month}/${day}/${year}`;
       }
     }
-    
-    // Format the time
     const formattedTime = formatAppointmentTime(appointmentTime);
-    
-    // If no date, just return time
     if (!formattedDate) {
       return formattedTime !== 'N/A' ? formattedTime : 'N/A';
     }
-    
-    // Combine date and time
     if (formattedDate && formattedTime && formattedTime !== 'N/A') {
       return `${formattedDate}, ${formattedTime}`;
     } else if (formattedDate) {
@@ -139,7 +102,6 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
     } else if (formattedTime && formattedTime !== 'N/A') {
       return formattedTime;
     }
-    
     return 'N/A';
   } catch (error) {
     console.error('Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
@@ -148,17 +110,14 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   }
 };
 
-
-  const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
+const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
   if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'LTL') {
     return false;
   }
-  
   try {
     if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
       const appointmentHour = parseInt(appointmentTime.substring(0, 2));
       const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
-      
       const checkInDate = new Date(checkInTime);
       const formatter = new Intl.DateTimeFormat('en-US', {
         timeZone: TIMEZONE,
@@ -166,25 +125,18 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
         minute: 'numeric',
         hour12: false
       });
-      
       const timeString = formatter.format(checkInDate);
       const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
-      
       const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
       const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
-      
       const difference = checkInTotalMinutes - appointmentTotalMinutes;
-      
       return difference <= 15;
     }
   } catch (error) {
     console.error('Error in isOnTime:', error);
   }
-  
   return false;
 };
-
-
 
 interface CheckIn {
   id: string;
@@ -218,6 +170,7 @@ interface Appointment {
   load_type?: string;
   status?: string;
 }
+
 export default function CSRDashboard() {
   const router = useRouter();
   const supabase = createBrowserClient(
@@ -248,25 +201,19 @@ export default function CSRDashboard() {
   useEffect(() => {
     fetchCheckIns();
     fetchAppointments();
-
     const channel = supabase
       .channel('dashboard_changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'check_ins' },
-        () => {
-          fetchCheckIns();
-        }
+        () => { fetchCheckIns(); }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'appointments' },
-        () => {
-          fetchAppointments();
-        }
+        () => { fetchAppointments(); }
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
@@ -277,23 +224,16 @@ export default function CSRDashboard() {
       const today = new Date();
       const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
       const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
-
       const { data, error } = await supabase
         .from('appointments')
         .select('*')
         .gte('appointment_date', startOfDay)
         .lte('appointment_date', endOfDay);
-
       if (error) throw error;
-
       const appointmentMap = new Map<string, Appointment>();
       data?.forEach(apt => {
-        if (apt.sales_order) {
-          appointmentMap.set(apt.sales_order, apt);
-        }
-        if (apt.delivery) {
-          appointmentMap.set(apt.delivery, apt);
-        }
+        if (apt.sales_order) appointmentMap.set(apt.sales_order, apt);
+        if (apt.delivery) appointmentMap.set(apt.delivery, apt);
       });
       setAppointments(appointmentMap);
     } catch (err) {
@@ -305,46 +245,32 @@ export default function CSRDashboard() {
     try {
       setLoading(true);
       setError(null);
-
       const { data: checkInsData, error: checkInsError } = await supabase
         .from('check_ins')
         .select('*')
         .eq('status', 'pending')
         .order('check_in_time', { ascending: true });
-
       if (checkInsError) throw checkInsError;
-
       const referenceNumbers = checkInsData
         ?.map(ci => ci.reference_number)
-        .filter(ref => ref && ref.trim() !== '') || [];
-
+        .filter((ref: string | undefined | null) => ref && ref.trim() !== '') || [];
       let appointmentsMap = new Map();
-
       if (referenceNumbers.length > 0) {
         const { data: appointmentsData, error: appointmentsError } = await supabase
           .from('appointments')
           .select('sales_order, delivery, appointment_time, appointment_date')
           .or(`sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`);
-
         if (appointmentsError) {
           console.error('Error fetching appointments:', appointmentsError);
         } else if (appointmentsData) {
-          appointmentsData.forEach(apt => {
-            const appointmentInfo = {
-              time: apt.appointment_time,
-              date: apt.appointment_date
-            };
-            if (apt.sales_order) {
-              appointmentsMap.set(apt.sales_order, appointmentInfo);
-            }
-            if (apt.delivery) {
-              appointmentsMap.set(apt.delivery, appointmentInfo);
-            }
+          appointmentsData.forEach((apt: any) => {
+            const appointmentInfo = { time: apt.appointment_time, date: apt.appointment_date };
+            if (apt.sales_order) appointmentsMap.set(apt.sales_order, appointmentInfo);
+            if (apt.delivery) appointmentsMap.set(apt.delivery, appointmentInfo);
           });
         }
       }
-
-      const enrichedCheckIns = checkInsData?.map(checkIn => {
+      const enrichedCheckIns = checkInsData?.map((checkIn: any) => {
         const appointmentInfo = appointmentsMap.get(checkIn.reference_number);
         return {
           ...checkIn,
@@ -352,7 +278,6 @@ export default function CSRDashboard() {
           appointment_date: appointmentInfo?.date || checkIn.appointment_date || null
         };
       }) || [];
-
       setCheckIns(enrichedCheckIns);
     } catch (err) {
       console.error('Fetch error:', err);
@@ -407,7 +332,6 @@ export default function CSRDashboard() {
     const start = new Date(checkIn.check_in_time);
     const now = new Date();
     const minutes = differenceInMinutes(now, start);
-
     if (minutes > 120) return 'text-red-600';
     if (minutes > 60) return 'text-orange-600';
     return 'text-gray-900';
@@ -708,8 +632,6 @@ export default function CSRDashboard() {
             </div>
           )}
         </div>
-
-              {/* Existing Modals */}
       {selectedForDock && (
         <AssignDockModal
           checkIn={selectedForDock}
@@ -717,7 +639,6 @@ export default function CSRDashboard() {
           onAssign={handleDockAssignSuccess}
         />
       )}
-
       {selectedForEdit && (
         <EditCheckInModal
           checkIn={selectedForEdit}
@@ -725,7 +646,6 @@ export default function CSRDashboard() {
           onUpdate={handleEditSuccess}
         />
       )}
-
       {selectedForDeny && (
         <DenyCheckInModal
           checkIn={selectedForDeny}
@@ -733,8 +653,6 @@ export default function CSRDashboard() {
           onDeny={handleDenyComplete}
         />
       )}
-
-      {/* Add Manual Check-In Modal */}
       <ManualCheckInModal
         isOpen={showManualCheckIn}
         onClose={() => setShowManualCheckIn(false)}
