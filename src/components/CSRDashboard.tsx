@@ -336,323 +336,315 @@ export default function CSRDashboard() {
     fetchCheckIns();
   };
 
- return (
-  <div className="min-h-screen bg-gray-50">
-    <div className="bg-white border-b shadow-sm">
-      <div className="max-w-[1600px] mx-auto px-4 py-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">CSR Dashboard</h1>
-            {userEmail && (
-              <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
-            )}
-            <p className="text-xs text-gray-500">
-              Current time: {formatTimeInIndianapolis(new Date().toISOString())}
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Link 
-              href="/appointments" 
-              className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
-            >
-              Appointments
-            </Link>  
-            <Link
-              href="/dock-status"
-              className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
-            >
-              Dock Status
-            </Link>    
-            <Link
-              href="/dashboard"
-              className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/logs"
-              className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium"
-            >
-              Daily Logs
-            </Link>
-            <Link
-              href="/tracking"
-              className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium"
-            >
-              Tracking
-            </Link>
-            <Link
-              href="/check-in"
-              className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
-            >
-              Check-In Form
-            </Link>
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white border-b shadow-sm">
+        <div className="max-w-[1600px] mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">CSR Dashboard</h1>
+              {userEmail && (
+                <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
+              )}
+              <p className="text-xs text-gray-500">
+                Current time: {formatTimeInIndianapolis(new Date().toISOString())}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Link
+                href="/appointments"
+                className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+              >
+                Appointments
+              </Link>
+              <Link
+                href="/dock-status"
+                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
+              >
+                Dock Status
+              </Link>
+              <Link
+                href="/dashboard"
+                className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/logs"
+                className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium"
+              >
+                Daily Logs
+              </Link>
+              <Link
+                href="/tracking"
+                className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium"
+              >
+                Tracking
+              </Link>
+              <Link
+                href="/check-in"
+                className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
+              >
+                Check-In Form
+              </Link>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div className="mb-4 flex justify-between items-center">
-  <h1 className="text-2xl font-bold">Check-In Dashboard</h1>
-  <button
-    onClick={() => setShowManualCheckIn(true)}
-    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-2"
-  >
-    <svg 
-      className="w-5 h-5" 
-      fill="none" 
-      stroke="currentColor" 
-      viewBox="0 0 24 24"
-    >
-      <path 
-        strokeLinecap="round" 
-        strokeLinejoin="round" 
-        strokeWidth={2} 
-        d="M12 4v16m8-8H4" 
-      />
-    </svg>
-    Manual Check-In
-  </button>
-</div>
+      <div className="mb-4 flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Check-In Dashboard</h1>
+        <button
+          onClick={() => setShowManualCheckIn(true)}
+          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-2"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          Manual Check-In
+        </button>
+      </div>
 
-    
-    <div className="max-w-[1600px] mx-auto px-4 py-6">
-      {loading && (
-        <div className="text-center py-8">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-2 text-gray-600">Loading check-ins...</p>
-        </div>
-      )}
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-          Error: {error}
-        </div>
-      )}
-
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Pending Check-Ins</h2>
-          <p className="text-sm text-gray-600 mt-1">
-            {checkIns.length} driver{checkIns.length !== 1 ? 's' : ''} waiting
-          </p>
-        </div>
-
-        {checkIns.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            No pending check-ins at this time
+      <div className="max-w-[1600px] mx-auto px-4 py-6">
+        {loading && (
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="mt-2 text-gray-600">Loading check-ins...</p>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-in Time</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference Number</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver Info</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destination</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wait Time</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {checkIns.map((checkIn) => (
-                  <tr key={checkIn.id} className="hover:bg-gray-50">
-                    {/* Type */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        checkIn.load_type === 'inbound' 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-orange-100 text-orange-800'
-                      }`}>
-                        {checkIn.load_type === 'inbound' ? 'I' : 'O'}
-                      </span>
-                    </td>
+        )}
 
-                    {/* Check-in Time */}
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      {formatTimeInIndianapolis(checkIn.check_in_time, true)}
-                    </td>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+            Error: {error}
+          </div>
+        )}
 
-                    {/* Appointment Date & Time - With conditional highlighting */}
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      {(() => {
-                        if (!checkIn.appointment_time) {
-                          return <span className="text-gray-600">N/A</span>;
-                        }
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900">Pending Check-Ins</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              {checkIns.length} driver{checkIns.length !== 1 ? 's' : ''} waiting
+            </p>
+          </div>
 
-                        const checkInDate = new Date(checkIn.check_in_time);
-                        const checkInDateOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
-                        
-                        let appointmentDateOnly: Date;
-                        if (checkIn.appointment_date) {
-                          // Parse YYYY-MM-DD format correctly (in local timezone)
-                          if (checkIn.appointment_date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                            const [year, month, day] = checkIn.appointment_date.split('-').map(Number);
-                            appointmentDateOnly = new Date(year, month - 1, day);
-                          } else if (checkIn.appointment_date.includes('/')) {
-                            const [month, day, year] = checkIn.appointment_date.split('/').map(Number);
-                            appointmentDateOnly = new Date(year, month - 1, day);
-                          } else {
-                            const aptDate = new Date(checkIn.appointment_date);
-                            appointmentDateOnly = new Date(aptDate.getFullYear(), aptDate.getMonth(), aptDate.getDate());
+          {checkIns.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              No pending check-ins at this time
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-in Time</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference Number</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver Info</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destination</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wait Time</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {checkIns.map((checkIn) => (
+                    <tr key={checkIn.id} className="hover:bg-gray-50">
+                      {/* Type */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          checkIn.load_type === 'inbound'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-orange-100 text-orange-800'
+                        }`}>
+                          {checkIn.load_type === 'inbound' ? 'I' : 'O'}
+                        </span>
+                      </td>
+
+                      {/* Check-in Time */}
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        {formatTimeInIndianapolis(checkIn.check_in_time, true)}
+                      </td>
+
+                      {/* Appointment Date & Time */}
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        {(() => {
+                          if (!checkIn.appointment_time) {
+                            return <span className="text-gray-600">N/A</span>;
                           }
-                        } else {
-                          appointmentDateOnly = checkInDateOnly;
-                        }
-                        
-                        const dayDifference = Math.floor((appointmentDateOnly.getTime() - checkInDateOnly.getTime()) / (1000 * 60 * 60 * 24));
-                        
-                        let bgColor = 'bg-gray-500';
-                        let label = '';
-                        
-                        // Check if it's the same day first
-                        if (dayDifference === 0) {
-                          // Same day - check if on time or late based on actual time
-                          if (checkIn.appointment_time.length === 4 && /^\d{4}$/.test(checkIn.appointment_time)) {
-                            const appointmentHour = parseInt(checkIn.appointment_time.substring(0, 2));
-                            const appointmentMinute = parseInt(checkIn.appointment_time.substring(2, 4));
-                            
-                            const checkInFormatter = new Intl.DateTimeFormat('en-US', {
-                              timeZone: TIMEZONE,
-                              hour: 'numeric',
-                              minute: 'numeric',
-                              hour12: false
-                            });
-                            
-                            const timeString = checkInFormatter.format(checkInDate);
-                            const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
-                            
-                            const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-                            const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
-                            
-                            const minutesDifference = checkInTotalMinutes - appointmentTotalMinutes;
-                            
-                            // If they arrived MORE than 10 minutes AFTER appointment time
-                            if (minutesDifference > 10) {
-                              bgColor = 'bg-red-500';
-                              label = 'LATE';
-                            } 
-                            // If they arrived early or up to 10 minutes late - GREEN
-                            else {
+
+                          const checkInDate = new Date(checkIn.check_in_time);
+                          const checkInDateOnly = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
+
+                          let appointmentDateOnly: Date;
+                          if (checkIn.appointment_date) {
+                            if (checkIn.appointment_date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                              const [year, month, day] = checkIn.appointment_date.split('-').map(Number);
+                              appointmentDateOnly = new Date(year, month - 1, day);
+                            } else if (checkIn.appointment_date.includes('/')) {
+                              const [month, day, year] = checkIn.appointment_date.split('/').map(Number);
+                              appointmentDateOnly = new Date(year, month - 1, day);
+                            } else {
+                              const aptDate = new Date(checkIn.appointment_date);
+                              appointmentDateOnly = new Date(aptDate.getFullYear(), aptDate.getMonth(), aptDate.getDate());
+                            }
+                          } else {
+                            appointmentDateOnly = checkInDateOnly;
+                          }
+
+                          const dayDifference = Math.floor((appointmentDateOnly.getTime() - checkInDateOnly.getTime()) / (1000 * 60 * 60 * 24));
+
+                          let bgColor = 'bg-gray-500';
+                          let label = '';
+
+                          if (dayDifference === 0) {
+                            if (checkIn.appointment_time.length === 4 && /^\d{4}$/.test(checkIn.appointment_time)) {
+                              const appointmentHour = parseInt(checkIn.appointment_time.substring(0, 2));
+                              const appointmentMinute = parseInt(checkIn.appointment_time.substring(2, 4));
+
+                              const checkInFormatter = new Intl.DateTimeFormat('en-US', {
+                                timeZone: TIMEZONE,
+                                hour: 'numeric',
+                                minute: 'numeric',
+                                hour12: false
+                              });
+
+                              const timeString = checkInFormatter.format(checkInDate);
+                              const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
+
+                              const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
+                              const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
+
+                              const minutesDifference = checkInTotalMinutes - appointmentTotalMinutes;
+
+                              if (minutesDifference > 10) {
+                                bgColor = 'bg-red-500';
+                                label = 'LATE';
+                              } else {
+                                bgColor = 'bg-green-500';
+                                label = '';
+                              }
+                            } else {
                               bgColor = 'bg-green-500';
                               label = '';
                             }
-                          } else {
-                            // Not a standard time format - default to green for same day
-                            bgColor = 'bg-green-500';
-                            label = '';
+                          } else if (dayDifference > 0) {
+                            bgColor = 'bg-yellow-500';
+                            label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
+                          } else if (dayDifference < 0) {
+                            bgColor = 'bg-yellow-500';
+                            label = `${Math.abs(dayDifference)} DAY${Math.abs(dayDifference) > 1 ? 'S' : ''} LATE`;
                           }
-                        } else if (dayDifference > 0) {
-                          // Appointment is in the future - they're early (YELLOW)
-                          bgColor = 'bg-yellow-500';
-                          label = `${dayDifference} DAY${dayDifference > 1 ? 'S' : ''} EARLY`;
-                        } else if (dayDifference < 0) {
-                          // Appointment was in the past - they're late (YELLOW)
-                          bgColor = 'bg-yellow-500';
-                          label = `${Math.abs(dayDifference)} DAY${Math.abs(dayDifference) > 1 ? 'S' : ''} LATE`;
-                        }
 
-                        return (
-                          <span className={`${bgColor} text-white px-2 py-1 rounded font-semibold`}>
-                            {label && <span className="mr-1">[{label}]</span>}
-                            {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
-                          </span>
-                        );
-                      })()}
-                    </td>
+                          return (
+                            <span className={`${bgColor} text-white px-2 py-1 rounded font-semibold`}>
+                              {label && <span className="mr-1">[{label}]</span>}
+                              {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
+                            </span>
+                          );
+                        })()}
+                      </td>
 
-                    {/* Reference Number */}
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                      {checkIn.reference_number || 'N/A'}
-                    </td>
+                      {/* Reference Number */}
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                        {checkIn.reference_number || 'N/A'}
+                      </td>
 
-                    {/* Driver Info */}
-                    <td className="px-4 py-3 text-sm">
-                      <div>{checkIn.driver_name || 'N/A'}</div>
-                      <div className="text-gray-500 text-xs">{formatPhoneNumber(checkIn.driver_phone)}</div>
-                      <div className="text-gray-500 text-xs">{checkIn.carrier_name || 'N/A'}</div>
-                    </td>
+                      {/* Driver Info */}
+                      <td className="px-4 py-3 text-sm">
+                        <div>{checkIn.driver_name || 'N/A'}</div>
+                        <div className="text-gray-500 text-xs">{formatPhoneNumber(checkIn.driver_phone)}</div>
+                        <div className="text-gray-500 text-xs">{checkIn.carrier_name || 'N/A'}</div>
+                      </td>
 
-                    {/* Trailer */}
-                    <td className="px-4 py-3 text-sm">
-                      <div>{checkIn.trailer_number || 'N/A'}</div>
-                      <div className="text-gray-500 text-xs">{checkIn.trailer_length || 'N/A'}</div>
-                    </td>
+                      {/* Trailer */}
+                      <td className="px-4 py-3 text-sm">
+                        <div>{checkIn.trailer_number || 'N/A'}</div>
+                        <div className="text-gray-500 text-xs">{checkIn.trailer_length || 'N/A'}</div>
+                      </td>
 
-                    {/* Destination */}
-                    <td className="px-4 py-3 text-sm">
-                      {checkIn.destination_city && checkIn.destination_state
-                        ? `${checkIn.destination_city}, ${checkIn.destination_state}`
-                        : 'N/A'}
-                    </td>
+                      {/* Destination */}
+                      <td className="px-4 py-3 text-sm">
+                        {checkIn.destination_city && checkIn.destination_state
+                          ? `${checkIn.destination_city}, ${checkIn.destination_state}`
+                          : 'N/A'}
+                      </td>
 
-                        {/* Wait Time */}
-<td className="px-4 py-3 whitespace-nowrap text-sm">
-  <span className={`font-medium ${
-    calculateWaitTime(checkIn.check_in_time) > 60 ? 'text-red-600' : 'text-gray-900'
-  }`}>
-    {Math.floor(calculateWaitTime(checkIn.check_in_time))} min
-  </span>
-</td>
+                      {/* Wait Time */}
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        <span className={`font-medium ${
+                          calculateWaitTime(checkIn.check_in_time) > 60 ? 'text-red-600' : 'text-gray-900'
+                        }`}>
+                          {Math.floor(calculateWaitTime(checkIn.check_in_time))} min
+                        </span>
+                      </td>
 
-      {/* Actions */}
-      <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium space-x-2">
-        <button
-          onClick={() => setSelectedForEdit(checkIn)}
-          className="text-blue-600 hover:text-blue-900"
-        >
-          Edit
-        </button>
-        <button
-          onClick={() => setSelectedForDock(checkIn)}
-          className="text-green-600 hover:text-green-900"
-        >
-          Assign
-        </button>
-        <button
-          onClick={() => setSelectedForDeny(checkIn)}
-          className="text-red-600 hover:text-red-900"
-        >
-          Deny
-        </button>
-      </td>
-    </tr>
-  ))}
-</tbody>
+                      {/* Actions */}
+                      <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium space-x-2">
+                        <button
+                          onClick={() => setSelectedForEdit(checkIn)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => setSelectedForDock(checkIn)}
+                          className="text-green-600 hover:text-green-900"
+                        >
+                          Assign
+                        </button>
+                        <button
+                          onClick={() => setSelectedForDeny(checkIn)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Deny
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
           )}
         </div>
-      {selectedForDock && (
-        <AssignDockModal
-          checkIn={selectedForDock}
-          onClose={() => setSelectedForDock(null)}
-          onAssign={handleDockAssignSuccess}
+
+        {selectedForDock && (
+          <AssignDockModal
+            checkIn={selectedForDock}
+            onClose={() => setSelectedForDock(null)}
+            onAssign={handleDockAssignSuccess}
+          />
+        )}
+        {selectedForEdit && (
+          <EditCheckInModal
+            checkIn={selectedForEdit}
+            onClose={() => setSelectedForEdit(null)}
+            onUpdate={handleEditSuccess}
+          />
+        )}
+        {selectedForDeny && (
+          <DenyCheckInModal
+            checkIn={selectedForDeny}
+            onClose={() => setSelectedForDeny(null)}
+            onDeny={handleDenyComplete}
+          />
+        )}
+        <ManualCheckInModal
+          isOpen={showManualCheckIn}
+          onClose={() => setShowManualCheckIn(false)}
+          onSuccess={handleManualCheckInSuccess}
         />
-      )}
-      {selectedForEdit && (
-        <EditCheckInModal
-          checkIn={selectedForEdit}
-          onClose={() => setSelectedForEdit(null)}
-          onUpdate={handleEditSuccess}
-        />
-      )}
-      {selectedForDeny && (
-        <DenyCheckInModal
-          checkIn={selectedForDeny}
-          onClose={() => setSelectedForDeny(null)}
-          onDeny={handleDenyComplete}
-        />
-      )}
-      <ManualCheckInModal
-        isOpen={showManualCheckIn}
-        onClose={() => setShowManualCheckIn(false)}
-        onSuccess={handleManualCheckInSuccess}
-      />
+      </div>
     </div>
   );
 }
