@@ -614,7 +614,6 @@ export default function CSRDashboard() {
             checkIn={selectedForDeny}
             onClose={() => setSelectedForDeny(null)}
             onDeny={handleDenyComplete}
-
           />
         )}
         <ManualCheckInModal
