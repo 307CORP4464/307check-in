@@ -117,7 +117,7 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
          date1.getDate() === date2.getDate();
 };
 
-// Add this function to calculate day difference
+// Helper function to calculate day difference
 const getDayDifference = (checkInDate: Date, appointmentDate: Date): number => {
   const checkIn = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
   const appointment = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate());
@@ -125,21 +125,26 @@ const getDayDifference = (checkInDate: Date, appointmentDate: Date): number => {
   return Math.round(diffTime / (1000 * 60 * 60 * 24));
 };
 
-// Replace the isOnTime function with this enhanced version
+// Replace the isOnTime function with this
 const getAppointmentStatus = (
   checkInTime: string, 
   appointmentTime: string | null | undefined,
   appointmentDate: string | null | undefined
-): { color: 'green' | 'orange' | 'red', message: string } => {
+): { color: 'green' | 'orange' | 'red' | 'none', message: string | null } => {
   
-  // Handle work-in appointments
+  // Handle work-in appointments - RED
   if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
-    return { color: 'red', message: 'Work In' };
+    return { color: 'red', message: null };
   }
 
   // Validate appointment time format
   if (!appointmentTime.match(/^\d{4}$/)) {
-    return { color: 'red', message: 'Invalid Appointment' };
+    return { color: 'none', message: null };
+  }
+
+  // No appointment date
+  if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
+    return { color: 'none', message: null };
   }
 
   try {
@@ -147,30 +152,25 @@ const getAppointmentStatus = (
     
     // Parse appointment date
     let appointmentDateObj: Date;
-    if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
-      if (appointmentDate.includes('/')) {
-        const [month, day, year] = appointmentDate.split('/').map(Number);
-        appointmentDateObj = new Date(year, month - 1, day);
-      } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        const [year, month, day] = appointmentDate.split('-').map(Number);
-        appointmentDateObj = new Date(year, month - 1, day);
-      } else {
-        appointmentDateObj = new Date(appointmentDate);
-      }
+    if (appointmentDate.includes('/')) {
+      const [month, day, year] = appointmentDate.split('/').map(Number);
+      appointmentDateObj = new Date(year, month - 1, day);
+    } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = appointmentDate.split('-').map(Number);
+      appointmentDateObj = new Date(year, month - 1, day);
     } else {
-      // No appointment date provided
-      return { color: 'red', message: 'No Appointment Date' };
+      appointmentDateObj = new Date(appointmentDate);
     }
 
     // Check if dates are valid
     if (isNaN(checkInDate.getTime()) || isNaN(appointmentDateObj.getTime())) {
-      return { color: 'red', message: 'Invalid Date' };
+      return { color: 'none', message: null };
     }
 
     // Calculate day difference
     const dayDiff = getDayDifference(checkInDate, appointmentDateObj);
 
-    // Check-in is early (day before or more)
+    // Check-in is early (day before or more) - ORANGE
     if (dayDiff < 0) {
       const daysEarly = Math.abs(dayDiff);
       return { 
@@ -179,7 +179,7 @@ const getAppointmentStatus = (
       };
     }
 
-    // Check-in is late (day after or more)
+    // Check-in is late (day after or more) - ORANGE
     if (dayDiff > 0) {
       return { 
         color: 'orange', 
@@ -204,23 +204,19 @@ const getAppointmentStatus = (
     const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
     const minuteDifference = checkInTotalMinutes - appointmentTotalMinutes;
 
-    // Same day, checked in before or up to 15 minutes after appointment
+    // Same day, checked in on time (before or up to 15 minutes after) - GREEN
     if (minuteDifference <= 15) {
-      return { color: 'green', message: 'On Time' };
+      return { color: 'green', message: null };
     }
 
-    // Same day, but checked in late (more than 15 minutes after appointment)
-    return { 
-      color: 'red', 
-      message: `Late (${Math.floor(minuteDifference / 60)}h ${minuteDifference % 60}m)` 
-    };
+    // Same day, but checked in late (more than 15 minutes after) - RED
+    return { color: 'red', message: null };
 
   } catch (error) {
     console.error('Error in getAppointmentStatus:', error);
-    return { color: 'red', message: 'Error' };
+    return { color: 'none', message: null };
   }
 };
-
 
 interface CheckIn {
   id: string;
