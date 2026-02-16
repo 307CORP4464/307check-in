@@ -618,13 +618,10 @@ export default function CSRDashboard() {
           )}
         </div>
 
-        {selectedForDock && (
-        <AssignDockModal
-          checkIn={selectedForDock}
-          onClose={() => setSelectedForDock(null)}
-          onAssign={handleDockAssignSuccess}
-        />
+        {{selectedForDock && (
+        <AssignDockModal isOpen={!!selectedForDock} checkIn={selectedForDock} onClose={() => setSelectedForDock(null)} onSuccess={handleDockAssignSuccess} />
       )}
+
         {selectedForEdit && (
           <EditCheckInModal
             checkIn={selectedForEdit}
