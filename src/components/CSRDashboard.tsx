@@ -477,7 +477,6 @@ export default function CSRDashboard() {
       </div>
 
       <div className="mb-4 flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Check-In Dashboard</h1>
         <button
           onClick={() => setShowManualCheckIn(true)}
           className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-2"
