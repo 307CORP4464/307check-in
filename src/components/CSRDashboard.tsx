@@ -55,6 +55,14 @@ const formatPhoneNumber = (phone: string | undefined): string => {
   return phone;
 };
 
+const calculateWaitTime = (checkInTime: string): number => {
+  const checkIn = new Date(checkInTime);
+  const now = new Date();
+  const diffMs = now.getTime() - checkIn.getTime();
+  const diffMinutes = diffMs / (1000 * 60);
+  return diffMinutes;
+};
+
 const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
   if (!appointmentTime) return 'N/A';
   if (appointmentTime === 'work_in') return 'Work In';
