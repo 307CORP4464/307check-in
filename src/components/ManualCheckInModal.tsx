@@ -16,17 +16,15 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
   );
 
   const [formData, setFormData] = useState({
-    driver_name: '',
-    driver_phone: '',
+    load_type: 'outbound' as 'inbound' | 'outbound',
+    reference_number: '',
     carrier_name: '',
     trailer_number: '',
     trailer_length: '',
-    load_type: 'inbound' as 'inbound' | 'outbound',
-    reference_number: '',
-    appointment_date: '',
-    appointment_time: '',
     destination_city: '',
     destination_state: '',
+    driver_name: '',
+    driver_phone: '',
     notes: ''
   });
 
@@ -65,8 +63,6 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
           trailer_length: formData.trailer_length || null,
           load_type: formData.load_type,
           reference_number: formData.reference_number,
-          appointment_date: formData.appointment_date || null,
-          appointment_time: formData.appointment_time || null,
           destination_city: formData.destination_city || null,
           destination_state: formData.destination_state || null,
           notes: formData.notes || null,
@@ -78,17 +74,15 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
 
       // Reset form
       setFormData({
-        driver_name: '',
-        driver_phone: '',
+        load_type: 'outbound',
+        reference_number: '',
         carrier_name: '',
         trailer_number: '',
         trailer_length: '',
-        load_type: 'inbound',
-        reference_number: '',
-        appointment_date: '',
-        appointment_time: '',
         destination_city: '',
         destination_state: '',
+        driver_name: '',
+        driver_phone: '',
         notes: ''
       });
 
@@ -124,33 +118,36 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Driver Information */}
+            {/* Load Information */}
             <div className="border-b pb-4">
-              <h3 className="text-lg font-semibold mb-3 text-gray-700">Driver Information</h3>
+              <h3 className="text-lg font-semibold mb-3 text-gray-700">Load Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Driver Name <span className="text-red-500">*</span>
+                    Load Type <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    name="driver_name"
-                    value={formData.driver_name}
+                  <select
+                    name="load_type"
+                    value={formData.load_type}
                     onChange={handleChange}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  >
+                    <option value="outbound">Outbound</option>
+                    <option value="inbound">Inbound</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Driver Phone
+                    Reference Number (SO/DO) <span className="text-red-500">*</span>
                   </label>
                   <input
-                    type="tel"
-                    name="driver_phone"
-                    value={formData.driver_phone}
+                    type="text"
+                    name="reference_number"
+                    value={formData.reference_number}
                     onChange={handleChange}
-                    placeholder="(555) 555-5555"
+                    required
+                    placeholder="e.g., SO12345 or DO12345"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -204,73 +201,12 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
                     <option value="28">28 ft</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Load Type <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="load_type"
-                    value={formData.load_type}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="inbound">Inbound</option>
-                    <option value="outbound">Outbound</option>
-                  </select>
-                </div>
               </div>
             </div>
 
-            {/* Load Information */}
+            {/* Destination Information */}
             <div className="border-b pb-4">
-              <h3 className="text-lg font-semibold mb-3 text-gray-700">Load Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Reference Number (SO/DO) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="reference_number"
-                    value={formData.reference_number}
-                    onChange={handleChange}
-                    required
-                    placeholder="e.g., SO12345 or DO12345"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Appointment Date
-                  </label>
-                  <input
-                    type="date"
-                    name="appointment_date"
-                    value={formData.appointment_date}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Appointment Time
-                  </label>
-                  <input
-                    type="text"
-                    name="appointment_time"
-                    value={formData.appointment_time}
-                    onChange={handleChange}
-                    placeholder="e.g., 1430 or Work In"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Destination */}
-            <div className="border-b pb-4">
-              <h3 className="text-lg font-semibold mb-3 text-gray-700">Destination (Outbound Only)</h3>
+              <h3 className="text-lg font-semibold mb-3 text-gray-700">Destination</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -281,6 +217,7 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
                     name="destination_city"
                     value={formData.destination_city}
                     onChange={handleChange}
+                    placeholder="e.g., Los Angeles"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -293,8 +230,41 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
                     name="destination_state"
                     value={formData.destination_state}
                     onChange={handleChange}
+                    placeholder="e.g., CA"
                     maxLength={2}
-                    placeholder="e.g., IN"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Driver Information */}
+            <div className="border-b pb-4">
+              <h3 className="text-lg font-semibold mb-3 text-gray-700">Driver Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Driver Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="driver_name"
+                    value={formData.driver_name}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Driver Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    name="driver_phone"
+                    value={formData.driver_phone}
+                    onChange={handleChange}
+                    placeholder="(555) 555-5555"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -311,13 +281,13 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
                 value={formData.notes}
                 onChange={handleChange}
                 rows={3}
+                placeholder="Additional information..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Additional notes or special instructions..."
               />
             </div>
 
-            {/* Buttons */}
-            <div className="flex justify-end space-x-3 pt-4">
+            {/* Submit Button */}
+            <div className="flex justify-end gap-3 pt-4">
               <button
                 type="button"
                 onClick={onClose}
@@ -331,7 +301,7 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
                 disabled={submitting}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
               >
-                {submitting ? 'Creating...' : 'Create Check-In'}
+                {submitting ? 'Checking In...' : 'Check In'}
               </button>
             </div>
           </form>
