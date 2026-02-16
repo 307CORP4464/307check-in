@@ -203,16 +203,12 @@ export default function CSRDashboard() {
     fetchAppointments();
     const channel = supabase
       .channel('dashboard_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'check_ins' },
-        () => { fetchCheckIns(); }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'appointments' },
-        () => { fetchAppointments(); }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, () => {
+        fetchCheckIns();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
+        fetchAppointments();
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -252,8 +248,8 @@ export default function CSRDashboard() {
         .order('check_in_time', { ascending: true });
       if (checkInsError) throw checkInsError;
       const referenceNumbers = checkInsData
-        ?.map(ci => ci.reference_number)
-        .filter((ref: string | undefined | null) => ref && ref.trim() !== '') || [];
+        ?.map((ci: any) => ci.reference_number)
+        .filter((ref: any) => ref && ref.trim() !== '') || [];
       let appointmentsMap = new Map();
       if (referenceNumbers.length > 0) {
         const { data: appointmentsData, error: appointmentsError } = await supabase
@@ -324,8 +320,7 @@ export default function CSRDashboard() {
     const checkIn = new Date(checkInTime);
     const now = new Date();
     const diffMs = now.getTime() - checkIn.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    return diffMins;
+    return Math.floor(diffMs / 60000);
   };
 
   const getWaitTimeColor = (checkIn: CheckIn): string => {
