@@ -117,15 +117,38 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
          date1.getDate() === date2.getDate();
 };
 
+// Helper function to get date components in Indianapolis timezone
+const getDateComponentsInIndianapolis = (isoString: string): { year: number, month: number, day: number, hour: number, minute: number } => {
+  const date = new Date(isoString);
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIMEZONE,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false
+  });
+  
+  const parts = formatter.formatToParts(date);
+  return {
+    year: parseInt(parts.find(p => p.type === 'year')?.value || '0'),
+    month: parseInt(parts.find(p => p.type === 'month')?.value || '0'),
+    day: parseInt(parts.find(p => p.type === 'day')?.value || '0'),
+    hour: parseInt(parts.find(p => p.type === 'hour')?.value || '0'),
+    minute: parseInt(parts.find(p => p.type === 'minute')?.value || '0')
+  };
+};
+
 // Helper function to calculate day difference
-const getDayDifference = (checkInDate: Date, appointmentDate: Date): number => {
-  const checkIn = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate());
-  const appointment = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate());
-  const diffTime = checkIn.getTime() - appointment.getTime();
+const getDayDifference = (checkInComponents: any, appointmentDate: Date): number => {
+  const checkInDate = new Date(checkInComponents.year, checkInComponents.month - 1, checkInComponents.day);
+  const aptDate = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate());
+  const diffTime = checkInDate.getTime() - aptDate.getTime();
   return Math.round(diffTime / (1000 * 60 * 60 * 24));
 };
 
-// Replace the isOnTime function with this
+// Replace the isOnTime function with this complete solution
 const getAppointmentStatus = (
   checkInTime: string, 
   appointmentTime: string | null | undefined,
@@ -148,7 +171,8 @@ const getAppointmentStatus = (
   }
 
   try {
-    const checkInDate = new Date(checkInTime);
+    // Get check-in date/time components in Indianapolis timezone
+    const checkInComponents = getDateComponentsInIndianapolis(checkInTime);
     
     // Parse appointment date
     let appointmentDateObj: Date;
@@ -159,16 +183,17 @@ const getAppointmentStatus = (
       const [year, month, day] = appointmentDate.split('-').map(Number);
       appointmentDateObj = new Date(year, month - 1, day);
     } else {
-      appointmentDateObj = new Date(appointmentDate);
+      const tempDate = new Date(appointmentDate);
+      appointmentDateObj = new Date(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate());
     }
 
     // Check if dates are valid
-    if (isNaN(checkInDate.getTime()) || isNaN(appointmentDateObj.getTime())) {
+    if (isNaN(appointmentDateObj.getTime())) {
       return { color: 'none', message: null };
     }
 
     // Calculate day difference
-    const dayDiff = getDayDifference(checkInDate, appointmentDateObj);
+    const dayDiff = getDayDifference(checkInComponents, appointmentDateObj);
 
     // Check-in is early (day before or more) - ORANGE
     if (dayDiff < 0) {
@@ -191,17 +216,8 @@ const getAppointmentStatus = (
     const appointmentHour = parseInt(appointmentTime.substring(0, 2));
     const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
     
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: false
-    });
-    const timeString = formatter.format(checkInDate);
-    const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
-    
     const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-    const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
+    const checkInTotalMinutes = checkInComponents.hour * 60 + checkInComponents.minute;
     const minuteDifference = checkInTotalMinutes - appointmentTotalMinutes;
 
     // Same day, checked in on time (before or up to 15 minutes after) - GREEN
@@ -217,6 +233,7 @@ const getAppointmentStatus = (
     return { color: 'none', message: null };
   }
 };
+
 
 interface CheckIn {
   id: string;
@@ -556,23 +573,34 @@ export default function CSRDashboard() {
                       </td>
 
                       {/* Appointment Date & Time */}
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-{(() => {
-  const status = getAppointmentStatus(
-    checkIn.check_in_time, 
-    checkIn.appointment_time,
-    checkIn.appointment_date
-  );
-  
-  return (
-    <td className={`px-4 py-3 text-sm ${
-      status.color === 'green' ? 'bg-green-100 text-green-800' :
-      status.color === 'orange' ? 'bg-orange-100 text-orange-800' :
-      'bg-red-100 text-red-800'
-    }`}>
-      <div>{formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}</div>
-      <div className="text-xs font-semibold mt-1">{status.message}</div>
-    </td>
+                      
+<td className={`px-4 py-3 text-sm ${
+  (() => {
+    const status = getAppointmentStatus(
+      checkIn.check_in_time, 
+      checkIn.appointment_time,
+      checkIn.appointment_date
+    );
+    return status.color === 'green' ? 'bg-green-100' :
+           status.color === 'orange' ? 'bg-orange-100' :
+           status.color === 'red' ? 'bg-red-100' : '';
+  })()
+}`}>
+  <div>{formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}</div>
+  {(() => {
+    const status = getAppointmentStatus(
+      checkIn.check_in_time, 
+      checkIn.appointment_time,
+      checkIn.appointment_date
+    );
+    return status.message ? (
+      <div className="text-xs font-semibold mt-1 text-orange-800">
+        {status.message}
+      </div>
+    ) : null;
+  })()}
+</td>
+
   );
 })()}
 
