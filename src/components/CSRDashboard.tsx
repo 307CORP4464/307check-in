@@ -407,12 +407,10 @@ const calculateWaitTime = (checkInTime: string): number => {
     const start = new Date(checkIn.check_in_time);
     const now = new Date();
     const minutes = differenceInMinutes(now, start);
-    
     if (minutes > 120) return 'text-red-600';
     if (minutes > 60) return 'text-orange-600';
     return 'text-gray-900';
   };
-
   const handleDenyComplete = () => {
     fetchCheckIns();
   };
