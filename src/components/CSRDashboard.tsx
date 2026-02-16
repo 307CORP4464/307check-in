@@ -360,7 +360,6 @@ const fetchCheckIns = async () => {
     setError('Failed to fetch check-ins');
   } finally {
     setLoading(false);
-  }
 };
 
   const handleManualCheckInSuccess = () => {
@@ -375,7 +374,6 @@ const fetchCheckIns = async () => {
       router.refresh();
     } catch (error) {
       console.error('Error logging out:', error);
-    }
   };
 
   const handleAssignDock = (checkIn: CheckIn) => {
