@@ -22,8 +22,6 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
     trailer_number: '',
     destination_city: '',
     destination_state: '',
-    driver_name: '',
-    driver_phone: '',
     notes: ''
   });
 
@@ -212,38 +210,6 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
                     onChange={handleChange}
                     placeholder="e.g., CA"
                     maxLength={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Driver Information */}
-            <div className="border-b pb-4">
-              <h3 className="text-lg font-semibold mb-3 text-gray-700">Driver Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Driver Name
-                  </label>
-                  <input
-                    type="text"
-                    name="driver_name"
-                    value={formData.driver_name}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Driver Phone
-                  </label>
-                  <input
-                    type="tel"
-                    name="driver_phone"
-                    value={formData.driver_phone}
-                    onChange={handleChange}
-                    placeholder="(555) 123-4567"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
