@@ -75,7 +75,7 @@ const getCurrentTimeInIndianapolis = (): string => {
 const getStatusBadge = (status: string | null) => {
   if (!status) {
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-600">
         Not Checked In
       </span>
     );
