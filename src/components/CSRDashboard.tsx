@@ -371,6 +371,85 @@ export default function CSRDashboard() {
     }
   };
   
+  const handleDockAssignSuccess = () => {
+    setSelectedForDock(null);
+    fetchCheckIns();
+  };
+
+  const handleEditSuccess = () => {
+    setSelectedForEdit(null);
+    fetchCheckIns();
+  };
+
+  const handleDenySuccess = () => {
+    setSelectedForDeny(null);
+    fetchCheckIns();
+  };
+
+  const handleManualCheckInSuccess = () => {
+    setShowManualCheckIn(false);
+    fetchCheckIns();
+  };
+
+  const handleCheckOut = async (checkInId: string) => {
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('check_ins')
+        .update({ 
+          status: 'checked_out', 
+          check_out_time: now 
+        })
+        .eq('id', checkInId);
+
+      if (error) throw error;
+      fetchCheckIns();
+    } catch (err: any) {
+      console.error('Error checking out:', err);
+      setError(err.message);
+    }
+  };
+
+  const handleStartLoading = async (checkInId: string) => {
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('check_ins')
+        .update({ 
+          status: 'loading', 
+          start_time: now 
+        })
+        .eq('id', checkInId);
+
+      if (error) throw error;
+      fetchCheckIns();
+    } catch (err: any) {
+      console.error('Error starting loading:', err);
+      setError(err.message);
+    }
+  };
+
+  const handleFinishLoading = async (checkInId: string) => {
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('check_ins')
+        .update({ 
+          status: 'completed', 
+          end_time: now 
+        })
+        .eq('id', checkInId);
+
+      if (error) throw error;
+      fetchCheckIns();
+    } catch (err: any) {
+      console.error('Error finishing loading:', err);
+      setError(err.message);
+    }
+  };
+
+  
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b shadow-sm">
