@@ -11,7 +11,7 @@ interface AssignDockModalProps {
     carrier_name?: string;
     reference_number?: string;
     driver_phone?: string;
-    driver_email?: string;
+    driver_email?: string;  // Changed from driver_phone
     trailer_number?: string;
     trailer_length?: string;
     destination_city?: string;
@@ -37,7 +37,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
   const [dockInfo, setDockInfo] = useState<DockInfo | null>(null);
   const [showWarning, setShowWarning] = useState(false);
   const [checkingDock, setCheckingDock] = useState(false);
-  const [confirmDoubleBook, setConfirmDoubleBook] = useState(false);
   
   // Email-related state
   const [sendEmail, setSendEmail] = useState(true);
@@ -68,7 +67,10 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     { value: '1430', label: '02:30 PM' },
     { value: '1500', label: '03:00 PM' },
     { value: '1550', label: '03:30 PM' },
-    { value: 'work_in', label: 'Work In' }
+    { value: 'work_in', label: 'Work In' },
+    { value: 'paid_to_load', label: 'Paid to Load' },
+    { value: 'paid_charge_customer', label: 'Paid - Charge Customer' },
+    { value: 'LTL', label: 'LTL' }
   ];
 
   const formatAppointmentTime = (time: string) => {
@@ -94,18 +96,15 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
       setError(null);
       setEmailStatus(null);
       setShowWarning(false);
-      setConfirmDoubleBook(false);
     }
   }, [isOpen, checkIn]);
 
   useEffect(() => {
     if (dockNumber && dockNumber !== 'Ramp') {
       checkDockStatus(dockNumber);
-      setConfirmDoubleBook(false);
     } else {
       setDockInfo(null);
       setShowWarning(false);
-      setConfirmDoubleBook(false);
     }
   }, [dockNumber]);
 
@@ -129,9 +128,9 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
       // Check if dock is in use
       const { data: existingOrders, error } = await supabase
         .from('check_ins')
-        .select('reference_number, trailer_number, driver_name')
+        .select('reference_number, trailer_number')
         .eq('dock_number', dock)
-        .in('status', ['checked_in', 'pending', 'at_dock', 'loading', 'unloading'])
+        .in('status', ['checked_in', 'pending'])
         .neq('id', checkIn.id);
 
       if (error) throw error;
@@ -187,46 +186,46 @@ const sendEmailNotification = async (dock: string, email: string) => {
       }
     }
 
-      const response = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: 'dock_assignment',
+        toEmail: email,
+        data: {
+          driverName: checkIn.driver_name || 'Driver',
+          dockNumber: dock,
+          referenceNumber: checkIn.reference_number || 'N/A',
+          loadType: checkIn.load_type || 'inbound',
+          checkInTime: formatCheckInTime(checkIn.check_in_time) || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          appointmentTime: checkIn.appointment_time 
+            ? formatAppointmentTime(checkIn.appointment_time) 
+            : undefined,
+          appointmentStatus: appointmentStatus,
         },
-        body: JSON.stringify({
-          type: 'dock_assignment',
-          toEmail: email,
-          data: {
-            driverName: checkIn.driver_name || 'Driver',
-            dockNumber: dock,
-            referenceNumber: checkIn.reference_number || 'N/A',
-            loadType: checkIn.load_type || 'inbound',
-            checkInTime: formatCheckInTime(checkIn.check_in_time) || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            appointmentTime: checkIn.appointment_time 
-              ? formatAppointmentTime(checkIn.appointment_time) 
-              : undefined,
-            appointmentStatus: appointmentStatus,
-          },
-        }),
-      });
+      }),
+    });
 
-      const result = await response.json();
-      
-      if (result.success) {
-        setEmailStatus('Email sent successfully ✓');
-        return true;
-      } else {
-        setEmailStatus(`Email failed: ${result.error}`);
-        console.error('Email send error:', result);
-        return false;
-      }
-    } catch (err) {
-      console.error('Error sending email:', err);
-      setEmailStatus('Email sending failed');
+    const result = await response.json();
+    
+    if (result.success) {
+      setEmailStatus('Email sent successfully ✓');
+      return true;
+    } else {
+      setEmailStatus(`Email failed: ${result.error}`);
+      console.error('Email send error:', result);
       return false;
     }
-  };
+  } catch (err) {
+    console.error('Error sending email:', err);
+    setEmailStatus('Email sending failed');
+    return false;
+  }
+};
 
-  const printReceipt = () => {
+const printReceipt = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       alert('Please allow popups to print the receipt');
@@ -592,21 +591,10 @@ const sendEmailNotification = async (dock: string, email: string) => {
     printWindow.document.close();
   };
 
+
   const handleAssign = async () => {
     if (!dockNumber) {
       setError('Please select a dock number');
-      return;
-    }
-
-    // Check if dock is in use and confirmation is required
-    if (dockInfo?.status === 'in-use' && !confirmDoubleBook) {
-      setError('Please confirm the double booking by checking the box below');
-      return;
-    }
-
-    // Prevent assignment to blocked docks
-    if (dockInfo?.status === 'blocked') {
-      setError('Cannot assign to a blocked dock. Please select a different dock.');
       return;
     }
 
@@ -615,44 +603,18 @@ const sendEmailNotification = async (dock: string, email: string) => {
     setEmailStatus(null);
 
     try {
-      // First, verify the check-in still exists and is in a valid state
-      const { data: currentCheckIn, error: fetchError } = await supabase
-        .from('check_ins')
-        .select('id, status, dock_number')
-        .eq('id', checkIn.id)
-        .single();
-
-      if (fetchError) {
-        console.error('Fetch error:', fetchError);
-        throw new Error(`Unable to verify check-in: ${fetchError.message}`);
-      }
-
-      if (!currentCheckIn) {
-        throw new Error('Check-in record not found. It may have been deleted.');
-      }
-
-      // Update database with dock assignment (allow double booking if confirmed)
-      const { data: updatedData, error: updateError } = await supabase
+      // Update database with dock assignment
+      const { error: updateError } = await supabase
         .from('check_ins')
         .update({
           dock_number: dockNumber,
           status: 'checked_in',
-          driver_email: driverEmail || null,
-          appointment_time: checkIn.appointment_time || null,
-          updated_at: new Date().toISOString()
+          driver_email: driverEmail,
+          appointment_time: checkIn.appointment_time,
         })
-        .eq('id', checkIn.id)
-        .select()
-        .single();
+        .eq('id', checkIn.id);
 
-      if (updateError) {
-        console.error('Update error:', updateError);
-        throw new Error(`Failed to assign dock: ${updateError.message}`);
-      }
-
-      if (!updatedData) {
-        throw new Error('Dock assignment failed. Please try again.');
-      }
+      if (updateError) throw updateError;
 
       // Send email if enabled and email provided
       if (sendEmail && driverEmail) {
@@ -665,7 +627,8 @@ const sendEmailNotification = async (dock: string, email: string) => {
           detail: { dockNumber, checkInId: checkIn.id }
         }));
       }
-     printReceipt();
+
+      printReceipt();
       onSuccess();
       onClose();
     } catch (err) {
@@ -682,8 +645,7 @@ const printReceipt = () => {
     return;
   }
 
-  if (!isOpen) return null;
-const currentDate = new Date().toLocaleString();
+  const currentDate = new Date().toLocaleString();
   const today = new Date().toLocaleDateString();
   const dockDisplay = dockNumber === 'Ramp' ? 'Ramp' : `Dock ${dockNumber}`;
   
