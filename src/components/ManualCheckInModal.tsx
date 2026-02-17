@@ -20,7 +20,6 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
     reference_number: '',
     carrier_name: '',
     trailer_number: '',
-    trailer_length: '',
     destination_city: '',
     destination_state: '',
     driver_name: '',
@@ -44,11 +43,11 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
     setError(null);
 
     try {
-      // Format phone number
-      const cleanedPhone = formData.driver_phone.replace(/\D/g, '');
+      // Format phone number if provided
+      const cleanedPhone = formData.driver_phone ? formData.driver_phone.replace(/\D/g, '') : null;
       
-      // Validate required fields
-      if (!formData.driver_name || !formData.carrier_name || !formData.trailer_number || !formData.reference_number) {
+      // Validate required fields (driver_name and driver_phone no longer required)
+      if (!formData.carrier_name || !formData.trailer_number || !formData.reference_number) {
         throw new Error('Please fill in all required fields');
       }
 
@@ -56,11 +55,10 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
       const { error: insertError } = await supabase
         .from('check_ins')
         .insert({
-          driver_name: formData.driver_name,
+          driver_name: formData.driver_name || null,
           driver_phone: cleanedPhone,
           carrier_name: formData.carrier_name,
           trailer_number: formData.trailer_number,
-          trailer_length: formData.trailer_length || null,
           load_type: formData.load_type,
           reference_number: formData.reference_number,
           destination_city: formData.destination_city || null,
@@ -78,7 +76,6 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
         reference_number: '',
         carrier_name: '',
         trailer_number: '',
-        trailer_length: '',
         destination_city: '',
         destination_state: '',
         driver_name: '',
@@ -184,23 +181,6 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Trailer Length
-                  </label>
-                  <select
-                    name="trailer_length"
-                    value={formData.trailer_length}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Length</option>
-                    <option value="53">53 ft</option>
-                    <option value="48">48 ft</option>
-                    <option value="40">40 ft</option>
-                    <option value="28">28 ft</option>
-                  </select>
-                </div>
               </div>
             </div>
 
@@ -244,7 +224,7 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Driver Name <span className="text-red-500">*</span>
+                    Driver Name
                   </label>
                   <input
                     type="text"
@@ -256,14 +236,14 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Driver Phone Number
+                    Driver Phone
                   </label>
                   <input
                     type="tel"
                     name="driver_phone"
                     value={formData.driver_phone}
                     onChange={handleChange}
-                    placeholder="(555) 555-5555"
+                    placeholder="(555) 123-4567"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -273,14 +253,14 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
             {/* Notes */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Notes
+                Additional Notes
               </label>
               <textarea
                 name="notes"
                 value={formData.notes}
                 onChange={handleChange}
                 rows={3}
-                placeholder="Additional information..."
+                placeholder="Any additional information..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -298,9 +278,9 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? 'Checking In...' : 'Check In'}
+                {submitting ? 'Submitting...' : 'Check In'}
               </button>
             </div>
           </form>
