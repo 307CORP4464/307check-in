@@ -313,10 +313,7 @@ const calculateDetention = (checkIn: CheckIn): string => {
     return '-';
   }
 
-  if (checkIn.appointment_time === 'work_in' || 
-      checkIn.appointment_time === 'paid_to_load' || 
-      checkIn.appointment_time === 'paid_charge_customer' ||
-      checkIn.appointment_time === 'ltl') {
+  if (checkIn.appointment_time === 'work_in' || ) {
     return '-';
   }
 
@@ -523,7 +520,7 @@ export default function DailyLog() {
   const getStatusBadgeColor = (status: string): string => {
     const statusLower = status.toLowerCase();
     if (statusLower === 'completed' || statusLower === 'checked_out') return 'bg-gray-500 text-white';
-    if (statusLower === 'unloaded') return 'bg-green-500 text-white';
+    if (statusLower === 'unloaded'  || statusLower === 'checked_out') return 'bg-green-500 text-white';
     if (statusLower === 'rejected') return 'bg-red-500 text-white';
     if (statusLower === 'turned_away') return 'bg-orange-500 text-white';
     if (statusLower === 'driver_left') return 'bg-indigo-500 text-white';
