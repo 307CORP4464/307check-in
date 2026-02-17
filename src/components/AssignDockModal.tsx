@@ -68,9 +68,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     { value: '1500', label: '03:00 PM' },
     { value: '1550', label: '03:30 PM' },
     { value: 'work_in', label: 'Work In' },
-    { value: 'paid_to_load', label: 'Paid to Load' },
-    { value: 'paid_charge_customer', label: 'Paid - Charge Customer' },
-    { value: 'LTL', label: 'LTL' }
   ];
 
   const formatAppointmentTime = (time: string) => {
