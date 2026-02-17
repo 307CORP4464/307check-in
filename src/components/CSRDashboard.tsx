@@ -152,11 +152,16 @@ const getAppointmentStatus = (
   appointmentDate: string | null | undefined
 ): { color: 'green' | 'orange' | 'red' | 'none', message: string | null } => {
   
+  // No appointment time or work-in = red
   if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
     return { color: 'red', message: null };
   }
 
-  if (!appointmentTime.match(/^\d{4}$/)) {
+  // Normalize: "08:00" → "0800", "0800" stays "0800"
+  const normalizedTime = appointmentTime.replace(/:/g, '').trim();
+
+  // Must be exactly 4 digits after normalization
+  if (!normalizedTime.match(/^\d{4}$/)) {
     return { color: 'none', message: null };
   }
 
@@ -166,25 +171,31 @@ const getAppointmentStatus = (
 
   try {
     const checkInComponents = getDateComponentsInIndianapolis(checkInTime);
-    
-    let appointmentDateObj: Date;
-    if (appointmentDate.includes('/')) {
-      const [month, day, year] = appointmentDate.split('/').map(Number);
-      appointmentDateObj = new Date(year, month - 1, day);
-    } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      const [year, month, day] = appointmentDate.split('-').map(Number);
-      appointmentDateObj = new Date(year, month - 1, day);
-    } else {
-      const tempDate = new Date(appointmentDate);
-      appointmentDateObj = new Date(tempDate.getFullYear(), tempDate.getMonth(), tempDate.getDate());
-    }
 
-    if (isNaN(appointmentDateObj.getTime())) {
+    // Fix: hour12:false can return 24 for midnight
+    let checkInHour = checkInComponents.hour;
+    if (checkInHour === 24) checkInHour = 0;
+
+    // Parse appointment date
+    let aptYear: number, aptMonth: number, aptDay: number;
+
+    if (appointmentDate.includes('/')) {
+      [aptMonth, aptDay, aptYear] = appointmentDate.split('/').map(Number);
+    } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}/)) {
+      // Handles "2026-02-17" and "2026-02-17T00:00:00"
+      const datePart = appointmentDate.substring(0, 10);
+      [aptYear, aptMonth, aptDay] = datePart.split('-').map(Number);
+    } else {
       return { color: 'none', message: null };
     }
 
-    const dayDiff = getDayDifference(checkInComponents, appointmentDateObj);
+    // Day comparison
+    const checkInDateObj = new Date(checkInComponents.year, checkInComponents.month - 1, checkInComponents.day);
+    const aptDateObj = new Date(aptYear, aptMonth - 1, aptDay);
+    const diffTime = checkInDateObj.getTime() - aptDateObj.getTime();
+    const dayDiff = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
+    // Different day - early
     if (dayDiff < 0) {
       const daysEarly = Math.abs(dayDiff);
       return { 
@@ -193,6 +204,7 @@ const getAppointmentStatus = (
       };
     }
 
+    // Different day - late
     if (dayDiff > 0) {
       return { 
         color: 'orange', 
@@ -200,17 +212,20 @@ const getAppointmentStatus = (
       };
     }
 
-    const appointmentHour = parseInt(appointmentTime.substring(0, 2));
-    const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
-    
+    // ─── SAME DAY ───────────────────────────────────────────
+    const appointmentHour = parseInt(normalizedTime.substring(0, 2));
+    const appointmentMinute = parseInt(normalizedTime.substring(2, 4));
+
     const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-    const checkInTotalMinutes = checkInComponents.hour * 60 + checkInComponents.minute;
+    const checkInTotalMinutes = checkInHour * 60 + checkInComponents.minute;
     const minuteDifference = checkInTotalMinutes - appointmentTotalMinutes;
 
+    // Early or within 15 min after appointment = GREEN
     if (minuteDifference <= 15) {
       return { color: 'green', message: null };
     }
 
+    // More than 15 min late = RED
     return { color: 'red', message: null };
 
   } catch (error) {
@@ -218,6 +233,7 @@ const getAppointmentStatus = (
     return { color: 'none', message: null };
   }
 };
+
 
 interface CheckIn {
   id: string;
