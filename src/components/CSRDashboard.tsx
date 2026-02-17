@@ -681,25 +681,43 @@ export default function CSRDashboard() {
         </div>
 
 
-        {selectedForDock && (
-        <AssignDockModal isOpen={!!selectedForDock} checkIn={selectedForDock} onClose={() => setSelectedForDock(null)} onSuccess={handleDockAssignSuccess} />
-      )}
-      {selectedForEdit && (
-        <EditCheckInModal checkIn={selectedForEdit} onClose={() => setSelectedForEdit(null)} onSuccess={handleEditSuccess} isOpen={!!selectedForEdit} />
+             {/* ─── Modals ─────────────────────────────────────────── */}
+
+      {selectedForDock && (
+        <AssignDockModal
+          isOpen={!!selectedForDock}
+          checkIn={selectedForDock}
+          onClose={() => setSelectedForDock(null)}
+          onSuccess={handleDockAssignSuccess}
+        />
       )}
 
-        {selectedForDeny && (
-          <DenyCheckInModal
-            checkIn={selectedForDeny}
-            onClose={() => setSelectedForDeny(null)}
-            onDeny={handleDenyComplete} />
-        )}
+      {selectedForEdit && (
+        <EditCheckInModal
+          isOpen={!!selectedForEdit}
+          checkIn={selectedForEdit}
+          onClose={() => setSelectedForEdit(null)}
+          onSuccess={handleEditSuccess}
+        />
+      )}
+
+      {selectedForDeny && (
+        <DenyCheckInModal
+          isOpen={!!selectedForDeny}
+          checkIn={selectedForDeny}
+          onClose={() => setSelectedForDeny(null)}
+          onSuccess={handleDenySuccess}
+        />
+      )}
+
+      {showManualCheckIn && (
         <ManualCheckInModal
           isOpen={showManualCheckIn}
           onClose={() => setShowManualCheckIn(false)}
           onSuccess={handleManualCheckInSuccess}
         />
-        )}
+      )}
+
       </div>
     </div>
   );
