@@ -75,10 +75,37 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   return appointmentTime;
 };
 
-
-   const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
-  // Handle special appointment types first
-  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') return 'Work In';
+const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
+  // Handle Work In cases - show date if available
+  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
+    if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
+      return 'Work In';
+    }
+    
+    try {
+      let date: Date;
+      if (appointmentDate.includes('/')) {
+        const [month, day, year] = appointmentDate.split('/').map(Number);
+        date = new Date(year, month - 1, day);
+      } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = appointmentDate.split('-').map(Number);
+        date = new Date(year, month - 1, day);
+      } else {
+        date = new Date(appointmentDate);
+      }
+      
+      if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const year = date.getFullYear();
+        return `Work In - ${month}/${day}/${year}`;
+      }
+    } catch (error) {
+      console.error('Error formatting work in date:', error);
+    }
+    
+    return 'Work In';
+  }
   
   // If no time at all, return N/A
   if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
@@ -144,40 +171,114 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   }
 };
 
+const getDateComponentsInIndianapolis = (isoString: string): { year: number, month: number, day: number, hour: number, minute: number } => {
+  const date = new Date(isoString);
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIMEZONE,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false
+  });
+  
+  const parts = formatter.formatToParts(date);
+  return {
+    year: parseInt(parts.find(p => p.type === 'year')?.value || '0'),
+    month: parseInt(parts.find(p => p.type === 'month')?.value || '0'),
+    day: parseInt(parts.find(p => p.type === 'day')?.value || '0'),
+    hour: parseInt(parts.find(p => p.type === 'hour')?.value || '0'),
+    minute: parseInt(parts.find(p => p.type === 'minute')?.value || '0')
+  };
+};
 
-const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
-  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'LTL') {
-    return false;
-  }
+const getAppointmentStatus = (
+  checkInTime: string, 
+  appointmentTime: string | null | undefined,
+  appointmentDate: string | null | undefined
+): { color: 'green' | 'orange' | 'red' | 'none', message: string | null } => {
   
+  // No appointment time or work-in = red
+  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
+    return { color: 'red', message: null };
+  }
+
+  // Normalize: "08:00" → "0800", "0800" stays "0800"
+  const normalizedTime = appointmentTime.replace(/:/g, '').trim();
+
+  // Must be exactly 4 digits after normalization
+  if (!normalizedTime.match(/^\d{4}$/)) {
+    return { color: 'none', message: null };
+  }
+
+  if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
+    return { color: 'none', message: null };
+  }
+
   try {
-    if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-      const appointmentHour = parseInt(appointmentTime.substring(0, 2));
-      const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
-      
-      const checkInDate = new Date(checkInTime);
-      const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: TIMEZONE,
-        hour: 'numeric',
-        minute: 'numeric',
-        hour12: false
-      });
-      
-      const timeString = formatter.format(checkInDate);
-      const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
-      
-      const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-      const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
-      
-      const difference = checkInTotalMinutes - appointmentTotalMinutes;
-      
-      return difference <= 15;
+    const checkInComponents = getDateComponentsInIndianapolis(checkInTime);
+
+    // Fix: hour12:false can return 24 for midnight
+    let checkInHour = checkInComponents.hour;
+    if (checkInHour === 24) checkInHour = 0;
+
+    // Parse appointment date
+    let aptYear: number, aptMonth: number, aptDay: number;
+
+    if (appointmentDate.includes('/')) {
+      [aptMonth, aptDay, aptYear] = appointmentDate.split('/').map(Number);
+    } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}/)) {
+      // Handles "2026-02-17" and "2026-02-17T00:00:00"
+      const datePart = appointmentDate.substring(0, 10);
+      [aptYear, aptMonth, aptDay] = datePart.split('-').map(Number);
+    } else {
+      return { color: 'none', message: null };
     }
+
+    // Day comparison
+    const checkInDateObj = new Date(checkInComponents.year, checkInComponents.month - 1, checkInComponents.day);
+    const aptDateObj = new Date(aptYear, aptMonth - 1, aptDay);
+    const diffTime = checkInDateObj.getTime() - aptDateObj.getTime();
+    const dayDiff = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+    // Different day - early
+    if (dayDiff < 0) {
+      const daysEarly = Math.abs(dayDiff);
+      return { 
+        color: 'orange', 
+        message: `${daysEarly} day${daysEarly > 1 ? 's' : ''} early` 
+      };
+    }
+
+    // Different day - late
+    if (dayDiff > 0) {
+      return { 
+        color: 'orange', 
+        message: `${dayDiff} day${dayDiff > 1 ? 's' : ''} late` 
+      };
+    }
+
+    // ─── SAME DAY ───────────────────────────────────────────
+    const appointmentHour = parseInt(normalizedTime.substring(0, 2));
+    const appointmentMinute = parseInt(normalizedTime.substring(2, 4));
+
+    const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
+    const checkInTotalMinutes = checkInHour * 60 + checkInComponents.minute;
+    const minuteDifference = checkInTotalMinutes - appointmentTotalMinutes;
+
+    // Early or within 15 min after appointment = GREEN
+    if (minuteDifference <= 15) {
+      return { color: 'green', message: null };
+    }
+
+    // More than 15 min late = RED
+    return { color: 'red', message: null };
+
   } catch (error) {
-    console.error('Error in isOnTime:', error);
+    console.error('Error in getAppointmentStatus:', error);
+    return { color: 'none', message: null };
   }
-  
-  return false;
 };
 
 interface CheckIn {
@@ -207,7 +308,8 @@ const calculateDetention = (checkIn: CheckIn): string => {
     return '-';
   }
 
-  if (!isOnTime(checkIn.check_in_time, checkIn.appointment_time)) {
+  const status = getAppointmentStatus(checkIn.check_in_time, checkIn.appointment_time, checkIn.appointment_date);
+  if (status.color !== 'green') {
     return '-';
   }
 
