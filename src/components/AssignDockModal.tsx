@@ -6,7 +6,6 @@ interface AssignDockModalProps {
   checkIn: {
     id: string;
     driver_name?: string;
-    company?: string;
     dock_number?: string;
     appointment_time?: string | null;
     carrier_name?: string;
@@ -69,10 +68,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     { value: '1430', label: '02:30 PM' },
     { value: '1500', label: '03:00 PM' },
     { value: '1550', label: '03:30 PM' },
-    { value: 'work_in', label: 'Work In' },
-    { value: 'paid_to_load', label: 'Paid to Load' },
-    { value: 'paid_charge_customer', label: 'Paid - Charge Customer' },
-    { value: 'LTL', label: 'LTL' }
+    { value: 'work_in', label: 'Work In' }
   ];
 
   const formatAppointmentTime = (time: string) => {
@@ -164,32 +160,32 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     }
   };
 
-  const sendEmailNotification = async (dock: string, email: string) => {
-    try {
-      // Calculate appointment status
-      let appointmentStatus = 'No Appointment';
-      if (checkIn.appointment_time && checkIn.check_in_time) {
-        const checkInDate = new Date(checkIn.check_in_time);
-        const appointmentTimeStr = checkIn.appointment_time;
+const sendEmailNotification = async (dock: string, email: string) => {
+  try {
+    // Calculate appointment status
+    let appointmentStatus = 'No Appointment';
+    if (checkIn.appointment_time && checkIn.check_in_time) {
+      const checkInDate = new Date(checkIn.check_in_time);
+      const appointmentTimeStr = checkIn.appointment_time;
+      
+      // Parse appointment time (format: "0800", "0930", etc.)
+      if (/^\d{4}$/.test(appointmentTimeStr)) {
+        const hours = parseInt(appointmentTimeStr.substring(0, 2));
+        const minutes = parseInt(appointmentTimeStr.substring(2, 4));
+        const appointmentDate = new Date(checkInDate);
+        appointmentDate.setHours(hours, minutes, 0, 0);
         
-        // Parse appointment time (format: "0800", "0930", etc.)
-        if (/^\d{4}$/.test(appointmentTimeStr)) {
-          const hours = parseInt(appointmentTimeStr.substring(0, 2));
-          const minutes = parseInt(appointmentTimeStr.substring(2, 4));
-          const appointmentDate = new Date(checkInDate);
-          appointmentDate.setHours(hours, minutes, 0, 0);
-          
-          const diffMinutes = (checkInDate.getTime() - appointmentDate.getTime()) / (1000 * 60);
-          
-          if (diffMinutes < -15) {
-            appointmentStatus = 'Early';
-          } else if (diffMinutes > 15) {
-            appointmentStatus = 'Late';
-          } else {
-            appointmentStatus = 'On Time';
-          }
+        const diffMinutes = (checkInDate.getTime() - appointmentDate.getTime()) / (1000 * 60);
+        
+        if (diffMinutes < -15) {
+          appointmentStatus = 'Early';
+        } else if (diffMinutes > 15) {
+          appointmentStatus = 'Late';
+        } else {
+          appointmentStatus = 'On Time';
         }
       }
+    }
 
       const response = await fetch('/api/send-email', {
         method: 'POST',
@@ -669,20 +665,479 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
           detail: { dockNumber, checkInId: checkIn.id }
         }));
       }
-
-      // Print receipt
-      printReceipt();
-      
-      // Success
+     printReceipt();
       onSuccess();
       onClose();
-    } catch (err: any) {
-      console.error('Assignment error:', err);
-      setError(err.message || 'Failed to assign dock. Please try again.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to assign dock');
     } finally {
       setLoading(false);
     }
   };
+
+const printReceipt = () => {
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('Please allow popups to print the receipt');
+    return;
+  }
+
+  if (!isOpen) return null;
+const currentDate = new Date().toLocaleString();
+  const today = new Date().toLocaleDateString();
+  const dockDisplay = dockNumber === 'Ramp' ? 'Ramp' : `Dock ${dockNumber}`;
+  
+  // Determine load type - adjust this based on your data structure
+  const isInbound = checkIn.load_type === 'inbound';
+
+  const receiptHTML = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Load Assignment Receipt</title>
+        <style>
+          @media print {
+            body { margin: 0; padding: 0; }
+            .no-print { display: none; }
+            .page-break { page-break-before: always; }
+            @page { 
+              margin: 0.5in;
+              size: letter;
+            }
+          }
+          
+          /* Page 1 Styles - Receipt */
+          body {
+            font-family: Arial, sans-serif;
+          }
+          .receipt-page {
+            padding: 20px;
+            max-width: 420px;
+            margin: 0 auto;
+          }
+          .receipt-header {
+            text-align: center;
+            border-bottom: 2px dashed #000;
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+          }
+          .receipt-header h1 {
+            margin: 0;
+            font-size: 20px;
+          }
+          .section {
+            margin: 8px 0;
+            padding: 6px 0;
+            border-bottom: 1px dashed #bbb;
+          }
+          .section:last-child { border-bottom: none; }
+          .row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin: 6px 0;
+          }
+          .label {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 12px;
+            color: #333;
+          }
+          .value {
+            text-align: right;
+          }
+          .reference-box {
+            background-color: #ffeb3b;
+            padding: 12px;
+            margin: 10px 0 6px;
+            border: 2px solid #000;
+            text-align: center;
+          }
+          .reference-box .reference-number {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 4px;
+          }
+          .reference-box .dock-number {
+            font-size: 16px;
+            font-weight: bold;
+          }
+          .print-button {
+            display: block;
+            margin: 20px auto;
+            padding: 12px 24px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+          }
+          .print-button:hover {
+            background-color: #45a049;
+          }
+
+          /* Page 2 Styles - Inspection Forms */
+          .inspection-page {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            font-size: 10pt;
+          }
+          .title {
+            text-align: center;
+            font-weight: bold;
+            font-size: 14pt;
+            margin-bottom: 10px;
+          }
+          .info-line {
+            margin: 8px 0;
+            font-weight: bold;
+            font-size: 11pt;
+          }
+          .section-title {
+            font-weight: bold;
+            font-size: 12pt;
+            margin: 15px 0 8px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid black;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 8px 0;
+          }
+          th, td {
+            border: 1px solid black;
+            padding: 4px 6px;
+            text-align: left;
+            font-size: 9pt;
+          }
+          th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+          }
+          .checkbox-cell {
+            text-align: center;
+            width: 40px;
+          }
+          .signature-line {
+            border-bottom: 1px solid black;
+            display: inline-block;
+            width: 250px;
+          }
+          .comment-line {
+            border-bottom: 1px solid black;
+            height: 20px;
+            margin: 3px 0;
+          }
+          .checkbox-group {
+            margin: 8px 0;
+            font-size: 9pt;
+          }
+          .warning-box {
+            font-weight: bold;
+            margin: 10px 0;
+            line-height: 1.4;
+            font-size: 9pt;
+          }
+          .footer {
+            margin-top: 12px;
+            font-size: 9pt;
+          }
+          .footer-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+          }
+          .spacer-row {
+            height: 20px;
+          }
+          .spacer-row-double {
+            height: 40px;
+          }
+        </style>
+      </head>
+      <body>
+        <!-- Page 1: Load Receipt -->
+        <div class="receipt-page">
+          <div class="receipt-header">
+            <h1>Load Assignment Receipt</h1>
+            <p style="margin: 5px 0; font-size: 12px;">${currentDate}</p>
+          </div>
+
+          <div class="reference-box">
+            <div class="reference-number">REF: ${checkIn.reference_number || 'N/A'}</div>
+            <div class="dock-number">ASSIGNED TO: ${dockDisplay}</div>
+          </div>
+
+          <div class="section">
+            <div class="row">
+              <span class="label">Driver:</span>
+              <span class="value">${checkIn.driver_name || 'N/A'}</span>
+            </div>
+            <div class="row">
+              <span class="label">Phone#:</span>
+              <span class="value">${checkIn.driver_phone || 'N/A'}</span>
+            </div>
+            <div class="row">
+              <span class="label">Carrier:</span>
+              <span class="value">${checkIn.carrier_name || 'N/A'}</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="row">
+              <span class="label">Trailer #:</span>
+              <span class="value">${checkIn.trailer_number || 'N/A'}</span>
+            </div>
+            <div class="row">
+              <span class="label">Trailer Length:</span>
+              <span class="value">${checkIn.trailer_length || 'N/A'}</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="row">
+              <span class="label">Destination:</span>
+              <span class="value">${checkIn.destination_city || ''} ${checkIn.destination_state || ''}</span>
+            </div>
+            <div class="row">
+              <span class="label">Appointment:</span>
+              <span class="value">${checkIn.appointment_time ? formatAppointmentTime(checkIn.appointment_time) : 'N/A'}</span>
+            </div>
+            <div class="row">
+              <span class="label">Check-in Time:</span>
+              <span class="value">${formatCheckInTime(checkIn.check_in_time)}</span>
+            </div>
+          </div>
+
+          <button class="print-button no-print" onclick="window.print()">Print Receipt</button>
+        </div>
+
+        <!-- Page 2: Inspection Form -->
+        <div class="page-break"></div>
+        
+        ${isInbound ? getInboundInspectionForm() : getOutboundInspectionForm()}
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 250);
+          };
+        </script>
+      </body>
+    </html>
+  `;
+
+  printWindow.document.write(receiptHTML);
+  printWindow.document.close();
+
+  // Helper function for Inbound Inspection
+  function getInboundInspectionForm() {
+    return `
+      <div class="inspection-page">
+        <div class="title">PRP02A: INBOUND INSPECTION</div>
+
+        <div class="info-line">
+          Date: <strong>${today}</strong>&nbsp;&nbsp;&nbsp;
+          Delivery#: <strong>${checkIn.reference_number || 'N/A'}</strong>&nbsp;&nbsp;&nbsp;
+          Trailer#: <strong>${checkIn.trailer_number || 'N/A'}</strong>
+        </div>
+
+        <!-- 1 ROW OF SPACE BEFORE TABLE -->
+        <div class="spacer-row"></div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>INSPECTION ITEM</th>
+              <th class="checkbox-cell">YES</th>
+              <th class="checkbox-cell">NO</th>
+              <th class="checkbox-cell">N/A</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>IS THE TRAILER PROPERLY SEALED?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>DOES THE SEAL# ON THE TRAILER MATCH THE SEAL# ON THE BOL AND BEEN INITIALED ON THE BOL?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>DOES THE MATERIAL & LOT #'S OF THE PRODUCT ON THE TRAILER MATCH WHAT IS INDICATED ON THE BOL?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>IS THE VISIBLE PRODUCT AND PALLET FREE OF FOREIGN OBJECTS, INSECTS, MOLD & DAMAGE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>WAS THE TRAILER FREE OF METAL/GLASS, RODENT/INSECT INFESTATION, DAMAGE AND ODOR?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>IS ALL OF THE VISIBLE PRINT ON THE BAGS LEGIBLE AND ARE ALL OF THE VISIBLE VALVES FREE OF LEAKAGE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+          </tbody>
+        </table>
+
+        <div class="warning-box">
+          IF ANY OF THE ABOVE QUESTIONS WERE ANSWERED "NO" PLEASE ENSURE CORRECTIVE ACTION IS TAKEN AND/OR NOTIFY A SUPERVISOR.<br>
+          IF ANY PRODUCT IS QUESTIONABLE TO RECEIVE INTO THE WAREHOUSE, CONTACT A SUPERVISOR FOR APPROVAL.
+        </div>
+
+        <div style="margin: 10px 0;">
+          <strong>I ACKNOWLEDGE THAT ALL ITEMS LISTED ABOVE HAVE BEEN EXECUTED.</strong><br>
+            <div class="spacer-row"></div>
+          <strong>OPERATOR SIGNATURE:</strong> <span class="signature-line"></span>
+        </div>
+
+        <div style="margin: 8px 0;">
+          <strong>COMMENTS:</strong>
+          <div class="comment-line"></div>
+          <div class="comment-line"></div>
+        </div>
+
+        <!-- 2 ROWS OF SPACE BEFORE REVISIONS TABLE -->
+        <div class="spacer-row-double"></div>
+         <div class="spacer-row-double"></div>
+          <div class="spacer-row-double"></div>
+
+        <table style="font-size: 7pt; margin-top: 10px;">
+          <thead>
+            <tr>
+              <th style="width: 10%;">Rev #</th>
+              <th style="width: 40%;">Summary of Changes</th>
+              <th style="width: 17%;">Requested By</th>
+              <th style="width: 18%;">Authorized By</th>
+              <th style="width: 15%;">Date Updated</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Original</td><td></td><td>Quality Manager</td><td>Operations Manager</td><td>10/28/2015</td></tr>
+            <tr><td>2</td><td>Changed question 9.</td><td>Quality Manager</td><td>Operations Manager</td><td>10/30/2017</td></tr>
+            <tr><td>3</td><td>Updated questions</td><td>Quality Manager</td><td>Operations Manager</td><td>09/19/2018</td></tr>
+            <tr><td>4</td><td>Updated question 4 to add pallet inspection.</td><td>Quality Manager</td><td>Operations Manager</td><td>01/14/2026</td></tr>
+          </tbody>
+        </table>
+
+        <div class="footer">
+          <div class="footer-row">
+            <span><strong>PRP02A</strong> Inbound Inspection</span>
+            <span><strong>Owned By:</strong> Quality Manager</span>
+            <span><strong>Authorized By:</strong> Operations Manager</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Helper function for Outbound Inspection
+  function getOutboundInspectionForm() {
+    return `
+      <div class="inspection-page">
+        <div class="title">PRP03A: OUTBOUND INSPECTION</div>
+
+        <div class="info-line">
+          Date: <strong>${today}</strong>&nbsp;&nbsp;&nbsp;
+          Load#: <strong>${checkIn.reference_number || 'N/A'}</strong>&nbsp;&nbsp;&nbsp;
+          Trailer#: <strong>${checkIn.trailer_number || 'N/A'}</strong>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>GENERAL TRAILER GMP</th>
+              <th class="checkbox-cell">YES</th>
+              <th class="checkbox-cell">NO</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>EVIDENCE OF ODOR?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>DEBRIS ON FLOOR OR IN CORNERS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>EVIDENCE OF INSECT OR RODENT ACTIVITY?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>PREVIOUS PRODUCT RESIDUE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>SPLINTERED SIDEWALLS, CEILING OR FLOOR THAT COULD DAMAGE BAGS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>BROKEN GLASS OR METAL SHAVINGS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>NAILS OR OTHER OBJECTS PROTRUDING FROM THE FLOORS OR SIDEWALLS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>HOLES ON CEILING, SIDEWALLS OR FLOORS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>EVIDENCE OF LEAKS, STANDING WATER, MOISTURE, MOLD, MILDEW, ETC?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+          </tbody>
+        </table>
+
+        <table>
+          <thead>
+            <tr>
+              <th>PRODUCT SECURITY & LOADER SAFETY</th>
+              <th class="checkbox-cell">YES</th>
+              <th class="checkbox-cell">NO</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>PROBLEMS WITH LATCHES ON DOORS WORKING PROPERLY?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>IS TRAILER UNSEALABLE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>LOAD STRAPS/BARS APPLIED IF REQUIRED?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+          </tbody>
+        </table>
+
+        <div style="margin: 8px 0;">
+          <strong>LOADER SIGNATURE:</strong> <span class="signature-line"></span>
+        </div>
+
+        <div style="margin: 8px 0;">
+          <strong>COMMENTS:</strong>
+          <div class="comment-line"></div>
+          <div class="comment-line"></div>
+        </div>
+
+        <div class="checkbox-group">
+          <div>Rejected by: <span class="signature-line"></span></div>
+          <div style="margin-top: 5px;">
+            ☐ OK TO LOAD AFTER SWEEPING 
+            ☐ Needs new trailer 
+            ☐ Driver can correct trailer
+          </div>
+        </div>
+
+        <!-- 1 ROW OF SPACE BEFORE PRE-SEALING CHECKLIST -->
+        <div class="spacer-row"></div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>PRE-SEALING CHECKLIST</th>
+              <th class="checkbox-cell">INITIAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>ALL THE INSTRUCTIONS ON THE BILL OF LADING BEEN FOLLOWED?</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>TRAILER HAS BEEN LATCH PROPERLY?</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>THE TRAILER BEEN SEALED?</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>CUSTOMER REQUIRED PHOTOS TAKEN AND SENT?</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>INITIALS OF PERSON THAT SEALED</td><td class="checkbox-cell">__________</td></tr>
+            
+          </tbody>
+        </table>
+
+        <!-- 2 ROWS OF SPACE AFTER PRE-SEALING CHECKLIST -->
+        <div class="spacer-row-double"></div>
+
+        <table style="font-size: 7pt; margin-top: 10px;">
+          <thead>
+            <tr>
+              <th style="width: 10%;">Rev #</th>
+              <th style="width: 40%;">Summary of Changes</th>
+              <th style="width: 17%;">Requested By</th>
+              <th style="width: 18%;">Authorized By</th>
+              <th style="width: 15%;">Date Updated</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Original</td><td>Outbound Inspection - Restructured</td><td>Quality Manager</td><td>Operations Manager</td><td>7/24/2025</td></tr>
+            <tr><td>2</td><td>Added loadbar question</td><td>Quality Manager</td><td>Operations Manager</td><td>7/31/2025</td></tr>
+          </tbody>
+        </table>
+
+        <div class="footer">
+          <div class="footer-row">
+            <span><strong>PRP03A</strong> Outbound Inspection</span>
+            <span><strong>Owned By:</strong> Quality Manager</span>
+            <span><strong>Authorized By:</strong> Operations Manager</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+};
+
+
 
   if (!isOpen) return null;
 
@@ -691,38 +1146,45 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Assign Dock</h2>
+            <h2 className="text-2xl font-bold">Assign Dock</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              className="text-gray-500 hover:text-gray-700 text-2xl"
               disabled={loading}
             >
               ×
             </button>
           </div>
 
-          {/* Check-in Information */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg space-y-2">
-            <div className="grid grid-cols-2 gap-4">
+          {/* Load Information */}
+          <div className="bg-gray-50 p-4 rounded-lg mb-6">
+            <h3 className="font-semibold mb-3">Load Information</h3>
+            <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
-                <p className="text-sm text-gray-600">Driver</p>
-                <p className="font-semibold">{checkIn.driver_name || 'N/A'}</p>
+                <span className="text-gray-600">Driver:</span>
+                <span className="ml-2 font-medium">{checkIn.driver_name || 'N/A'}</span>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Company</p>
-                <p className="font-semibold">{checkIn.company || checkIn.carrier_name || 'N/A'}</p>
+                <span className="text-gray-600">Reference:</span>
+                <span className="ml-2 font-medium">{checkIn.reference_number || 'N/A'}</span>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Reference #</p>
-                <p className="font-semibold">{checkIn.reference_number || 'N/A'}</p>
+                <span className="text-gray-600">Carrier:</span>
+                <span className="ml-2 font-medium">{checkIn.carrier_name || 'N/A'}</span>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Trailer #</p>
-                <p className="font-semibold">{checkIn.trailer_number || 'N/A'}</p>
+                <span className="text-gray-600">Trailer:</span>
+                <span className="ml-2 font-medium">{checkIn.trailer_number || 'N/A'}</span>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Load Type</p>
-                <p className="font-semibold capitalize">{checkIn.load_type || 'N/A'}</p>
+                <span className="text-gray-600">Appointment:</span>
+                <span className="ml-2 font-medium">
+                  {checkIn.appointment_time ? formatAppointmentTime(checkIn.appointment_time) : 'N/A'}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-600">Check-In:</span>
+                <span className="ml-2 font-medium">{formatCheckInTime(checkIn.check_in_time)}</span>
               </div>
             </div>
           </div>
@@ -735,13 +1197,13 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             <select
               value={dockNumber}
               onChange={(e) => setDockNumber(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={loading}
             >
-              <option value="">Select a dock...</option>
+              <option value="">-- Select Dock --</option>
               {dockOptions.map((dock) => (
                 <option key={dock} value={dock}>
-                  {dock}
+                  {dock === 'Ramp' ? 'Ramp' : `Dock ${dock}`}
                 </option>
               ))}
             </select>
@@ -749,67 +1211,52 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
 
           {/* Dock Status Warning */}
           {checkingDock && (
-            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-blue-800">Checking dock availability...</p>
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
+              Checking dock status...
             </div>
           )}
 
-          {showWarning && dockInfo && dockInfo.status === 'blocked' && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800 font-semibold mb-2">⚠️ Dock Blocked</p>
-              <p className="text-red-700">This dock is currently blocked and cannot be used.</p>
-            </div>
-          )}
-
-          {showWarning && dockInfo && dockInfo.status === 'in-use' && (
-            <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-yellow-800 font-semibold mb-2">⚠️ Dock Currently In Use</p>
-              <p className="text-yellow-700 mb-3">
-                This dock is already assigned to the following order(s):
-              </p>
-              <div className="space-y-2">
-                {dockInfo.orders.map((order, idx) => (
-                  <div key={idx} className="bg-white p-3 rounded border border-yellow-300">
-                    <p className="text-sm">
-                      <span className="font-semibold">Reference:</span> {order.reference_number || 'N/A'}
-                    </p>
-                    <p className="text-sm">
-                      <span className="font-semibold">Trailer:</span> {order.trailer_number || 'N/A'}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Confirmation Checkbox */}
-              <div className="mt-4 flex items-start">
-                <input
-                  type="checkbox"
-                  id="confirmDoubleBook"
-                  checked={confirmDoubleBook}
-                  onChange={(e) => setConfirmDoubleBook(e.target.checked)}
-                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  disabled={loading}
-                />
-                <label htmlFor="confirmDoubleBook" className="ml-2 text-sm text-gray-700">
-                  I understand this dock is already in use and want to proceed with double booking
-                </label>
+          {showWarning && dockInfo && (
+            <div className={`mb-4 p-4 rounded-lg border ${
+              dockInfo.status === 'blocked' 
+                ? 'bg-red-50 border-red-200 text-red-700' 
+                : 'bg-yellow-50 border-yellow-200 text-yellow-700'
+            }`}>
+              <div className="flex items-start">
+                <span className="text-xl mr-2">⚠️</span>
+                <div>
+                  <p className="font-semibold mb-1">
+                    {dockInfo.status === 'blocked' ? 'Dock Blocked' : 'Dock In Use'}
+                  </p>
+                  {dockInfo.status === 'in-use' && dockInfo.orders.length > 0 && (
+                    <div className="text-sm">
+                      <p className="mb-1">Currently assigned to:</p>
+                      <ul className="list-disc list-inside">
+                        {dockInfo.orders.map((order, idx) => (
+                          <li key={idx}>
+                            {order.reference_number || 'Unknown'} - {order.trailer_number || 'N/A'}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
 
           {/* Email Section */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center mb-3">
-              <input
-                type="checkbox"
-                id="sendEmail"
-                checked={sendEmail}
-                onChange={(e) => setSendEmail(e.target.checked)}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                disabled={loading}
-              />
-              <label htmlFor="sendEmail" className="ml-2 text-sm font-medium text-gray-700">
-                Send dock assignment email to driver
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between mb-3">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={sendEmail}
+                  onChange={(e) => setSendEmail(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 mr-2"
+                  disabled={loading}
+                />
+                <span className="font-medium text-gray-700">Send Email Notification</span>
               </label>
             </div>
 
@@ -823,41 +1270,54 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
                   value={driverEmail}
                   onChange={(e) => setDriverEmail(e.target.value)}
                   placeholder="driver@example.com"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   disabled={loading}
                 />
+                <p className="text-xs text-gray-600 mt-1">
+                  Driver will receive dock assignment via email
+                </p>
               </div>
             )}
 
             {emailStatus && (
-              <p className={`mt-2 text-sm ${emailStatus.includes('success') ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`mt-3 p-2 rounded ${
+                emailStatus.includes('successfully') 
+                  ? 'bg-green-100 text-green-700' 
+                  : 'bg-red-100 text-red-700'
+              }`}>
                 {emailStatus}
-              </p>
+              </div>
             )}
           </div>
 
-          {/* Error Message */}
           {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800">{error}</p>
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {error}
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-end gap-3">
             <button
               onClick={onClose}
+              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
               disabled={loading}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               onClick={handleAssign}
-              disabled={loading || !dockNumber || (dockInfo?.status === 'blocked')}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading || !dockNumber}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              {loading ? 'Assigning...' : 'Assign Dock'}
+              {loading ? (
+                <>
+                  <span className="animate-spin">⏳</span>
+                  Assigning...
+                </>
+              ) : (
+                'Assign & Print'
+              )}
             </button>
           </div>
         </div>
@@ -865,4 +1325,3 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     </div>
   );
 }
-
