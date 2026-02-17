@@ -691,25 +691,21 @@ export default function CSRDashboard() {
           onSuccess={handleDockAssignSuccess}
         />
       )}
-
       {selectedForEdit && (
         <EditCheckInModal
-          isOpen={!!selectedForEdit}
           checkIn={selectedForEdit}
           onClose={() => setSelectedForEdit(null)}
           onSuccess={handleEditSuccess}
+          isOpen={!!selectedForEdit} 
         />
       )}
-
       {selectedForDeny && (
         <DenyCheckInModal
-          isOpen={!!selectedForDeny}
           checkIn={selectedForDeny}
           onClose={() => setSelectedForDeny(null)}
           onSuccess={handleDenySuccess}
         />
       )}
-
       {showManualCheckIn && (
         <ManualCheckInModal
           isOpen={showManualCheckIn}
