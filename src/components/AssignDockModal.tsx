@@ -70,6 +70,9 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     { value: '1500', label: '03:00 PM' },
     { value: '1550', label: '03:30 PM' },
     { value: 'work_in', label: 'Work In' },
+    { value: 'paid_to_load', label: 'Paid to Load' },
+    { value: 'paid_charge_customer', label: 'Paid - Charge Customer' },
+    { value: 'LTL', label: 'LTL' }
   ];
 
   const formatAppointmentTime = (time: string) => {
@@ -102,7 +105,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
   useEffect(() => {
     if (dockNumber && dockNumber !== 'Ramp') {
       checkDockStatus(dockNumber);
-      setConfirmDoubleBook(false); // Reset confirmation when dock changes
+      setConfirmDoubleBook(false);
     } else {
       setDockInfo(null);
       setShowWarning(false);
@@ -227,6 +230,372 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     }
   };
 
+  const printReceipt = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Please allow popups to print the receipt');
+      return;
+    }
+
+    const currentDate = new Date().toLocaleString();
+    const today = new Date().toLocaleDateString();
+    const dockDisplay = dockNumber === 'Ramp' ? 'Ramp' : `Dock ${dockNumber}`;
+    
+    // Determine load type
+    const isInbound = checkIn.load_type === 'inbound';
+
+    const receiptHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Load Assignment Receipt</title>
+          <style>
+            @media print {
+              body { margin: 0; padding: 0; }
+              .no-print { display: none; }
+              .page-break { page-break-before: always; }
+              @page { 
+                margin: 0.5in;
+                size: letter;
+              }
+            }
+            
+            /* Page 1 Styles - Receipt */
+            body {
+              font-family: Arial, sans-serif;
+            }
+            .receipt-page {
+              padding: 20px;
+              max-width: 420px;
+              margin: 0 auto;
+            }
+            .receipt-header {
+              text-align: center;
+              border-bottom: 2px dashed #000;
+              padding-bottom: 12px;
+              margin-bottom: 15px;
+            }
+            .receipt-header h1 {
+              margin: 0 0 5px 0;
+              font-size: 24px;
+              font-weight: bold;
+            }
+            .receipt-header p {
+              margin: 2px 0;
+              font-size: 11px;
+            }
+            .dock-assignment {
+              background: #000;
+              color: #fff;
+              padding: 15px;
+              text-align: center;
+              margin: 15px 0;
+              border-radius: 8px;
+            }
+            .dock-assignment h2 {
+              margin: 0;
+              font-size: 28px;
+              font-weight: bold;
+            }
+            .info-section {
+              margin: 12px 0;
+              padding: 8px 0;
+              border-bottom: 1px solid #ddd;
+            }
+            .info-row {
+              display: flex;
+              justify-content: space-between;
+              margin: 6px 0;
+              font-size: 13px;
+            }
+            .info-label {
+              font-weight: bold;
+              color: #333;
+            }
+            .info-value {
+              text-align: right;
+              color: #000;
+            }
+            .receipt-footer {
+              margin-top: 20px;
+              padding-top: 12px;
+              border-top: 2px dashed #000;
+              text-align: center;
+              font-size: 11px;
+            }
+            .important-note {
+              background: #fff3cd;
+              border: 2px solid #ffc107;
+              padding: 10px;
+              margin: 15px 0;
+              border-radius: 5px;
+              font-size: 12px;
+            }
+            
+            /* Page 2 Styles - Instructions */
+            .instructions-page {
+              padding: 40px;
+              max-width: 800px;
+              margin: 0 auto;
+            }
+            .instructions-header {
+              text-align: center;
+              margin-bottom: 30px;
+              padding-bottom: 20px;
+              border-bottom: 3px solid #000;
+            }
+            .instructions-header h1 {
+              margin: 0 0 10px 0;
+              font-size: 32px;
+            }
+            .load-type-badge {
+              display: inline-block;
+              background: ${isInbound ? '#28a745' : '#007bff'};
+              color: white;
+              padding: 8px 20px;
+              border-radius: 5px;
+              font-size: 18px;
+              font-weight: bold;
+            }
+            .instruction-section {
+              margin: 25px 0;
+            }
+            .instruction-section h2 {
+              background: #f8f9fa;
+              padding: 10px 15px;
+              border-left: 4px solid ${isInbound ? '#28a745' : '#007bff'};
+              margin: 15px 0 10px 0;
+              font-size: 20px;
+            }
+            .instruction-list {
+              list-style: none;
+              padding: 0;
+              margin: 10px 0;
+            }
+            .instruction-list li {
+              padding: 12px 15px;
+              margin: 8px 0;
+              background: #f8f9fa;
+              border-left: 3px solid ${isInbound ? '#28a745' : '#007bff'};
+              font-size: 14px;
+              line-height: 1.6;
+            }
+            .instruction-list li strong {
+              color: ${isInbound ? '#28a745' : '#007bff'};
+            }
+            .warning-box {
+              background: #fff3cd;
+              border: 2px solid #ffc107;
+              padding: 15px;
+              margin: 20px 0;
+              border-radius: 5px;
+            }
+            .warning-box h3 {
+              margin: 0 0 10px 0;
+              color: #856404;
+              font-size: 18px;
+            }
+            .warning-box ul {
+              margin: 5px 0 0 20px;
+              padding: 0;
+            }
+            .warning-box li {
+              margin: 5px 0;
+              font-size: 14px;
+              color: #856404;
+            }
+            .contact-info {
+              margin-top: 30px;
+              padding: 20px;
+              background: #e9ecef;
+              border-radius: 5px;
+              text-align: center;
+            }
+            .contact-info h3 {
+              margin: 0 0 10px 0;
+              font-size: 18px;
+            }
+            .contact-info p {
+              margin: 5px 0;
+              font-size: 14px;
+            }
+          </style>
+        </head>
+        <body>
+          <!-- PAGE 1: RECEIPT -->
+          <div class="receipt-page">
+            <div class="receipt-header">
+              <h1>WAREHOUSE CHECK-IN</h1>
+              <p>Load Assignment Receipt</p>
+              <p>${currentDate}</p>
+            </div>
+
+            <div class="dock-assignment">
+              <h2>ASSIGNED TO: ${dockDisplay.toUpperCase()}</h2>
+            </div>
+
+            <div class="info-section">
+              <div class="info-row">
+                <span class="info-label">Driver Name:</span>
+                <span class="info-value">${checkIn.driver_name || 'N/A'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Company:</span>
+                <span class="info-value">${checkIn.company || checkIn.carrier_name || 'N/A'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Reference #:</span>
+                <span class="info-value">${checkIn.reference_number || 'N/A'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Trailer #:</span>
+                <span class="info-value">${checkIn.trailer_number || 'N/A'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Load Type:</span>
+                <span class="info-value">${isInbound ? 'INBOUND' : 'OUTBOUND'}</span>
+              </div>
+              ${checkIn.appointment_time ? `
+              <div class="info-row">
+                <span class="info-label">Appointment:</span>
+                <span class="info-value">${formatAppointmentTime(checkIn.appointment_time)}</span>
+              </div>
+              ` : ''}
+              <div class="info-row">
+                <span class="info-label">Check-in Time:</span>
+                <span class="info-value">${formatCheckInTime(checkIn.check_in_time) || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+            </div>
+
+            <div class="important-note">
+              <strong>⚠️ IMPORTANT:</strong> Please proceed to your assigned ${dockDisplay} and follow all warehouse safety procedures. Keep this receipt visible in your vehicle.
+            </div>
+
+            <div class="receipt-footer">
+              <p><strong>Thank you for your cooperation</strong></p>
+              <p>Please see next page for ${isInbound ? 'unloading' : 'loading'} instructions</p>
+            </div>
+          </div>
+
+          <!-- PAGE 2: INSTRUCTIONS -->
+          <div class="page-break"></div>
+          <div class="instructions-page">
+            <div class="instructions-header">
+              <h1>${isInbound ? 'INBOUND UNLOADING' : 'OUTBOUND LOADING'} INSTRUCTIONS</h1>
+              <div class="load-type-badge">${isInbound ? 'RECEIVING' : 'SHIPPING'}</div>
+            </div>
+
+            ${isInbound ? `
+              <!-- INBOUND INSTRUCTIONS -->
+              <div class="instruction-section">
+                <h2>Before Unloading</h2>
+                <ul class="instruction-list">
+                  <li><strong>1. Verify Assignment:</strong> Ensure you are at the correct dock (${dockDisplay})</li>
+                  <li><strong>2. Safety Check:</strong> Set parking brake and turn off engine before opening trailer doors</li>
+                  <li><strong>3. Wait for Warehouse:</strong> DO NOT open trailer doors until warehouse personnel arrive</li>
+                  <li><strong>4. BOL Ready:</strong> Have your Bill of Lading and all paperwork ready for inspection</li>
+                </ul>
+              </div>
+
+              <div class="instruction-section">
+                <h2>During Unloading</h2>
+                <ul class="instruction-list">
+                  <li><strong>Stay in Cab:</strong> Remain in your vehicle unless instructed otherwise by warehouse personnel</li>
+                  <li><strong>Inspect with Team:</strong> Participate in damage inspection before unloading begins</li>
+                  <li><strong>Document Issues:</strong> Report any damaged or discrepant items immediately</li>
+                  <li><strong>No Smoking:</strong> Smoking is prohibited in all warehouse areas and near docks</li>
+                </ul>
+              </div>
+
+              <div class="instruction-section">
+                <h2>After Unloading</h2>
+                <ul class="instruction-list">
+                  <li><strong>Final Inspection:</strong> Walk through trailer with warehouse personnel to verify complete unload</li>
+                  <li><strong>Sign Documents:</strong> Obtain signed BOL and any required delivery receipts</li>
+                  <li><strong>Check Out:</strong> Return to guard shack to complete check-out process</li>
+                  <li><strong>Secure Load:</strong> Close and secure all trailer doors before departing</li>
+                </ul>
+              </div>
+
+              <div class="warning-box">
+                <h3>⚠️ Safety Requirements</h3>
+                <ul>
+                  <li>Hard hats and safety vests REQUIRED in all warehouse areas</li>
+                  <li>Maintain 10 MPH speed limit on warehouse property</li>
+                  <li>Report all incidents or accidents immediately</li>
+                  <li>Follow all directional signs and traffic patterns</li>
+                </ul>
+              </div>
+            ` : `
+              <!-- OUTBOUND INSTRUCTIONS -->
+              <div class="instruction-section">
+                <h2>Before Loading</h2>
+                <ul class="instruction-list">
+                  <li><strong>1. Verify Assignment:</strong> Ensure you are at the correct dock (${dockDisplay})</li>
+                  <li><strong>2. Trailer Inspection:</strong> Trailer must be clean, dry, and in good condition</li>
+                  <li><strong>3. Provide Documentation:</strong> Present BOL and all shipping documents to warehouse personnel</li>
+                  <li><strong>4. Safety Check:</strong> Set parking brake and turn off engine</li>
+                </ul>
+              </div>
+
+              <div class="instruction-section">
+                <h2>During Loading</h2>
+                <ul class="instruction-list">
+                  <li><strong>Stay in Cab:</strong> Remain in your vehicle unless instructed otherwise by warehouse personnel</li>
+                  <li><strong>No Entry:</strong> Do NOT enter the warehouse or loading area</li>
+                  <li><strong>Monitor Progress:</strong> Be available if warehouse staff needs to communicate with you</li>
+                  <li><strong>No Smoking:</strong> Smoking is prohibited in all warehouse areas and near docks</li>
+                </ul>
+              </div>
+
+              <div class="instruction-section">
+                <h2>After Loading</h2>
+                <ul class="instruction-list">
+                  <li><strong>Inspect Load:</strong> Verify load count and condition with warehouse personnel</li>
+                  <li><strong>Secure Cargo:</strong> Ensure all freight is properly secured and trailer doors are properly sealed</li>
+                  <li><strong>Get Signatures:</strong> Obtain signed BOL and all required shipping documents</li>
+                  <li><strong>Verify Seal:</strong> Record seal number on all documents before departing</li>
+                  <li><strong>Check Out:</strong> Return to guard shack to complete check-out process</li>
+                </ul>
+              </div>
+
+              <div class="warning-box">
+                <h3>⚠️ Safety Requirements</h3>
+                <ul>
+                  <li>Hard hats and safety vests REQUIRED in all warehouse areas</li>
+                  <li>Maintain 10 MPH speed limit on warehouse property</li>
+                  <li>Report all incidents or accidents immediately</li>
+                  <li>Do not break seal or open trailer doors once sealed</li>
+                  <li>Follow all directional signs and traffic patterns</li>
+                </ul>
+              </div>
+            `}
+
+            <div class="contact-info">
+              <h3>Need Assistance?</h3>
+              <p><strong>Warehouse Office:</strong> Contact guard shack or warehouse supervisor</p>
+              <p><strong>Emergency:</strong> Dial 911 or contact security immediately</p>
+              <p><strong>Date:</strong> ${today}</p>
+            </div>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              // Close window after print dialog is dismissed
+              setTimeout(function() {
+                window.close();
+              }, 100);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(receiptHTML);
+    printWindow.document.close();
+  };
+
   const handleAssign = async () => {
     if (!dockNumber) {
       setError('Please select a dock number');
@@ -294,7 +663,17 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
         await sendEmailNotification(dockNumber, driverEmail);
       }
 
-      // Success - call onSuccess callback
+      // Trigger custom event for dock status update
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('dock-assignment-changed', {
+          detail: { dockNumber, checkInId: checkIn.id }
+        }));
+      }
+
+      // Print receipt
+      printReceipt();
+      
+      // Success
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -340,6 +719,10 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
               <div>
                 <p className="text-sm text-gray-600">Trailer #</p>
                 <p className="font-semibold">{checkIn.trailer_number || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Load Type</p>
+                <p className="font-semibold capitalize">{checkIn.load_type || 'N/A'}</p>
               </div>
             </div>
           </div>
