@@ -313,7 +313,7 @@ const calculateDetention = (checkIn: CheckIn): string => {
     return '-';
   }
 
-  if (checkIn.appointment_time === 'work_in' || ) {
+  if (checkIn.appointment_time === 'work_in') {
     return '-';
   }
 
