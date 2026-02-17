@@ -12,7 +12,7 @@ interface AssignDockModalProps {
     carrier_name?: string;
     reference_number?: string;
     driver_phone?: string;
-    driver_email?: string;  // Changed from driver_phone
+    driver_email?: string;
     trailer_number?: string;
     trailer_length?: string;
     destination_city?: string;
@@ -131,7 +131,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
         .from('check_ins')
         .select('reference_number, trailer_number')
         .eq('dock_number', dock)
-        .in('status', ['checked_in', 'pending'])
+        .in('status', ['checked_in', 'pending', 'at_dock', 'loading', 'unloading'])
         .neq('id', checkIn.id);
 
       if (error) throw error;
@@ -160,72 +160,71 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     }
   };
 
-const sendEmailNotification = async (dock: string, email: string) => {
-  try {
-    // Calculate appointment status
-    let appointmentStatus = 'No Appointment';
-    if (checkIn.appointment_time && checkIn.check_in_time) {
-      const checkInDate = new Date(checkIn.check_in_time);
-      const appointmentTimeStr = checkIn.appointment_time;
-      
-      // Parse appointment time (format: "0800", "0930", etc.)
-      if (/^\d{4}$/.test(appointmentTimeStr)) {
-        const hours = parseInt(appointmentTimeStr.substring(0, 2));
-        const minutes = parseInt(appointmentTimeStr.substring(2, 4));
-        const appointmentDate = new Date(checkInDate);
-        appointmentDate.setHours(hours, minutes, 0, 0);
+  const sendEmailNotification = async (dock: string, email: string) => {
+    try {
+      // Calculate appointment status
+      let appointmentStatus = 'No Appointment';
+      if (checkIn.appointment_time && checkIn.check_in_time) {
+        const checkInDate = new Date(checkIn.check_in_time);
+        const appointmentTimeStr = checkIn.appointment_time;
         
-        const diffMinutes = (checkInDate.getTime() - appointmentDate.getTime()) / (1000 * 60);
-        
-        if (diffMinutes < -15) {
-          appointmentStatus = 'Early';
-        } else if (diffMinutes > 15) {
-          appointmentStatus = 'Late';
-        } else {
-          appointmentStatus = 'On Time';
+        // Parse appointment time (format: "0800", "0930", etc.)
+        if (/^\d{4}$/.test(appointmentTimeStr)) {
+          const hours = parseInt(appointmentTimeStr.substring(0, 2));
+          const minutes = parseInt(appointmentTimeStr.substring(2, 4));
+          const appointmentDate = new Date(checkInDate);
+          appointmentDate.setHours(hours, minutes, 0, 0);
+          
+          const diffMinutes = (checkInDate.getTime() - appointmentDate.getTime()) / (1000 * 60);
+          
+          if (diffMinutes < -15) {
+            appointmentStatus = 'Early';
+          } else if (diffMinutes > 15) {
+            appointmentStatus = 'Late';
+          } else {
+            appointmentStatus = 'On Time';
+          }
         }
       }
-    }
 
-    const response = await fetch('/api/send-email', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        type: 'dock_assignment',
-        toEmail: email,
-        data: {
-          driverName: checkIn.driver_name || 'Driver',
-          dockNumber: dock,
-          referenceNumber: checkIn.reference_number || 'N/A',
-          loadType: checkIn.load_type || 'inbound',
-          checkInTime: formatCheckInTime(checkIn.check_in_time) || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          appointmentTime: checkIn.appointment_time 
-            ? formatAppointmentTime(checkIn.appointment_time) 
-            : undefined,
-          appointmentStatus: appointmentStatus,
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      }),
-    });
+        body: JSON.stringify({
+          type: 'dock_assignment',
+          toEmail: email,
+          data: {
+            driverName: checkIn.driver_name || 'Driver',
+            dockNumber: dock,
+            referenceNumber: checkIn.reference_number || 'N/A',
+            loadType: checkIn.load_type || 'inbound',
+            checkInTime: formatCheckInTime(checkIn.check_in_time) || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            appointmentTime: checkIn.appointment_time 
+              ? formatAppointmentTime(checkIn.appointment_time) 
+              : undefined,
+            appointmentStatus: appointmentStatus,
+          },
+        }),
+      });
 
-    const result = await response.json();
-    
-    if (result.success) {
-      setEmailStatus('Email sent successfully ✓');
-      return true;
-    } else {
-      setEmailStatus(`Email failed: ${result.error}`);
-      console.error('Email send error:', result);
+      const result = await response.json();
+      
+      if (result.success) {
+        setEmailStatus('Email sent successfully ✓');
+        return true;
+      } else {
+        setEmailStatus(`Email failed: ${result.error}`);
+        console.error('Email send error:', result);
+        return false;
+      }
+    } catch (err) {
+      console.error('Error sending email:', err);
+      setEmailStatus('Email sending failed');
       return false;
     }
-  } catch (err) {
-    console.error('Error sending email:', err);
-    setEmailStatus('Email sending failed');
-    return false;
-  }
-};
-
+  };
 
   const handleAssign = async () => {
     if (!dockNumber) {
@@ -238,18 +237,63 @@ const sendEmailNotification = async (dock: string, email: string) => {
     setEmailStatus(null);
 
     try {
+      // First, verify the check-in still exists and is in a valid state
+      const { data: currentCheckIn, error: fetchError } = await supabase
+        .from('check_ins')
+        .select('id, status, dock_number')
+        .eq('id', checkIn.id)
+        .single();
+
+      if (fetchError) {
+        console.error('Fetch error:', fetchError);
+        throw new Error(`Unable to verify check-in: ${fetchError.message}`);
+      }
+
+      if (!currentCheckIn) {
+        throw new Error('Check-in record not found. It may have been deleted.');
+      }
+
+      // Verify dock is still available (unless it's the Ramp or already assigned to this check-in)
+      if (dockNumber !== 'Ramp' && currentCheckIn.dock_number !== dockNumber) {
+        const { data: dockCheckIns, error: dockCheckError } = await supabase
+          .from('check_ins')
+          .select('id')
+          .eq('dock_number', dockNumber)
+          .in('status', ['checked_in', 'pending', 'at_dock', 'loading', 'unloading'])
+          .neq('id', checkIn.id);
+
+        if (dockCheckError) {
+          console.error('Dock check error:', dockCheckError);
+          throw new Error(`Unable to verify dock availability: ${dockCheckError.message}`);
+        }
+
+        if (dockCheckIns && dockCheckIns.length > 0) {
+          throw new Error(`Dock ${dockNumber} is currently occupied. Please select another dock.`);
+        }
+      }
+
       // Update database with dock assignment
-      const { error: updateError } = await supabase
+      const { data: updatedData, error: updateError } = await supabase
         .from('check_ins')
         .update({
           dock_number: dockNumber,
           status: 'checked_in',
-          driver_email: driverEmail,
-          appointment_time: checkIn.appointment_time,
+          driver_email: driverEmail || null,
+          appointment_time: checkIn.appointment_time || null,
+          updated_at: new Date().toISOString()
         })
-        .eq('id', checkIn.id);
+        .eq('id', checkIn.id)
+        .select()
+        .single();
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw new Error(`Failed to assign dock: ${updateError.message}`);
+      }
+
+      if (!updatedData) {
+        throw new Error('Dock assignment failed. Please try again.');
+      }
 
       // Send email if enabled and email provided
       if (sendEmail && driverEmail) {
@@ -266,656 +310,297 @@ const sendEmailNotification = async (dock: string, email: string) => {
       printReceipt();
       onSuccess();
       onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to assign dock');
+    } catch (err: any) {
+      console.error('Assign dock error:', err);
+      setError(err.message || 'Failed to assign dock. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-const printReceipt = () => {
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) {
-    alert('Please allow popups to print the receipt');
-    return;
-  }
+  const printReceipt = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Please allow popups to print the receipt');
+      return;
+    }
 
-  const currentDate = new Date().toLocaleString();
-  const today = new Date().toLocaleDateString();
-  const dockDisplay = dockNumber === 'Ramp' ? 'Ramp' : `Dock ${dockNumber}`;
-  
-  // Determine load type - adjust this based on your data structure
-  const isInbound = checkIn.load_type === 'inbound';
+    const currentDate = new Date().toLocaleString();
+    const today = new Date().toLocaleDateString();
+    const dockDisplay = dockNumber === 'Ramp' ? 'Ramp' : `Dock ${dockNumber}`;
+    
+    const isInbound = checkIn.load_type === 'inbound';
 
-  const receiptHTML = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Load Assignment Receipt</title>
-        <style>
-          @media print {
-            body { margin: 0; padding: 0; }
-            .no-print { display: none; }
-            .page-break { page-break-before: always; }
-            @page { 
-              margin: 0.5in;
-              size: letter;
+    const receiptHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Load Assignment Receipt</title>
+          <style>
+            @media print {
+              body { margin: 0; padding: 0; }
+              .no-print { display: none; }
+              .page-break { page-break-before: always; }
+              @page { 
+                margin: 0.5in;
+                size: letter;
+              }
             }
-          }
-          
-          /* Page 1 Styles - Receipt */
-          body {
-            font-family: Arial, sans-serif;
-          }
-          .receipt-page {
-            padding: 20px;
-            max-width: 420px;
-            margin: 0 auto;
-          }
-          .receipt-header {
-            text-align: center;
-            border-bottom: 2px dashed #000;
-            padding-bottom: 12px;
-            margin-bottom: 12px;
-          }
-          .receipt-header h1 {
-            margin: 0;
-            font-size: 20px;
-          }
-          .section {
-            margin: 8px 0;
-            padding: 6px 0;
-            border-bottom: 1px dashed #bbb;
-          }
-          .section:last-child { border-bottom: none; }
-          .row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 14px;
-            margin: 6px 0;
-          }
-          .label {
-            font-weight: bold;
-            text-transform: uppercase;
-            font-size: 12px;
-            color: #333;
-          }
-          .value {
-            text-align: right;
-          }
-          .reference-box {
-            background-color: #ffeb3b;
-            padding: 12px;
-            margin: 10px 0 6px;
-            border: 2px solid #000;
-            text-align: center;
-          }
-          .reference-box .reference-number {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 4px;
-          }
-          .reference-box .dock-number {
-            font-size: 16px;
-            font-weight: bold;
-          }
-          .print-button {
-            display: block;
-            margin: 20px auto;
-            padding: 12px 24px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-size: 16px;
-            cursor: pointer;
-          }
-          .print-button:hover {
-            background-color: #45a049;
-          }
-
-          /* Page 2 Styles - Inspection Forms */
-          .inspection-page {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            font-size: 10pt;
-          }
-          .title {
-            text-align: center;
-            font-weight: bold;
-            font-size: 14pt;
-            margin-bottom: 10px;
-          }
-          .info-line {
-            margin: 8px 0;
-            font-weight: bold;
-            font-size: 11pt;
-          }
-          .section-title {
-            font-weight: bold;
-            font-size: 12pt;
-            margin: 15px 0 8px 0;
-            padding: 5px 0;
-            border-bottom: 1px solid black;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 8px 0;
-          }
-          th, td {
-            border: 1px solid black;
-            padding: 4px 6px;
-            text-align: left;
-            font-size: 9pt;
-          }
-          th {
-            background-color: #f0f0f0;
-            font-weight: bold;
-          }
-          .checkbox-cell {
-            text-align: center;
-            width: 40px;
-          }
-          .signature-line {
-            border-bottom: 1px solid black;
-            display: inline-block;
-            width: 250px;
-          }
-          .comment-line {
-            border-bottom: 1px solid black;
-            height: 20px;
-            margin: 3px 0;
-          }
-          .checkbox-group {
-            margin: 8px 0;
-            font-size: 9pt;
-          }
-          .warning-box {
-            font-weight: bold;
-            margin: 10px 0;
-            line-height: 1.4;
-            font-size: 9pt;
-          }
-          .footer {
-            margin-top: 12px;
-            font-size: 9pt;
-          }
-          .footer-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 3px;
-          }
-          .spacer-row {
-            height: 20px;
-          }
-          .spacer-row-double {
-            height: 40px;
-          }
-        </style>
-      </head>
-      <body>
-        <!-- Page 1: Load Receipt -->
-        <div class="receipt-page">
-          <div class="receipt-header">
-            <h1>Load Assignment Receipt</h1>
-            <p style="margin: 5px 0; font-size: 12px;">${currentDate}</p>
-          </div>
-
-          <div class="reference-box">
-            <div class="reference-number">REF: ${checkIn.reference_number || 'N/A'}</div>
-            <div class="dock-number">ASSIGNED TO: ${dockDisplay}</div>
-          </div>
-
-          <div class="section">
-            <div class="row">
-              <span class="label">Driver:</span>
-              <span class="value">${checkIn.driver_name || 'N/A'}</span>
-            </div>
-            <div class="row">
-              <span class="label">Phone#:</span>
-              <span class="value">${checkIn.driver_phone || 'N/A'}</span>
-            </div>
-            <div class="row">
-              <span class="label">Carrier:</span>
-              <span class="value">${checkIn.carrier_name || 'N/A'}</span>
-            </div>
-          </div>
-
-          <div class="section">
-            <div class="row">
-              <span class="label">Trailer #:</span>
-              <span class="value">${checkIn.trailer_number || 'N/A'}</span>
-            </div>
-            <div class="row">
-              <span class="label">Trailer Length:</span>
-              <span class="value">${checkIn.trailer_length || 'N/A'}</span>
-            </div>
-          </div>
-
-          <div class="section">
-            <div class="row">
-              <span class="label">Destination:</span>
-              <span class="value">${checkIn.destination_city || ''} ${checkIn.destination_state || ''}</span>
-            </div>
-            <div class="row">
-              <span class="label">Appointment:</span>
-              <span class="value">${checkIn.appointment_time ? formatAppointmentTime(checkIn.appointment_time) : 'N/A'}</span>
-            </div>
-            <div class="row">
-              <span class="label">Check-in Time:</span>
-              <span class="value">${formatCheckInTime(checkIn.check_in_time)}</span>
-            </div>
-          </div>
-
-          <button class="print-button no-print" onclick="window.print()">Print Receipt</button>
-        </div>
-
-        <!-- Page 2: Inspection Form -->
-        <div class="page-break"></div>
-        
-        ${isInbound ? getInboundInspectionForm() : getOutboundInspectionForm()}
-
-        <script>
-          window.onload = function() {
-            setTimeout(function() {
-              window.print();
-            }, 250);
-          };
-        </script>
-      </body>
-    </html>
-  `;
-
-  printWindow.document.write(receiptHTML);
-  printWindow.document.close();
-
-  // Helper function for Inbound Inspection
-  function getInboundInspectionForm() {
-    return `
-      <div class="inspection-page">
-        <div class="title">PRP02A: INBOUND INSPECTION</div>
-
-        <div class="info-line">
-          Date: <strong>${today}</strong>&nbsp;&nbsp;&nbsp;
-          Delivery#: <strong>${checkIn.reference_number || 'N/A'}</strong>&nbsp;&nbsp;&nbsp;
-          Trailer#: <strong>${checkIn.trailer_number || 'N/A'}</strong>
-        </div>
-
-        <!-- 1 ROW OF SPACE BEFORE TABLE -->
-        <div class="spacer-row"></div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>INSPECTION ITEM</th>
-              <th class="checkbox-cell">YES</th>
-              <th class="checkbox-cell">NO</th>
-              <th class="checkbox-cell">N/A</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>IS THE TRAILER PROPERLY SEALED?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>DOES THE SEAL# ON THE TRAILER MATCH THE SEAL# ON THE BOL AND BEEN INITIALED ON THE BOL?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>DOES THE MATERIAL & LOT #'S OF THE PRODUCT ON THE TRAILER MATCH WHAT IS INDICATED ON THE BOL?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>IS THE VISIBLE PRODUCT AND PALLET FREE OF FOREIGN OBJECTS, INSECTS, MOLD & DAMAGE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>WAS THE TRAILER FREE OF METAL/GLASS, RODENT/INSECT INFESTATION, DAMAGE AND ODOR?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>IS ALL OF THE VISIBLE PRINT ON THE BAGS LEGIBLE AND ARE ALL OF THE VISIBLE VALVES FREE OF LEAKAGE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-          </tbody>
-        </table>
-
-        <div class="warning-box">
-          IF ANY OF THE ABOVE QUESTIONS WERE ANSWERED "NO" PLEASE ENSURE CORRECTIVE ACTION IS TAKEN AND/OR NOTIFY A SUPERVISOR.<br>
-          IF ANY PRODUCT IS QUESTIONABLE TO RECEIVE INTO THE WAREHOUSE, CONTACT A SUPERVISOR FOR APPROVAL.
-        </div>
-
-        <div style="margin: 10px 0;">
-          <strong>I ACKNOWLEDGE THAT ALL ITEMS LISTED ABOVE HAVE BEEN EXECUTED.</strong><br>
-            <div class="spacer-row"></div>
-          <strong>OPERATOR SIGNATURE:</strong> <span class="signature-line"></span>
-        </div>
-
-        <div style="margin: 8px 0;">
-          <strong>COMMENTS:</strong>
-          <div class="comment-line"></div>
-          <div class="comment-line"></div>
-        </div>
-
-        <!-- 2 ROWS OF SPACE BEFORE REVISIONS TABLE -->
-        <div class="spacer-row-double"></div>
-         <div class="spacer-row-double"></div>
-          <div class="spacer-row-double"></div>
-
-        <table style="font-size: 7pt; margin-top: 10px;">
-          <thead>
-            <tr>
-              <th style="width: 10%;">Rev #</th>
-              <th style="width: 40%;">Summary of Changes</th>
-              <th style="width: 17%;">Requested By</th>
-              <th style="width: 18%;">Authorized By</th>
-              <th style="width: 15%;">Date Updated</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>Original</td><td></td><td>Quality Manager</td><td>Operations Manager</td><td>10/28/2015</td></tr>
-            <tr><td>2</td><td>Changed question 9.</td><td>Quality Manager</td><td>Operations Manager</td><td>10/30/2017</td></tr>
-            <tr><td>3</td><td>Updated questions</td><td>Quality Manager</td><td>Operations Manager</td><td>09/19/2018</td></tr>
-            <tr><td>4</td><td>Updated question 4 to add pallet inspection.</td><td>Quality Manager</td><td>Operations Manager</td><td>01/14/2026</td></tr>
-          </tbody>
-        </table>
-
-        <div class="footer">
-          <div class="footer-row">
-            <span><strong>PRP02A</strong> Inbound Inspection</span>
-            <span><strong>Owned By:</strong> Quality Manager</span>
-            <span><strong>Authorized By:</strong> Operations Manager</span>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  // Helper function for Outbound Inspection
-  function getOutboundInspectionForm() {
-    return `
-      <div class="inspection-page">
-        <div class="title">PRP03A: OUTBOUND INSPECTION</div>
-
-        <div class="info-line">
-          Date: <strong>${today}</strong>&nbsp;&nbsp;&nbsp;
-          Load#: <strong>${checkIn.reference_number || 'N/A'}</strong>&nbsp;&nbsp;&nbsp;
-          Trailer#: <strong>${checkIn.trailer_number || 'N/A'}</strong>
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>GENERAL TRAILER GMP</th>
-              <th class="checkbox-cell">YES</th>
-              <th class="checkbox-cell">NO</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>EVIDENCE OF ODOR?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>DEBRIS ON FLOOR OR IN CORNERS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>EVIDENCE OF INSECT OR RODENT ACTIVITY?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>PREVIOUS PRODUCT RESIDUE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>SPLINTERED SIDEWALLS, CEILING OR FLOOR THAT COULD DAMAGE BAGS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>BROKEN GLASS OR METAL SHAVINGS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>NAILS OR OTHER OBJECTS PROTRUDING FROM THE FLOORS OR SIDEWALLS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>HOLES ON CEILING, SIDEWALLS OR FLOORS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>EVIDENCE OF LEAKS, STANDING WATER, MOISTURE, MOLD, MILDEW, ETC?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-          </tbody>
-        </table>
-
-        <table>
-          <thead>
-            <tr>
-              <th>PRODUCT SECURITY & LOADER SAFETY</th>
-              <th class="checkbox-cell">YES</th>
-              <th class="checkbox-cell">NO</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>PROBLEMS WITH LATCHES ON DOORS WORKING PROPERLY?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>IS TRAILER UNSEALABLE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>LOAD STRAPS/BARS APPLIED IF REQUIRED?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
-          </tbody>
-        </table>
-
-        <div style="margin: 8px 0;">
-          <strong>LOADER SIGNATURE:</strong> <span class="signature-line"></span>
-        </div>
-
-        <div style="margin: 8px 0;">
-          <strong>COMMENTS:</strong>
-          <div class="comment-line"></div>
-          <div class="comment-line"></div>
-        </div>
-
-        <div class="checkbox-group">
-          <div>Rejected by: <span class="signature-line"></span></div>
-          <div style="margin-top: 5px;">
-            ☐ OK TO LOAD AFTER SWEEPING 
-            ☐ Needs new trailer 
-            ☐ Driver can correct trailer
-          </div>
-        </div>
-
-        <!-- 1 ROW OF SPACE BEFORE PRE-SEALING CHECKLIST -->
-        <div class="spacer-row"></div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>PRE-SEALING CHECKLIST</th>
-              <th class="checkbox-cell">INITIAL</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>ALL THE INSTRUCTIONS ON THE BILL OF LADING BEEN FOLLOWED?</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>TRAILER HAS BEEN LATCH PROPERLY?</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>THE TRAILER BEEN SEALED?</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>CUSTOMER REQUIRED PHOTOS TAKEN AND SENT?</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>INITIALS OF PERSON THAT SEALED</td><td class="checkbox-cell">__________</td></tr>
             
-          </tbody>
-        </table>
+            body {
+              font-family: Arial, sans-serif;
+            }
+            .receipt-page {
+              padding: 20px;
+              max-width: 420px;
+              margin: 0 auto;
+            }
+            .receipt-header {
+              text-align: center;
+              border-bottom: 2px dashed #000;
+              padding-bottom: 12px;
+              margin-bottom: 16px;
+            }
+            .receipt-title {
+              font-size: 24px;
+              font-weight: bold;
+              margin-bottom: 8px;
+            }
+            .receipt-subtitle {
+              font-size: 14px;
+              color: #666;
+            }
+            .dock-assignment {
+              background: #f0f0f0;
+              padding: 16px;
+              margin: 16px 0;
+              text-align: center;
+              border-radius: 8px;
+            }
+            .dock-number {
+              font-size: 48px;
+              font-weight: bold;
+              color: #2563eb;
+            }
+            .info-row {
+              display: flex;
+              justify-content: space-between;
+              padding: 8px 0;
+              border-bottom: 1px solid #e0e0e0;
+            }
+            .info-label {
+              font-weight: bold;
+              color: #666;
+            }
+            .info-value {
+              text-align: right;
+            }
+            .footer {
+              margin-top: 24px;
+              text-align: center;
+              font-size: 12px;
+              color: #999;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt-page">
+            <div class="receipt-header">
+              <div class="receipt-title">Dock Assignment</div>
+              <div class="receipt-subtitle">${currentDate}</div>
+            </div>
 
-        <!-- 2 ROWS OF SPACE AFTER PRE-SEALING CHECKLIST -->
-        <div class="spacer-row-double"></div>
+            <div class="dock-assignment">
+              <div style="font-size: 16px; margin-bottom: 8px;">Assigned to:</div>
+              <div class="dock-number">${dockDisplay}</div>
+            </div>
 
-        <table style="font-size: 7pt; margin-top: 10px;">
-          <thead>
-            <tr>
-              <th style="width: 10%;">Rev #</th>
-              <th style="width: 40%;">Summary of Changes</th>
-              <th style="width: 17%;">Requested By</th>
-              <th style="width: 18%;">Authorized By</th>
-              <th style="width: 15%;">Date Updated</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td>Original</td><td>Outbound Inspection - Restructured</td><td>Quality Manager</td><td>Operations Manager</td><td>7/24/2025</td></tr>
-            <tr><td>2</td><td>Added loadbar question</td><td>Quality Manager</td><td>Operations Manager</td><td>7/31/2025</td></tr>
-          </tbody>
-        </table>
+            <div>
+              <div class="info-row">
+                <span class="info-label">Driver:</span>
+                <span class="info-value">${checkIn.driver_name || 'N/A'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Carrier:</span>
+                <span class="info-value">${checkIn.carrier_name || 'N/A'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Reference #:</span>
+                <span class="info-value">${checkIn.reference_number || 'N/A'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Trailer #:</span>
+                <span class="info-value">${checkIn.trailer_number || 'N/A'}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Load Type:</span>
+                <span class="info-value">${isInbound ? 'Inbound' : 'Outbound'}</span>
+              </div>
+              ${checkIn.appointment_time ? `
+              <div class="info-row">
+                <span class="info-label">Appointment:</span>
+                <span class="info-value">${formatAppointmentTime(checkIn.appointment_time)}</span>
+              </div>
+              ` : ''}
+            </div>
 
-        <div class="footer">
-          <div class="footer-row">
-            <span><strong>PRP03A</strong> Outbound Inspection</span>
-            <span><strong>Owned By:</strong> Quality Manager</span>
-            <span><strong>Authorized By:</strong> Operations Manager</span>
+            <div class="footer">
+              <p>Please proceed to your assigned dock</p>
+              <p>Thank you!</p>
+            </div>
           </div>
-        </div>
-      </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              // Close after printing
+              setTimeout(() => window.close(), 1000);
+            };
+          </script>
+        </body>
+      </html>
     `;
-  }
-};
 
-
+    printWindow.document.write(receiptHTML);
+    printWindow.document.close();
+  };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
         <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Assign Dock</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold text-gray-800">Assign Dock</h2>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 text-2xl"
+              className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
               disabled={loading}
             >
               ×
             </button>
           </div>
 
-          {/* Load Information */}
-          <div className="bg-gray-50 p-4 rounded-lg mb-6">
-            <h3 className="font-semibold mb-3">Load Information</h3>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <span className="text-gray-600">Driver:</span>
-                <span className="ml-2 font-medium">{checkIn.driver_name || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Reference:</span>
-                <span className="ml-2 font-medium">{checkIn.reference_number || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Carrier:</span>
-                <span className="ml-2 font-medium">{checkIn.carrier_name || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Trailer:</span>
-                <span className="ml-2 font-medium">{checkIn.trailer_number || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Appointment:</span>
-                <span className="ml-2 font-medium">
-                  {checkIn.appointment_time ? formatAppointmentTime(checkIn.appointment_time) : 'N/A'}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-600">Check-In:</span>
-                <span className="ml-2 font-medium">{formatCheckInTime(checkIn.check_in_time)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Dock Selection */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Dock Number *
-            </label>
-            <select
-              value={dockNumber}
-              onChange={(e) => setDockNumber(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={loading}
-            >
-              <option value="">-- Select Dock --</option>
-              {dockOptions.map((dock) => (
-                <option key={dock} value={dock}>
-                  {dock === 'Ramp' ? 'Ramp' : `Dock ${dock}`}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Dock Status Warning */}
-          {checkingDock && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
-              Checking dock status...
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {error}
             </div>
           )}
 
-          {showWarning && dockInfo && (
-            <div className={`mb-4 p-4 rounded-lg border ${
-              dockInfo.status === 'blocked' 
-                ? 'bg-red-50 border-red-200 text-red-700' 
-                : 'bg-yellow-50 border-yellow-200 text-yellow-700'
-            }`}>
-              <div className="flex items-start">
-                <span className="text-xl mr-2">⚠️</span>
+          {emailStatus && (
+            <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 rounded text-sm">
+              {emailStatus}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {/* Check-in Info */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
-                  <p className="font-semibold mb-1">
-                    {dockInfo.status === 'blocked' ? 'Dock Blocked' : 'Dock In Use'}
-                  </p>
-                  {dockInfo.status === 'in-use' && dockInfo.orders.length > 0 && (
-                    <div className="text-sm">
-                      <p className="mb-1">Currently assigned to:</p>
-                      <ul className="list-disc list-inside">
-                        {dockInfo.orders.map((order, idx) => (
-                          <li key={idx}>
-                            {order.reference_number || 'Unknown'} - {order.trailer_number || 'N/A'}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  <span className="font-semibold">Driver:</span> {checkIn.driver_name || 'N/A'}
+                </div>
+                <div>
+                  <span className="font-semibold">Carrier:</span> {checkIn.carrier_name || 'N/A'}
+                </div>
+                <div>
+                  <span className="font-semibold">Reference:</span> {checkIn.reference_number || 'N/A'}
+                </div>
+                <div>
+                  <span className="font-semibold">Trailer:</span> {checkIn.trailer_number || 'N/A'}
                 </div>
               </div>
             </div>
-          )}
 
-          {/* Email Section */}
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center justify-between mb-3">
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={sendEmail}
-                  onChange={(e) => setSendEmail(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 mr-2"
-                  disabled={loading}
-                />
-                <span className="font-medium text-gray-700">Send Email Notification</span>
+            {/* Dock Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Dock Number <span className="text-red-500">*</span>
               </label>
+              <select
+                value={dockNumber}
+                onChange={(e) => setDockNumber(e.target.value)}
+                disabled={loading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select Dock</option>
+                {dockOptions.map(dock => (
+                  <option key={dock} value={dock}>{dock === 'Ramp' ? 'Ramp' : `Dock ${dock}`}</option>
+                ))}
+              </select>
+              {checkingDock && (
+                <p className="text-sm text-gray-500 mt-1">Checking dock availability...</p>
+              )}
             </div>
 
-            {sendEmail && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Driver Email
+            {/* Dock Warning */}
+            {showWarning && dockInfo && (
+              <div className={`p-3 rounded-lg ${
+                dockInfo.status === 'blocked' ? 'bg-red-100 border border-red-400' :
+                dockInfo.status === 'in-use' ? 'bg-yellow-100 border border-yellow-400' :
+                'bg-green-100 border border-green-400'
+              }`}>
+                <p className="font-semibold mb-1">
+                  {dockInfo.status === 'blocked' && '🚫 Dock Blocked'}
+                  {dockInfo.status === 'in-use' && '⚠️ Dock Currently In Use'}
+                  {dockInfo.status === 'available' && '✓ Dock Available'}
+                </p>
+                {dockInfo.orders.length > 0 && (
+                  <div className="text-sm mt-2">
+                    <p className="font-medium">Current assignments:</p>
+                    {dockInfo.orders.map((order, idx) => (
+                      <p key={idx} className="ml-2">
+                        • {order.reference_number || order.trailer_number || 'Unknown'}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Email Section */}
+            <div className="border-t pt-4">
+              <div className="flex items-center mb-2">
+                <input
+                  type="checkbox"
+                  id="sendEmail"
+                  checked={sendEmail}
+                  onChange={(e) => setSendEmail(e.target.checked)}
+                  className="mr-2"
+                />
+                <label htmlFor="sendEmail" className="text-sm font-medium text-gray-700">
+                  Send email notification to driver
                 </label>
+              </div>
+              {sendEmail && (
                 <input
                   type="email"
                   value={driverEmail}
                   onChange={(e) => setDriverEmail(e.target.value)}
                   placeholder="driver@example.com"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  disabled={loading}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <p className="text-xs text-gray-600 mt-1">
-                  Driver will receive dock assignment via email
-                </p>
-              </div>
-            )}
-
-            {emailStatus && (
-              <div className={`mt-3 p-2 rounded ${
-                emailStatus.includes('successfully') 
-                  ? 'bg-green-100 text-green-700' 
-                  : 'bg-red-100 text-red-700'
-              }`}>
-                {emailStatus}
-              </div>
-            )}
-          </div>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {error}
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-3">
-            <button
-              onClick={onClose}
-              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleAssign}
-              disabled={loading || !dockNumber}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <span className="animate-spin">⏳</span>
-                  Assigning...
-                </>
-              ) : (
-                'Assign & Print'
               )}
-            </button>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 pt-4">
+              <button
+                onClick={onClose}
+                disabled={loading}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAssign}
+                disabled={loading || !dockNumber || checkingDock}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Assigning...' : 'Assign & Print'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
