@@ -41,8 +41,6 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
     setError(null);
 
     try {
-      // Format phone number if provided
-      const cleanedPhone = formData.driver_phone ? formData.driver_phone.replace(/\D/g, '') : null;
       
       // Validate required fields (driver_name and driver_phone no longer required)
       if (!formData.carrier_name || !formData.trailer_number || !formData.reference_number) {
@@ -53,8 +51,6 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
       const { error: insertError } = await supabase
         .from('check_ins')
         .insert({
-          driver_name: formData.driver_name || null,
-          driver_phone: cleanedPhone,
           carrier_name: formData.carrier_name,
           trailer_number: formData.trailer_number,
           load_type: formData.load_type,
@@ -76,8 +72,6 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
         trailer_number: '',
         destination_city: '',
         destination_state: '',
-        driver_name: '',
-        driver_phone: '',
         notes: ''
       });
 
