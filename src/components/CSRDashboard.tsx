@@ -75,10 +75,41 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
 };
 
 const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
-  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') return 'Work In';
+  // Handle Work In cases - show date if available
+  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
+    if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
+      return 'Work In';
+    }
+    
+    try {
+      let date: Date;
+      if (appointmentDate.includes('/')) {
+        const [month, day, year] = appointmentDate.split('/').map(Number);
+        date = new Date(year, month - 1, day);
+      } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = appointmentDate.split('-').map(Number);
+        date = new Date(year, month - 1, day);
+      } else {
+        date = new Date(appointmentDate);
+      }
+      
+      if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const year = date.getFullYear();
+        return `Work In - ${month}/${day}/${year}`;
+      }
+    } catch (error) {
+      console.error('Error formatting work in date:', error);
+    }
+    
+    return 'Work In';
+  }
+  
   if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
     return 'N/A';
   }
+  
   try {
     let formattedDate = '';
     if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
@@ -117,6 +148,7 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
 };
+
 
 const getDateComponentsInIndianapolis = (isoString: string): { year: number, month: number, day: number, hour: number, minute: number } => {
   const date = new Date(isoString);
