@@ -543,7 +543,6 @@ export default function AppointmentsPage() {
       </div>
     </div>
 
-    {/* Modal */}
     {modalOpen && (
       <AppointmentModal
         isOpen={modalOpen}
