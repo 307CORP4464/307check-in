@@ -81,19 +81,21 @@ const getStatusBadge = (status: string | null) => {
     );
   }
 
+  // Treat "unloaded" as "checked_out"
+  const normalizedStatus = status.toLowerCase() === 'unloaded' ? 'checked_out' : status.toLowerCase();
+
   const statusStyles: Record<string, string> = {
     'checked_in': 'bg-purple-100 text-purple-800',
     'pending': 'bg-yellow-100 text-yellow-800',
     'rejected': 'bg-red-100 text-red-800',
-    'unloaded': 'bg-green-100 text-green-800',
     'completed': 'bg-gray-100 text-gray-800',
     'checked_out': 'bg-gray-100 text-gray-800',
     'driver_left': 'bg-indigo-100 text-indigo-800',
     'turned_away': 'bg-orange-100 text-orange-800',
   };
 
-  const style = statusStyles[status.toLowerCase()] || 'bg-gray-100 text-gray-800';
-  const displayStatus = status
+  const style = statusStyles[normalizedStatus] || 'bg-gray-100 text-gray-800';
+  const displayStatus = normalizedStatus
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (l: string) => l.toUpperCase());
 
@@ -103,7 +105,6 @@ const getStatusBadge = (status: string | null) => {
     </span>
   );
 };
-
 
 export default function AppointmentsPage() {
   const router = useRouter();
@@ -348,27 +349,42 @@ export default function AppointmentsPage() {
               + Add Manual Appointment
             </button>
 
-            {/* Enhanced Counter */}
-            <div className="mt-6 space-y-4">
-              {/* Total Appointments */}
-              <div className="bg-blue-500 text-white p-6 rounded-lg shadow-lg">
-                <div className="text-center">
-                  <div className="text-3xl font-bold mb-2">{totalAppointmentsCount}</div>
-                  <div className="text-xl font-medium">Total Appointments</div>
-                </div>
-              </div>
+            {/* Stats Cards */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+  {/* Blue Box - Totals */}
+  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-blue-600">Total Appointments</p>
+        <p className="text-3xl font-bold text-blue-700">{totalAppointmentsCount}</p>
+      </div>
+      <div className="text-right">
+        <p className="text-sm font-medium text-blue-600">Work Ins</p>
+        <p className="text-3xl font-bold text-blue-700">{workInCount}</p>
+      </div>
+    </div>
+  </div>
 
-              {/* Work-In Appointments */}
-              <div className="bg-orange-500 text-white p-4 rounded-lg shadow-lg">
-                <div className="text-center">
-                  <div className="text-xl font-bold mb-1">
-                    {filteredAppointments.filter(apt => 
-                      apt.appointment_time.toLowerCase().includes('work in')
-                    ).length}
-                  </div>
-                  <div className="text-sm font-medium">Work In Appointments</div>
-                </div>
-              </div>
+  {/* Orange Box - Status Breakdown */}
+  <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+    <p className="text-sm font-medium text-orange-600 mb-2">Status Breakdown</p>
+    <div className="flex items-center justify-between gap-4">
+      <div className="text-center">
+        <p className="text-xs font-medium text-orange-500">Checked Out</p>
+        <p className="text-2xl font-bold text-orange-700">{checkedOutCount}</p>
+      </div>
+      <div className="text-center">
+        <p className="text-xs font-medium text-orange-500">Checked In</p>
+        <p className="text-2xl font-bold text-orange-700">{checkedInCount}</p>
+      </div>
+      <div className="text-center">
+        <p className="text-xs font-medium text-orange-500">Not Checked In</p>
+        <p className="text-2xl font-bold text-orange-700">{notCheckedInCount}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 
               {/* Appointments by Customer */}
               <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4">
