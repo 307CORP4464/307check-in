@@ -306,12 +306,24 @@ return (
             </p>
           </div>
           <div className="flex gap-3">
-            <Link href="/appointments" className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium">
-              Appointments
-            </Link>
-            <Link href="/dock-status" className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium">
-              Dock Status
-            </Link>
+              <Link href="/appointments" className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium">
+                Appointments
+              </Link>  
+              <Link href="/dock-status" className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium">
+                Dock Status
+              </Link>    
+              <Link href="/dashboard" className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium">
+                Dashboard
+              </Link>
+              <Link href="/logs" className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium">
+                Daily Logs
+              </Link>
+              <Link href="/tracking" className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium">
+                Tracking
+              </Link>
+              <Link href="/check-in" className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium">
+                Check-In Form
+              </Link>
           </div>
         </div>
       </div>
@@ -485,13 +497,13 @@ return (
                     Time
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Customer
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Sales Order
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Delivery #
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Customer
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -509,14 +521,14 @@ return (
                       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                         {formatTimeInIndianapolis(appointment.appointment_time)}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {appointment.customer}
-                      </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                         {appointment.sales_order || '-'}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                         {appointment.delivery || '-'}
+                      </td>
+                       <td className="px-4 py-3 text-sm text-gray-900">
+                        {appointment.customer}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
                         {getStatusBadge(dailyLogStatus)}
