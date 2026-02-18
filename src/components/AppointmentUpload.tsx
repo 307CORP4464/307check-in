@@ -227,15 +227,6 @@ export default function AppointmentUpload({ onUploadComplete }: AppointmentUploa
             <span className="text-blue-700 font-medium">Processing appointments...</span>
           </div>
         )}
-
-        <div className="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
-          <p className="text-xs text-gray-600 font-semibold mb-2">Supported File Types:</p>
-          <ul className="text-xs text-gray-700 space-y-1">
-            <li>• Excel files (.xls, .xlsx)</li>
-            <li>• CSV files (.csv)</li>
-            <li>• Text files (.txt) with tab/comma/pipe separated values</li>
-          </ul>
-        </div>
       </div>
     </div>
   );
