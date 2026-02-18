@@ -59,9 +59,7 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
         status = 'turned_away';
       } else if (statusAction === 'driver_left') {
         status = 'driver_left';
-      } else if (statusAction === 'unloaded') {
-        status = 'unloaded';
-      }
+      } 
 
       const updateData: any = {
         status: status,
