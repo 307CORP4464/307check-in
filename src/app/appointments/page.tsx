@@ -18,25 +18,21 @@ const TIMEZONE = 'America/Indiana/Indianapolis';
 
 const formatTimeInIndianapolis = (timeString: string): string => {
   try {
-    // Handle null or undefined
     if (!timeString) return 'No Time';
     
-    // Handle "work in" or similar special cases (case-insensitive)
     if (timeString.toLowerCase().includes('work in')) {
       return 'Work In';
     }
     
-    // Handle time format HH:MM or HH:MM:SS
     const timePattern = /^(\d{1,2}):(\d{2})(:\d{2})?$/;
     const match = timeString.match(timePattern);
     
     if (match) {
-      const hours = match[1];
-      const minutes = match[2];
+      const hours = match<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>;
+      const minutes = match<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[2]</a>;
       return `${hours}:${minutes}`;
     }
     
-    // If it doesn't match expected formats, return as-is
     console.warn('Unexpected time format:', timeString);
     return timeString;
   } catch (e) {
@@ -58,7 +54,6 @@ const formatDateForDisplay = (dateString: string): string => {
   });
 };
 
-// Helper to get current time in Indianapolis timezone
 const getCurrentTimeInIndianapolis = (): string => {
   const now = new Date();
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -72,16 +67,6 @@ const getCurrentTimeInIndianapolis = (): string => {
 };
 
 // Helper to get status badge styling
-const getStatusBadge = (status: string | null) => {
-  if (!status) {
-    return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-600">
-        Not Checked In
-      </span>
-    );
-  }
-
- // Helper to get status badge styling
 const getStatusBadge = (status: string | null) => {
   if (!status) {
     return (
@@ -124,7 +109,7 @@ export default function AppointmentsPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -133,8 +118,6 @@ export default function AppointmentsPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [checkInStatuses, setCheckInStatuses] = useState<Record<string, string>>({});
 
-  // Helper to get the Daily Log status for an appointment
-  // Moved INSIDE the component so it can access checkInStatuses state
   const getDailyLogStatus = (appointment: Appointment): string | null => {
     const salesOrder = appointment.sales_order?.trim().toLowerCase();
     const delivery = appointment.delivery?.trim().toLowerCase();
@@ -172,10 +155,10 @@ export default function AppointmentsPage() {
       console.log('📊 Total count:', data.length);
       
       if (data.length > 0) {
-        console.log('🔍 First appointment:', data[0]);
+        console.log('🔍 First appointment:', data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
         console.log('🕐 Appointment times:', data.map(a => a.appointment_time));
-        console.log('🕐 First appointment_time type:', typeof data[0].appointment_time);
-        console.log('🕐 First appointment_time value:', data[0].appointment_time);
+        console.log('🕐 First appointment_time type:', typeof data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_time);
+        console.log('🕐 First appointment_time value:', data<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_time);
       }
       
       setAppointments(data);
@@ -190,7 +173,7 @@ export default function AppointmentsPage() {
   const changeDateByDays = (days: number) => {
     const currentDate = new Date(selectedDate);
     currentDate.setDate(currentDate.getDate() + days);
-    setSelectedDate(currentDate.toISOString().split('T')[0]);
+    setSelectedDate(currentDate.toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   };
 
   const filteredAppointments = appointments.filter(apt => {
@@ -204,6 +187,31 @@ export default function AppointmentsPage() {
   });
 
   const totalAppointmentsCount = filteredAppointments.length;
+
+  // Count work-ins
+  const workInCount = filteredAppointments.filter(apt => {
+    const time = apt.appointment_time?.toLowerCase() || '';
+    return time.includes('work in');
+  }).length;
+
+  // Count statuses based on daily log
+  const checkedOutCount = filteredAppointments.filter(apt => {
+    const status = getDailyLogStatus(apt);
+    if (!status) return false;
+    const s = status.toLowerCase();
+    return s === 'checked_out' || s === 'unloaded';
+  }).length;
+
+  const checkedInCount = filteredAppointments.filter(apt => {
+    const status = getDailyLogStatus(apt);
+    if (!status) return false;
+    return status.toLowerCase() === 'checked_in';
+  }).length;
+
+  const notCheckedInCount = filteredAppointments.filter(apt => {
+    const status = getDailyLogStatus(apt);
+    return !status;
+  }).length;
 
   const handleSave = async (data: AppointmentInput) => {
     try {
@@ -303,18 +311,6 @@ export default function AppointmentsPage() {
               </Link>  
               <Link href="/dock-status" className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium">
                 Dock Status
-              </Link>    
-              <Link href="/dashboard" className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium">
-                Dashboard
-              </Link>
-              <Link href="/logs" className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium">
-                Daily Logs
-              </Link>
-              <Link href="/tracking" className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium">
-                Tracking
-              </Link>
-              <Link href="/check-in" className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium">
-                Check-In Form
               </Link>
             </div>
           </div>
@@ -323,78 +319,54 @@ export default function AppointmentsPage() {
 
       {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-2">
-            <AppointmentUpload onUploadComplete={loadAppointments} />
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg shadow">
-            <label className="block text-sm font-medium mb-2">Select Date</label>
-            <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => changeDateByDays(-1)}
-                className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors font-medium"
-              >
-                ← Prev
-              </button>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="flex-1 p-2 border rounded"
-              />
-              <button
-                onClick={() => changeDateByDays(1)}
-                className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors font-medium"
-              >
-                Next →
-              </button>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {/* Blue Box - Total & Work Ins */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-600">Total Appointments</p>
+                <p className="text-3xl font-bold text-blue-700">{totalAppointmentsCount}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium text-blue-600">Work Ins</p>
+                <p className="text-3xl font-bold text-blue-700">{workInCount}</p>
+              </div>
             </div>
-            <button
-              onClick={() => {
-                setEditingAppointment(null);
-                setModalOpen(true);
-              }}
-              className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition-colors font-medium"
-            >
-              + Add Manual Appointment
-            </button>
+          </div>
 
-           {/* Stats Cards */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-  {/* Blue Box - Total & Work Ins */}
-  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-blue-600">Total Appointments</p>
-        <p className="text-3xl font-bold text-blue-700">{totalAppointmentsCount}</p>
-      </div>
-      <div className="text-right">
-        <p className="text-sm font-medium text-blue-600">Work Ins</p>
-        <p className="text-3xl font-bold text-blue-700">{workInCount}</p>
+          {/* Orange Box - Status Breakdown */}
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+            <p className="text-sm font-medium text-orange-600 mb-2">Status Breakdown</p>
+            <div className="flex items-center justify-between gap-4">
+              <div className="text-center">
+                <p className="text-xs font-medium text-orange-500">Checked Out</p>
+                <p className="text-2xl font-bold text-orange-700">{checkedOutCount}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs font-medium text-orange-500">Checked In</p>
+                <p className="text-2xl font-bold text-orange-700">{checkedInCount}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs font-medium text-orange-500">Not Checked In</p>
+                <p className="text-2xl font-bold text-orange-700">{notCheckedInCount}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 
+          =====================================================
+          PASTE THE REST OF YOUR ORIGINAL JSX BELOW THIS POINT
+          (date picker, search bar, table, modals, etc.)
+          =====================================================
+        */}
+
       </div>
     </div>
-  </div>
-
-  {/* Orange Box - Status Breakdown */}
-  <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-    <p className="text-sm font-medium text-orange-600 mb-2">Status Breakdown</p>
-    <div className="flex items-center justify-between gap-4">
-      <div className="text-center">
-        <p className="text-xs font-medium text-orange-500">Checked Out</p>
-        <p className="text-2xl font-bold text-orange-700">{checkedOutCount}</p>
-      </div>
-      <div className="text-center">
-        <p className="text-xs font-medium text-orange-500">Checked In</p>
-        <p className="text-2xl font-bold text-orange-700">{checkedInCount}</p>
-      </div>
-      <div className="text-center">
-        <p className="text-xs font-medium text-orange-500">Not Checked In</p>
-        <p className="text-2xl font-bold text-orange-700">{notCheckedInCount}</p>
-      </div>
-    </div>
-  </div>
-</div>
+  );
+}
               {/* Appointments by Customer */}
               <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4">
                 <h3 className="text-sm font-bold text-gray-700 mb-3 text-center">
