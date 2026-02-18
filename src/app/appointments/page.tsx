@@ -392,7 +392,6 @@ export default function AppointmentsPage() {
             </div>
           </div>
         </div>
-      </div>
 
       {/* Appointments by Customer */}
       <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4 mb-6">
@@ -423,10 +422,10 @@ export default function AppointmentsPage() {
             ))}
         </div>
       </div>
+      </div>
+        
 
 
-
-          
         {/* Search Bar */}
         <div className="mt-4">
           <div className="relative">
