@@ -191,14 +191,6 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
                   />
                   <span>Complete Loading</span>
                 </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="unloaded"
-                    checked={statusAction === 'unloaded'}
-                    onChange={(e) => setStatusAction(e.target.value as StatusAction)}
-                    className="mr-2"
-                  />
                  <span>Rejected</span>
                 </label>
                 <label className="flex items-center">
