@@ -33,6 +33,7 @@ export default function DockStatusPage() {
   const [blockReason, setBlockReason] = useState('');
   const [filter, setFilter] = useState<'all' | 'available' | 'in-use' | 'double-booked' | 'blocked'>('all');
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [userEmail, setUserEmail] = useState<string>(''); // ADD THIS LINE
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -274,9 +275,6 @@ export default function DockStatusPage() {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Dock Status</h1>
-              {userEmail && (
-                <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
-              )}
               <p className="text-xs text-gray-500">
                 Current time: {formatTimeInIndianapolis(new Date().toISOString())}
               </p>
