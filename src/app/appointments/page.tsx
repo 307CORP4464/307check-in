@@ -290,203 +290,277 @@ export default function AppointmentsPage() {
     setSearchQuery('');
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b shadow-sm">
-        <div className="max-w-[1600px] mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
+ return (
+  <div className="min-h-screen bg-gray-50">
+    {/* Header */}
+    <div className="bg-white border-b shadow-sm">
+      <div className="max-w-[1600px] mx-auto px-4 py-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Appointment Scheduling</h1>
+            {userEmail && (
+              <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
+            )}
+            <p className="text-xs text-gray-500">
+              Current time (Indianapolis): {getCurrentTimeInIndianapolis()}
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Link href="/appointments" className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium">
+              Appointments
+            </Link>  
+            <Link href="/dock-status" className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium">
+              Dock Status
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Main Content */}
+    <div className="max-w-[1600px] mx-auto px-4 py-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Blue Box - Total & Work Ins */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Appointment Scheduling</h1>
-              {userEmail && (
-                <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
-              )}
-              <p className="text-xs text-gray-500">
-                Current time (Indianapolis): {getCurrentTimeInIndianapolis()}
-              </p>
+              <p className="text-sm font-medium text-blue-600">Total Appointments</p>
+              <p className="text-3xl font-bold text-blue-700">{totalAppointmentsCount}</p>
             </div>
-            <div className="flex gap-3">
-              <Link href="/appointments" className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium">
-                Appointments
-              </Link>  
-              <Link href="/dock-status" className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium">
-                Dock Status
-              </Link>
+            <div className="text-right">
+              <p className="text-sm font-medium text-blue-600">Work Ins</p>
+              <p className="text-3xl font-bold text-blue-700">{workInCount}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Orange Box - Status Breakdown */}
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+          <p className="text-sm font-medium text-orange-600 mb-2">Status Breakdown</p>
+          <div className="flex items-center justify-between gap-4">
+            <div className="text-center">
+              <p className="text-xs font-medium text-orange-500">Checked Out</p>
+              <p className="text-2xl font-bold text-orange-700">{checkedOutCount}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs font-medium text-orange-500">Checked In</p>
+              <p className="text-2xl font-bold text-orange-700">{checkedInCount}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs font-medium text-orange-500">Not Checked In</p>
+              <p className="text-2xl font-bold text-orange-700">{notCheckedInCount}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-[1600px] mx-auto px-4 py-6">
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {/* Blue Box - Total & Work Ins */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-600">Total Appointments</p>
-                <p className="text-3xl font-bold text-blue-700">{totalAppointmentsCount}</p>
+      {/* Appointments by Customer */}
+      <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4 mb-6">
+        <h3 className="text-sm font-bold text-gray-700 mb-3 text-center">
+          Appointments by Customer
+        </h3>
+        <div className="space-y-2 max-h-60 overflow-y-auto">
+          {Object.entries(
+            filteredAppointments.reduce((acc, apt) => {
+              const customer = apt.customer || 'Unknown Customer';
+              acc[customer] = (acc[customer] || 0) + 1;
+              return acc;
+            }, {} as Record<string, number>)
+          )
+            .sort(([, a], [, b]) => b - a)
+            .map(([customer, count]) => (
+              <div
+                key={customer}
+                className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded"
+              >
+                <span className="text-sm text-gray-700 font-medium truncate">
+                  {customer}
+                </span>
+                <span className="text-sm font-bold text-blue-600 ml-2">
+                  {count}
+                </span>
               </div>
-              <div className="text-right">
-                <p className="text-sm font-medium text-blue-600">Work Ins</p>
-                <p className="text-3xl font-bold text-blue-700">{workInCount}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Orange Box - Status Breakdown */}
-          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-            <p className="text-sm font-medium text-orange-600 mb-2">Status Breakdown</p>
-            <div className="flex items-center justify-between gap-4">
-              <div className="text-center">
-                <p className="text-xs font-medium text-orange-500">Checked Out</p>
-                <p className="text-2xl font-bold text-orange-700">{checkedOutCount}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs font-medium text-orange-500">Checked In</p>
-                <p className="text-2xl font-bold text-orange-700">{checkedInCount}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs font-medium text-orange-500">Not Checked In</p>
-                <p className="text-2xl font-bold text-orange-700">{notCheckedInCount}</p>
-              </div>
-            </div>
-          </div>
+            ))}
         </div>
-              {/* Appointments by Customer */}
-              <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4">
-                <h3 className="text-sm font-bold text-gray-700 mb-3 text-center">
-                  Appointments by Customer
-                </h3>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {Object.entries(
-                    filteredAppointments.reduce((acc, apt) => {
-                      const customer = apt.customer || 'Unknown Customer';
-                      acc[customer] = (acc[customer] || 0) + 1;
-                      return acc;
-                    }, {} as Record<string, number>)
-                  )
-                    .sort(([, a], [, b]) => b - a)
-                    .map(([customer, count]) => (
-                      <div
-                        key={customer}
-                        className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded"
-                      >
-                        <span className="text-sm text-gray-700 font-medium truncate">
-                          {customer}
-                        </span>
-                        <span className="text-sm font-bold text-blue-600 ml-2">
-                          {count}
-                        </span>
-                      </div>
-                    ))}
-                </div>
-              </div>
+      </div>
+
+      {/* Date Navigation & Actions */}
+      <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          {/* Date Navigation */}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => changeDateByDays(-1)}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              ← Previous
+            </button>
+            <div className="text-center">
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-sm text-gray-600 mt-1">
+                {formatDateForDisplay(selectedDate)}
+              </p>
             </div>
+            <button
+              onClick={() => changeDateByDays(1)}
+              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              Next →
+            </button>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setEditingAppointment(null);
+                setModalOpen(true);
+              }}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              + Add Appointment
+            </button>
+            <AppointmentUpload 
+              selectedDate={selectedDate} 
+              onUploadComplete={loadAppointments}
+            />
           </div>
         </div>
 
         {/* Search Bar */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <div className="flex gap-2">
+        <div className="mt-4">
+          <div className="relative">
             <input
               type="text"
+              placeholder="Search by Sales Order or Delivery Number..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by Sales Order or Customer..."
-              className="flex-1 p-2 border rounded"
+              className="w-full px-4 py-2 pl-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            <svg
+              className="absolute left-3 top-3 h-5 w-5 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
             {searchQuery && (
               <button
                 onClick={clearSearch}
-                className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors"
+                className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
               >
-                Clear
+                ✕
               </button>
             )}
           </div>
         </div>
+      </div>
 
-        {/* Appointments List */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="p-4 bg-gray-50 border-b">
-            <h2 className="text-xl font-semibold">
-              {formatDateForDisplay(selectedDate)} - {totalAppointmentsCount} Appointments
-            </h2>
+      {/* Appointments Table */}
+      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
           </div>
-
-          {loading ? (
-            <div className="p-8 text-center text-gray-500">Loading appointments...</div>
-          ) : filteredAppointments.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              No appointments found for this date
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Time</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Sales Order</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Delivery</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Customer</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Notes</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Source</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredAppointments.map((apt) => (
-                    <tr key={apt.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm">
-                        {formatTimeInIndianapolis(apt.appointment_time)}
+        ) : filteredAppointments.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">
+              {searchQuery ? 'No appointments found matching your search' : 'No appointments scheduled for this date'}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Time
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Customer
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Sales Order
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Delivery #
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredAppointments.map((appointment) => {
+                  const dailyLogStatus = getDailyLogStatus(appointment);
+                  return (
+                    <tr key={appointment.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {formatTimeInIndianapolis(appointment.appointment_time)}
                       </td>
-                      <td className="px-4 py-3 text-sm font-medium">{apt.sales_order}</td>
-                      <td className="px-4 py-3 text-sm">{apt.delivery}</td>
-                      <td className="px-4 py-3 text-sm">{apt.customer || '-'}</td>
-                      <td className="px-4 py-3 text-sm">{apt.notes || '-'}</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          apt.source === 'manual' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-purple-100 text-purple-800'
-                        }`}>
-                          {apt.source}
-                        </span>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {appointment.customer}
                       </td>
-                      <td className="px-4 py-3 text-sm">
-                        {getStatusBadge(getDailyLogStatus(apt))}
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                        {appointment.sales_order || '-'}
                       </td>
-                      <td className="px-4 py-3 text-sm">
-                        <button onClick={() => handleEdit(apt)} className="text-blue-600 hover:text-blue-800 mr-2">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                        {appointment.delivery || '-'}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        {getStatusBadge(dailyLogStatus)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm space-x-2">
+                        <button
+                          onClick={() => handleEdit(appointment)}
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                        >
                           Edit
                         </button>
-                        <button onClick={() => handleDelete(apt.id)} className="text-red-600 hover:text-red-800">
+                        <button
+                          onClick={() => handleDelete(appointment.id)}
+                          className="text-red-600 hover:text-red-800 font-medium"
+                        >
                           Delete
                         </button>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-       <AppointmentModal
+    </div>
+
+    {/* Modal */}
+    {modalOpen && (
+      <AppointmentModal
         isOpen={modalOpen}
         onClose={() => {
           setModalOpen(false);
           setEditingAppointment(null);
         }}
         onSave={handleSave}
-        initialDate={selectedDate}
         appointment={editingAppointment}
+        selectedDate={selectedDate}
       />
-
-    </div>
-  );
-}
+    )}
+  </div>
+);
