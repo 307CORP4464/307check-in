@@ -570,5 +570,5 @@ return (
         appointment={editingAppointment}
       />
     )}
-  </div> {/* closes min-h-screen */}
+  </div> 
 );
