@@ -268,53 +268,66 @@ export default function DockStatusPage() {
   }), [dockStatuses]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white shadow-md border-b-4 border-blue-600">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="text-3xl font-bold text-blue-600">🚚</div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Dock Status Monitor</h1>
-                  <p className="text-sm text-gray-600">Loading...</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Link 
-                  href="/appointments" 
-                  className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium">
-                  Appointments
-                </Link>  
-                <Link
-                  href="/dock-status"
-                  className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium">
-                  Dock Status
-                </Link>    
-                <Link
-                  href="/dashboard"
-                  className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium">
-                  Dashboard
-                </Link>
-                <Link
-                  href="/logs"
-                  className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium">
-                  Daily Logs
-                </Link>
-                <Link
-                  href="/tracking"
-                  className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium">
-                  Tracking
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors font-medium"
-                >
-                  Logout
-                </button>
-              </div>
-            </div>
+    <div className="min-h-screen bg-gray-50">
+    {/* Header */}
+    <div className="bg-white border-b shadow-sm">
+      <div className="max-w-[1600px] mx-auto px-4 py-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Dock Status Monitor</h1>
+            {userEmail && (
+              <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
+            )}
+            <p className="text-xs text-gray-500">
+              Current time: {formatTimeInIndianapolis(new Date().toISOString())}
+            </p>
           </div>
+          <div className="flex gap-3">
+            <Link 
+              href="/appointments" 
+              className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+            >
+              Appointments
+            </Link>  
+
+            <Link
+              href="/dock-status"
+              className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
+            >
+              Dock Status
+            </Link>    
+
+            <Link
+              href="/dashboard"
+              className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
+            >
+              Dashboard
+            </Link>
+            
+            <Link
+              href="/logs"
+              className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium"
+            >
+              Daily Logs
+            </Link>
+            
+            <Link
+              href="/tracking"
+              className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium"
+            >
+              Tracking
+            </Link>
+            
+            <Link
+              href="/check-in"
+              className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
+            >
+              Check-In Form
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
         </header>
         <div className="flex items-center justify-center h-96">
           <div className="text-gray-600">Loading dock statuses...</div>
