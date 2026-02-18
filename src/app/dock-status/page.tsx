@@ -276,7 +276,7 @@ export default function DockStatusPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Dock Status</h1>
               <p className="text-xs text-gray-500">
-                Current time: {formatTimeInIndianapolis(new Date().toISOString())}
+                {formatDate(currentTime)} • {formatTime(currentTime)}
               </p>
             </div>
             <div className="flex gap-3">
