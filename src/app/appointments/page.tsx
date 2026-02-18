@@ -507,8 +507,7 @@ export default function AppointmentsPage() {
           )}
         </div>
       </div>
-
-      <AppointmentModal
+       <AppointmentModal
         isOpen={modalOpen}
         onClose={() => {
           setModalOpen(false);
