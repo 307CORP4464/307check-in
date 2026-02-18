@@ -22,7 +22,7 @@ interface StatusChangeModalProps {
   onSuccess: () => void;
 }
 
-type StatusAction = 'complete' | 'unloaded' | 'rejected' | 'turned_away' | 'driver_left';
+type StatusAction = 'complete' | 'rejected' | 'turned_away' | 'driver_left';
 
 export default function StatusChangeModal({ checkIn, onClose, onSuccess }: StatusChangeModalProps) {
   const [endTime, setEndTime] = useState(
@@ -201,17 +201,7 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
                     onChange={(e) => setStatusAction(e.target.value as StatusAction)}
                     className="mr-2"
                   />
-                  <span>Unloaded</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="rejected"
-                    checked={statusAction === 'rejected'}
-                    onChange={(e) => setStatusAction(e.target.value as StatusAction)}
-                    className="mr-2"
-                  />
-                  <span>Rejected</span>
+                 <span>Rejected</span>
                 </label>
                 <label className="flex items-center">
                   <input
@@ -267,7 +257,6 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
             >
               {loading ? 'Updating...' : 
                 statusAction === 'complete' ? 'Completed' :
-                statusAction === 'unloaded' ? 'Mark as Completed' :
                 statusAction === 'rejected' ? 'Mark as Rejected' :
                 statusAction === 'driver_left' ? 'Mark as Driver Left' :
                 'Mark as Turned Away'
