@@ -59,7 +59,7 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
         status = 'turned_away';
       } else if (statusAction === 'driver_left') {
         status = 'driver_left';
-      } 
+      }
 
       const updateData: any = {
         status: status,
@@ -104,7 +104,6 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
 
         if (!emailResult.success) {
           console.error('Failed to send status change email:', emailResult.error);
-          // Don't throw - status update was successful
         }
       }
 
@@ -191,7 +190,15 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
                   />
                   <span>Complete Loading</span>
                 </label>
-                 <span>Rejected</span>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="rejected"
+                    checked={statusAction === 'rejected'}
+                    onChange={(e) => setStatusAction(e.target.value as StatusAction)}
+                    className="mr-2"
+                  />
+                  <span>Rejected</span>
                 </label>
                 <label className="flex items-center">
                   <input
@@ -266,3 +273,4 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
     </div>
   );
 }
+
