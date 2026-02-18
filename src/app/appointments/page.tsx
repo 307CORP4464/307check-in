@@ -290,7 +290,7 @@ export default function AppointmentsPage() {
     setSearchQuery('');
   };
 
- return (
+return (
   <div className="min-h-screen bg-gray-50">
     {/* Header */}
     <div className="bg-white border-b shadow-sm">
@@ -318,116 +318,119 @@ export default function AppointmentsPage() {
     </div>
 
     {/* Main Content */}
-      <div className="max-w-[1600px] mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-2">
-            <AppointmentUpload onUploadComplete={loadAppointments} />
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg shadow">
-            <label className="block text-sm font-medium mb-2">Select Date</label>
-            <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => changeDateByDays(-1)}
-                className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors font-medium"
-              >
-                ← Prev
-              </button>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="flex-1 p-2 border rounded"
-              />
-              <button
-                onClick={() => changeDateByDays(1)}
-                className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors font-medium"
-              >
-                Next →
-              </button>
-            </div>
+    <div className="max-w-[1600px] mx-auto px-4 py-6">
+
+      {/* Row 1: Upload + Date Selector with Counters */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div className="lg:col-span-2">
+          <AppointmentUpload onUploadComplete={loadAppointments} />
+        </div>
+
+        {/* Date Selector + Counters combined */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <label className="block text-sm font-medium mb-2">Select Date</label>
+          <div className="flex gap-2 mb-4">
             <button
-              onClick={() => {
-                setEditingAppointment(null);
-                setModalOpen(true);
-              }}
-              className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition-colors font-medium"
+              onClick={() => changeDateByDays(-1)}
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors font-medium"
             >
-              + Add Manual Appointment
+              ← Prev
+            </button>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="flex-1 p-2 border rounded"
+            />
+            <button
+              onClick={() => changeDateByDays(1)}
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors font-medium"
+            >
+              Next →
             </button>
           </div>
-        </div>  
+          <button
+            onClick={() => {
+              setEditingAppointment(null);
+              setModalOpen(true);
+            }}
+            className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition-colors font-medium mb-4"
+          >
+            + Add Manual Appointment
+          </button>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {/* Blue Box - Total & Work Ins */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-600">Total Appointments</p>
-              <p className="text-3xl font-bold text-blue-700">{totalAppointmentsCount}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-medium text-blue-600">Work Ins</p>
-              <p className="text-3xl font-bold text-blue-700">{workInCount}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Orange Box - Status Breakdown */}
-        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-          <p className="text-sm font-medium text-orange-600 mb-2">Status Breakdown</p>
-          <div className="flex items-center justify-between gap-4">
-            <div className="text-center">
-              <p className="text-xs font-medium text-orange-500">Checked Out</p>
-              <p className="text-2xl font-bold text-orange-700">{checkedOutCount}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs font-medium text-orange-500">Checked In</p>
-              <p className="text-2xl font-bold text-orange-700">{checkedInCount}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs font-medium text-orange-500">Not Checked In</p>
-              <p className="text-2xl font-bold text-orange-700">{notCheckedInCount}</p>
-            </div>
-          </div>
-        </div>
-
-      {/* Appointments by Customer */}
-      <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4 mb-6">
-        <h3 className="text-sm font-bold text-gray-700 mb-3 text-center">
-          Appointments by Customer
-        </h3>
-        <div className="space-y-2 max-h-60 overflow-y-auto">
-          {Object.entries(
-            filteredAppointments.reduce((acc, apt) => {
-              const customer = apt.customer || 'Unknown Customer';
-              acc[customer] = (acc[customer] || 0) + 1;
-              return acc;
-            }, {} as Record<string, number>)
-          )
-            .sort(([, a], [, b]) => b - a)
-            .map(([customer, count]) => (
-              <div
-                key={customer}
-                className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded"
-              >
-                <span className="text-sm text-gray-700 font-medium truncate">
-                  {customer}
-                </span>
-                <span className="text-sm font-bold text-blue-600 ml-2">
-                  {count}
-                </span>
+          {/* Counters inside the same box */}
+          <div className="border-t pt-4 mt-2">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-blue-600">Total Appointments</p>
+                  <p className="text-2xl font-bold text-blue-700">{totalAppointmentsCount}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-medium text-blue-600">Work Ins</p>
+                  <p className="text-2xl font-bold text-blue-700">{workInCount}</p>
+                </div>
               </div>
-            ))}
+            </div>
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+              <p className="text-xs font-medium text-orange-600 mb-1">Status Breakdown</p>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-center">
+                  <p className="text-xs font-medium text-orange-500">Checked Out</p>
+                  <p className="text-lg font-bold text-orange-700">{checkedOutCount}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-medium text-orange-500">Checked In</p>
+                  <p className="text-lg font-bold text-orange-700">{checkedInCount}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-medium text-orange-500">Not Checked In</p>
+                  <p className="text-lg font-bold text-orange-700">{notCheckedInCount}</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      </div>
-        
 
+      {/* Row 2: Appointments by Customer + Search Bar side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Appointments by Customer */}
+        <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4">
+          <h3 className="text-sm font-bold text-gray-700 mb-3 text-center">
+            Appointments by Customer
+          </h3>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {Object.entries(
+              filteredAppointments.reduce((acc, apt) => {
+                const customer = apt.customer || 'Unknown Customer';
+                acc[customer] = (acc[customer] || 0) + 1;
+                return acc;
+              }, {} as Record<string, number>)
+            )
+              .sort(([, a], [, b]) => b - a)
+              .map(([customer, count]) => (
+                <div
+                  key={customer}
+                  className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded"
+                >
+                  <span className="text-sm text-gray-700 font-medium truncate">
+                    {customer}
+                  </span>
+                  <span className="text-sm font-bold text-blue-600 ml-2">
+                    {count}
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
 
         {/* Search Bar */}
-        <div className="mt-4">
+        <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4 flex flex-col justify-start">
+          <h3 className="text-sm font-bold text-gray-700 mb-3 text-center">
+            Search Appointments
+          </h3>
           <div className="relative">
             <input
               type="text"
@@ -461,7 +464,7 @@ export default function AppointmentsPage() {
         </div>
       </div>
 
-      {/* Appointments Table */}
+      {/* Appointments Table - now INSIDE the max-w wrapper */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
         {loading ? (
           <div className="flex justify-center items-center py-12">
@@ -541,6 +544,7 @@ export default function AppointmentsPage() {
         )}
       </div>
 
+    </div> {/* closes max-w-[1600px] */}
 
     {modalOpen && (
       <AppointmentModal
@@ -554,6 +558,5 @@ export default function AppointmentsPage() {
         appointment={editingAppointment}
       />
     )}
-  </div>
+  </div> {/* closes min-h-screen */}
 );
-}
