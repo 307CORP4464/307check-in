@@ -558,8 +558,8 @@ export default function AppointmentsPage() {
           setEditingAppointment(null);
         }}
         onSave={handleSave}
+        initialDate={selectedDate}
         appointment={editingAppointment}
-        selectedDate={selectedDate}
       />
     )}
   </div>
