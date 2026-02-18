@@ -318,7 +318,44 @@ export default function AppointmentsPage() {
     </div>
 
     {/* Main Content */}
-    <div className="max-w-[1600px] mx-auto px-4 py-6">
+      <div className="max-w-[1600px] mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          <div className="lg:col-span-2">
+            <AppointmentUpload onUploadComplete={loadAppointments} />
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow">
+            <label className="block text-sm font-medium mb-2">Select Date</label>
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => changeDateByDays(-1)}
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors font-medium"
+              >
+                ← Prev
+              </button>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="flex-1 p-2 border rounded"
+              />
+              <button
+                onClick={() => changeDateByDays(1)}
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors font-medium"
+              >
+                Next →
+              </button>
+            </div>
+            <button
+              onClick={() => {
+                setEditingAppointment(null);
+                setModalOpen(true);
+              }}
+              className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition-colors font-medium"
+            >
+              + Add Manual Appointment
+            </button>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {/* Blue Box - Total & Work Ins */}
@@ -385,54 +422,9 @@ export default function AppointmentsPage() {
         </div>
       </div>
 
-      {/* Date Navigation & Actions */}
-      <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          {/* Date Navigation */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => changeDateByDays(-1)}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              ← Previous
-            </button>
-            <div className="text-center">
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="text-sm text-gray-600 mt-1">
-                {formatDateForDisplay(selectedDate)}
-              </p>
-            </div>
-            <button
-              onClick={() => changeDateByDays(1)}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              Next →
-            </button>
-          </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <button
-              onClick={() => {
-                setEditingAppointment(null);
-                setModalOpen(true);
-              }}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              + Add Appointment
-            </button>
-            <AppointmentUpload 
-              selectedDate={selectedDate} 
-              onUploadComplete={loadAppointments}
-            />
-          </div>
-        </div>
 
+          
         {/* Search Bar */}
         <div className="mt-4">
           <div className="relative">
