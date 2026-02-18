@@ -355,18 +355,6 @@ export default function AppointmentsPage() {
             </div>
           </div>
         </div>
-
-        {/* 
-          =====================================================
-          PASTE THE REST OF YOUR ORIGINAL JSX BELOW THIS POINT
-          (date picker, search bar, table, modals, etc.)
-          =====================================================
-        */}
-
-      </div>
-    </div>
-  );
-}
               {/* Appointments by Customer */}
               <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4">
                 <h3 className="text-sm font-bold text-gray-700 mb-3 text-center">
