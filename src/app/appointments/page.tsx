@@ -186,7 +186,7 @@ export default function AppointmentsPage() {
     return salesOrder.includes(query) || delivery.includes(query);
   });
 
-  const totalAppointmentsCount = filteredAppointments.length;
+    const totalAppointmentsCount = filteredAppointments.length;
 
   // Count work-ins
   const workInCount = filteredAppointments.filter(apt => {
