@@ -540,7 +540,7 @@ export default function AppointmentsPage() {
           </div>
         )}
       </div>
-    </div>
+
 
     {modalOpen && (
       <AppointmentModal
