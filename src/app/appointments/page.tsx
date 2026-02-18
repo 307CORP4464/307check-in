@@ -81,6 +81,16 @@ const getStatusBadge = (status: string | null) => {
     );
   }
 
+ // Helper to get status badge styling
+const getStatusBadge = (status: string | null) => {
+  if (!status) {
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-600">
+        Not Checked In
+      </span>
+    );
+  }
+
   // Treat "unloaded" as "checked_out"
   const normalizedStatus = status.toLowerCase() === 'unloaded' ? 'checked_out' : status.toLowerCase();
 
@@ -89,7 +99,7 @@ const getStatusBadge = (status: string | null) => {
     'pending': 'bg-yellow-100 text-yellow-800',
     'rejected': 'bg-red-100 text-red-800',
     'completed': 'bg-gray-100 text-gray-800',
-    'checked_out': 'bg-gray-100 text-gray-800',
+    'checked_out': 'bg-green-100 text-green-800',
     'driver_left': 'bg-indigo-100 text-indigo-800',
     'turned_away': 'bg-orange-100 text-orange-800',
   };
@@ -105,6 +115,7 @@ const getStatusBadge = (status: string | null) => {
     </span>
   );
 };
+
 
 export default function AppointmentsPage() {
   const router = useRouter();
@@ -349,9 +360,9 @@ export default function AppointmentsPage() {
               + Add Manual Appointment
             </button>
 
-            {/* Stats Cards */}
+           {/* Stats Cards */}
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-  {/* Blue Box - Totals */}
+  {/* Blue Box - Total & Work Ins */}
   <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
     <div className="flex items-center justify-between">
       <div>
@@ -384,8 +395,6 @@ export default function AppointmentsPage() {
     </div>
   </div>
 </div>
-
-
               {/* Appointments by Customer */}
               <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4">
                 <h3 className="text-sm font-bold text-gray-700 mb-3 text-center">
