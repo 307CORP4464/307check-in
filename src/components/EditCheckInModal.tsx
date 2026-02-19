@@ -117,13 +117,12 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Load Type *
+                Load Type
               </label>
               <select
                 name="load_type"
                 value={formData.load_type}
                 onChange={handleChange}
-                required
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
               >
                 <option value="inbound">Inbound</option>
@@ -189,28 +188,26 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Driver Name *
+                Driver Name
               </label>
               <input
                 type="text"
                 name="driver_name"
                 value={formData.driver_name}
                 onChange={handleChange}
-                required
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Driver Phone *
+                Driver Phone
               </label>
               <input
                 type="tel"
                 name="driver_phone"
                 value={formData.driver_phone}
                 onChange={handleChange}
-                required
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -309,15 +306,14 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              disabled={saving}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
               disabled={saving}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
