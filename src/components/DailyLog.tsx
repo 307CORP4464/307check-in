@@ -753,7 +753,7 @@ return (
        </td>
 
       {/* Reference # */}
-      <td className="px-4 py-4 text-sm text-gray-900">
+      <div className="font-bold text-gray-900">
         {checkIn.reference_number || 'N/A'}
       </td>
 
