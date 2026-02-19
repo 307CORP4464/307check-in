@@ -734,7 +734,7 @@ return (
 
       {/* Driver Info */}
       <td className="px-4 py-4 text-sm">
-        <div className="font-bold text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
+        <div className="text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
         <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
         <div className="text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
       </td>
@@ -753,9 +753,7 @@ return (
        </td>
 
       {/* Reference # */}
-      <div className="font-bold text-gray-900">
-        {checkIn.reference_number || 'N/A'}
-      </td>
+      <td className="font-bold text-gray-900"> {checkIn.reference_number || 'N/A'}</td>
 
       {/* Dock */}
       <td className="px-4 py-4 text-sm text-gray-900">
