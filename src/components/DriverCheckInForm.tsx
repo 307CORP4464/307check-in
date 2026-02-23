@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { triggerCheckInEmail } from '@/lib/emailTriggers';
+import { Plus, Minus } from 'lucide-react';
 
 interface FormData {
   driverName: string;
@@ -11,7 +12,6 @@ interface FormData {
   carrierName: string;
   trailerNumber: string;
   trailerLength: string;
-  referenceNumber: string;
   loadType: 'inbound' | 'outbound';
   destinationCity: string;
   destinationState: string;
@@ -25,7 +25,6 @@ const INITIAL_FORM_DATA: FormData = {
   carrierName: '',
   trailerNumber: '',
   trailerLength: '',
-  referenceNumber: '',
   loadType: 'inbound',
   destinationCity: '',
   destinationState: '',
@@ -36,7 +35,7 @@ const INITIAL_FORM_DATA: FormData = {
 const SITE_COORDINATES = {
   latitude: 40.37260025266849,
   longitude: -86.82089938420066,
-  radiusMeters: 300  // 300 meters = ~985 feet
+  radiusMeters: 300
 };
 
 const US_STATES = [
@@ -60,11 +59,7 @@ const TRAILER_LENGTHS = [
 const getSupabaseClient = () => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!url || !key) {
-    throw new Error('Missing Supabase environment variables');
-  }
-  
+  if (!url || !key) throw new Error('Missing Supabase environment variables');
   return createBrowserClient(url, key);
 };
 
@@ -78,7 +73,6 @@ const REFERENCE_NUMBER_PATTERNS = [
   /^\d{6}$/,
   /^[A-Za-z]{4}\d{7}$/
 ];
-
 
 const validateReferenceNumber = (value: string): boolean => {
   if (!value) return false;
@@ -94,106 +88,64 @@ const validateEmail = (email: string): boolean => {
 const formatPhoneNumber = (value: string): string => {
   const cleaned = value.replace(/\D/g, '');
   const match = cleaned.match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/);
-  
   if (!match) return value;
-  
   const [, areaCode, prefix, lineNumber] = match;
-  
-  if (lineNumber) {
-    return `(${areaCode}) ${prefix}-${lineNumber}`;
-  } else if (prefix) {
-    return `(${areaCode}) ${prefix}`;
-  } else if (areaCode) {
-    return `(${areaCode}`;
-  }
-  
+  if (lineNumber) return `(${areaCode}) ${prefix}-${lineNumber}`;
+  if (prefix) return `(${areaCode}) ${prefix}`;
+  if (areaCode) return `(${areaCode}`;
   return value;
 };
 
-// Check if current time is within allowed hours (Mon-Fri, 6:00-17:00)
 const isWithinAllowedTime = (): { allowed: boolean; message?: string } => {
   const now = new Date();
-  const day = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const day = now.getDay();
   const hour = now.getHours();
-  
-  // Check if Monday-Friday (1-5)
   if (day === 0 || day === 6) {
-    return { 
-      allowed: false, 
-      message: 'Check-in is only available Monday through Friday' 
-    };
+    return { allowed: false, message: 'Check-in is only available Monday through Friday' };
   }
-  
-  // Check if between 6:00 AM and 5:00 PM
   if (hour < 6) {
-    return { 
-      allowed: false, 
-      message: 'Check-in is not available before 6:00 AM' 
-    };
+    return { allowed: false, message: 'Check-in is not available before 6:00 AM' };
   }
-  
   if (hour >= 17) {
-    return { 
-      allowed: false, 
-      message: 'Check-in is not available after 5:00 PM' 
-    };
+    return { allowed: false, message: 'Check-in is not available after 5:00 PM' };
   }
-  
   return { allowed: true };
 };
 
-// Calculate distance between two coordinates using Haversine formula
-const calculateDistance = (
-  lat1: number, 
-  lon1: number, 
-  lat2: number, 
-  lon2: number
-): number => {
-  const R = 6371e3; // Earth's radius in meters
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371e3;
   const φ1 = lat1 * Math.PI / 180;
   const φ2 = lat2 * Math.PI / 180;
   const Δφ = (lat2 - lat1) * Math.PI / 180;
   const Δλ = (lon2 - lon1) * Math.PI / 180;
-
   const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
             Math.cos(φ1) * Math.cos(φ2) *
             Math.sin(Δλ/2) * Math.sin(Δλ/2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  const distance = R * c;
-
-  return distance;
+  return R * c;
 };
 
-// Validate user is within geofence
 const validateGeofence = (): Promise<{ valid: boolean; message?: string; distance?: number }> => {
   return new Promise((resolve) => {
     if (!navigator.geolocation) {
-      resolve({ 
-        valid: false, 
-        message: 'Geolocation is not supported by your device' 
-      });
+      resolve({ valid: false, message: 'Geolocation is not supported by your device' });
       return;
     }
-
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const userLat = position.coords.latitude;
-        const userLng = position.coords.longitude;
-        
         const distance = calculateDistance(
-          userLat,
-          userLng,
+          position.coords.latitude,
+          position.coords.longitude,
           SITE_COORDINATES.latitude,
           SITE_COORDINATES.longitude
         );
-
         if (distance <= SITE_COORDINATES.radiusMeters) {
           resolve({ valid: true, distance });
         } else {
-          resolve({ 
-            valid: false, 
+          resolve({
+            valid: false,
             message: `You must be on-site to check in. You are ${Math.round(distance)} meters away (${Math.round(distance * 3.28084)} feet)`,
-            distance 
+            distance
           });
         }
       },
@@ -201,24 +153,17 @@ const validateGeofence = (): Promise<{ valid: boolean; message?: string; distanc
         let message = 'Unable to verify your location. ';
         switch(error.code) {
           case error.PERMISSION_DENIED:
-            message += 'Please enable location permissions in your browser.';
-            break;
+            message += 'Please enable location permissions in your browser.'; break;
           case error.POSITION_UNAVAILABLE:
-            message += 'Location information is unavailable.';
-            break;
+            message += 'Location information is unavailable.'; break;
           case error.TIMEOUT:
-            message += 'Location request timed out.';
-            break;
+            message += 'Location request timed out.'; break;
           default:
             message += 'An unknown error occurred.';
         }
         resolve({ valid: false, message });
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   });
 };
@@ -227,559 +172,530 @@ export default function DriverCheckInForm() {
   const supabase = useMemo(() => getSupabaseClient(), []);
 
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
+
+  // Reference numbers as a separate array — starts with one empty field
+  const [referenceNumbers, setReferenceNumbers] = useState<string[]>(['']);
+  // Per-field validation errors for reference numbers
+  const [referenceErrors, setReferenceErrors] = useState<(string | null)[]>([null]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [referenceError, setReferenceError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [locationStatus, setLocationStatus] = useState<'checking' | 'valid' | 'invalid' | null>(null);
   const [timeRestrictionWarning, setTimeRestrictionWarning] = useState<string | null>(null);
 
-  // Check time restrictions on mount and set up interval
   useEffect(() => {
     const checkTimeRestrictions = () => {
       const timeCheck = isWithinAllowedTime();
-      if (!timeCheck.allowed) {
-        setTimeRestrictionWarning(timeCheck.message || 'Check-in not available at this time');
-      } else {
-        setTimeRestrictionWarning(null);
-      }
+      setTimeRestrictionWarning(timeCheck.allowed ? null : (timeCheck.message || 'Check-in not available at this time'));
     };
-
     checkTimeRestrictions();
-    // Check every minute
     const interval = setInterval(checkTimeRestrictions, 60000);
-
     return () => clearInterval(interval);
   }, []);
+
+  // ── Reference number handlers ──────────────────────────────────────────────
+
+  const handleReferenceChange = useCallback((index: number, value: string) => {
+    setReferenceNumbers(prev => {
+      const updated = [...prev];
+      updated[index] = value;
+      return updated;
+    });
+
+    // Validate the changed field
+    setReferenceErrors(prev => {
+      const updated = [...prev];
+      if (value && !validateReferenceNumber(value)) {
+        updated[index] =
+          'Invalid format. Must match: 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, ' +
+          '8xxxxxxx, TLNA-SO-0xxxxx or xxxxxx';
+      } else {
+        updated[index] = null;
+      }
+      return updated;
+    });
+  }, []);
+
+  const addReferenceNumber = useCallback(() => {
+    setReferenceNumbers(prev => [...prev, '']);
+    setReferenceErrors(prev => [...prev, null]);
+  }, []);
+
+  const removeReferenceNumber = useCallback((index: number) => {
+    setReferenceNumbers(prev => prev.filter((_, i) => i !== index));
+    setReferenceErrors(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  // ── General input handler ──────────────────────────────────────────────────
 
   const handleInputChange = useCallback((
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    
-    const processedValue = name === 'driverPhone' 
-      ? formatPhoneNumber(value) 
-      : value;
-    
-    setFormData(prev => ({
-      ...prev,
-      [name]: processedValue
-    }));
-
-    if (name === 'referenceNumber') {
-      if (value && !validateReferenceNumber(value)) {
-        setReferenceError(
-          'Invalid format. Must match: 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, ' +
-          '8xxxxxxx, TLNA-SO-0xxxxx or xxxxxx'
-        );
-      } else {
-        setReferenceError(null);
-      }
-    }
+    const processedValue = name === 'driverPhone' ? formatPhoneNumber(value) : value;
+    setFormData(prev => ({ ...prev, [name]: processedValue }));
 
     if (name === 'driverEmail') {
-      if (value && !validateEmail(value)) {
-        setEmailError('Please enter a valid email address');
-      } else {
-        setEmailError(null);
-      }
+      setEmailError(value && !validateEmail(value) ? 'Please enter a valid email address' : null);
     }
   }, []);
 
-  const handleCheckboxChange = useCallback((
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleCheckboxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: checked
-    }));
+    setFormData(prev => ({ ...prev, [name]: checked }));
   }, []);
 
   const resetForm = useCallback(() => {
     setFormData(INITIAL_FORM_DATA);
-    setReferenceError(null);
+    setReferenceNumbers(['']);
+    setReferenceErrors([null]);
     setEmailError(null);
     setError(null);
     setLocationStatus(null);
     setSuccess(false);
   }, []);
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setLoading(true);
-  setError(null);
-  setSuccess(false);
-  setLocationStatus('checking');
+  // ── Submit ─────────────────────────────────────────────────────────────────
 
-  try {
-    // Check time restrictions
-    const timeCheck = isWithinAllowedTime();
-    if (!timeCheck.allowed) {
-      setError(timeCheck.message || 'Check-in not available at this time');
-      setLoading(false);
-      setLocationStatus(null);
-      return;
-    }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+    setLocationStatus('checking');
 
-    // Check geofence
-    const geofenceCheck = await validateGeofence();
-    if (!geofenceCheck.valid) {
-      setError(geofenceCheck.message || 'You must be on-site to check in');
-      setLoading(false);
-      setLocationStatus('invalid');
-      return;
-    }
-    
-    setLocationStatus('valid');
-
-    // Email validation
-    if (!validateEmail(formData.driverEmail)) {
-      setError('Please enter a valid email address');
-      setLoading(false);
-      return;
-    }
-
-    // Email consent validation
-    if (!formData.emailConsent) {
-      setError('You must consent to email communications to proceed');
-      setLoading(false);
-      return;
-    }
-
-    const now = new Date();
-    const checkInTimestamp = now.toISOString();
-
-    console.log('=== CHECK-IN SUBMISSION ===');
-    console.log('Timestamp being saved:', checkInTimestamp);
-    console.log('As Date object:', now);
-    console.log('===========================');
-
-    // Insert the check-in record with the timestamp
-    const { data: checkInData, error: checkInError } = await supabase
-      .from('check_ins')
-      .insert([
-        {
-          driver_name: formData.driverName.trim(),
-          driver_phone: formData.driverPhone.replace(/\D/g, ''),
-          driver_email: formData.driverEmail.trim().toLowerCase(),
-          carrier_name: formData.carrierName.trim(),
-          trailer_number: formData.trailerNumber.trim().toUpperCase(),
-          trailer_length: formData.trailerLength,
-          reference_number: formData.referenceNumber.trim().toUpperCase(),
-          load_type: formData.loadType,
-          destination_city: formData.destinationCity.trim(),
-          destination_state: formData.destinationState,
-          status: 'pending',
-          check_in_time: checkInTimestamp, // **THIS IS THE KEY LINE**
-          email_consent: formData.emailConsent,
-        },
-      ])
-      .select()
-      .single();
-
-    if (checkInError) {
-      console.error('Supabase insert error:', checkInError);
-      throw new Error(`Failed to create check-in: ${checkInError.message}`);
-    }
-
-    console.log('Check-in created successfully:', checkInData);
-
-    // Trigger email notification
     try {
-     // Around line 388, replace the triggerCheckInEmail call with:
-await triggerCheckInEmail({
-  driverName: formData.driverName,
-  carrierName: formData.carrierName,
-  referenceNumber: formData.referenceNumber,
-  loadType: formData.loadType,
-  driverEmail: formData.driverEmail,
-  trailerNumber: formData.trailerNumber,        // ADD THIS
-  destinationCity: formData.destinationCity,    // ADD THIS
-  destinationState: formData.destinationState,  // ADD THIS
-  checkInTime: checkInTimestamp,                // ADD THIS
-});
-      console.log('Email notification sent');
-    } catch (emailError) {
-      console.error('Email notification failed:', emailError);
-      // Don't fail the check-in if email fails
+      // Time restriction check
+      const timeCheck = isWithinAllowedTime();
+      if (!timeCheck.allowed) {
+        setError(timeCheck.message || 'Check-in not available at this time');
+        setLoading(false);
+        setLocationStatus(null);
+        return;
+      }
+
+      // Geofence check
+      const geofenceCheck = await validateGeofence();
+      if (!geofenceCheck.valid) {
+        setError(geofenceCheck.message || 'You must be on-site to check in');
+        setLoading(false);
+        setLocationStatus('invalid');
+        return;
+      }
+      setLocationStatus('valid');
+
+      // Email validation
+      if (!validateEmail(formData.driverEmail)) {
+        setError('Please enter a valid email address');
+        setLoading(false);
+        return;
+      }
+
+      // Email consent
+      if (!formData.emailConsent) {
+        setError('You must consent to email communications to proceed');
+        setLoading(false);
+        return;
+      }
+
+      // Build and validate reference numbers
+      const filledRefs = referenceNumbers.map(r => r.trim()).filter(r => r !== '');
+
+      if (filledRefs.length === 0) {
+        setError('Please provide at least one reference number');
+        setLoading(false);
+        return;
+      }
+
+      // Check all filled refs pass format validation
+      const invalidRef = filledRefs.find(r => !validateReferenceNumber(r));
+      if (invalidRef) {
+        setError(`Reference number "${invalidRef}" has an invalid format`);
+        setLoading(false);
+        return;
+      }
+
+      // Check for any blank intermediate fields
+      const hasBlankEntry = referenceNumbers.some(
+        (r, i) => r.trim() === '' && i < referenceNumbers.length - 1
+      );
+      if (hasBlankEntry) {
+        setError('Please fill in all reference number fields or remove empty ones');
+        setLoading(false);
+        return;
+      }
+
+      // Join multiple ref numbers comma-separated for DB storage
+      const referenceNumberValue = filledRefs.join(', ');
+
+      // Insert check-in record
+      const { data: checkInData, error: insertError } = await supabase
+        .from('check_ins')
+        .insert({
+          driver_name: formData.driverName,
+          driver_phone: formData.driverPhone,
+          driver_email: formData.driverEmail,
+          carrier_name: formData.carrierName,
+          trailer_number: formData.trailerNumber,
+          trailer_length: formData.trailerLength || null,
+          load_type: formData.loadType,
+          reference_number: referenceNumberValue,
+          destination_city: formData.destinationCity || null,
+          destination_state: formData.destinationState || null,
+          status: 'pending',
+          check_in_time: new Date().toISOString(),
+          email_consent: formData.emailConsent,
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Trigger confirmation email
+      if (checkInData && formData.emailConsent && formData.driverEmail) {
+        try {
+          await triggerCheckInEmail({
+            driverName: formData.driverName,
+            driverEmail: formData.driverEmail,
+            carrierName: formData.carrierName,
+            trailerNumber: formData.trailerNumber,
+            referenceNumber: referenceNumberValue,
+            loadType: formData.loadType,
+            checkInTime: checkInData.check_in_time,
+            checkInId: checkInData.id,
+          });
+        } catch (emailErr) {
+          console.error('Email trigger failed (non-fatal):', emailErr);
+        }
+      }
+
+      setSuccess(true);
+    } catch (err: any) {
+      console.error('Driver check-in error:', err);
+      setError(err.message || 'Failed to submit check-in. Please try again.');
+      setLocationStatus(null);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    setSuccess(true);
-    
-    // Reset form after showing success message
-    setTimeout(() => {
-      resetForm();
-    }, 3000);
+  // ── Success screen ─────────────────────────────────────────────────────────
 
-  } catch (err) {
-    console.error('Check-in submission error:', err);
-    setError(
-      err instanceof Error 
-        ? err.message 
-        : 'An error occurred while submitting your check-in. Please try again.'
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+          <div className="text-green-500 text-6xl mb-4">✓</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Check-In Successful!</h2>
+          <p className="text-gray-600 mb-2">
+            Welcome, {formData.driverName}! You have been checked in successfully.
+          </p>
+          {referenceNumbers.filter(r => r.trim()).length > 0 && (
+            <p className="text-sm text-gray-500 mb-2">
+              <span className="font-medium">Reference(s):</span>{' '}
+              {referenceNumbers.filter(r => r.trim()).join(', ')}
+            </p>
+          )}
+          <p className="text-gray-600 mb-6">
+            Please proceed to the waiting area. A CSR will assist you shortly.
+            {formData.emailConsent && ' A confirmation has been sent to your email.'}
+          </p>
+          <button
+            onClick={resetForm}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            New Check-In
+          </button>
+        </div>
+      </div>
     );
-    setLocationStatus(null);
-  } finally {
-    setLoading(false);
   }
-};
+
+  // ── Main form ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Driver Check-In
-            </h1>
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          {/* Header */}
+          <div className="bg-blue-600 text-white p-6">
+            <h1 className="text-2xl font-bold">Driver Check-In</h1>
+            <p className="text-blue-100 mt-1">Please fill out all required fields to check in</p>
           </div>
 
-          {/* Time Restriction Warning */}
+          {/* Time restriction warning */}
           {timeRestrictionWarning && (
-            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-yellow-800">
-                    {timeRestrictionWarning}
-                  </h3>
-                  <p className="mt-1 text-sm text-yellow-700">
-                    Check-in hours: Monday-Friday, 6:00 AM - 5:00 PM
-                  </p>
-                </div>
-              </div>
+            <div className="mx-6 mt-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded">
+              ⚠️ {timeRestrictionWarning}
             </div>
           )}
 
-          {/* Location Status Indicator */}
+          {/* Location status indicator */}
           {locationStatus === 'checking' && (
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center">
-                <svg className="animate-spin h-5 w-5 text-blue-600 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span className="text-blue-800">Verifying your location...</span>
-              </div>
+            <div className="mx-6 mt-4 p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded flex items-center gap-2">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+              Verifying your location...
             </div>
           )}
 
-          {locationStatus === 'valid' && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-center">
-                <svg className="h-5 w-5 text-green-600 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                <span className="text-green-800">Location verified - You are on-site</span>
-              </div>
-            </div>
-          )}
-
-          {/* Error Alert */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">{error}</h3>
-                </div>
-              </div>
+            <div className="mx-6 mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {error}
             </div>
           )}
 
-          {/* Success Alert */}
-          {success && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+
+            {/* ── Driver Information ── */}
+            <div className="border-b pb-5">
+              <h2 className="text-lg font-semibold text-gray-700 mb-4">Driver Information</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="driverName"
+                    value={formData.driverName}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="John Smith"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-green-800">
-                    Check-in successful! You will receive an email with instructions. 
-                  </h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    name="driverPhone"
+                    value={formData.driverPhone}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="(555) 555-5555"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    name="driverEmail"
+                    value={formData.driverEmail}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="driver@example.com"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      emailError ? 'border-red-400' : 'border-gray-300'
+                    }`}
+                  />
+                  {emailError && (
+                    <p className="text-red-500 text-xs mt-1">{emailError}</p>
+                  )}
                 </div>
               </div>
             </div>
-          )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Load Type Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Load Type <span className="text-red-500">*</span>
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, loadType: 'inbound' }))}
-                  className={`p-4 rounded-lg border-2 transition-all ${
-                    formData.loadType === 'inbound'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="text-center">
-                    <div className="text-2xl mb-2"></div>
-                    <div className="font-semibold">Inbound</div>
-                    <div className="text-sm text-gray-500">Delivering to facility</div>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, loadType: 'outbound' }))}
-                  className={`p-4 rounded-lg border-2 transition-all ${
-                    formData.loadType === 'outbound'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="text-center">
-                    <div className="text-2xl mb-2"></div>
-                    <div className="font-semibold">Outbound</div>
-                    <div className="text-sm text-gray-500">Picking up from facility</div>
-                  </div>
-                </button>
-              </div>
-            </div>
+            {/* ── Load Information ── */}
+            <div className="border-b pb-5">
+              <h2 className="text-lg font-semibold text-gray-700 mb-4">Load Information</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-            {/* Driver Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="driverName" className="block text-sm font-medium text-gray-700 mb-1">
-                  Driver Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="driverName"
-                  name="driverName"
-                  value={formData.driverName}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="John Doe"
-                />
-              </div>
+                {/* Load Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Load Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="loadType"
+                    value={formData.loadType}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="inbound">Inbound</option>
+                    <option value="outbound">Outbound</option>
+                  </select>
+                </div>
 
-              <div>
-                <label htmlFor="driverPhone" className="block text-sm font-medium text-gray-700 mb-1">
-                  Driver Phone <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  id="driverPhone"
-                  name="driverPhone"
-                  value={formData.driverPhone}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="(555) 123-4567"
-                  maxLength={14}
-                />
-              </div>
-            </div>
-
-            {/* Email Field */}
-            <div>
-              <label htmlFor="driverEmail" className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="email"
-                id="driverEmail"
-                name="driverEmail"
-                value={formData.driverEmail}
-                onChange={handleInputChange}
-                required
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  emailError ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="driver@example.com"
-              />
-              {emailError && (
-                <p className="mt-1 text-sm text-red-600">{emailError}</p>
-              )}
-            </div>
-
-            {/* Carrier & Trailer Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="carrierName" className="block text-sm font-medium text-gray-700 mb-1">
-                  Carrier Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="carrierName"
-                  name="carrierName"
-                  value={formData.carrierName}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="ABC Trucking"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="trailerNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                  Trailer Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="trailerNumber"
-                  name="trailerNumber"
-                  value={formData.trailerNumber}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="TRL12345"
-                />
-              </div>
-            </div>
-
-            {/* Trailer Length & Reference Number */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="trailerLength" className="block text-sm font-medium text-gray-700 mb-1">
-                  Trailer Length <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="trailerLength"
-                  name="trailerLength"
-                  value={formData.trailerLength}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {TRAILER_LENGTHS.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="referenceNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                  Reference Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="referenceNumber"
-                  name="referenceNumber"
-                  value={formData.referenceNumber}
-                  onChange={handleInputChange}
-                  required
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    referenceError ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="2123456 or 4123456 or 86123456"
-                />
-                {referenceError && (
-                  <p className="mt-1 text-sm text-red-600">{referenceError}</p>
-                )}
-              </div>
-            </div>
-
-                        {/* Destination (Outbound Only) */}
-            {formData.loadType === 'outbound' && (
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h3 className="text-sm font-semibold text-blue-900 mb-3">
-                  Destination Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="destinationCity" className="block text-sm font-medium text-gray-700 mb-1">
-                      Destination City <span className="text-red-500">*</span>
+                {/* Reference Numbers */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Reference Number(s) <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      id="destinationCity"
-                      name="destinationCity"
-                      value={formData.destinationCity}
-                      onChange={handleInputChange}
-                      required={formData.loadType === 'outbound'}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Indianapolis"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="destinationState" className="block text-sm font-medium text-gray-700 mb-1">
-                      Destination State <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="destinationState"
-                      name="destinationState"
-                      value={formData.destinationState}
-                      onChange={handleInputChange}
-                      required={formData.loadType === 'outbound'}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    {/* Plus button to add another ref number field */}
+                    <button
+                      type="button"
+                      onClick={addReferenceNumber}
+                      className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                      title="Add another reference number"
                     >
-                      <option value="">Select state</option>
-                      {US_STATES.map(state => (
-                        <option key={state} value={state}>
-                          {state}
-                        </option>
-                      ))}
-                    </select>
+                      <Plus size={16} />
+                      Add
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {referenceNumbers.map((ref, index) => (
+                      <div key={index}>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={ref}
+                            onChange={e => handleReferenceChange(index, e.target.value)}
+                            required={index === 0}
+                            placeholder={
+                              index === 0
+                                ? 'e.g., SO12345 or 2xxxxxx'
+                                : `Reference #${index + 1}`
+                            }
+                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                              referenceErrors[index] ? 'border-red-400' : 'border-gray-300'
+                            }`}
+                          />
+                          {/* Remove button — only on additional fields */}
+                          {index > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => removeReferenceNumber(index)}
+                              className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors"
+                              title="Remove this reference number"
+                            >
+                              <Minus size={18} />
+                            </button>
+                          )}
+                        </div>
+                        {/* Per-field format error */}
+                        {referenceErrors[index] && (
+                          <p className="text-red-500 text-xs mt-1">{referenceErrors[index]}</p>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            )}
 
-            {/* Email Consent Disclaimer */}
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                Email Communication Consent
-              </h3>
-              <p className="text-xs text-gray-600 mb-3">
-                By providing your email address, you consent to receive:
-              </p>
-              <ul className="text-xs text-gray-600 list-disc list-inside space-y-1 mb-3 ml-2">
-                <li>Real-time shipment status updates and notifications</li>
-                <li>Dock appointment confirmations and schedule changes</li>
-                <li>Facility operational updates and safety alerts</li>
-                <li>Important delivery and pickup instructions</li>
-              </ul>
-              <p className="text-xs text-gray-600 mb-3">
-                We respect your privacy. Your email will not be sold or shared with third parties 
-                for marketing purposes. You may opt out at any time by contacting our facility.
-              </p>
-              
-              <div className="flex items-start">
+              </div>
+            </div>
+
+            {/* ── Carrier & Trailer ── */}
+            <div className="border-b pb-5">
+              <h2 className="text-lg font-semibold text-gray-700 mb-4">Carrier & Trailer</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Carrier Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="carrierName"
+                    value={formData.carrierName}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="e.g., J.B. Hunt"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Trailer Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="trailerNumber"
+                    value={formData.trailerNumber}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="e.g., TRL-12345"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Trailer Length <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="trailerLength"
+                    value={formData.trailerLength}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {TRAILER_LENGTHS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Destination ── */}
+            <div className="border-b pb-5">
+              <h2 className="text-lg font-semibold text-gray-700 mb-4">Destination</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Destination City
+                  </label>
+                  <input
+                    type="text"
+                    name="destinationCity"
+                    value={formData.destinationCity}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Los Angeles"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Destination State
+                  </label>
+                  <select
+                    name="destinationState"
+                    value={formData.destinationState}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select state</option>
+                    {US_STATES.map(state => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Email Consent ── */}
+            <div className="border-b pb-5">
+              <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
-                  id="emailConsent"
                   name="emailConsent"
                   checked={formData.emailConsent}
                   onChange={handleCheckboxChange}
-                  required
-                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <label htmlFor="emailConsent" className="ml-2 text-sm text-gray-700">
-                  I consent to receive email communications as described above. 
-                  <span className="text-red-500">*</span>
-                </label>
-              </div>
+                <span className="text-sm text-gray-600">
+                  I consent to receiving email communications regarding my check-in status,
+                  dock assignment, and other relevant updates. <span className="text-red-500">*</span>
+                </span>
+              </label>
             </div>
 
-            {/* Submit Button */}
-            <div className="flex gap-4">
+            {/* ── Submit ── */}
+            <div className="flex justify-end">
               <button
                 type="submit"
-                disabled={loading || !!timeRestrictionWarning || !!referenceError || !!emailError}
+                disabled={loading || !!timeRestrictionWarning}
                 className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${
                   loading || timeRestrictionWarning || referenceError || emailError
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
