@@ -49,7 +49,8 @@ export async function POST(request: NextRequest) {
           data.loadType,
           data.checkInTime,
           data.appointmentTime,
-          data.appointmentStatus
+          data.appointmentStatus,
+          data.grossWeight
         );
         break;
 
