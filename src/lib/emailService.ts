@@ -56,27 +56,28 @@ class EmailService {
   }
 
   async sendDockAssignment(
-    toEmail: string,
-    driverName: string,
-    dockNumber: string,
-    referenceNumber: string,
-    loadType: 'inbound' | 'outbound',
-    checkInTime: string,
-    appointmentTime?: string,
-    appointmentStatus?: string
-    grossWeight: string,
-  ): Promise<void> {
-    try {
-      const template = this.getDockAssignmentTemplate(
-        driverName,
-        dockNumber,
-        referenceNumber,
-        loadType,
-        checkInTime,
-        appointmentTime,
-        appointmentStatus,
-        gorssWeight
-      );
+  toEmail: string,
+  driverName: string,
+  dockNumber: string,
+  referenceNumber: string,
+  loadType: 'inbound' | 'outbound',
+  checkInTime: string,
+  appointmentTime?: string,
+  appointmentStatus?: string,  // ← ADD COMMA HERE
+  grossWeight?: string         // ← optional since it may not always be provided
+): Promise<void> {
+  try {
+    const template = this.getDockAssignmentTemplate(
+      driverName,
+      dockNumber,
+      referenceNumber,
+      loadType,
+      checkInTime,
+      appointmentTime,
+      appointmentStatus,
+      grossWeight           // ← PASS IT TO THE TEMPLATE
+    );
+
 
       const mailOptions: EmailOptions = {
         to: toEmail,
@@ -407,7 +408,8 @@ private getStatusChangeTemplate(
     loadType: 'inbound' | 'outbound',
     checkInTime: string,
     appointmentTime?: string,
-    appointmentStatus?: string
+    appointmentStatus?: string,
+    grossWeight?: string
   ): EmailTemplate {
     const dockDisplay = dockNumber === 'Ramp' ? 'RAMP' : `DOCK ${dockNumber}`;
     
