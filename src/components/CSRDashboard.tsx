@@ -252,8 +252,8 @@ const getAppointmentStatus = (
     const checkInTotalMinutes = checkInHour * 60 + checkInComponents.minute;
     const minuteDifference = checkInTotalMinutes - appointmentTotalMinutes;
 
-    // Early or within 15 min after appointment = GREEN
-    if (minuteDifference <= 15) {
+    // Early or within 10 min after appointment = GREEN
+    if (minuteDifference <= 10) {
       return { color: 'green', message: null };
     }
 
