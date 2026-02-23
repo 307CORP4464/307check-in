@@ -465,6 +465,29 @@ private getStatusChangeTemplate(
                           </td>
                         </tr>
                       </table>
+
+  <tr>
+      <td style="padding: 12px 16px; background-color: #fff8e1; border-top: 1px solid #ffe082;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td>
+              <p style="margin: 0 0 6px 0; font-size: 15px; font-weight: bold; color: #e65100;">
+                ⚖️ Gross Weight: ${Number(grossWeight).toLocaleString()} lbs
+              </p>
+              <p style="margin: 0; font-size: 13px; color: #5d4037; line-height: 1.5;">
+                If you have any concerns or disputes regarding this weight, 
+                <strong>please see us in the office before proceeding to your assigned dock.</strong>
+              </p>
+              <p style="margin: 8px 0 0 0; font-size: 13px; color: #5d4037; line-height: 1.5;">
+                By proceeding to <strong>Dock ${data.dockNumber}</strong>, you are 
+                <strong>accepting the listed gross weight</strong> of 
+                <strong>${Number(grossWeight).toLocaleString()} lbs</strong>.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
                       
                       <!-- Time Information Box -->
                       <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-left: 4px solid #2196F3; margin: 20px 0;">
