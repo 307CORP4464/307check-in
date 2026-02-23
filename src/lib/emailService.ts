@@ -466,7 +466,6 @@ private getStatusChangeTemplate(
                           </td>
                         </tr>
                       </table>
-                      
     <!-- Weight Information Box -->
   <tr>
       <td style="padding: 12px 16px; background-color: #fff8e1; border-top: 1px solid #ffe082;">
@@ -484,12 +483,11 @@ private getStatusChangeTemplate(
           </tr>
         </table>
       </td>
-    </tr>
-                      
+    </tr> 
                       <!-- Time Information Box -->
-                      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-left: 4px solid #2196F3; margin: 20px 0;">
                         <tr>
-                          <td style="padding: 20px;">
+                         <td style="padding: 40px 30px;">
+                          <table width="100%" cellpadding="0" cellspacing="0">
                             <p style="margin: 0 0 10px; font-size: 14px; color: #666666;"><strong style="color: #333333;">Check-In Time:</strong> ${checkInTime}</p>
                             ${appointmentTime ? `<p style="margin: 0; font-size: 14px; color: #666666;"><strong style="color: #333333;">Appointment Time:</strong> ${appointmentTime}</p>` : '<p style="margin: 0; font-size: 14px; color: #666666;"><strong style="color: #333333;">Appointment:</strong> Walk-In</p>'}
                           </td>
