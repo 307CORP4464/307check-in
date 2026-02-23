@@ -17,6 +17,7 @@ interface AssignDockModalProps {
     destination_city?: string;
     destination_state?: string;
     check_in_time?: string | null;
+    grossWeight?: string;
     load_type?: 'inbound' | 'outbound';
   };
   onClose: () => void;
