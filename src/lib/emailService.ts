@@ -307,19 +307,16 @@ private getStatusChangeTemplate(
     'checked_in': 'Checked In',
     'at_dock': 'At Dock',
     'loading': 'Loading',
-    'unloading': 'Unloading',
     'checked_out': 'Completed',
     'unloaded': 'Unloaded',
     'rejected': 'Rejected',
     'turned_away': 'Turned Away',
     'driver_left': 'Driver Left',
-    'denied': 'Denied',
   };
 
   // Status-specific colors
   const statusColors: Record<string, string> = {
     'checked_out': '#4CAF50',
-    'unloaded': '#4CAF50',
     'rejected': '#f44336',
     'turned_away': '#ff9800',
     'driver_left': '#9e9e9e',
@@ -380,7 +377,7 @@ private getStatusChangeTemplate(
                     </table>
                     ` : ''}
                     
-                    <p style="font-size: 16px; color: #333333; margin: 30px 0 20px;">Thank you for your service!</p>
+                    <p style="font-size: 16px; color: #333333; margin: 30px 0 20px;">Please wait for your light to be green before pulling out of the dock.</p>
                   </td>
                 </tr>
                 
