@@ -64,6 +64,7 @@ class EmailService {
     checkInTime: string,
     appointmentTime?: string,
     appointmentStatus?: string
+    grossWeight: string,
   ): Promise<void> {
     try {
       const template = this.getDockAssignmentTemplate(
@@ -73,7 +74,8 @@ class EmailService {
         loadType,
         checkInTime,
         appointmentTime,
-        appointmentStatus
+        appointmentStatus,
+        gorssWeight
       );
 
       const mailOptions: EmailOptions = {
