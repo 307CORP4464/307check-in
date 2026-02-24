@@ -312,6 +312,7 @@ export default function CSRDashboard() {
   const [dockDoors, setDockDoors] = useState<DockDoor[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [userEmail, setUserEmail] = useState<string | null>(null); // ← ADD THIS
   const [selectedCheckIn, setSelectedCheckIn] = useState<CheckIn | null>(null);
   const [isAssignDockModalOpen, setIsAssignDockModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -322,6 +323,15 @@ export default function CSRDashboard() {
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
+  }, []);
+
+  // ─── Fetch current user email ─────────────────────────────────────────────
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUserEmail(user?.email ?? null);
+    };
+    fetchUser();
   }, []);
 
   // ─── Fetch check-ins and appointments, then match them ───────────────────
@@ -341,7 +351,7 @@ export default function CSRDashboard() {
           return;
         }
 
-        // 2. Fetch all appointments (or scope to today's date range as needed)
+        // 2. Fetch all appointments
         const { data: appointmentData, error: appointmentError } = await supabase
           .from('appointments')
           .select('*');
@@ -370,7 +380,6 @@ export default function CSRDashboard() {
           return {
             ...checkIn,
             matched_appointment: matched,
-            // If the check-in itself doesn't have appt time/date, pull from matched appointment
             appointment_time: checkIn.appointment_time || matched?.appointment_time || null,
             appointment_date: checkIn.appointment_date || matched?.appointment_date || null,
           };
@@ -394,8 +403,7 @@ export default function CSRDashboard() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'check_ins' },
-        async (payload) => {
-          // Re-fetch on any change so matching stays up to date
+        async () => {
           const { data: checkInData } = await supabase
             .from('check_ins')
             .select('*')
@@ -454,7 +462,6 @@ export default function CSRDashboard() {
   };
 
   const handleCheckInUpdated = async () => {
-    // Re-fetch and re-enrich after any update
     const { data: checkInData } = await supabase
       .from('check_ins')
       .select('*')
@@ -489,6 +496,7 @@ export default function CSRDashboard() {
     );
   }
 
+  // ─── return ( ... ) continues below ──────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b shadow-sm">
