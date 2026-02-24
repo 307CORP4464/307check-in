@@ -318,6 +318,7 @@ export default function CSRDashboard() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDenyModalOpen, setIsDenyModalOpen] = useState(false);
   const [isManualCheckInModalOpen, setIsManualCheckInModalOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // ─── Alias to match JSX usage of setShowManualCheckIn ────────────────────
   const setShowManualCheckIn = setIsManualCheckInModalOpen;
