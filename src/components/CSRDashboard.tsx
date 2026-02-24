@@ -312,12 +312,15 @@ export default function CSRDashboard() {
   const [dockDoors, setDockDoors] = useState<DockDoor[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [userEmail, setUserEmail] = useState<string | null>(null); // ← ADD THIS
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [selectedCheckIn, setSelectedCheckIn] = useState<CheckIn | null>(null);
   const [isAssignDockModalOpen, setIsAssignDockModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDenyModalOpen, setIsDenyModalOpen] = useState(false);
   const [isManualCheckInModalOpen, setIsManualCheckInModalOpen] = useState(false);
+
+  // ─── Alias to match JSX usage of setShowManualCheckIn ────────────────────
+  const setShowManualCheckIn = setIsManualCheckInModalOpen;
 
   // Clock tick
   useEffect(() => {
@@ -339,7 +342,6 @@ export default function CSRDashboard() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // 1. Fetch today's check-ins
         const { data: checkInData, error: checkInError } = await supabase
           .from('check_ins')
           .select('*')
@@ -351,7 +353,6 @@ export default function CSRDashboard() {
           return;
         }
 
-        // 2. Fetch all appointments
         const { data: appointmentData, error: appointmentError } = await supabase
           .from('appointments')
           .select('*');
@@ -360,7 +361,6 @@ export default function CSRDashboard() {
           console.error('Error fetching appointments:', appointmentError);
         }
 
-        // 3. Fetch dock doors
         const { data: dockData, error: dockError } = await supabase
           .from('dock_doors')
           .select('*')
@@ -374,7 +374,6 @@ export default function CSRDashboard() {
         setAppointments(allAppointments);
         setDockDoors(dockData || []);
 
-        // 4. Enrich each check-in with its matched appointment using ALL ref numbers
         const enrichedCheckIns: CheckIn[] = (checkInData || []).map(checkIn => {
           const matched = findMatchingAppointment(allAppointments, checkIn);
           return {
