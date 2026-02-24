@@ -356,15 +356,18 @@ export default function DriverCheckInForm() {
       // Trigger confirmation email
       if (checkInData && formData.emailConsent && formData.driverEmail) {
         try {
-          await triggerCheckInEmail({
-            driverName: formData.driverName,
-            driverEmail: formData.driverEmail,
-            carrierName: formData.carrierName,
-            trailerNumber: formData.trailerNumber,
-            referenceNumber: referenceNumberValue,
-            loadType: formData.loadType,
-            checkInTime: checkInData.check_in_time,
-          });
+         await triggerCheckInEmail({
+  driverName: formData.driverName,
+  driverEmail: formData.driverEmail,
+  carrierName: formData.carrierName,
+  trailerNumber: formData.trailerNumber,
+  referenceNumber: referenceNumbers.filter(r => r).join(', '), // or however you handle this
+  loadType: formData.loadType,
+  checkInTime: new Date().toISOString(), // or however you get this
+  destinationCity: formData.destinationCity,   // ← ADD THIS
+  destinationState: formData.destinationState, // ← ADD THIS
+});
+
         } catch (emailErr) {
           console.error('Email trigger failed (non-fatal):', emailErr);
         }
