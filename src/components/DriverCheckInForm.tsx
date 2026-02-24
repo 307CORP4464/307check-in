@@ -699,7 +699,7 @@ export default function DriverCheckInForm() {
                 type="submit"
                 disabled={loading || !!timeRestrictionWarning}
                 className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${
-                  loading || timeRestrictionWarning || referenceError || emailError
+                  loading || timeRestrictionWarning || referenceErrors || emailError
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
                 }`}
