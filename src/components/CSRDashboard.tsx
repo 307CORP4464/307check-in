@@ -320,8 +320,14 @@ export default function CSRDashboard() {
   const [isManualCheckInModalOpen, setIsManualCheckInModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ─── Alias to match JSX usage of setShowManualCheckIn ────────────────────
+   // ─── Alias to match JSX usage of setShowManualCheckIn ────────────────────
   const setShowManualCheckIn = setIsManualCheckInModalOpen;
+
+  // ─── Alias to match JSX usage of setSelectedForEdit ──────────────────────
+  const setSelectedForEdit = (checkIn: CheckIn) => {
+    setSelectedCheckIn(checkIn);
+    setIsEditModalOpen(true);
+  };
 
   // Clock tick
   useEffect(() => {
