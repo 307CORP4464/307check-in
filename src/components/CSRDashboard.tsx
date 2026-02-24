@@ -313,11 +313,10 @@ export default function CSRDashboard() {
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [selectedCheckIn, setSelectedCheckIn] = useState<CheckIn | null>(null);
-  const [isAssignDockModalOpen, setIsAssignDockModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDenyModalOpen, setIsDenyModalOpen] = useState(false);
-  const [isManualCheckInModalOpen, setIsManualCheckInModalOpen] = useState(false);
+  const [selectedForDock, setSelectedForDock] = useState<CheckIn | null>(null);
+  const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
+  const [selectedForDeny, setSelectedForDeny] = useState<CheckIn | null>(null);
+  const [showManualCheckIn, setShowManualCheckIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // ─── Alias to match JSX usage of setShowManualCheckIn ────────────────────
