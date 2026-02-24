@@ -401,7 +401,7 @@ export default function DriverCheckInForm() {
             </p>
           )}
           <p className="text-gray-600 mb-6">
-            Please proceed to the waiting area. A CSR will assist you shortly.
+            Please park in the angled parking spaces in front of the office. 
             {formData.emailConsent && ' A confirmation has been sent to your email.'}
           </p>
           <button
