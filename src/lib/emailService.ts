@@ -476,8 +476,8 @@ private getStatusChangeTemplate(
                 ⚖️ Gross Weight: ${Number(grossWeight).toLocaleString()} lbs
               </p>
               <p style="margin: 0; font-size: 13px; color: #5d4037; line-height: 1.5;">
-                If you have any concerns or disputes regarding this weight, 
-                <strong>please see us in the office before proceeding to your assigned dock.</strong>
+                
+                <strong>If you have any concerns or disputes regarding this weight, please see us in the office before proceeding to your assigned dock. By continuing to the dock you are accepting this weight.</strong>
               </p>
             </td>
           </tr>
