@@ -364,7 +364,6 @@ export default function DriverCheckInForm() {
             referenceNumber: referenceNumberValue,
             loadType: formData.loadType,
             checkInTime: checkInData.check_in_time,
-            checkInId: checkInData.id,
           });
         } catch (emailErr) {
           console.error('Email trigger failed (non-fatal):', emailErr);
