@@ -388,6 +388,7 @@ export default function CSRDashboard() {
         setCheckIns(enrichedCheckIns);
       } catch (err) {
         console.error('Unexpected error fetching data:', err);
+        setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       } finally {
         setLoading(false);
       }
