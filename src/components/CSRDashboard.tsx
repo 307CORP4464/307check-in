@@ -335,6 +335,11 @@ export default function CSRDashboard() {
     setIsAssignDockModalOpen(true);
   };
 
+  // ─── Alias to match JSX usage of setSelectedForDeny ──────────────────────
+  const setSelectedForDeny = (checkIn: CheckIn) => {
+    setSelectedCheckIn(checkIn);
+    setIsDenyModalOpen(true);
+  };
 
   // Clock tick
   useEffect(() => {
