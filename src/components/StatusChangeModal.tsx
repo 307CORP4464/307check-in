@@ -188,7 +188,7 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
                     onChange={(e) => setStatusAction(e.target.value as StatusAction)}
                     className="mr-2"
                   />
-                  <span>Complete Loading</span>
+                  <span>Complete</span>
                 </label>
                 <label className="flex items-center">
                   <input
