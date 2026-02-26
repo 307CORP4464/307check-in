@@ -20,6 +20,7 @@ interface DockStatus {
   is_manually_blocked: boolean;
   blocked_reason?: string;
   current_load_id?: string | null;
+  isRamp?: boolean;
 }
 
 // Define the dock order: 64-70 first, then 1-27, Ramp, 28-63
@@ -83,18 +84,18 @@ export default function DockStatusPage() {
   const initializeDocks = async () => {
     setLoading(true);
     
-    try {
-      const allDocks: DockStatus[] = [];
-      for (let i = 1; i <= TOTAL_DOCKS; i++) {
-        allDocks.push({
-          dock_number: i.toString(),
-          status: 'available',
-          orders: [],
-          is_manually_blocked: false,
-          blocked_reason: undefined,
-          current_load_id: null
-        });
-      }
+try {
+      // Build docks from DOCK_ORDER
+      const allDocks: DockStatus[] = DOCK_ORDER.map(dockNum => ({
+        dock_number: dockNum,
+        status: 'available',
+        orders: [],
+        is_manually_blocked: false,
+        blocked_reason: undefined,
+        current_load_id: null,
+        isRamp: dockNum === 'Ramp',
+      }));
+
 
       const { data: checkIns } = await supabase
         .from('check_ins')
