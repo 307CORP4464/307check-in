@@ -227,6 +227,24 @@ const loadAllAppointments = async () => {
     return status.toLowerCase() === 'checked_in';
   }).length;
 
+onCheckDuplicate={(salesOrder, delivery) => {
+  console.log('🔔 onCheckDuplicate called', salesOrder, delivery);
+  console.log('📋 allAppointments count:', allAppointments.length);
+  
+  if (editingAppointment) {
+    setExistingAppointment(null);
+    return;
+  }
+  const so = salesOrder.trim().toLowerCase();
+  const del = delivery.trim().toLowerCase();
+  const found = allAppointments.find((a) =>
+    (so !== '' && a.sales_order?.trim().toLowerCase() === so) ||
+    (del !== '' && a.delivery?.trim().toLowerCase() === del)
+  ) ?? null;
+  
+  console.log('🔍 found:', found);
+  setExistingAppointment(found);
+}}
   const notCheckedInCount = filteredAppointments.filter(apt => {
     const status = getDailyLogStatus(apt);
     return !status;
