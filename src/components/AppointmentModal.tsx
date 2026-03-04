@@ -10,7 +10,7 @@ interface AppointmentModalProps {
   onSave: (data: AppointmentInput) => Promise<void>;
   appointment?: Appointment | null;
   initialDate?: string;
-  existingAppointment?: Appointment | null;
+  allAppointments?: Appointment[]
   onCheckDuplicate?: (salesOrder: string, delivery: string) => void;
 }
 
@@ -22,7 +22,7 @@ export default function AppointmentModal({
   onSave,
   appointment,
   initialDate = new Date().toISOString().split('T')[0],
-  existingAppointment = null,
+  allAppointments = [],
   onCheckDuplicate,
 }: AppointmentModalProps) {
   const [formData, setFormData] = useState<AppointmentInput>({
