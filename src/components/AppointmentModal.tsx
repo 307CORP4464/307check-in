@@ -9,7 +9,7 @@ interface AppointmentModalProps {
   onSave: (data: AppointmentInput) => Promise<void>;
   appointment?: Appointment | null;
   initialDate?: string;
-  existingAppointment?: Appointment | null;  // ← MUST BE HERE
+  existingAppointment?: Appointment | null;
   onCheckDuplicate?: (salesOrder: string, delivery: string) => void;
 }
 
@@ -20,8 +20,8 @@ export default function AppointmentModal({
   onClose,
   onSave,
   appointment,
-  initialDate = new Date().toISOString().split('T')[0],
-  existingAppointment,   // ← MUST BE HERE
+  initialDate = new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>,
+  existingAppointment,
   onCheckDuplicate,
 }: AppointmentModalProps) {
 
@@ -117,7 +117,13 @@ export default function AppointmentModal({
 
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">{modalTitle}</h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl leading-none" disabled={saving}>×</button>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+              disabled={saving}
+            >
+              ×
+            </button>
           </div>
 
           {/* ⚠️ Duplicate Warning Banner */}
@@ -155,11 +161,16 @@ export default function AppointmentModal({
             </div>
           )}
 
-          {/* Blue banner when editing existing */}
           {editingExisting && (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded flex items-center justify-between">
               <p className="text-blue-700 text-sm font-medium">Editing the existing appointment</p>
-              <button type="button" onClick={() => setEditingExisting(false)} className="text-blue-600 hover:text-blue-800 text-sm underline">Cancel</button>
+              <button
+                type="button"
+                onClick={() => setEditingExisting(false)}
+                className="text-blue-600 hover:text-blue-800 text-sm underline"
+              >
+                Cancel
+              </button>
             </div>
           )}
 
@@ -187,12 +198,16 @@ export default function AppointmentModal({
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 required
               >
-                {TIME_SLOTS.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
+                {TIME_SLOTS.map((slot) => (
+                  <option key={slot} value={slot}>{slot}</option>
+                ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Customer <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium mb-1">
+                Customer <span className="text-red-500">*</span>
+              </label>
               <select
                 value={formData.customer || ''}
                 onChange={(e) => setFormData({ ...formData, customer: e.target.value })}
@@ -200,7 +215,9 @@ export default function AppointmentModal({
                 required
               >
                 <option value="">Select a customer</option>
-                {CUSTOMERS.map((c) => <option key={c} value={c}>{c}</option>)}
+                {CUSTOMERS.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
               </select>
             </div>
 
@@ -214,7 +231,7 @@ export default function AppointmentModal({
                 onChange={(e) => {
                   const val = e.target.value;
                   setFormData({ ...formData, sales_order: val });
-                  onCheckDuplicate?.(val, formData.delivery ?? '');  // ← fires duplicate check
+                  onCheckDuplicate?.(val, formData.delivery ?? '');
                 }}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter sales order number"
@@ -231,7 +248,7 @@ export default function AppointmentModal({
                 onChange={(e) => {
                   const val = e.target.value;
                   setFormData({ ...formData, delivery: val });
-                  onCheckDuplicate?.(formData.sales_order ?? '', val);  // ← fires duplicate check
+                  onCheckDuplicate?.(formData.sales_order ?? '', val);
                 }}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter delivery number"
@@ -272,3 +289,4 @@ export default function AppointmentModal({
     </div>
   );
 }
+
