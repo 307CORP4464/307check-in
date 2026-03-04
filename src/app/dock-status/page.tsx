@@ -5,31 +5,7 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-interface OrderInfo {
-  id: string;
-  po_number: string;
-  driver_name: string;
-  status: string;
-  check_in_time: string;
-}
-
-interface DockStatus {
-  dock_number: string;
-  status: 'available' | 'in-use' | 'double-booked' | 'blocked';
-  orders: OrderInfo[];
-  is_manually_blocked: boolean;
-  blocked_reason?: string;
-  current_load_id?: string | null;
-  isRamp?: boolean;
-}
-
-// Define the dock order: 64-70 first, then 1-27, Ramp, 28-63
-const DOCK_ORDER: string[] = [
-  ...Array.from({ length: 7 }, (_, i) => (64 + i).toString()),  // 64-70
-  ...Array.from({ length: 27 }, (_, i) => (i + 1).toString()),  // 1-27
-  'Ramp',
-  ...Array.from({ length: 36 }, (_, i) => (i + 28).toString()), // 28-63
-];
+// ... (keep your existing interfaces and DOCK_ORDER)
 
 export default function DockStatusPage() {
   const router = useRouter();
@@ -40,31 +16,38 @@ export default function DockStatusPage() {
   const [blockReason, setBlockReason] = useState('');
   const [filter, setFilter] = useState<'all' | 'available' | 'in-use' | 'double-booked' | 'blocked'>('all');
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [userEmail, setUserEmail] = useState<string>(''); // ADD THIS LINE
+  const [userEmail, setUserEmail] = useState<string>('');
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
+    // Get current user email
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data?.user?.email || '');
+    });
+
     initializeDocks();
-    
-    const channel = supabase
-      .channel('dock-status-changes')
+
+    // Listen for check_in changes
+    const checkInsChannel = supabase
+      .channel('dock-checkins-changes')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'check_ins'
-        },
-        () => {
-          initializeDocks();
-        }
+        { event: '*', schema: 'public', table: 'check_ins' },
+        () => initializeDocks()
+      )
+      .subscribe();
+
+    // ✅ Listen for blocked_docks changes (real-time for ALL users)
+    const blockedDocksChannel = supabase
+      .channel('blocked-docks-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'blocked_docks' },
+        () => initializeDocks()
       )
       .subscribe();
 
@@ -74,7 +57,8 @@ export default function DockStatusPage() {
     }
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(checkInsChannel);
+      supabase.removeChannel(blockedDocksChannel);
       if (typeof window !== 'undefined') {
         window.removeEventListener('dock-assignment-changed', handleDockChange);
       }
@@ -83,9 +67,8 @@ export default function DockStatusPage() {
 
   const initializeDocks = async () => {
     setLoading(true);
-    
-try {
-      // Build docks from DOCK_ORDER
+
+    try {
       const allDocks: DockStatus[] = DOCK_ORDER.map(dockNum => ({
         dock_number: dockNum,
         status: 'available',
@@ -96,7 +79,7 @@ try {
         isRamp: dockNum === 'Ramp',
       }));
 
-
+      // Fetch check-ins
       const { data: checkIns } = await supabase
         .from('check_ins')
         .select('*')
@@ -112,28 +95,34 @@ try {
             po_number: checkIn.reference_number || 'N/A',
             driver_name: checkIn.driver_name || 'N/A',
             status: checkIn.status,
-            check_in_time: checkIn.check_in_time
+            check_in_time: checkIn.check_in_time,
           });
           dockMap.set(checkIn.dock_number, existing);
         }
       });
 
-      let blockedDocks: Record<string, { reason: string }> = {};
-      if (typeof window !== 'undefined') {
-        const blockedStr = localStorage.getItem('blocked_docks');
-        if (blockedStr) {
-          blockedDocks = JSON.parse(blockedStr);
-        }
+      // ✅ Fetch blocked docks from Supabase instead of localStorage
+      const { data: blockedDocksData, error: blockedError } = await supabase
+        .from('blocked_docks')
+        .select('*');
+
+      if (blockedError) {
+        console.error('Error fetching blocked docks:', blockedError);
       }
+
+      const blockedMap = new Map<string, string>();
+      blockedDocksData?.forEach(row => {
+        blockedMap.set(row.dock_number, row.reason);
+      });
 
       allDocks.forEach(dock => {
         const orders = dockMap.get(dock.dock_number) || [];
         dock.orders = orders;
-        
-        if (blockedDocks[dock.dock_number]) {
+
+        if (blockedMap.has(dock.dock_number)) {
           dock.status = 'blocked';
           dock.is_manually_blocked = true;
-          dock.blocked_reason = blockedDocks[dock.dock_number].reason;
+          dock.blocked_reason = blockedMap.get(dock.dock_number);
         } else if (orders.length > 1) {
           dock.status = 'double-booked';
         } else if (orders.length === 1) {
@@ -156,38 +145,56 @@ try {
     setShowBlockModal(true);
   };
 
+  // ✅ Unblock from Supabase
   const handleUnblockDock = async (dockNumber: string) => {
-    if (typeof window === 'undefined') return;
-    
     try {
-      const blockedStr = localStorage.getItem('blocked_docks');
-      const blocked = blockedStr ? JSON.parse(blockedStr) : {};
-      delete blocked[dockNumber];
-      localStorage.setItem('blocked_docks', JSON.stringify(blocked));
-      initializeDocks();
+      const { error } = await supabase
+        .from('blocked_docks')
+        .delete()
+        .eq('dock_number', dockNumber);
+
+      if (error) {
+        console.error('Error unblocking dock:', error);
+        alert('Failed to unblock dock. Please try again.');
+        return;
+      }
+
+      // Real-time subscription will trigger initializeDocks automatically
     } catch (error) {
       console.error('Error unblocking dock:', error);
     }
   };
 
-  const submitBlockDock = () => {
+  // ✅ Block in Supabase using upsert
+  const submitBlockDock = async () => {
     if (!selectedDock || !blockReason.trim()) {
       alert('Please enter a reason for blocking this dock');
       return;
     }
 
-    if (typeof window === 'undefined') return;
-
     try {
-      const blockedStr = localStorage.getItem('blocked_docks');
-      const blocked = blockedStr ? JSON.parse(blockedStr) : {};
-      blocked[selectedDock] = { reason: blockReason.trim() };
-      localStorage.setItem('blocked_docks', JSON.stringify(blocked));
-      
+      const { error } = await supabase
+        .from('blocked_docks')
+        .upsert(
+          {
+            dock_number: selectedDock,
+            reason: blockReason.trim(),
+            blocked_by: userEmail || 'unknown',
+            blocked_at: new Date().toISOString(),
+          },
+          { onConflict: 'dock_number' }
+        );
+
+      if (error) {
+        console.error('Error blocking dock:', error);
+        alert('Failed to block dock. Please try again.');
+        return;
+      }
+
       setShowBlockModal(false);
       setSelectedDock(null);
       setBlockReason('');
-      initializeDocks();
+      // Real-time subscription will trigger initializeDocks automatically
     } catch (error) {
       console.error('Error blocking dock:', error);
     }
