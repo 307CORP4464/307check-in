@@ -502,7 +502,7 @@ const formatAppointmentTime = (timeStr: string | null | undefined) => {
                       <div className="font-medium">PO: {order.po_number}</div>
                       <div>Driver: {order.driver_name}</div>
                       <div>In: {formatCheckInTime(order.check_in_time)}</div>
-                      <div>Appt: {formatAppointmentTime(o.appointment_time)}</div>
+                      <div>Appt: {formatAppointmentTime(order.appointment_time)}</div>
                     </div>
                   ))}
                 </div>
