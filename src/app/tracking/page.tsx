@@ -328,7 +328,7 @@ export default function Tracking() {
             const detention = calculateDetention(checkIn);
             if (!detention.hasDetention) return null;
             return {
-              reference_number: checkIn.pickup_number || checkIn.id,
+              reference_number: checkIn.reference_number || '',
               check_in_time: checkIn.check_in_time,
               appointment_time: checkIn.appointment_time || '',
               end_time: checkIn.end_time || '',
