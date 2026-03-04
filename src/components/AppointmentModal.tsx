@@ -20,7 +20,7 @@ export default function AppointmentModal({
   onClose,
   onSave,
   appointment,
-  initialDate = new Date().toISOString().split('T')[0]</a>,
+  initialDate = new Date().toISOString().split('T')[0],
   existingAppointment = null,
 }: AppointmentModalProps) {
   const [formData, setFormData] = useState<AppointmentInput>({
