@@ -600,37 +600,38 @@ return (
     </div> {/* closes max-w-[1600px] */}
 
 {modalOpen && (
-// page.tsx - update the AppointmentModal render
 <AppointmentModal
   isOpen={modalOpen}
   onClose={() => {
     setModalOpen(false);
     setEditingAppointment(null);
-    setExistingAppointment(null); // ← clear on close
+    setExistingAppointment(null);  // ← clear on close
   }}
   onSave={handleSave}
   appointment={editingAppointment}
   initialDate={selectedDate}
-  allAppointments={allAppointments}
-  existingAppointment={existingAppointment}  // ← ADD THIS
+  existingAppointment={existingAppointment}   // ← pass state down
   onCheckDuplicate={(salesOrder, delivery) => {
-    // Only check duplicates when creating new, not editing
+    // Don't check duplicates when editing an existing appointment
     if (editingAppointment) {
       setExistingAppointment(null);
       return;
     }
+
+    const so = salesOrder.trim().toLowerCase();
+    const del = delivery.trim().toLowerCase();
+
     const found = allAppointments.find((a) => {
       return (
-        (salesOrder.trim() !== '' &&
-          a.sales_order?.trim().toLowerCase() === salesOrder.trim().toLowerCase()) ||
-        (delivery.trim() !== '' &&
-          a.delivery?.trim().toLowerCase() === delivery.trim().toLowerCase())
+        (so !== '' && a.sales_order?.trim().toLowerCase() === so) ||
+        (del !== '' && a.delivery?.trim().toLowerCase() === del)
       );
     }) ?? null;
+
+    console.log('🔍 Duplicate check:', { salesOrder, delivery, found });
     setExistingAppointment(found);
   }}
 />
-
 )}
 </div>
 );
