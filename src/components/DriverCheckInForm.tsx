@@ -71,8 +71,10 @@ const REFERENCE_NUMBER_PATTERNS = [
   /^8\d{7}$/,
   /^TLNA-SO-0\d{5}$/,
   /^\d{6}$/,
-  /^[A-Za-z]{4}\d{7}$/
+  /^[A-Za-z]{4}\d{7}$/,
+  /^T\d{5}$/
 ];
+
 
 const validateReferenceNumber = (value: string): boolean => {
   if (!value) return false;
