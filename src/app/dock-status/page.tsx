@@ -5,7 +5,32 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-// ... (keep your existing interfaces and DOCK_ORDER)
+interface OrderInfo {
+  id: string;
+  po_number: string;
+  driver_name: string;
+  status: string;
+  check_in_time: string;
+}
+
+interface DockStatus {
+  dock_number: string;
+  status: 'available' | 'in-use' | 'double-booked' | 'blocked';
+  orders: OrderInfo[];
+  is_manually_blocked: boolean;
+  blocked_reason?: string;
+  current_load_id?: string | null;
+  isRamp?: boolean;
+}
+
+// Define the dock order: 64-70 first, then 1-27, Ramp, 28-63
+const DOCK_ORDER: string[] = [
+  ...Array.from({ length: 7 }, (_, i) => (64 + i).toString()),  // 64-70
+  ...Array.from({ length: 27 }, (_, i) => (i + 1).toString()),  // 1-27
+  'Ramp',
+  ...Array.from({ length: 36 }, (_, i) => (i + 28).toString()), // 28-63
+];
+
 
 export default function DockStatusPage() {
   const router = useRouter();
