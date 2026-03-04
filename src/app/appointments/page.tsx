@@ -116,7 +116,6 @@ export default function AppointmentsPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [checkInStatuses, setCheckInStatuses] = useState<Record<string, string>>({});
   const [existingAppointment, setExistingAppointment] = useState<Appointment | null>(null);
-  // ✅ allAppointments removed
 
   const getDailyLogStatus = (appointment: Appointment): string | null => {
     const salesOrder = appointment.sales_order?.trim().toLowerCase();
@@ -141,7 +140,6 @@ export default function AppointmentsPage() {
     getUser();
   }, [supabase]);
 
-  // ✅ Removed loadAllAppointments() call
   useEffect(() => {
     loadAppointments();
     fetchCheckInStatuses();
@@ -159,8 +157,6 @@ export default function AppointmentsPage() {
       setLoading(false);
     }
   };
-
-  // ✅ loadAllAppointments() function removed entirely
 
   const changeDateByDays = (days: number) => {
     const currentDate = new Date(selectedDate);
@@ -203,7 +199,7 @@ export default function AppointmentsPage() {
     return !status;
   }).length;
 
-  // ✅ Now checks only appointments for the selected day
+
   const handleCheckDuplicate = (salesOrder: string, delivery: string) => {
     if (editingAppointment) {
       setExistingAppointment(null);
@@ -277,13 +273,13 @@ export default function AppointmentsPage() {
     }
   };
 
-// In page.tsx — fix this function
 const findDuplicateAppointment = (salesOrder: string, delivery: string): Appointment | null => {
-  return allAppointments.find((a) =>
+  return appointments.find((a) =>
     (salesOrder.trim() !== '' && a.sales_order === salesOrder.trim()) ||
     (delivery.trim() !== '' && a.delivery === delivery.trim())
   ) ?? null;
 };
+
 
 const handleEdit = (appointment: Appointment) => {
   setExistingAppointment(null); // ← clear any stale duplicate state
