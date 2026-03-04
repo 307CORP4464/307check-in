@@ -602,6 +602,7 @@ return (
     onSave={handleSave}
     initialDate={selectedDate}
     appointment={editingAppointment}
+    allAppointments={allAppointments}
     existingAppointment={
       // Only check for duplicates when creating a new appointment
       !editingAppointment ? existingAppointment : null
