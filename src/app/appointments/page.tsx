@@ -605,30 +605,23 @@ return (
   onClose={() => {
     setModalOpen(false);
     setEditingAppointment(null);
-    setExistingAppointment(null);  // ← clear on close
+    setExistingAppointment(null);
   }}
   onSave={handleSave}
   appointment={editingAppointment}
   initialDate={selectedDate}
-  existingAppointment={existingAppointment}   // ← pass state down
+  existingAppointment={existingAppointment}
   onCheckDuplicate={(salesOrder, delivery) => {
-    // Don't check duplicates when editing an existing appointment
     if (editingAppointment) {
       setExistingAppointment(null);
       return;
     }
-
     const so = salesOrder.trim().toLowerCase();
     const del = delivery.trim().toLowerCase();
-
-    const found = allAppointments.find((a) => {
-      return (
-        (so !== '' && a.sales_order?.trim().toLowerCase() === so) ||
-        (del !== '' && a.delivery?.trim().toLowerCase() === del)
-      );
-    }) ?? null;
-
-    console.log('🔍 Duplicate check:', { salesOrder, delivery, found });
+    const found = allAppointments.find((a) =>
+      (so !== '' && a.sales_order?.trim().toLowerCase() === so) ||
+      (del !== '' && a.delivery?.trim().toLowerCase() === del)
+    ) ?? null;
     setExistingAppointment(found);
   }}
 />
