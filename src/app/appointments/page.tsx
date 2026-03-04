@@ -594,18 +594,18 @@ return (
   initialDate={selectedDate}
   existingAppointment={existingAppointment}
   onCheckDuplicate={(salesOrder, delivery) => {
-    if (editingAppointment) {
-      setExistingAppointment(null);
-      return;
-    }
-    const so = salesOrder.trim().toLowerCase();
-    const del = delivery.trim().toLowerCase();
-    const found = allAppointments.find((a) =>
-      (so !== '' && a.sales_order?.trim().toLowerCase() === so) ||
-      (del !== '' && a.delivery?.trim().toLowerCase() === del)
-    ) ?? null;
-    setExistingAppointment(found);
-  }}
+  if (editingAppointment) {
+    setExistingAppointment(null);
+    return;
+  }
+  const so = salesOrder.trim().toLowerCase();
+  const del = delivery.trim().toLowerCase();
+  const found = appointments.find((a) =>   // ← correct
+    (so !== '' && a.sales_order?.trim().toLowerCase() === so) ||
+    (del !== '' && a.delivery?.trim().toLowerCase() === del)
+  ) ?? null;
+  setExistingAppointment(found);
+}}
 />
 )}
 </div>
