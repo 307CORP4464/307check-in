@@ -271,14 +271,14 @@ export default function AppointmentsPage() {
     }
   };
 
-  const checkForDuplicate = async (salesOrder: string, delivery: string) => {
-  const found = appointments.find(
-    (a) =>
-      (salesOrder && a.sales_order === salesOrder) ||
-      (delivery && a.delivery === delivery)
-  );
-  setExistingAppointment(found ?? null);
+// Add this near your other handlers in page.tsx
+const findDuplicateAppointment = (salesOrder: string, delivery: string): Appointment | null => {
+  return appointments.find((a) =>
+    (salesOrder.trim() !== '' && a.sales_order === salesOrder.trim()) ||
+    (delivery.trim() !== '' && a.delivery === delivery.trim())
+  ) ?? null;
 };
+ 
   const handleEdit = (appointment: Appointment) => {
     setEditingAppointment(appointment);
     setModalOpen(true);
