@@ -268,17 +268,18 @@ export default function AppointmentModal({
                 Sales Order
                 {!formData.delivery && <span className="text-red-500"> *</span>}
               </label>
-              <input
-                type="text"
-                value={formData.sales_order}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setFormData({ ...formData, sales_order: val });
-                  onCheckDuplicate?.(val, formData.delivery ?? '');
-                }}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter sales order number"
-              />
+              {/* Sales Order input */}
+<input
+  type="text"
+  value={formData.sales_order}
+  onChange={(e) => {
+    const val = e.target.value;
+    setFormData({ ...formData, sales_order: val });
+    onCheckDuplicate?.(val, formData.delivery ?? '');  // ← fires on SO change
+  }}
+  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+  placeholder="Enter sales order number"
+/>
             </div>
 
             <div>
@@ -286,17 +287,18 @@ export default function AppointmentModal({
                 Delivery
                 {!formData.sales_order && <span className="text-red-500"> *</span>}
               </label>
-              <input
-                type="text"
-                value={formData.delivery}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setFormData({ ...formData, delivery: val });
-                  onCheckDuplicate?.(formData.sales_order ?? '', val);
-                }}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter delivery number"
-              />
+              {/* Delivery input */}
+<input
+  type="text"
+  value={formData.delivery}
+  onChange={(e) => {
+    const val = e.target.value;
+    setFormData({ ...formData, delivery: val });
+    onCheckDuplicate?.(formData.sales_order ?? '', val);  // ← fires on Delivery change
+  }}
+  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+  placeholder="Enter delivery number"
+/>
             </div>
 
             <div>
