@@ -28,8 +28,8 @@ const formatTimeInIndianapolis = (timeString: string): string => {
     const match = timeString.match(timePattern);
     
     if (match) {
-      const hours = match<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>;
-      const minutes = match<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[2]</a>;
+      const hours = match[1];
+      const minutes = match[2];
       return `${hours}:${minutes}`;
     }
     
