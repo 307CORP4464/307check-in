@@ -568,8 +568,7 @@ return (
                 </div>
               </div>
             )}
-
-            {/* Detention Section */}
+{/* Detention Section */}
 <div className="p-6">
   <div className="flex items-center mb-3">
     <h3 className="text-base font-semibold text-gray-700">
@@ -580,63 +579,65 @@ return (
     </h3>
   </div>
 
-              {stat.detentionInstances.length === 0 && (
-                <p className="text-sm text-gray-400">No detention instances for this day.</p>
-              )}
+  {stat.detentionInstances.length === 0 && (
+    <p className="text-sm text-gray-400">No detention instances for this day.</p>
+  )}
 
-              {stat.detentionInstances.length > 0 && expandedDetention[stat.date] && (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm border-collapse">
-                    <thead>
-                      <tr className="bg-red-50 text-left">
-                        <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
-                          Reference #
-                        </th>
-                        <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
-                          Carrier
-                        </th>
-                        <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
-                          Appt Time
-                        </th>
-                        <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
-                          Check-In Time
-                        </th>
-                        <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
-                          End Time
-                        </th>
-                        <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
-                          Detention
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stat.detentionInstances.map((d, i) => (
-                        <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-red-50/30'}>
-                          <td className="px-4 py-2 border border-red-100 font-mono text-gray-800">
-                            {d.reference_number}
-                          </td>
-                          <td className="px-4 py-2 border border-red-100 text-gray-700">
-                            {d.carrier_name}
-                          </td>
-                          <td className="px-4 py-2 border border-red-100 text-gray-700">
-                            {d.appointment_time}
-                          </td>
-                          <td className="px-4 py-2 border border-red-100 text-gray-700">
-                            {formatTimeInIndianapolis(d.check_in_time)}
-                          </td>
-                          <td className="px-4 py-2 border border-red-100 text-gray-700">
-                            {formatTimeInIndianapolis(d.end_time)}
-                          </td>
-                          <td className="px-4 py-2 border border-red-100 font-semibold text-red-700">
-                            {d.detention_minutes} min
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+  {stat.detentionInstances.length > 0 && (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm border-collapse">
+        <thead>
+          <tr className="bg-red-50 text-left">
+            <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
+              Reference #
+            </th>
+            <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
+              Carrier
+            </th>
+            <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
+              Appt Time
+            </th>
+            <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
+              Check-In Time
+            </th>
+            <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
+              End Time
+            </th>
+            <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
+              Detention
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {stat.detentionInstances.map((d, i) => (
+            <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-red-50/30'}>
+              <td className="px-4 py-2 border border-red-100 font-mono text-gray-800">
+                {d.reference_number}
+              </td>
+              <td className="px-4 py-2 border border-red-100 text-gray-700">
+                {d.carrier_name}
+              </td>
+              <td className="px-4 py-2 border border-red-100 text-gray-700">
+                {d.appointment_time}
+              </td>
+              <td className="px-4 py-2 border border-red-100 text-gray-700">
+                {formatTimeInIndianapolis(d.check_in_time)}
+              </td>
+              <td className="px-4 py-2 border border-red-100 text-gray-700">
+                {formatTimeInIndianapolis(d.end_time)}
+              </td>
+              <td className="px-4 py-2 border border-red-100 font-semibold text-red-700">
+                {d.detention_minutes} min
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</div>
+
+
           </div>
         ))}
       </main>
