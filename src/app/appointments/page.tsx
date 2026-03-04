@@ -299,10 +299,18 @@ const findDuplicateAppointment = (salesOrder: string, delivery: string): Appoint
   ) ?? null;
 };
 
-  const handleEdit = (appointment: Appointment) => {
-    setEditingAppointment(appointment);
-    setModalOpen(true);
-  };
+const handleEdit = (appointment: Appointment) => {
+  setExistingAppointment(null); // ← clear any stale duplicate state
+  setEditingAppointment(appointment);
+  setModalOpen(true);
+};
+
+  // wherever you open the modal for a new appointment
+const handleAddNew = () => {
+  setExistingAppointment(null); // ← clear stale state
+  setEditingAppointment(null);
+  setModalOpen(true);
+};
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this appointment?')) return;
