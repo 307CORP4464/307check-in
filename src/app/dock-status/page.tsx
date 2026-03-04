@@ -7,8 +7,7 @@ import { useRouter } from 'next/navigation';
 
 interface OrderInfo {
   id: string;
-  po_number: string;
-  driver_name: string;
+  reference_number: string;
   status: string;
   check_in_time: string;
   appointment_time?: string;
@@ -118,8 +117,7 @@ export default function DockStatusPage() {
           const existing = dockMap.get(checkIn.dock_number) || [];
           existing.push({
             id: checkIn.id,
-            po_number: checkIn.reference_number || 'N/A',
-            driver_name: checkIn.driver_name || 'N/A',
+            reference_number: checkIn.reference_number || 'N/A',
             status: checkIn.status,
             check_in_time: checkIn.check_in_time,
             appointment_time: checkIn.appointment_time || null,
@@ -499,9 +497,8 @@ const formatAppointmentTime = (timeStr: string | null | undefined) => {
                 <div className="mt-2 space-y-1 text-xs">
                   {dock.orders.map((order) => (
                     <div key={order.id} className="bg-white bg-opacity-50 rounded p-1">
-                      <div className="font-medium">PO: {order.po_number}</div>
-                      <div>Driver: {order.driver_name}</div>
-                      <div>In: {formatCheckInTime(order.check_in_time)}</div>
+                      <div className="font-medium">PO: {order.ref_number}</div>
+                      <div>In  : {formatCheckInTime(order.check_in_time)}</div>
                       <div>Appt: {formatAppointmentTime(order.appointment_time)}</div>
                     </div>
                   ))}
