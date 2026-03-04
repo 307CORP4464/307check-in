@@ -4,27 +4,29 @@
 import { useState, useEffect } from 'react';
 import { Appointment, AppointmentInput, TIME_SLOTS } from '@/types/appointments';
 
+// AppointmentModal.tsx - update the interface
 interface AppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: AppointmentInput) => Promise<void>;
   appointment?: Appointment | null;
   initialDate?: string;
-  allAppointments?: Appointment[]
+  allAppointments?: Appointment[];
   onCheckDuplicate?: (salesOrder: string, delivery: string) => void;
+  existingAppointment?: Appointment | null;  // ← ADD THIS
 }
-
-const CUSTOMERS = ['TATE', 'PRIM', 'XARC', 'BAGS', 'TRAX', 'ADM'];
 
 export default function AppointmentModal({
   isOpen,
   onClose,
   onSave,
   appointment,
-  initialDate = new Date().toISOString().split('T')[0],
+  initialDate = new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>,
   allAppointments = [],
   onCheckDuplicate,
+  existingAppointment,  // ← ADD THIS
 }: AppointmentModalProps) {
+
   const [formData, setFormData] = useState<AppointmentInput>({
     appointment_date: initialDate,
     appointment_time: '08:00',
@@ -37,7 +39,7 @@ export default function AppointmentModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [editingExisting, setEditingExisting] = useState(false);
-
+  const CUSTOMERS = ['TATE', 'PRIM', 'XARC', 'BAGS', 'TRAX', 'ADM'];
   const activeAppointment = editingExisting ? existingAppointment : appointment;
 
   useEffect(() => {
