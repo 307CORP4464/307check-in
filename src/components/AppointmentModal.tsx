@@ -7,9 +7,10 @@ import { Appointment, AppointmentInput, TIME_SLOTS } from '@/types/appointments'
 interface AppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: AppointmentInput) => Promise<void>;
+  onSave: (data: AppointmentInput, id?: string) => Promise<void>;
   appointment?: Appointment | null;
   initialDate?: string;
+  existingAppointment?: Appointment | null; // ← Conflicting appointment (same SO/Delivery)
 }
 
 const CUSTOMERS = ['TATE', 'PRIM', 'XARC', 'BAGS', 'TRAX', 'ADM'];
@@ -19,7 +20,8 @@ export default function AppointmentModal({
   onClose,
   onSave,
   appointment,
-  initialDate = new Date().toISOString().split('T')[0]
+  initialDate = new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>,
+  existingAppointment = null,
 }: AppointmentModalProps) {
   const [formData, setFormData] = useState<AppointmentInput>({
     appointment_date: initialDate,
@@ -28,21 +30,25 @@ export default function AppointmentModal({
     delivery: '',
     customer: '',
     notes: '',
-    source: 'manual'
+    source: 'manual',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [editingExisting, setEditingExisting] = useState(false);
+
+  // The appointment we are actually editing (could be the original or the existing duplicate)
+  const activeAppointment = editingExisting ? existingAppointment : appointment;
 
   useEffect(() => {
-    if (appointment) {
+    if (activeAppointment) {
       setFormData({
-        appointment_date: appointment.appointment_date,
-        appointment_time: appointment.appointment_time,
-        sales_order: appointment.sales_order || '',
-        delivery: appointment.delivery || '',
-        customer: appointment.customer || '',
-        notes: appointment.notes || '',
-        source: appointment.source
+        appointment_date: activeAppointment.appointment_date,
+        appointment_time: activeAppointment.appointment_time,
+        sales_order: activeAppointment.sales_order || '',
+        delivery: activeAppointment.delivery || '',
+        customer: activeAppointment.customer || '',
+        notes: activeAppointment.notes || '',
+        source: activeAppointment.source,
       });
     } else {
       setFormData({
@@ -52,17 +58,26 @@ export default function AppointmentModal({
         delivery: '',
         customer: '',
         notes: '',
-        source: 'manual'
+        source: 'manual',
       });
     }
     setError('');
-  }, [appointment, initialDate, isOpen]);
+  }, [activeAppointment, initialDate, isOpen]);
+
+  // Reset editingExisting when modal closes/reopens
+  useEffect(() => {
+    if (!isOpen) setEditingExisting(false);
+  }, [isOpen]);
+
+  const handleSwitchToExisting = () => {
+    setEditingExisting(true);
+    setError('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    // Validation
     if (!formData.sales_order && !formData.delivery) {
       setError('Either Sales Order or Delivery is required');
       return;
@@ -75,7 +90,11 @@ export default function AppointmentModal({
 
     setSaving(true);
     try {
-      await onSave(formData);
+      // Pass the ID of whichever appointment is being saved
+      const id = editingExisting
+        ? existingAppointment?.id
+        : appointment?.id;
+      await onSave(formData, id);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Error saving appointment');
@@ -84,16 +103,35 @@ export default function AppointmentModal({
     }
   };
 
+  // Helper: format date for display
+  const formatDate = (dateStr: string) => {
+    const [year, month, day] = dateStr.split('-');
+    return new Date(Number(year), Number(month) - 1, Number(day)).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
   if (!isOpen) return null;
+
+  // Show warning only when creating a new appointment and a duplicate exists
+  const showDuplicateWarning = !appointment && !editingExisting && existingAppointment;
+
+  const modalTitle = editingExisting
+    ? 'Edit Existing Appointment'
+    : appointment
+    ? 'Edit Appointment'
+    : 'Add Appointment';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="p-6">
+          {/* Header */}
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">
-              {appointment ? 'Edit Appointment' : 'Add Appointment'}
-            </h2>
+            <h2 className="text-xl font-bold">{modalTitle}</h2>
             <button
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
@@ -103,19 +141,89 @@ export default function AppointmentModal({
             </button>
           </div>
 
+          {/* ⚠️ Duplicate Warning Banner */}
+          {showDuplicateWarning && (
+            <div className="mb-4 p-4 bg-amber-50 border border-amber-300 rounded-lg">
+              <div className="flex items-start gap-2">
+                <span className="text-amber-500 text-lg mt-0.5">⚠️</span>
+                <div className="flex-1">
+                  <p className="text-amber-800 font-semibold text-sm mb-1">
+                    An appointment already exists for this{' '}
+                    {existingAppointment!.sales_order ? 'Sales Order' : 'Delivery'}
+                  </p>
+                  <div className="text-amber-700 text-sm space-y-0.5">
+                    {existingAppointment!.sales_order && (
+                      <p>
+                        <span className="font-medium">Sales Order:</span>{' '}
+                        {existingAppointment!.sales_order}
+                      </p>
+                    )}
+                    {existingAppointment!.delivery && (
+                      <p>
+                        <span className="font-medium">Delivery:</span>{' '}
+                        {existingAppointment!.delivery}
+                      </p>
+                    )}
+                    <p>
+                      <span className="font-medium">Date:</span>{' '}
+                      {formatDate(existingAppointment!.appointment_date)}
+                    </p>
+                    <p>
+                      <span className="font-medium">Time:</span>{' '}
+                      {existingAppointment!.appointment_time}
+                    </p>
+                    {existingAppointment!.customer && (
+                      <p>
+                        <span className="font-medium">Customer:</span>{' '}
+                        {existingAppointment!.customer}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSwitchToExisting}
+                    className="mt-3 w-full px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded transition-colors"
+                  >
+                    Edit Existing Appointment Instead
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* "Back to new" option when editing existing from warning */}
+          {editingExisting && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded flex items-center justify-between">
+              <p className="text-blue-700 text-sm font-medium">
+                Editing the existing appointment
+              </p>
+              <button
+                type="button"
+                onClick={() => setEditingExisting(false)}
+                className="text-blue-600 hover:text-blue-800 text-sm underline"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {/* Error */}
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
               {error}
             </div>
           )}
 
+          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">Date *</label>
               <input
                 type="date"
                 value={formData.appointment_date}
-                onChange={(e) => setFormData({ ...formData, appointment_date: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, appointment_date: e.target.value })
+                }
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 required
               />
@@ -125,7 +233,9 @@ export default function AppointmentModal({
               <label className="block text-sm font-medium mb-1">Time Slot *</label>
               <select
                 value={formData.appointment_time}
-                onChange={(e) => setFormData({ ...formData, appointment_time: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, appointment_time: e.target.value })
+                }
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 required
               >
@@ -137,14 +247,15 @@ export default function AppointmentModal({
               </select>
             </div>
 
-            {/* ✅ UPDATED CUSTOMER FIELD - NOW A DROPDOWN */}
             <div>
               <label className="block text-sm font-medium mb-1">
                 Customer <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.customer || ''}
-                onChange={(e) => setFormData({ ...formData, customer: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, customer: e.target.value })
+                }
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 required
               >
@@ -165,7 +276,9 @@ export default function AppointmentModal({
               <input
                 type="text"
                 value={formData.sales_order}
-                onChange={(e) => setFormData({ ...formData, sales_order: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, sales_order: e.target.value })
+                }
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter sales order number"
               />
@@ -179,7 +292,9 @@ export default function AppointmentModal({
               <input
                 type="text"
                 value={formData.delivery}
-                onChange={(e) => setFormData({ ...formData, delivery: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, delivery: e.target.value })
+                }
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter delivery number"
               />
@@ -189,7 +304,9 @@ export default function AppointmentModal({
               <label className="block text-sm font-medium mb-1">Notes</label>
               <textarea
                 value={formData.notes || ''}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, notes: e.target.value })
+                }
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 rows={3}
                 placeholder="Enter any additional notes"
@@ -219,4 +336,3 @@ export default function AppointmentModal({
     </div>
   );
 }
-
