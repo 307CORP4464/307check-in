@@ -11,20 +11,14 @@ const TIMEZONE = 'America/Indiana/Indianapolis';
 const formatTimeInIndianapolis = (isoString: string): string => {
   try {
     const date = new Date(isoString);
-    
-    if (isNaN(date.getTime())) {
-      return 'Invalid Date';
-    }
-    
+    if (isNaN(date.getTime())) return 'Invalid Date';
     const options: Intl.DateTimeFormatOptions = {
       timeZone: TIMEZONE,
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
     };
-    
-    const formatter = new Intl.DateTimeFormat('en-US', options);
-    return formatter.format(date);
+    return new Intl.DateTimeFormat('en-US', options).format(date);
   } catch (e) {
     console.error('Time formatting error:', e, isoString);
     return isoString;
@@ -48,6 +42,30 @@ interface CheckIn {
   destination_state?: string;
 }
 
+interface DetentionInstance {
+  reference_number: string;
+  check_in_time: string;
+  appointment_time: string;
+  end_time: string;
+  detention_minutes: number;
+  driver_name: string;
+  carrier_name: string;
+}
+
+// Dock sets definition
+const DOCK_SETS: { label: string; docks: number[] }[] = [
+  { label: '64-70', docks: [64, 65, 66, 67, 68, 69, 70] },
+  { label: '1-7',   docks: [1, 2, 3, 4, 5, 6, 7] },
+  { label: '8-14',  docks: [8, 9, 10, 11, 12, 13, 14] },
+  { label: '15-21', docks: [15, 16, 17, 18, 19, 20, 21] },
+  { label: '22-28', docks: [22, 23, 24, 25, 26, 27, 28] },
+  { label: '29-35', docks: [29, 30, 31, 32, 33, 34, 35] },
+  { label: '36-42', docks: [36, 37, 38, 39, 40, 41, 42] },
+  { label: '43-49', docks: [43, 44, 45, 46, 47, 48, 49] },
+  { label: '50-56', docks: [50, 51, 52, 53, 54, 55, 56] },
+  { label: '57-63', docks: [57, 58, 59, 60, 61, 62, 63] },
+];
+
 interface DailyStats {
   date: string;
   totalInbound: number;
@@ -55,50 +73,65 @@ interface DailyStats {
   totalCheckedIn: number;
   onTimeCount: number;
   onTimePercentage: number;
-  detentionLoads: Array<{
-    driver_name: string;
-    carrier_name: string;
-    pickup_number: string;
-    detention_time: string;
-  }>;
+  detentionInstances: DetentionInstance[];
   halfHourBreakdown: { [key: string]: number };
-  mostUsedDock: string;
-  dockUsageCount: number;
+  dockSetUsage: { label: string; count: number }[];
 }
 
 const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
-  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'paid_to_load' || appointmentTime === 'paid_charge_customer') {
+  if (
+    !appointmentTime ||
+    appointmentTime === 'work_in' ||
+    appointmentTime === 'paid_to_load' ||
+    appointmentTime === 'paid_charge_customer'
+  ) {
     return false;
   }
 
-  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-    const appointmentHour = parseInt(appointmentTime.substring(0, 2));
-    const appointmentMinute = parseInt(appointmentTime.substring(2, 4));
-    
-    const checkInDate = new Date(checkInTime);
-    
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: false
-    });
-    
-    const timeString = formatter.format(checkInDate);
-    const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
-    
-    const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-    const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
-    
-    const difference = checkInTotalMinutes - appointmentTotalMinutes;
-    return difference <= 0;
+  // Support both 4-digit (e.g. "0800") and HH:MM formats
+  let appointmentHour: number;
+  let appointmentMinute: number;
+
+  if (/^\d{4}$/.test(appointmentTime)) {
+    appointmentHour = parseInt(appointmentTime.substring(0, 2));
+    appointmentMinute = parseInt(appointmentTime.substring(2, 4));
+  } else if (/^\d{1,2}:\d{2}$/.test(appointmentTime)) {
+    const [h, m] = appointmentTime.split(':').map(Number);
+    appointmentHour = h;
+    appointmentMinute = m;
+  } else {
+    return false;
   }
-  
-  return false;
+
+  const checkInDate = new Date(checkInTime);
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIMEZONE,
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false
+  });
+
+  const timeString = formatter.format(checkInDate);
+  const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
+
+  const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
+  const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
+
+  return checkInTotalMinutes - appointmentTotalMinutes <= 0;
 };
 
-const calculateDetention = (checkIn: CheckIn): { hasDetention: boolean; minutes: number } => {
+const calculateDetention = (
+  checkIn: CheckIn
+): { hasDetention: boolean; minutes: number } => {
   if (!checkIn.appointment_time || !checkIn.end_time) {
+    return { hasDetention: false, minutes: 0 };
+  }
+
+  if (
+    checkIn.appointment_time === 'work_in' ||
+    checkIn.appointment_time === 'paid_to_load' ||
+    checkIn.appointment_time === 'paid_charge_customer'
+  ) {
     return { hasDetention: false, minutes: 0 };
   }
 
@@ -106,48 +139,45 @@ const calculateDetention = (checkIn: CheckIn): { hasDetention: boolean; minutes:
     return { hasDetention: false, minutes: 0 };
   }
 
-  if (checkIn.appointment_time === 'work_in' || 
-      checkIn.appointment_time === 'paid_to_load' || 
-      checkIn.appointment_time === 'paid_charge_customer') {
+  let appointmentHour: number;
+  let appointmentMinute: number;
+
+  if (/^\d{4}$/.test(checkIn.appointment_time)) {
+    appointmentHour = parseInt(checkIn.appointment_time.substring(0, 2));
+    appointmentMinute = parseInt(checkIn.appointment_time.substring(2, 4));
+  } else if (/^\d{1,2}:\d{2}$/.test(checkIn.appointment_time)) {
+    const [h, m] = checkIn.appointment_time.split(':').map(Number);
+    appointmentHour = h;
+    appointmentMinute = m;
+  } else {
     return { hasDetention: false, minutes: 0 };
   }
 
   const endTime = new Date(checkIn.end_time);
-  const standardMinutes = 120;
-  let detentionMinutes = 0;
+  const checkInDate = new Date(checkIn.check_in_time);
 
-  if (checkIn.appointment_time.length === 4 && /^\d{4}$/.test(checkIn.appointment_time)) {
-    const appointmentHour = parseInt(checkIn.appointment_time.substring(0, 2));
-    const appointmentMinute = parseInt(checkIn.appointment_time.substring(2, 4));
-    
-    const checkInDate = new Date(checkIn.check_in_time);
-    
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    
-    const parts = formatter.formatToParts(checkInDate);
-    const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
-    const month = parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1;
-    const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
-    
-    const appointmentDate = new Date(checkInDate);
-    appointmentDate.setFullYear(year, month, day);
-    appointmentDate.setHours(appointmentHour, appointmentMinute, 0, 0);
-    
-    const timeSinceAppointmentMs = endTime.getTime() - appointmentDate.getTime();
-    const minutesSinceAppointment = Math.floor(timeSinceAppointmentMs / (1000 * 60));
-    
-    detentionMinutes = Math.max(0, minutesSinceAppointment - standardMinutes);
-  }
-  
-  return { 
-    hasDetention: detentionMinutes > 0, 
-    minutes: detentionMinutes 
-  };
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+
+  const parts = formatter.formatToParts(checkInDate);
+  const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+  const month = parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1;
+  const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
+
+  // Build appointment datetime in local time then convert to UTC-equivalent
+  const appointmentDate = new Date(checkInDate);
+  appointmentDate.setFullYear(year, month, day);
+  appointmentDate.setHours(appointmentHour, appointmentMinute, 0, 0);
+
+  const timeSinceAppointmentMs = endTime.getTime() - appointmentDate.getTime();
+  const minutesSinceAppointment = Math.floor(timeSinceAppointmentMs / (1000 * 60));
+  const detentionMinutes = Math.max(0, minutesSinceAppointment - 120);
+
+  return { hasDetention: detentionMinutes > 0, minutes: detentionMinutes };
 };
 
 const getHalfHourSlot = (isoString: string): string => {
@@ -158,12 +188,19 @@ const getHalfHourSlot = (isoString: string): string => {
     minute: '2-digit',
     hour12: false
   });
-  
   const timeString = formatter.format(date);
   const [hour, minute] = timeString.split(':').map(Number);
   const halfHour = minute < 30 ? '00' : '30';
-  
   return `${hour.toString().padStart(2, '0')}:${halfHour}`;
+};
+
+/** Given a dock_number string, find which dock set it belongs to */
+const getDockSetLabel = (dockNumber: string | undefined): string | null => {
+  if (!dockNumber) return null;
+  const num = parseInt(dockNumber, 10);
+  if (isNaN(num)) return null;
+  const set = DOCK_SETS.find(s => s.docks.includes(num));
+  return set ? set.label : null;
 };
 
 export default function Tracking() {
@@ -177,7 +214,8 @@ export default function Tracking() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
-  
+  const [expandedDetention, setExpandedDetention] = useState<{ [date: string]: boolean }>({});
+
   const getCurrentDateInIndianapolis = () => {
     const now = new Date();
     const formatter = new Intl.DateTimeFormat('en-US', {
@@ -226,7 +264,7 @@ export default function Tracking() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const startOfDayIndy = zonedTimeToUtc(`${startDate} 00:00:00`, TIMEZONE);
       const endOfDayIndy = zonedTimeToUtc(`${endDate} 23:59:59`, TIMEZONE);
 
@@ -239,9 +277,9 @@ export default function Tracking() {
 
       if (error) throw error;
 
-      // Process data by date
+      // Group by Indianapolis date
       const statsByDate: { [key: string]: CheckIn[] } = {};
-      
+
       (data || []).forEach((checkIn: CheckIn) => {
         const date = new Date(checkIn.check_in_time);
         const formatter = new Intl.DateTimeFormat('en-US', {
@@ -255,71 +293,74 @@ export default function Tracking() {
         const month = parts.find(p => p.type === 'month')?.value;
         const day = parts.find(p => p.type === 'day')?.value;
         const dateKey = `${year}-${month}-${day}`;
-        
-        if (!statsByDate[dateKey]) {
-          statsByDate[dateKey] = [];
-        }
+
+        if (!statsByDate[dateKey]) statsByDate[dateKey] = [];
         statsByDate[dateKey].push(checkIn);
       });
 
-      // Calculate stats for each date
+      // Calculate stats per date
       const stats: DailyStats[] = Object.entries(statsByDate).map(([date, checkIns]) => {
         const totalInbound = checkIns.filter(c => c.load_type === 'inbound').length;
         const totalOutbound = checkIns.filter(c => c.load_type === 'outbound').length;
         const totalCheckedIn = checkIns.length;
-        
-        const onTimeCheckIns = checkIns.filter(c => 
-          c.appointment_time && 
-          c.appointment_time !== 'work_in' && 
-          c.appointment_time !== 'paid_to_load' && 
-          c.appointment_time !== 'paid_charge_customer' &&
+
+        // --- On-time fix: check ALL check-ins regardless of end_time ---
+        const checkInsWithAppointments = checkIns.filter(c =>
+          c.appointment_time &&
+          c.appointment_time !== 'work_in' &&
+          c.appointment_time !== 'paid_to_load' &&
+          c.appointment_time !== 'paid_charge_customer'
+        );
+
+        const onTimeCheckIns = checkInsWithAppointments.filter(c =>
           isOnTime(c.check_in_time, c.appointment_time)
         );
-        
-        const totalWithAppointments = checkIns.filter(c => 
-          c.appointment_time && 
-          c.appointment_time !== 'work_in' && 
-          c.appointment_time !== 'paid_to_load' && 
-          c.appointment_time !== 'paid_charge_customer'
-        ).length;
-        
-        const onTimeCount = onTimeCheckIns.length;
-        const onTimePercentage = totalWithAppointments > 0 
-          ? Math.round((onTimeCount / totalWithAppointments) * 100) 
-          : 0;
 
-        // Detention loads
-        const detentionLoads = checkIns
+        const onTimeCount = onTimeCheckIns.length;
+        const onTimePercentage =
+          checkInsWithAppointments.length > 0
+            ? Math.round((onTimeCount / checkInsWithAppointments.length) * 100)
+            : 0;
+
+        // --- Detention instances ---
+        const detentionInstances: DetentionInstance[] = checkIns
           .map(checkIn => {
             const detention = calculateDetention(checkIn);
-            if (detention.hasDetention) {
-              return {
-                driver_name: checkIn.driver_name || 'N/A',
-                carrier_name: checkIn.carrier_name || 'N/A',
-                pickup_number: checkIn.pickup_number || 'N/A',
-                detention_time: `${Math.floor(detention.minutes / 60)}h ${detention.minutes % 60}m`
-              };
-            }
-            return null;
+            if (!detention.hasDetention) return null;
+            return {
+              reference_number: checkIn.pickup_number || checkIn.id,
+              check_in_time: checkIn.check_in_time,
+              appointment_time: checkIn.appointment_time || '',
+              end_time: checkIn.end_time || '',
+              detention_minutes: detention.minutes,
+              driver_name: checkIn.driver_name || 'N/A',
+              carrier_name: checkIn.carrier_name || 'N/A'
+            };
           })
-          .filter((item): item is NonNullable<typeof item> => item !== null);
+          .filter((d): d is DetentionInstance => d !== null);
 
-        // Half-hour breakdown
+        // --- Half-hour breakdown ---
         const halfHourBreakdown: { [key: string]: number } = {};
-        checkIns.forEach(checkIn => {
-          const slot = getHalfHourSlot(checkIn.check_in_time);
+        checkIns.forEach(c => {
+          const slot = getHalfHourSlot(c.check_in_time);
           halfHourBreakdown[slot] = (halfHourBreakdown[slot] || 0) + 1;
         });
 
-        // Most used dock
-        const dockCounts: { [key: string]: number } = {};
-        checkIns.forEach(checkIn => {
-          if (checkIn.dock_number) {
-            dockCounts[checkIn.dock_number] = (dockCounts[checkIn.dock_number] || 0) + 1;
+        // --- Dock set usage ---
+        const dockSetCounts: { [label: string]: number } = {};
+        DOCK_SETS.forEach(s => { dockSetCounts[s.label] = 0; });
+
+        checkIns.forEach(c => {
+          const label = getDockSetLabel(c.dock_number);
+          if (label) {
+            dockSetCounts[label] = (dockSetCounts[label] || 0) + 1;
           }
         });
 
-        const mostUsedDock = Object.entries(dockCounts).sort((a, b) => b[1] - a[1])[0];
+        const dockSetUsage = DOCK_SETS.map(s => ({
+          label: s.label,
+          count: dockSetCounts[s.label] || 0
+        }));
 
         return {
           date,
@@ -328,33 +369,36 @@ export default function Tracking() {
           totalCheckedIn,
           onTimeCount,
           onTimePercentage,
-          detentionLoads,
+          detentionInstances,
           halfHourBreakdown,
-          mostUsedDock: mostUsedDock ? mostUsedDock[0] : 'N/A',
-          dockUsageCount: mostUsedDock ? mostUsedDock[1] : 0
+          dockSetUsage
         };
       });
 
-      setDailyStats(stats.sort((a, b) => b.date.localeCompare(a.date)));
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching tracking data:', error);
-      setError(error instanceof Error ? error.message : 'An error occurred');
+      // Sort by date descending
+      stats.sort((a, b) => b.date.localeCompare(a.date));
+      setDailyStats(stats);
+    } catch (err) {
+      console.error('Error fetching tracking data:', err);
+      setError('Failed to load tracking data');
+    } finally {
       setLoading(false);
     }
   };
 
+  const toggleDetention = (date: string) => {
+    setExpandedDetention(prev => ({ ...prev, [date]: !prev[date] }));
+  };
+
   return (
-  <div className="min-h-screen bg-gray-50">
-    {/* Header */}
-    <div className="bg-white border-b shadow-sm">
-      <div className="max-w-[1600px] mx-auto px-4 py-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Data Tracking</h1>
-            {userEmail && (
-              <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
-            )}
+    <div className="min-h-screen bg-gray-100">
+      {/* Header */}
+      <header className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-900">Tracking Dashboard</h1>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-600">{userEmail}</span>
+                )}
             <p className="text-xs text-gray-500">
               Current time: {formatTimeInIndianapolis(new Date().toISOString())}
             </p>
@@ -403,184 +447,210 @@ export default function Tracking() {
             </Link>
           </div>
         </div>
-      </div>
-    </div>
+      </header>
 
-      {/* Main Content */}
-      <div className="max-w-[1600px] mx-auto px-4 py-6">
-        {/* Date Range Selector */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="flex items-center space-x-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div className="pt-6">
-              <button
-                onClick={fetchTrackingData}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Refresh
-              </button>
-            </div>
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        {/* Date range picker */}
+        <div className="bg-white rounded-lg shadow p-4 mb-6 flex flex-wrap gap-4 items-end">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={e => setStartDate(e.target.value)}
+              className="border rounded px-3 py-2 text-sm"
+            />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={e => setEndDate(e.target.value)}
+              className="border rounded px-3 py-2 text-sm"
+            />
+          </div>
+          <button
+            onClick={fetchTrackingData}
+            className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
+          >
+            Refresh
+          </button>
         </div>
 
-        {/* Loading State */}
         {loading && (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading tracking data...</p>
-          </div>
+          <div className="text-center py-12 text-gray-500">Loading...</div>
         )}
 
-        {/* Error State */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-red-800">Error: {error}</p>
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
           </div>
         )}
 
-        {/* Daily Stats */}
         {!loading && !error && dailyStats.length === 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <p className="text-gray-600">No data available for the selected date range.</p>
+          <div className="text-center py-12 text-gray-500">
+            No data found for the selected date range.
           </div>
         )}
 
-        {!loading && !error && dailyStats.map((stats) => (
-          <div key={stats.date} className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-6 border-b pb-3">
-              {new Date(stats.date).toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric',
-                timeZone: TIMEZONE
-              })}
-            </h2>
+        {!loading && dailyStats.map(stat => (
+          <div key={stat.date} className="bg-white rounded-lg shadow mb-8 overflow-hidden">
+            {/* Date header */}
+            <div className="bg-blue-700 text-white px-6 py-3">
+              <h2 className="text-lg font-semibold">{stat.date}</h2>
+            </div>
 
-            {/* Summary Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <div className="bg-blue-50 rounded-lg p-4">
-                <div className="text-sm text-blue-600 font-medium mb-1">Total Check-Ins</div>
-                <div className="text-3xl font-bold text-blue-700">{stats.totalCheckedIn}</div>
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-6 border-b">
+              <div className="bg-gray-50 rounded-lg p-4 text-center">
+                <p className="text-sm text-gray-500">Total Check-Ins</p>
+                <p className="text-3xl font-bold text-gray-900">{stat.totalCheckedIn}</p>
               </div>
-              
-              <div className="bg-green-50 rounded-lg p-4">
-                <div className="text-sm text-green-600 font-medium mb-1">Inbound Loads</div>
-                <div className="text-3xl font-bold text-green-700">{stats.totalInbound}</div>
+              <div className="bg-green-50 rounded-lg p-4 text-center">
+                <p className="text-sm text-gray-500">Inbound</p>
+                <p className="text-3xl font-bold text-green-700">{stat.totalInbound}</p>
               </div>
-              
-              <div className="bg-purple-50 rounded-lg p-4">
-                <div className="text-sm text-purple-600 font-medium mb-1">Outbound Loads</div>
-                <div className="text-3xl font-bold text-purple-700">{stats.totalOutbound}</div>
+              <div className="bg-blue-50 rounded-lg p-4 text-center">
+                <p className="text-sm text-gray-500">Outbound</p>
+                <p className="text-3xl font-bold text-blue-700">{stat.totalOutbound}</p>
               </div>
-              
-              <div className="bg-amber-50 rounded-lg p-4">
-                <div className="text-sm text-amber-600 font-medium mb-1">On-Time %</div>
-                <div className="text-3xl font-bold text-amber-700">{stats.onTimePercentage}%</div>
-                <div className="text-xs text-amber-600 mt-1">
-                  {stats.onTimeCount} on-time check-ins
-                </div>
+              <div className="bg-purple-50 rounded-lg p-4 text-center">
+                <p className="text-sm text-gray-500">On-Time Check-Ins</p>
+                <p className="text-3xl font-bold text-purple-700">{stat.onTimeCount}</p>
+                <p className="text-xs text-gray-400 mt-1">{stat.onTimePercentage}% on time</p>
               </div>
             </div>
 
-            {/* Dock Usage */}
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">Most Used Dock</h3>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-700">
-                    <span className="font-bold text-2xl text-gray-900">{stats.mostUsedDock}</span>
-                  </span>
-                  <span className="text-gray-600">
-                    {stats.dockUsageCount} {stats.dockUsageCount === 1 ? 'load' : 'loads'}
-                  </span>
-                </div>
+            {/* Dock Set Usage */}
+            <div className="p-6 border-b">
+              <h3 className="text-base font-semibold text-gray-700 mb-3">Dock Set Usage</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                {stat.dockSetUsage.map(ds => (
+                  <div
+                    key={ds.label}
+                    className={`rounded-lg p-3 text-center border ${
+                      ds.count > 0
+                        ? 'bg-indigo-50 border-indigo-200'
+                        : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
+                    <p className="text-xs text-gray-500 font-medium">Docks {ds.label}</p>
+                    <p className={`text-2xl font-bold ${ds.count > 0 ? 'text-indigo-700' : 'text-gray-400'}`}>
+                      {ds.count}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Half-Hour Breakdown */}
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">Check-In Timeline (30-min intervals)</h3>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                  {Object.entries(stats.halfHourBreakdown)
+            {/* Half-hour breakdown */}
+            {Object.keys(stat.halfHourBreakdown).length > 0 && (
+              <div className="p-6 border-b">
+                <h3 className="text-base font-semibold text-gray-700 mb-3">
+                  Check-Ins by Half Hour
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(stat.halfHourBreakdown)
                     .sort(([a], [b]) => a.localeCompare(b))
-                    .map(([time, count]) => (
-                      <div key={time} className="bg-white rounded p-3 text-center border border-gray-200">
-                        <div className="text-xs text-gray-600 mb-1">{time}</div>
-                        <div className="text-lg font-bold text-gray-900">{count}</div>
+                    .map(([slot, count]) => (
+                      <div
+                        key={slot}
+                        className="bg-gray-100 rounded px-3 py-1 text-sm"
+                      >
+                        <span className="font-medium">{slot}</span>
+                        <span className="text-gray-500 ml-1">({count})</span>
                       </div>
                     ))}
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Detention Loads */}
-            {stats.detentionLoads.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                  Detention Charges ({stats.detentionLoads.length})
+            {/* Detention Section */}
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-semibold text-gray-700">
+                  Detention{' '}
+                  <span className="ml-1 bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                    {stat.detentionInstances.length}
+                  </span>
                 </h3>
+                {stat.detentionInstances.length > 0 && (
+                  <button
+                    onClick={() => toggleDetention(stat.date)}
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    {expandedDetention[stat.date] ? 'Hide' : 'Show'} Details
+                  </button>
+                )}
+              </div>
+
+              {stat.detentionInstances.length === 0 && (
+                <p className="text-sm text-gray-400">No detention instances for this day.</p>
+              )}
+
+              {stat.detentionInstances.length > 0 && expandedDetention[stat.date] && (
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <table className="min-w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-red-50 text-left">
+                        <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
+                          Reference #
+                        </th>
+                        <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
                           Driver
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
                           Carrier
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Pickup #
+                        <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
+                          Appt Time
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Detention Time
+                        <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
+                          Check-In Time
+                        </th>
+                        <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
+                          End Time
+                        </th>
+                        <th className="px-4 py-2 border border-red-100 font-semibold text-gray-600">
+                          Detention
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {stats.detentionLoads.map((load, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {load.driver_name}
+                    <tbody>
+                      {stat.detentionInstances.map((d, i) => (
+                        <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-red-50/30'}>
+                          <td className="px-4 py-2 border border-red-100 font-mono text-gray-800">
+                            {d.reference_number}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {load.carrier_name}
+                          <td className="px-4 py-2 border border-red-100 text-gray-700">
+                            {d.driver_name}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {load.pickup_number}
+                          <td className="px-4 py-2 border border-red-100 text-gray-700">
+                            {d.carrier_name}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600">
-                            {load.detention_time}
+                          <td className="px-4 py-2 border border-red-100 text-gray-700">
+                            {d.appointment_time}
+                          </td>
+                          <td className="px-4 py-2 border border-red-100 text-gray-700">
+                            {formatTimeInIndianapolis(d.check_in_time)}
+                          </td>
+                          <td className="px-4 py-2 border border-red-100 text-gray-700">
+                            {formatTimeInIndianapolis(d.end_time)}
+                          </td>
+                          <td className="px-4 py-2 border border-red-100 font-semibold text-red-700">
+                            {d.detention_minutes} min
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         ))}
-      </div>
+      </main>
     </div>
   );
 }
