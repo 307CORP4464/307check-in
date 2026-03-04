@@ -11,6 +11,7 @@ interface OrderInfo {
   driver_name: string;
   status: string;
   check_in_time: string;
+  appointment_time? string;
 }
 
 interface DockStatus {
@@ -121,6 +122,7 @@ export default function DockStatusPage() {
             driver_name: checkIn.driver_name || 'N/A',
             status: checkIn.status,
             check_in_time: checkIn.check_in_time,
+            appointment_time: checkIn.appointment_time || null,
           });
           dockMap.set(checkIn.dock_number, existing);
         }
@@ -162,7 +164,32 @@ export default function DockStatusPage() {
 
     setLoading(false);
   };
-
+const formatAppointmentTime = (timeStr: string | null | undefined) => {
+  if (!timeStr) return null;
+  try {
+    // Handle "HH:MM:SS" time-only format
+    if (/^\d{2}:\d{2}(:\d{2})?$/.test(timeStr)) {
+      const [hours, minutes] = timeStr.split(':');
+      const date = new Date();
+      date.setHours(parseInt(hours), parseInt(minutes), 0);
+      return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+    }
+    // Handle full ISO string
+    const date = new Date(timeStr);
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return null;
+  }
+};
+  
   const handleBlockDock = (dockNumber: string) => {
     setSelectedDock(dockNumber);
     const dock = dockStatuses.find(d => d.dock_number === dockNumber);
@@ -475,6 +502,7 @@ export default function DockStatusPage() {
                       <div className="font-medium">PO: {order.po_number}</div>
                       <div>Driver: {order.driver_name}</div>
                       <div>In: {formatCheckInTime(order.check_in_time)}</div>
+                      <div>Appt: {formatAppointmentTime(o.appointment_time)}</div>
                     </div>
                   ))}
                 </div>
