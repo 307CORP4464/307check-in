@@ -398,53 +398,15 @@ export default function Tracking() {
           <h1 className="text-2xl font-bold text-gray-900">Tracking Dashboard</h1>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600">{userEmail}</span>
-                )}
-            <p className="text-xs text-gray-500">
-              Current time: {formatTimeInIndianapolis(new Date().toISOString())}
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Link 
-              href="/appointments" 
-              className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
-            >
-              Appointments
-            </Link>  
-
-            <Link
-              href="/dock-status"
-              className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
-            >
-              Dock Status
-            </Link>    
-
-            <Link
-              href="/dashboard"
-              className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium"
-            >
-              Dashboard
+            <Link href="/checkin" className="text-blue-600 hover:underline text-sm">
+              Check-In
             </Link>
-            
-            <Link
-              href="/logs"
-              className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium"
+            <button
+              onClick={handleLogout}
+              className="text-sm text-red-600 hover:underline"
             >
-              Daily Logs
-            </Link>
-            
-            <Link
-              href="/tracking"
-              className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium"
-            >
-              Tracking
-            </Link>
-            
-            <Link
-              href="/check-in"
-              className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
-            >
-              Check-In Form
-            </Link>
+              Logout
+            </button>
           </div>
         </div>
       </header>
@@ -622,9 +584,6 @@ export default function Tracking() {
                         <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-red-50/30'}>
                           <td className="px-4 py-2 border border-red-100 font-mono text-gray-800">
                             {d.reference_number}
-                          </td>
-                          <td className="px-4 py-2 border border-red-100 text-gray-700">
-                            {d.driver_name}
                           </td>
                           <td className="px-4 py-2 border border-red-100 text-gray-700">
                             {d.carrier_name}
