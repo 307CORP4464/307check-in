@@ -271,13 +271,14 @@ export default function AppointmentsPage() {
     }
   };
 
-// ✅ Keep a reference to ALL appointments (unfiltered)
+// In page.tsx — fix this function
 const findDuplicateAppointment = (salesOrder: string, delivery: string): Appointment | null => {
-  return allAppointments.find((a) =>        // ← use allAppointments, not filtered list
+  return appointments.find((a) =>
     (salesOrder.trim() !== '' && a.sales_order === salesOrder.trim()) ||
     (delivery.trim() !== '' && a.delivery === delivery.trim())
   ) ?? null;
 };
+
 
   const handleEdit = (appointment: Appointment) => {
     setEditingAppointment(appointment);
