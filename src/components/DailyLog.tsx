@@ -309,22 +309,22 @@ const calculateDetention = (
   appointmentTime: string | null | undefined,
   appointmentDate: string | null | undefined
 ): { hasDetention: boolean; detentionDuration: string | null } => {
-  
-  // Must have check-out time
+
+  // Must have a check-out time
   if (!checkOutTime) return { hasDetention: false, detentionDuration: null };
-  
-  // Must not be work-in
+
+  // Work-in = no detention
   if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
     return { hasDetention: false, detentionDuration: null };
   }
 
-  // Check if check-in was on time (green status only)
+  // Check-in must be on time (green status)
   const status = getAppointmentStatus(checkInTime, appointmentTime, appointmentDate);
   if (status.color !== 'green') {
     return { hasDetention: false, detentionDuration: null };
   }
 
-  // Normalize appointment time
+  // Normalize appointment time → "0800"
   const normalizedTime = appointmentTime.replace(/:/g, '').trim();
   if (!normalizedTime.match(/^\d{4}$/)) {
     return { hasDetention: false, detentionDuration: null };
@@ -350,41 +350,47 @@ const calculateDetention = (
     const appointmentHour = parseInt(normalizedTime.substring(0, 2));
     const appointmentMinute = parseInt(normalizedTime.substring(2, 4));
 
-    // Build appointment DateTime in Indianapolis timezone → UTC
-    const appointmentDateTimeLocal = new Date(
-      aptYear,
-      aptMonth - 1,
-      aptDay,
-      appointmentHour,
-      appointmentMinute,
-      0
-    );
+    // Build the appointment time as a JS Date in Indianapolis timezone
+    // We use UTC offset manually to avoid DST issues
+    const aptLocalString = `${aptYear}-${String(aptMonth).padStart(2, '0')}-${String(aptDay).padStart(2, '0')}T${String(appointmentHour).padStart(2, '0')}:${String(appointmentMinute).padStart(2, '0')}:00`;
+    const appointmentUTC = zonedTimeToUtc(aptLocalString, TIMEZONE);
 
-    // Convert appointment local time to UTC using zonedTimeToUtc
-    const appointmentUTC = zonedTimeToUtc(appointmentDateTimeLocal, TIMEZONE);
+    // Detention starts 2 hours after appointment time
+    const detentionStartUTC = new Date(appointmentUTC.getTime() + 2 * 60 * 60 * 1000);
 
-    // Parse check-out time
+    // Parse check-out (already UTC ISO string from Supabase)
     const checkOutUTC = new Date(checkOutTime);
 
-    if (isNaN(appointmentUTC.getTime()) || isNaN(checkOutUTC.getTime())) {
+    if (isNaN(detentionStartUTC.getTime()) || isNaN(checkOutUTC.getTime())) {
+      console.error('Invalid dates in calculateDetention', { detentionStartUTC, checkOutUTC });
       return { hasDetention: false, detentionDuration: null };
     }
 
-    // Calculate difference in minutes from appointment time to check-out
-    const diffMs = checkOutUTC.getTime() - appointmentUTC.getTime();
+    // How many minutes past the 2-hour mark?
+    const diffMs = checkOutUTC.getTime() - detentionStartUTC.getTime();
     const diffMinutes = Math.floor(diffMs / (1000 * 60));
 
-    // Detention only if over 2 hours (120 minutes)
-    if (diffMinutes <= 120) {
+    console.log('Detention debug:', {
+      appointmentUTC: appointmentUTC.toISOString(),
+      detentionStartUTC: detentionStartUTC.toISOString(),
+      checkOutUTC: checkOutUTC.toISOString(),
+      diffMinutes
+    });
+
+    // Only show detention if check-out is AFTER the 2-hour mark
+    if (diffMinutes <= 0) {
       return { hasDetention: false, detentionDuration: null };
     }
 
     const hours = Math.floor(diffMinutes / 60);
     const minutes = diffMinutes % 60;
 
-    const detentionDuration = minutes > 0
-      ? `${hours}h ${minutes}m`
-      : `${hours}h`;
+    const detentionDuration =
+      hours > 0 && minutes > 0
+        ? `${hours}h ${minutes}m`
+        : hours > 0
+        ? `${hours}h`
+        : `${minutes}m`;
 
     return { hasDetention: true, detentionDuration };
 
@@ -393,6 +399,7 @@ const calculateDetention = (
     return { hasDetention: false, detentionDuration: null };
   }
 };
+
 
 export default function DailyLog() {
   const router = useRouter();
