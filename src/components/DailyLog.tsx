@@ -303,57 +303,95 @@ interface CheckIn {
   destination_state?: string;
 }
 
-const calculateDetention = (checkIn: CheckIn): string => {
-  if (!checkIn.appointment_time || !checkIn.end_time) {
-    return '-';
+const calculateDetention = (
+  checkInTime: string,
+  checkOutTime: string | null | undefined,
+  appointmentTime: string | null | undefined,
+  appointmentDate: string | null | undefined
+): { hasDetention: boolean; detentionDuration: string | null } => {
+  
+  // Must have check-out time
+  if (!checkOutTime) return { hasDetention: false, detentionDuration: null };
+  
+  // Must not be work-in
+  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
+    return { hasDetention: false, detentionDuration: null };
   }
 
-  const status = getAppointmentStatus(checkIn.check_in_time, checkIn.appointment_time, checkIn.appointment_date);
+  // Check if check-in was on time (green status only)
+  const status = getAppointmentStatus(checkInTime, appointmentTime, appointmentDate);
   if (status.color !== 'green') {
-    return '-';
+    return { hasDetention: false, detentionDuration: null };
   }
 
-  if (checkIn.appointment_time === 'work_in') {
-    return '-';
+  // Normalize appointment time
+  const normalizedTime = appointmentTime.replace(/:/g, '').trim();
+  if (!normalizedTime.match(/^\d{4}$/)) {
+    return { hasDetention: false, detentionDuration: null };
   }
 
-  const endTime = new Date(checkIn.end_time);
-  const standardMinutes = 120;
-  let detentionMinutes = 0;
+  if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
+    return { hasDetention: false, detentionDuration: null };
+  }
 
-  if (checkIn.appointment_time.length === 4 && /^\d{4}$/.test(checkIn.appointment_time)) {
-    const appointmentHour = parseInt(checkIn.appointment_time.substring(0, 2));
-    const appointmentMinute = parseInt(checkIn.appointment_time.substring(2, 4));
-    
-    const checkInDate = new Date(checkIn.check_in_time);
-    
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: TIMEZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    
-    const parts = formatter.formatToParts(checkInDate);
-    const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
-    const month = parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1;
-    const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
-    
-    const appointmentDate = new Date(checkInDate);
-    appointmentDate.setFullYear(year, month, day);
-    appointmentDate.setHours(appointmentHour, appointmentMinute, 0, 0);
-    
-    const timeSinceAppointmentMs = endTime.getTime() - appointmentDate.getTime();
-    const minutesSinceAppointment = Math.floor(timeSinceAppointmentMs / (1000 * 60));
-    
-    detentionMinutes = Math.max(0, minutesSinceAppointment - standardMinutes);
+  try {
+    // Parse appointment date
+    let aptYear: number, aptMonth: number, aptDay: number;
+
+    if (appointmentDate.includes('/')) {
+      [aptMonth, aptDay, aptYear] = appointmentDate.split('/').map(Number);
+    } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}/)) {
+      const datePart = appointmentDate.substring(0, 10);
+      [aptYear, aptMonth, aptDay] = datePart.split('-').map(Number);
+    } else {
+      return { hasDetention: false, detentionDuration: null };
+    }
+
+    const appointmentHour = parseInt(normalizedTime.substring(0, 2));
+    const appointmentMinute = parseInt(normalizedTime.substring(2, 4));
+
+    // Build appointment DateTime in Indianapolis timezone → UTC
+    const appointmentDateTimeLocal = new Date(
+      aptYear,
+      aptMonth - 1,
+      aptDay,
+      appointmentHour,
+      appointmentMinute,
+      0
+    );
+
+    // Convert appointment local time to UTC using zonedTimeToUtc
+    const appointmentUTC = zonedTimeToUtc(appointmentDateTimeLocal, TIMEZONE);
+
+    // Parse check-out time
+    const checkOutUTC = new Date(checkOutTime);
+
+    if (isNaN(appointmentUTC.getTime()) || isNaN(checkOutUTC.getTime())) {
+      return { hasDetention: false, detentionDuration: null };
+    }
+
+    // Calculate difference in minutes from appointment time to check-out
+    const diffMs = checkOutUTC.getTime() - appointmentUTC.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+    // Detention only if over 2 hours (120 minutes)
+    if (diffMinutes <= 120) {
+      return { hasDetention: false, detentionDuration: null };
+    }
+
+    const hours = Math.floor(diffMinutes / 60);
+    const minutes = diffMinutes % 60;
+
+    const detentionDuration = minutes > 0
+      ? `${hours}h ${minutes}m`
+      : `${hours}h`;
+
+    return { hasDetention: true, detentionDuration };
+
+  } catch (error) {
+    console.error('Error calculating detention:', error);
+    return { hasDetention: false, detentionDuration: null };
   }
-  
-  if (detentionMinutes === 0) {
-    return '-';
-  }
-  
-  return `${detentionMinutes} min`;
 };
 
 export default function DailyLog() {
@@ -801,7 +839,21 @@ return (
 
        {/* Detention */}
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {calculateDetention(checkIn)}
+                      {(() => {
+  const { hasDetention, detentionDuration } = calculateDetention(
+    checkIn.check_in_time,
+    checkIn.check_out_time,
+    checkIn.appointment_time,
+    checkIn.appointment_date
+  );
+
+  return hasDetention ? (
+    <span className="text-red-600 font-semibold">
+      ⚠️ Detention: {detentionDuration}
+    </span>
+  ) : null;
+})()}
+
                     </td>
 
 
