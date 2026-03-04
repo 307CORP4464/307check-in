@@ -570,23 +570,15 @@ return (
             )}
 
             {/* Detention Section */}
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-base font-semibold text-gray-700">
-                  Detention{' '}
-                  <span className="ml-1 bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">
-                    {stat.detentionInstances.length}
-                  </span>
-                </h3>
-                {stat.detentionInstances.length > 0 && (
-                  <button
-                    onClick={() => toggleDetention(stat.date)}
-                    className="text-sm text-blue-600 hover:underline"
-                  >
-                    {expandedDetention[stat.date] ? 'Hide' : 'Show'} Details
-                  </button>
-                )}
-              </div>
+<div className="p-6">
+  <div className="flex items-center mb-3">
+    <h3 className="text-base font-semibold text-gray-700">
+      Detention{' '}
+      <span className="ml-1 bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">
+        {stat.detentionInstances.length}
+      </span>
+    </h3>
+  </div>
 
               {stat.detentionInstances.length === 0 && (
                 <p className="text-sm text-gray-400">No detention instances for this day.</p>
