@@ -272,7 +272,7 @@ export default function AppointmentModal({
                 onChange={(e) => {
                   const val = e.target.value;
                   setFormData({ ...formData, sales_order: val });
-                  onCheckDuplicate?.(val, formData.delivery);
+                  onCheckDuplicate?.(val, formData.delivery ?? '');
                 }}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter sales order number"
@@ -290,7 +290,7 @@ export default function AppointmentModal({
                 onChange={(e) => {
                   const val = e.target.value;
                   setFormData({ ...formData, delivery: val });
-                  onCheckDuplicate?.(formData.sales_order, val);
+                  onCheckDuplicate?.(formData.sales_order ?? '', val);
                 }}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter delivery number"
