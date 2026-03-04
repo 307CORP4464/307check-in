@@ -34,7 +34,7 @@ interface CheckIn {
   carrier_name?: string;
   trailer_number?: string;
   load_type?: 'inbound' | 'outbound';
-  pickup_number?: string;
+  reference_number?: string;
   dock_number?: string;
   appointment_time?: string | null;
   end_time?: string | null;
