@@ -118,6 +118,8 @@ export default function AppointmentsPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [checkInStatuses, setCheckInStatuses] = useState<Record<string, string>>({});
   const [existingAppointment, setExistingAppointment] = useState<Appointment | null>(null);
+  const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
+
 
   const getDailyLogStatus = (appointment: Appointment): string | null => {
     const salesOrder = appointment.sales_order?.trim().toLowerCase();
@@ -142,10 +144,13 @@ export default function AppointmentsPage() {
     getUser();
   }, [supabase]);
 
-  useEffect(() => {
-    loadAppointments();
-    fetchCheckInStatuses();
-  }, [selectedDate]);
+// Replace your existing useEffect
+useEffect(() => {
+  loadAppointments();
+  loadAllAppointments(); // ← add this
+  fetchCheckInStatuses();
+}, [selectedDate]);
+
 
   const loadAppointments = async () => {
     setLoading(true);
@@ -170,7 +175,20 @@ export default function AppointmentsPage() {
       setLoading(false);
     }
   };
+const loadAllAppointments = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('*')
+      .order('appointment_date', { ascending: true });
 
+    if (error) throw error;
+    setAllAppointments(data || []);
+  } catch (error) {
+    console.error('Error loading all appointments:', error);
+  }
+};
+  
   const changeDateByDays = (days: number) => {
     const currentDate = new Date(selectedDate);
     currentDate.setDate(currentDate.getDate() + days);
@@ -214,29 +232,31 @@ export default function AppointmentsPage() {
     return !status;
   }).length;
 
-  const handleSave = async (data: AppointmentInput) => {
-    try {
-      const appointmentData: AppointmentInput = {
-        ...data,
-        source: editingAppointment ? data.source : 'manual'
-      };
+ const handleSave = async (data: AppointmentInput) => {
+  try {
+    const appointmentData: AppointmentInput = {
+      ...data,
+      source: editingAppointment ? data.source : 'manual'
+    };
 
-      if (editingAppointment) {
-        await updateAppointment(editingAppointment.id, appointmentData);
-      } else {
-        await createAppointment(appointmentData);
-      }
-      
-      setModalOpen(false);
-      setEditingAppointment(null);
-      await loadAppointments();
-      await fetchCheckInStatuses();
-    } catch (error: any) {
-      console.error('Error saving appointment:', error);
-      alert(error.message || 'Error saving appointment');
-      throw error;
+    if (editingAppointment) {
+      await updateAppointment(editingAppointment.id, appointmentData);
+    } else {
+      await createAppointment(appointmentData);
     }
-  };
+
+    setModalOpen(false);
+    setEditingAppointment(null);
+    await loadAppointments();
+    await loadAllAppointments(); // ← add this
+    await fetchCheckInStatuses();
+  } catch (error: any) {
+    console.error('Error saving appointment:', error);
+    alert(error.message || 'Error saving appointment');
+    throw error;
+  }
+};
+
 
   const fetchCheckInStatuses = async () => {
     try {
@@ -273,12 +293,11 @@ export default function AppointmentsPage() {
 
 // In page.tsx — fix this function
 const findDuplicateAppointment = (salesOrder: string, delivery: string): Appointment | null => {
-  return appointments.find((a) =>
+  return allAppointments.find((a) =>
     (salesOrder.trim() !== '' && a.sales_order === salesOrder.trim()) ||
     (delivery.trim() !== '' && a.delivery === delivery.trim())
   ) ?? null;
 };
-
 
   const handleEdit = (appointment: Appointment) => {
     setEditingAppointment(appointment);
