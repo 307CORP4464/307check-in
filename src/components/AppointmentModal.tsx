@@ -7,10 +7,11 @@ import { Appointment, AppointmentInput, TIME_SLOTS } from '@/types/appointments'
 interface AppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: AppointmentInput, id?: string) => Promise<void>;
+  onSave: (data: AppointmentInput) => Promise<void>;
   appointment?: Appointment | null;
   initialDate?: string;
-  existingAppointment?: Appointment | null; // ← Conflicting appointment (same SO/Delivery)
+  existingAppointment?: Appointment | null;
+  onCheckDuplicate?: (salesOrder: string, delivery: string) => void;
 }
 
 const CUSTOMERS = ['TATE', 'PRIM', 'XARC', 'BAGS', 'TRAX', 'ADM'];
@@ -20,8 +21,9 @@ export default function AppointmentModal({
   onClose,
   onSave,
   appointment,
-  initialDate = new Date().toISOString().split('T')[0],
+  initialDate = new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>,
   existingAppointment = null,
+  onCheckDuplicate,
 }: AppointmentModalProps) {
   const [formData, setFormData] = useState<AppointmentInput>({
     appointment_date: initialDate,
@@ -36,7 +38,6 @@ export default function AppointmentModal({
   const [error, setError] = useState('');
   const [editingExisting, setEditingExisting] = useState(false);
 
-  // The appointment we are actually editing (could be the original or the existing duplicate)
   const activeAppointment = editingExisting ? existingAppointment : appointment;
 
   useEffect(() => {
@@ -64,15 +65,10 @@ export default function AppointmentModal({
     setError('');
   }, [activeAppointment, initialDate, isOpen]);
 
-  // Reset editingExisting when modal closes/reopens
+  // Reset editingExisting whenever modal opens/closes
   useEffect(() => {
     if (!isOpen) setEditingExisting(false);
   }, [isOpen]);
-
-  const handleSwitchToExisting = () => {
-    setEditingExisting(true);
-    setError('');
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,11 +86,7 @@ export default function AppointmentModal({
 
     setSaving(true);
     try {
-      // Pass the ID of whichever appointment is being saved
-      const id = editingExisting
-        ? existingAppointment?.id
-        : appointment?.id;
-      await onSave(formData, id);
+      await onSave(formData);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Error saving appointment');
@@ -103,7 +95,6 @@ export default function AppointmentModal({
     }
   };
 
-  // Helper: format date for display
   const formatDate = (dateStr: string) => {
     const [year, month, day] = dateStr.split('-');
     return new Date(Number(year), Number(month) - 1, Number(day)).toLocaleDateString('en-US', {
@@ -116,7 +107,6 @@ export default function AppointmentModal({
 
   if (!isOpen) return null;
 
-  // Show warning only when creating a new appointment and a duplicate exists
   const showDuplicateWarning = !appointment && !editingExisting && existingAppointment;
 
   const modalTitle = editingExisting
@@ -129,6 +119,7 @@ export default function AppointmentModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="p-6">
+
           {/* Header */}
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">{modalTitle}</h2>
@@ -181,7 +172,10 @@ export default function AppointmentModal({
                   </div>
                   <button
                     type="button"
-                    onClick={handleSwitchToExisting}
+                    onClick={() => {
+                      setEditingExisting(true);
+                      setError('');
+                    }}
                     className="mt-3 w-full px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded transition-colors"
                   >
                     Edit Existing Appointment Instead
@@ -191,7 +185,7 @@ export default function AppointmentModal({
             </div>
           )}
 
-          {/* "Back to new" option when editing existing from warning */}
+          {/* Blue banner when switched to editing existing */}
           {editingExisting && (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded flex items-center justify-between">
               <p className="text-blue-700 text-sm font-medium">
@@ -214,7 +208,6 @@ export default function AppointmentModal({
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">Date *</label>
@@ -276,9 +269,11 @@ export default function AppointmentModal({
               <input
                 type="text"
                 value={formData.sales_order}
-                onChange={(e) =>
-                  setFormData({ ...formData, sales_order: e.target.value })
-                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFormData({ ...formData, sales_order: val });
+                  onCheckDuplicate?.(val, formData.delivery);
+                }}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter sales order number"
               />
@@ -292,9 +287,11 @@ export default function AppointmentModal({
               <input
                 type="text"
                 value={formData.delivery}
-                onChange={(e) =>
-                  setFormData({ ...formData, delivery: e.target.value })
-                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFormData({ ...formData, delivery: val });
+                  onCheckDuplicate?.(formData.sales_order, val);
+                }}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter delivery number"
               />
