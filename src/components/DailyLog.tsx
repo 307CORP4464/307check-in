@@ -810,8 +810,8 @@ return (
         {formatTimeInIndianapolis(checkIn.check_in_time, true)}
       </td>
 
-  {/* In your table rendering code, find the appointment time cell and update it to: */}
-<td className="border px-4 py-2">
+  {/* Appointment Time */}
+<td className="border px-4 py-3">
   {(() => {
     const status = getAppointmentStatus(
       checkIn.check_in_time,
@@ -849,7 +849,7 @@ return (
                       {(() => {
   const { hasDetention, detentionDuration } = calculateDetention(
     checkIn.check_in_time,
-    checkIn.check_out_time,
+    checkIn.end_time,
     checkIn.appointment_time,
     checkIn.appointment_date
   );
