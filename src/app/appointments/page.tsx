@@ -117,6 +117,7 @@ export default function AppointmentsPage() {
   const [userEmail, setUserEmail] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [checkInStatuses, setCheckInStatuses] = useState<Record<string, string>>({});
+  const [existingAppointment, setExistingAppointment] = useState<Appointment | null>(null);
 
   const getDailyLogStatus = (appointment: Appointment): string | null => {
     const salesOrder = appointment.sales_order?.trim().toLowerCase();
@@ -270,6 +271,14 @@ export default function AppointmentsPage() {
     }
   };
 
+  const checkForDuplicate = async (salesOrder: string, delivery: string) => {
+  const found = appointments.find(
+    (a) =>
+      (salesOrder && a.sales_order === salesOrder) ||
+      (delivery && a.delivery === delivery)
+  );
+  setExistingAppointment(found ?? null);
+};
   const handleEdit = (appointment: Appointment) => {
     setEditingAppointment(appointment);
     setModalOpen(true);
@@ -562,18 +571,29 @@ return (
 
     </div> {/* closes max-w-[1600px] */}
 
-    {modalOpen && (
-      <AppointmentModal
-        isOpen={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          setEditingAppointment(null);
-        }}
-        onSave={handleSave}
-        initialDate={selectedDate}
-        appointment={editingAppointment}
-      />
-    )}
-  </div> 
+{modalOpen && (
+  <AppointmentModal
+    isOpen={modalOpen}
+    onClose={() => {
+      setModalOpen(false);
+      setEditingAppointment(null);
+      setExistingAppointment(null);
+    }}
+    onSave={handleSave}
+    initialDate={selectedDate}
+    appointment={editingAppointment}
+    existingAppointment={
+      // Only check for duplicates when creating a new appointment
+      !editingAppointment ? existingAppointment : null
+    }
+    onCheckDuplicate={(salesOrder, delivery) => {
+      if (!editingAppointment) {
+        setExistingAppointment(findDuplicateAppointment(salesOrder, delivery));
+      }
+    }}
+  />
+)}
+</div>
 );
 }
+
