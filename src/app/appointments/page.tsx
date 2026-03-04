@@ -271,14 +271,14 @@ export default function AppointmentsPage() {
     }
   };
 
-// Add this near your other handlers in page.tsx
+// ✅ Keep a reference to ALL appointments (unfiltered)
 const findDuplicateAppointment = (salesOrder: string, delivery: string): Appointment | null => {
-  return appointments.find((a) =>
+  return allAppointments.find((a) =>        // ← use allAppointments, not filtered list
     (salesOrder.trim() !== '' && a.sales_order === salesOrder.trim()) ||
     (delivery.trim() !== '' && a.delivery === delivery.trim())
   ) ?? null;
 };
- 
+
   const handleEdit = (appointment: Appointment) => {
     setEditingAppointment(appointment);
     setModalOpen(true);
