@@ -28,8 +28,8 @@ const formatTimeInIndianapolis = (timeString: string): string => {
     const match = timeString.match(timePattern);
     
     if (match) {
-      const hours = match[1];
-      const minutes = match[2];
+      const hours = match<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>;
+      const minutes = match<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[2]</a>;
       return `${hours}:${minutes}`;
     }
     
@@ -66,7 +66,6 @@ const getCurrentTimeInIndianapolis = (): string => {
   return formatter.format(now);
 };
 
-// Helper to get status badge styling
 const getStatusBadge = (status: string | null) => {
   if (!status) {
     return (
@@ -76,7 +75,6 @@ const getStatusBadge = (status: string | null) => {
     );
   }
 
-  // Treat "unloaded" as "checked_out"
   const normalizedStatus = status.toLowerCase() === 'unloaded' ? 'checked_out' : status.toLowerCase();
 
   const statusStyles: Record<string, string> = {
@@ -109,7 +107,7 @@ export default function AppointmentsPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -118,8 +116,7 @@ export default function AppointmentsPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [checkInStatuses, setCheckInStatuses] = useState<Record<string, string>>({});
   const [existingAppointment, setExistingAppointment] = useState<Appointment | null>(null);
-  const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
-
+  // ✅ allAppointments removed
 
   const getDailyLogStatus = (appointment: Appointment): string | null => {
     const salesOrder = appointment.sales_order?.trim().toLowerCase();
@@ -144,29 +141,16 @@ export default function AppointmentsPage() {
     getUser();
   }, [supabase]);
 
-// Replace your existing useEffect
-useEffect(() => {
-  loadAppointments();
-  loadAllAppointments(); // ← add this
-  fetchCheckInStatuses();
-}, [selectedDate]);
-
+  // ✅ Removed loadAllAppointments() call
+  useEffect(() => {
+    loadAppointments();
+    fetchCheckInStatuses();
+  }, [selectedDate]);
 
   const loadAppointments = async () => {
     setLoading(true);
     try {
-      console.log('🔍 Loading appointments for date:', selectedDate);
       const data = await getAppointmentsByDate(selectedDate);
-      console.log('📦 Received appointments:', data);
-      console.log('📊 Total count:', data.length);
-      
-      if (data.length > 0) {
-        console.log('🔍 First appointment:', data[0]);
-        console.log('🕐 Appointment times:', data.map(a => a.appointment_time));
-        console.log('🕐 First appointment_time type:', typeof data[0].appointment_time);
-        console.log('🕐 First appointment_time value:', data[0].appointment_time);
-      }
-      
       setAppointments(data);
     } catch (error) {
       console.error('❌ Error loading appointments:', error);
@@ -175,24 +159,13 @@ useEffect(() => {
       setLoading(false);
     }
   };
-const loadAllAppointments = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .order('appointment_date', { ascending: true });
 
-    if (error) throw error;
-    setAllAppointments(data || []);
-  } catch (error) {
-    console.error('Error loading all appointments:', error);
-  }
-};
-  
+  // ✅ loadAllAppointments() function removed entirely
+
   const changeDateByDays = (days: number) => {
     const currentDate = new Date(selectedDate);
     currentDate.setDate(currentDate.getDate() + days);
-    setSelectedDate(currentDate.toISOString().split('T')[0]);
+    setSelectedDate(currentDate.toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   };
 
   const filteredAppointments = appointments.filter(apt => {
@@ -205,15 +178,13 @@ const loadAllAppointments = async () => {
     return salesOrder.includes(query) || delivery.includes(query);
   });
 
-    const totalAppointmentsCount = filteredAppointments.length;
+  const totalAppointmentsCount = filteredAppointments.length;
 
-  // Count work-ins
   const workInCount = filteredAppointments.filter(apt => {
     const time = apt.appointment_time?.toLowerCase() || '';
     return time.includes('work in');
   }).length;
 
-  // Count statuses based on daily log
   const checkedOutCount = filteredAppointments.filter(apt => {
     const status = getDailyLogStatus(apt);
     if (!status) return false;
@@ -227,54 +198,52 @@ const loadAllAppointments = async () => {
     return status.toLowerCase() === 'checked_in';
   }).length;
 
-onCheckDuplicate={(salesOrder, delivery) => {
-  console.log('🔔 onCheckDuplicate called', salesOrder, delivery);
-  console.log('📋 allAppointments count:', allAppointments.length);
-  
-  if (editingAppointment) {
-    setExistingAppointment(null);
-    return;
-  }
-  const so = salesOrder.trim().toLowerCase();
-  const del = delivery.trim().toLowerCase();
-  const found = allAppointments.find((a) =>
-    (so !== '' && a.sales_order?.trim().toLowerCase() === so) ||
-    (del !== '' && a.delivery?.trim().toLowerCase() === del)
-  ) ?? null;
-  
-  console.log('🔍 found:', found);
-  setExistingAppointment(found);
-}}
   const notCheckedInCount = filteredAppointments.filter(apt => {
     const status = getDailyLogStatus(apt);
     return !status;
   }).length;
 
- const handleSave = async (data: AppointmentInput) => {
-  try {
-    const appointmentData: AppointmentInput = {
-      ...data,
-      source: editingAppointment ? data.source : 'manual'
-    };
-
+  // ✅ Now checks only appointments for the selected day
+  const handleCheckDuplicate = (salesOrder: string, delivery: string) => {
     if (editingAppointment) {
-      await updateAppointment(editingAppointment.id, appointmentData);
-    } else {
-      await createAppointment(appointmentData);
+      setExistingAppointment(null);
+      return;
     }
 
-    setModalOpen(false);
-    setEditingAppointment(null);
-    await loadAppointments();
-    await loadAllAppointments(); // ← add this
-    await fetchCheckInStatuses();
-  } catch (error: any) {
-    console.error('Error saving appointment:', error);
-    alert(error.message || 'Error saving appointment');
-    throw error;
-  }
-};
+    const so = salesOrder.trim().toLowerCase();
+    const del = delivery.trim().toLowerCase();
 
+    const found = appointments.find((a) =>
+      (so !== '' && a.sales_order?.trim().toLowerCase() === so) ||
+      (del !== '' && a.delivery?.trim().toLowerCase() === del)
+    ) ?? null;
+
+    setExistingAppointment(found);
+  };
+
+  const handleSave = async (data: AppointmentInput) => {
+    try {
+      const appointmentData: AppointmentInput = {
+        ...data,
+        source: editingAppointment ? data.source : 'manual'
+      };
+
+      if (editingAppointment) {
+        await updateAppointment(editingAppointment.id, appointmentData);
+      } else {
+        await createAppointment(appointmentData);
+      }
+
+      setModalOpen(false);
+      setEditingAppointment(null);
+      await loadAppointments();
+      await fetchCheckInStatuses();
+    } catch (error: any) {
+      console.error('Error saving appointment:', error);
+      alert(error.message || 'Error saving appointment');
+      throw error;
+    }
+  };
 
   const fetchCheckInStatuses = async () => {
     try {
@@ -302,10 +271,9 @@ onCheckDuplicate={(salesOrder, delivery) => {
           }
         });
         setCheckInStatuses(statusMap);
-        console.log('📋 Check-in statuses loaded:', statusMap);
       }
-    } catch (err) {
-      console.error('Error in fetchCheckInStatuses:', err);
+    } catch (error) {
+      console.error('Error fetching check-in statuses:', error);
     }
   };
 
