@@ -11,7 +11,7 @@ interface OrderInfo {
   driver_name: string;
   status: string;
   check_in_time: string;
-  appointment_time? string;
+  appointment_time?: string;
 }
 
 interface DockStatus {
