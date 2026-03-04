@@ -497,7 +497,7 @@ const formatAppointmentTime = (timeStr: string | null | undefined) => {
                 <div className="mt-2 space-y-1 text-xs">
                   {dock.orders.map((order) => (
                     <div key={order.id} className="bg-white bg-opacity-50 rounded p-1">
-                      <div className="font-medium">PO: {order.reference_number}</div>
+                      <div className="font-medium">Ref#: {order.reference_number}</div>
                       <div>In  : {formatCheckInTime(order.check_in_time)}</div>
                       <div>Appt: {formatAppointmentTime(order.appointment_time)}</div>
                     </div>
