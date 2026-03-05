@@ -792,7 +792,6 @@ return (
       </td>
 
       {/* Destination */}
-      // Replace the destination column cell with this structure:
 <td className="px-4 py-3 text-sm">
   <div className="flex flex-col">
     {/* Customer name displayed above destination */}
