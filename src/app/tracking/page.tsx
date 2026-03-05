@@ -216,7 +216,6 @@ const getDockSetLabel = (dockNumber: string | undefined): string | null => {
 };
 
 const getCustomerBreakdown = (checkIns: CheckIn[]): CustomerBreakdown[] => {
-  // Initialize all customers with 0s
   const breakdown: Record<CustomerName, CustomerBreakdown> = {} as Record<
     CustomerName,
     CustomerBreakdown
@@ -232,8 +231,7 @@ const getCustomerBreakdown = (checkIns: CheckIn[]): CustomerBreakdown[] => {
   });
 
   checkIns.forEach((checkIn) => {
-    // Normalize to uppercase and trim to match against fixed list
-    const rawCustomer = (checkIn.customer ?? '').toString().trim().toUpperCase();
+    const rawCustomer = (checkIn.customer ?? '').toString().trim().toUpperCase(); // 👈 uses customer
     if (CUSTOMERS.includes(rawCustomer as CustomerName)) {
       const key = rawCustomer as CustomerName;
       if (checkIn.load_type === 'inbound') {
@@ -245,9 +243,9 @@ const getCustomerBreakdown = (checkIns: CheckIn[]): CustomerBreakdown[] => {
     }
   });
 
-  // Return in the fixed CUSTOMERS order
   return CUSTOMERS.map((c) => breakdown[c]);
 };
+
 
 export default function Tracking() {
   const router = useRouter();
