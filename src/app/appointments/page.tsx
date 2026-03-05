@@ -28,8 +28,8 @@ const formatTimeInIndianapolis = (timeString: string): string => {
     const match = timeString.match(timePattern);
     
     if (match) {
-      const hours = match[1];
-      const minutes = match[2];
+      const hours = match<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>;
+      const minutes = match<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[2]</a>;
       return `${hours}:${minutes}`;
     }
     
@@ -109,7 +109,7 @@ export default function AppointmentsPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -167,7 +167,7 @@ export default function AppointmentsPage() {
   const changeDateByDays = (days: number) => {
     const currentDate = new Date(selectedDate);
     currentDate.setDate(currentDate.getDate() + days);
-    setSelectedDate(currentDate.toISOString().split('T')[0]);
+    setSelectedDate(currentDate.toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   };
 
   // Base filter by search query
@@ -396,7 +396,8 @@ export default function AppointmentsPage() {
   ];
 
   return (
-     <div className="min-h-screen bg-gray-50">
+   return (
+  <div className="min-h-screen bg-gray-50">
     {/* Header */}
     <div className="bg-white border-b shadow-sm">
       <div className="max-w-[1600px] mx-auto px-4 py-4">
@@ -434,7 +435,7 @@ export default function AppointmentsPage() {
       </div>
     </div>
 
-       {/* Main Content */}
+    {/* Main Content */}
     <div className="max-w-[1600px] mx-auto px-4 py-6">
 
       {/* Row 1: Upload + Date Selector with Counters */}
@@ -476,7 +477,7 @@ export default function AppointmentsPage() {
             + Add Manual Appointment
           </button>
 
- {/* Counters inside the same box */}
+          {/* Counters inside the same box */}
           <div className="border-t pt-4 mt-2">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
               <div className="flex items-center justify-between">
@@ -543,7 +544,7 @@ export default function AppointmentsPage() {
           </div>
         </div>
 
-     {/* Search & Status Breakdown - Combined */}
+        {/* Search & Status Breakdown - Combined */}
 <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4 mb-4">
   
   {/* Search Bar */}
@@ -635,7 +636,6 @@ export default function AppointmentsPage() {
     </p>
   )}
 </div>
-
 
 {/* Appointments Table - now INSIDE the max-w wrapper */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
@@ -753,3 +753,5 @@ export default function AppointmentsPage() {
 </div>
 );
 }
+
+    
