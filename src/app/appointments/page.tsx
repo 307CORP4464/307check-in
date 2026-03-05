@@ -543,7 +543,7 @@ export default function AppointmentsPage() {
           </div>
         </div>
 
-      {/* Search & Status Breakdown - Combined */}
+     {/* Search & Status Breakdown - Combined */}
 <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4 mb-4">
   
   {/* Search Bar */}
@@ -636,29 +636,6 @@ export default function AppointmentsPage() {
   )}
 </div>
 
-        <div className="flex flex-wrap gap-2">
-          {statusBreakdownButtons.map(({ filter, label, count, activeClass, inactiveClass }) => (
-            <button
-              key={filter}
-              onClick={() => setStatusFilter(isFilterActive(filter) ? 'all' : filter)}
-              className={`
-                inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
-                border transition-colors duration-150 cursor-pointer
-                ${isFilterActive(filter) ? activeClass : inactiveClass}
-              `}
-            >
-              {label}
-              <span
-                className={`
-                  inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold
-                  ${isFilterActive(filter) ? 'bg-white bg-opacity-25 text-inherit' : 'bg-gray-100 text-gray-600'}
-                `}
-              >
-                {count}
-              </span>
-            </button>
-          ))}
-        </div>
 
 {/* Appointments Table - now INSIDE the max-w wrapper */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
