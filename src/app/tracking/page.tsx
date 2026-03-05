@@ -25,6 +25,9 @@ const formatTimeInIndianapolis = (isoString: string): string => {
   }
 };
 
+const CUSTOMERS = ['TATE', 'PRIM', 'XARC', 'BAGS', 'TRAX', 'ADM'] as const;
+type CustomerName = typeof CUSTOMERS[number];
+
 interface CheckIn {
   id: string;
   check_in_time: string;
@@ -40,6 +43,14 @@ interface CheckIn {
   end_time?: string | null;
   destination_city?: string;
   destination_state?: string;
+  customer?: string; // 👈 add this if not present, or rename to match your DB field
+}
+
+interface CustomerBreakdown {
+  customer: CustomerName;
+  inbound: number;
+  outbound: number;
+  total: number;
 }
 
 interface DetentionInstance {
@@ -51,6 +62,7 @@ interface DetentionInstance {
   driver_name: string;
   carrier_name: string;
 }
+
 
 // Dock sets definition
 const DOCK_SETS: { label: string; docks: number[] }[] = [
@@ -76,7 +88,9 @@ interface DailyStats {
   detentionInstances: DetentionInstance[];
   halfHourBreakdown: { [key: string]: number };
   dockSetUsage: { label: string; count: number }[];
+  customerBreakdown: CustomerBreakdown[]; // 👈 new
 }
+
 
 const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
   if (
@@ -203,6 +217,40 @@ const getDockSetLabel = (dockNumber: string | undefined): string | null => {
   return set ? set.label : null;
 };
 
+const getCustomerBreakdown = (checkIns: CheckIn[]): CustomerBreakdown[] => {
+  // Initialize all customers with 0s
+  const breakdown: Record<CustomerName, CustomerBreakdown> = {} as Record<
+    CustomerName,
+    CustomerBreakdown
+  >;
+
+  CUSTOMERS.forEach((customer) => {
+    breakdown[customer] = {
+      customer,
+      inbound: 0,
+      outbound: 0,
+      total: 0,
+    };
+  });
+
+  checkIns.forEach((checkIn) => {
+    // Normalize to uppercase and trim to match against fixed list
+    const rawCustomer = (checkIn.customer ?? '').toString().trim().toUpperCase();
+    if (CUSTOMERS.includes(rawCustomer as CustomerName)) {
+      const key = rawCustomer as CustomerName;
+      if (checkIn.load_type === 'inbound') {
+        breakdown[key].inbound += 1;
+      } else if (checkIn.load_type === 'outbound') {
+        breakdown[key].outbound += 1;
+      }
+      breakdown[key].total += 1;
+    }
+  });
+
+  // Return in the fixed CUSTOMERS order
+  return CUSTOMERS.map((c) => breakdown[c]);
+};
+
 export default function Tracking() {
   const router = useRouter();
   const supabase = createBrowserClient(
@@ -267,6 +315,7 @@ export default function Tracking() {
 
       const startOfDayIndy = zonedTimeToUtc(`${startDate} 00:00:00`, TIMEZONE);
       const endOfDayIndy = zonedTimeToUtc(`${endDate} 23:59:59`, TIMEZONE);
+      const customerBreakdown = getCustomerBreakdown(checkIns);
 
       const { data, error } = await supabase
         .from('check_ins')
@@ -361,6 +410,10 @@ export default function Tracking() {
           count: dockSetCounts[s.label] || 0
         }));
 
+        const [expandedCustomerBreakdown, setExpandedCustomerBreakdown] = useState<{
+  [date: string]: boolean;
+}>({});
+
         return {
           date,
           totalInbound,
@@ -370,7 +423,8 @@ export default function Tracking() {
           onTimePercentage,
           detentionInstances,
           halfHourBreakdown,
-          dockSetUsage
+          dockSetUsage,
+          customerBreakdown
         };
       });
 
@@ -568,6 +622,81 @@ return (
                 </div>
               </div>
             )}
+{/* Customer Breakdown Section */}
+<div className="mt-4">
+  <button
+    onClick={() =>
+      setExpandedCustomerBreakdown((prev) => ({
+        ...prev,
+        [stat.date]: !prev[stat.date],
+      }))
+    }
+    className="flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800"
+  >
+    {expandedCustomerBreakdown[stat.date] ? '▼' : '▶'} Check-ins by Customer
+  </button>
+
+  {expandedCustomerBreakdown[stat.date] && (
+    <div className="mt-2 overflow-x-auto">
+      <table className="min-w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="px-4 py-2 text-left font-semibold text-gray-700">
+              Customer
+            </th>
+            <th className="px-4 py-2 text-center font-semibold text-blue-600">
+              Inbound
+            </th>
+            <th className="px-4 py-2 text-center font-semibold text-green-600">
+              Outbound
+            </th>
+            <th className="px-4 py-2 text-center font-semibold text-gray-700">
+              Total
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {stat.customerBreakdown.map((row, idx) => (
+            <tr
+              key={row.customer}
+              className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+            >
+              <td className="px-4 py-2 font-medium text-gray-800">
+                {row.customer}
+              </td>
+              <td className="px-4 py-2 text-center text-blue-700">
+                {row.inbound}
+              </td>
+              <td className="px-4 py-2 text-center text-green-700">
+                {row.outbound}
+              </td>
+              <td className="px-4 py-2 text-center font-semibold text-gray-900">
+                {row.total}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        {/* Totals footer row */}
+        <tfoot className="bg-gray-100 border-t border-gray-300">
+          <tr>
+            <td className="px-4 py-2 font-bold text-gray-700">Totals</td>
+            <td className="px-4 py-2 text-center font-bold text-blue-700">
+              {stat.customerBreakdown.reduce((sum, r) => sum + r.inbound, 0)}
+            </td>
+            <td className="px-4 py-2 text-center font-bold text-green-700">
+              {stat.customerBreakdown.reduce((sum, r) => sum + r.outbound, 0)}
+            </td>
+            <td className="px-4 py-2 text-center font-bold text-gray-900">
+              {stat.customerBreakdown.reduce((sum, r) => sum + r.total, 0)}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  )}
+</div>
+
+            
 {/* Detention Section */}
 <div className="p-6">
   <div className="flex items-center mb-3">
