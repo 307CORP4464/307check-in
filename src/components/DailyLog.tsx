@@ -434,7 +434,7 @@ export default function DailyLog() {
   const [selectedForStatusChange, setSelectedForStatusChange] = useState<CheckIn | null>(null);
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
 
- const fetchCheckInsForDate = async () => {
+const fetchCheckInsForDate = async () => {
   try {
     setLoading(true);
     
@@ -463,7 +463,8 @@ export default function DailyLog() {
     if (referenceNumbers.length > 0) {
       const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('appointments')
-        .select('sales_order, delivery, appointment_time, appointment_date')
+        // ✅ Added 'customer' to the select
+        .select('sales_order, delivery, appointment_time, appointment_date, customer')
         .or(`sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`);
 
       if (appointmentsError) {
@@ -472,7 +473,8 @@ export default function DailyLog() {
         appointmentsData.forEach(apt => {
           const appointmentInfo = {
             time: apt.appointment_time,
-            date: apt.appointment_date
+            date: apt.appointment_date,
+            customer: apt.customer  // ✅ Added customer to the map
           };
           if (apt.sales_order) {
             appointmentsMap.set(apt.sales_order, appointmentInfo);
@@ -490,15 +492,18 @@ export default function DailyLog() {
       return {
         ...checkIn,
         appointment_time: appointmentInfo?.time || checkIn.appointment_time || null,
-        appointment_date: appointmentInfo?.date || checkIn.appointment_date || null
+        appointment_date: appointmentInfo?.date || checkIn.appointment_date || null,
+        // ✅ Pull customer from appointment, fall back to check_in's own customer field
+        customer: appointmentInfo?.customer || checkIn.customer || null
       };
     }) || [];
 
     // DEBUG - Log the first record to see enriched data
     if (enrichedCheckIns.length > 0) {
-      console.log('📊 First enriched check-in record:', enrichedCheckIns[0]);
-      console.log('📅 appointment_date field:', enrichedCheckIns[0].appointment_date);
-      console.log('⏰ appointment_time field:', enrichedCheckIns[0].appointment_time);
+      console.log('📊 First enriched check-in record:', enrichedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
+      console.log('📅 appointment_date field:', enrichedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_date);
+      console.log('⏰ appointment_time field:', enrichedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_time);
+      console.log('👤 customer field:', enrichedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.customer); // ✅ New debug line
     }
     
     setCheckIns(enrichedCheckIns);
@@ -508,7 +513,6 @@ export default function DailyLog() {
     setLoading(false);
   }
 };
-
 
   useEffect(() => {
     const getUser = async () => {
