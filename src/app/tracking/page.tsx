@@ -43,8 +43,9 @@ interface CheckIn {
   end_time?: string | null;
   destination_city?: string;
   destination_state?: string;
-  customer?: string; // 👈 add this if not present, or rename to match your DB field
+  customer?: 'TATE' | 'PRIM' | 'XARC' | 'BAGS' | 'TRAX' | 'ADM';
 }
+
 
 interface CustomerBreakdown {
   customer: CustomerName;
@@ -231,26 +232,16 @@ const getCustomerBreakdown = (checkIns: CheckIn[]): CustomerBreakdown[] => {
   });
 
   checkIns.forEach((checkIn) => {
-    // Debug log - remove after fixing
-    console.log('Raw customer value:', JSON.stringify(checkIn.customer), 'load_type:', checkIn.load_type);
+    // Since customer is now properly typed, no need for string manipulation
+    const customer = checkIn.customer;
     
-    const rawCustomer = (checkIn.customer ?? '')
-      .toString()
-      .trim()
-      .toUpperCase()
-      .replace(/[^A-Z]/g, ''); // Strip any non-alpha characters
-
-    if (CUSTOMERS.includes(rawCustomer as CustomerName)) {
-      const key = rawCustomer as CustomerName;
+    if (customer && CUSTOMERS.includes(customer)) {
       if (checkIn.load_type === 'inbound') {
-        breakdown[key].inbound += 1;
+        breakdown[customer].inbound += 1;
       } else if (checkIn.load_type === 'outbound') {
-        breakdown[key].outbound += 1;
+        breakdown[customer].outbound += 1;
       }
-      breakdown[key].total += 1;
-    } else if (rawCustomer !== '') {
-      // Warn about unmatched customers
-      console.warn('Unmatched customer:', JSON.stringify(rawCustomer));
+      breakdown[customer].total += 1;
     }
   });
 
@@ -324,11 +315,28 @@ export default function Tracking() {
     const endOfDayIndy = zonedTimeToUtc(`${endDate} 23:59:59`, TIMEZONE);
 
     const { data, error } = await supabase
-      .from('check_ins')
-      .select('*')
-      .gte('check_in_time', startOfDayIndy.toISOString())
-      .lte('check_in_time', endOfDayIndy.toISOString())
-      .order('check_in_time', { ascending: true });
+  .from('check_ins')
+  .select(`
+    id,
+    check_in_time,
+    check_out_time,
+    status,
+    driver_name,
+    carrier_name,
+    trailer_number,
+    load_type,
+    reference_number,
+    dock_number,
+    appointment_time,
+    end_time,
+    destination_city,
+    destination_state,
+    customer
+  `)
+  .gte('check_in_time', startOfDayIndy.toISOString())
+  .lte('check_in_time', endOfDayIndy.toISOString())
+  .order('check_in_time', { ascending: true });
+
 
     if (error) throw error;
 
