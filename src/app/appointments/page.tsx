@@ -719,6 +719,7 @@ return (
           </div>
         )}
       </div>
+    </div>
 
 
 {modalOpen && (
