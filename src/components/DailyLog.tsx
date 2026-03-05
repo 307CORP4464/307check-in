@@ -301,6 +301,7 @@ interface CheckIn {
   notes?: string;
   destination_city?: string;
   destination_state?: string;
+  customer?: string;
 }
 
 const calculateDetention = (
@@ -796,7 +797,7 @@ return (
   <div className="flex flex-col">
     {/* Customer name displayed above destination */}
     <span className="font-semibold text-gray-900">
-      {checkIn.customer_name || 'N/A'}
+      {checkIn.customer || 'N/A'}
     </span>
     {/* Destination city and state below customer */}
     <span className="text-gray-500 text-xs mt-0.5">
