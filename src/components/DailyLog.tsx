@@ -731,7 +731,7 @@ return (
                 Trailer Info
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Destination
+                Load Info
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Reference #
@@ -791,11 +791,21 @@ return (
       </td>
 
       {/* Destination */}
-      <td className="px-4 py-4 text-sm text-gray-900">
-          {checkIn.destination_city && checkIn.destination_state
-           ? `${checkIn.destination_city}, ${checkIn.destination_state}`
-           : 'N/A'}
-       </td>
+      // Replace the destination column cell with this structure:
+<td className="px-4 py-3 text-sm">
+  <div className="flex flex-col">
+    {/* Customer name displayed above destination */}
+    <span className="font-semibold text-gray-900">
+      {checkIn.customer_name || 'N/A'}
+    </span>
+    {/* Destination city and state below customer */}
+    <span className="text-gray-500 text-xs mt-0.5">
+      {checkIn.destination_city && checkIn.destination_state
+        ? `${checkIn.destination_city}, ${checkIn.destination_state}`
+        : checkIn.destination_city || checkIn.destination_state || 'N/A'}
+    </span>
+  </div>
+</td>
 
       {/* Reference # */}
       <td className="font-bold text-gray-900"> {checkIn.reference_number || 'N/A'}</td>
