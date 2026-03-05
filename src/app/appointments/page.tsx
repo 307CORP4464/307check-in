@@ -720,7 +720,6 @@ return (
         )}
       </div>
 
-    </div> {/* closes max-w-[1600px] */}
 
 {modalOpen && (
 <AppointmentModal
