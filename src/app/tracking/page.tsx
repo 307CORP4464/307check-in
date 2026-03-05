@@ -309,113 +309,97 @@ export default function Tracking() {
   };
 
   const fetchTrackingData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  try {
+    setLoading(true);
+    setError(null);
 
-      const startOfDayIndy = zonedTimeToUtc(`${startDate} 00:00:00`, TIMEZONE);
-      const endOfDayIndy = zonedTimeToUtc(`${endDate} 23:59:59`, TIMEZONE);
-      const customerBreakdown = getCustomerBreakdown(checkIns);
+    const startOfDayIndy = zonedTimeToUtc(`${startDate} 00:00:00`, TIMEZONE);
+    const endOfDayIndy = zonedTimeToUtc(`${endDate} 23:59:59`, TIMEZONE);
 
-      const { data, error } = await supabase
-        .from('check_ins')
-        .select('*')
-        .gte('check_in_time', startOfDayIndy.toISOString())
-        .lte('check_in_time', endOfDayIndy.toISOString())
-        .order('check_in_time', { ascending: true });
+    const { data, error } = await supabase
+      .from('check_ins')
+      .select('*')
+      .gte('check_in_time', startOfDayIndy.toISOString())
+      .lte('check_in_time', endOfDayIndy.toISOString())
+      .order('check_in_time', { ascending: true });
 
-      if (error) throw error;
+    if (error) throw error;
 
-      // Group by Indianapolis date
-      const statsByDate: { [key: string]: CheckIn[] } = {};
+    // Group by Indianapolis date
+    const statsByDate: { [key: string]: CheckIn[] } = {};
 
-      (data || []).forEach((checkIn: CheckIn) => {
-        const date = new Date(checkIn.check_in_time);
-        const formatter = new Intl.DateTimeFormat('en-US', {
-          timeZone: TIMEZONE,
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        });
-        const parts = formatter.formatToParts(date);
-        const year = parts.find(p => p.type === 'year')?.value;
-        const month = parts.find(p => p.type === 'month')?.value;
-        const day = parts.find(p => p.type === 'day')?.value;
-        const dateKey = `${year}-${month}-${day}`;
-
-        if (!statsByDate[dateKey]) statsByDate[dateKey] = [];
-        statsByDate[dateKey].push(checkIn);
+    (data || []).forEach((checkIn: CheckIn) => {
+      const date = new Date(checkIn.check_in_time);
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: TIMEZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
       });
+      const parts = formatter.formatToParts(date);
+      const year = parts.find(p => p.type === 'year')?.value;
+      const month = parts.find(p => p.type === 'month')?.value;
+      const day = parts.find(p => p.type === 'day')?.value;
+      const dateKey = `${year}-${month}-${day}`;
 
-      // Calculate stats per date
-      const stats: DailyStats[] = Object.entries(statsByDate).map(([date, checkIns]) => {
+      if (!statsByDate[dateKey]) statsByDate[dateKey] = [];
+      statsByDate[dateKey].push(checkIn);
+    });
+
+    // Build stats for each date — checkIns is correctly scoped here
+    const statsArray: DailyStats[] = Object.entries(statsByDate)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([dateKey, checkIns]) => {
         const totalInbound = checkIns.filter(c => c.load_type === 'inbound').length;
         const totalOutbound = checkIns.filter(c => c.load_type === 'outbound').length;
         const totalCheckedIn = checkIns.length;
 
-        // --- On-time fix: check ALL check-ins regardless of end_time ---
-        const checkInsWithAppointments = checkIns.filter(c =>
-          c.appointment_time &&
-          c.appointment_time !== 'work_in' &&
-          c.appointment_time !== 'paid_to_load' &&
-          c.appointment_time !== 'paid_charge_customer'
-        );
-
-        const onTimeCheckIns = checkInsWithAppointments.filter(c =>
+        const onTimeCount = checkIns.filter(c =>
           isOnTime(c.check_in_time, c.appointment_time)
-        );
+        ).length;
 
-        const onTimeCount = onTimeCheckIns.length;
         const onTimePercentage =
-          checkInsWithAppointments.length > 0
-            ? Math.round((onTimeCount / checkInsWithAppointments.length) * 100)
-            : 0;
+          totalCheckedIn > 0 ? Math.round((onTimeCount / totalCheckedIn) * 100) : 0;
 
-        // --- Detention instances ---
         const detentionInstances: DetentionInstance[] = checkIns
-          .map(checkIn => {
-            const detention = calculateDetention(checkIn);
-            if (!detention.hasDetention) return null;
+          .map(c => {
+            const { hasDetention, minutes } = calculateDetention(c);
+            if (!hasDetention) return null;
             return {
-              reference_number: checkIn.reference_number || '',
-              check_in_time: checkIn.check_in_time,
-              appointment_time: checkIn.appointment_time || '',
-              end_time: checkIn.end_time || '',
-              detention_minutes: detention.minutes,
-              carrier_name: checkIn.carrier_name || 'N/A'
+              reference_number: c.reference_number || 'N/A',
+              check_in_time: c.check_in_time,
+              appointment_time: c.appointment_time || '',
+              end_time: c.end_time || '',
+              detention_minutes: minutes,
+              driver_name: c.driver_name || 'N/A',
+              carrier_name: c.carrier_name || 'N/A',
             };
           })
           .filter((d): d is DetentionInstance => d !== null);
 
-        // --- Half-hour breakdown ---
         const halfHourBreakdown: { [key: string]: number } = {};
         checkIns.forEach(c => {
           const slot = getHalfHourSlot(c.check_in_time);
           halfHourBreakdown[slot] = (halfHourBreakdown[slot] || 0) + 1;
         });
 
-        // --- Dock set usage ---
         const dockSetCounts: { [label: string]: number } = {};
-        DOCK_SETS.forEach(s => { dockSetCounts[s.label] = 0; });
-
         checkIns.forEach(c => {
           const label = getDockSetLabel(c.dock_number);
           if (label) {
             dockSetCounts[label] = (dockSetCounts[label] || 0) + 1;
           }
         });
-
         const dockSetUsage = DOCK_SETS.map(s => ({
           label: s.label,
-          count: dockSetCounts[s.label] || 0
+          count: dockSetCounts[s.label] || 0,
         }));
 
-        const [expandedCustomerBreakdown, setExpandedCustomerBreakdown] = useState<{
-  [date: string]: boolean;
-}>({});
+        // ✅ customerBreakdown is called here, AFTER checkIns is defined
+        const customerBreakdown = getCustomerBreakdown(checkIns);
 
         return {
-          date,
+          date: dateKey,
           totalInbound,
           totalOutbound,
           totalCheckedIn,
@@ -424,20 +408,19 @@ export default function Tracking() {
           detentionInstances,
           halfHourBreakdown,
           dockSetUsage,
-          customerBreakdown
+          customerBreakdown,
         };
       });
 
-      // Sort by date descending
-      stats.sort((a, b) => b.date.localeCompare(a.date));
-      setDailyStats(stats);
-    } catch (err) {
-      console.error('Error fetching tracking data:', err);
-      setError('Failed to load tracking data');
-    } finally {
-      setLoading(false);
-    }
-  };
+    setDailyStats(statsArray);
+  } catch (err) {
+    console.error('Error fetching tracking data:', err);
+    setError('Failed to load tracking data.');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const toggleDetention = (date: string) => {
     setExpandedDetention(prev => ({ ...prev, [date]: !prev[date] }));
