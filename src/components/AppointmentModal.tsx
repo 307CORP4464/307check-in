@@ -94,7 +94,7 @@ export default function AppointmentModal({
       const updated = [...prev];
       updated[index] = value;
       // Fire duplicate check using first SO and first delivery
-      onCheckDuplicate?.(updated<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>, deliveries<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a> ?? '');
+      onCheckDuplicate?.(updated[0], deliveries[0] ?? '');
       return updated;
     });
   };
@@ -110,7 +110,7 @@ export default function AppointmentModal({
       const updated = [...prev];
       updated[index] = value;
       // Fire duplicate check using first SO and first delivery
-      onCheckDuplicate?.(salesOrders<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a> ?? '', updated<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
+      onCheckDuplicate?.(salesOrders[0] ?? '', updated[0]);
       return updated;
     });
   };
