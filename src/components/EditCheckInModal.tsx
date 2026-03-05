@@ -29,7 +29,18 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
-  
+
+  // Parse existing reference numbers (comma-separated) into an array
+  const parseReferenceNumbers = (refNum?: string): string[] => {
+    if (!refNum) return [''];
+    const parts = refNum.split(',').map(s => s.trim()).filter(Boolean);
+    return parts.length > 0 ? parts : [''];
+  };
+
+  const [referenceNumbers, setReferenceNumbers] = useState<string[]>(
+    parseReferenceNumbers(checkIn.reference_number)
+  );
+
   const [formData, setFormData] = useState({
     driver_name: checkIn.driver_name || '',
     driver_phone: checkIn.driver_phone || '',
@@ -37,7 +48,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     trailer_number: checkIn.trailer_number || '',
     trailer_length: checkIn.trailer_length || '',
     load_type: checkIn.load_type || 'inbound' as 'inbound' | 'outbound',
-    reference_number: checkIn.reference_number || '',
     appointment_time: checkIn.appointment_time || '',
     dock_number: checkIn.dock_number || '',
     destination_city: checkIn.destination_city || '',
@@ -52,7 +62,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
     'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
   ] as const;
-  
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,10 +74,36 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     }));
   };
 
+  // Reference number handlers
+  const handleReferenceChange = (index: number, value: string) => {
+    setReferenceNumbers(prev => {
+      const updated = [...prev];
+      updated[index] = value;
+      return updated;
+    });
+  };
+
+  const addReferenceNumber = () => {
+    setReferenceNumbers(prev => [...prev, '']);
+  };
+
+  const removeReferenceNumber = (index: number) => {
+    setReferenceNumbers(prev => {
+      if (prev.length === 1) return ['']; // Always keep at least one field
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSaving(true);
+
+    // Join all non-empty reference numbers with a comma
+    const combinedReferenceNumber = referenceNumbers
+      .map(r => r.trim())
+      .filter(Boolean)
+      .join(', ');
 
     try {
       const { error: updateError } = await supabase
@@ -79,7 +115,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
           trailer_number: formData.trailer_number,
           trailer_length: formData.trailer_length,
           load_type: formData.load_type,
-          reference_number: formData.reference_number,
+          reference_number: combinedReferenceNumber,
           appointment_time: formData.appointment_time || null,
           dock_number: formData.dock_number || null,
           destination_city: formData.destination_city,
@@ -130,17 +166,46 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
               </select>
             </div>
 
+            {/* Reference Numbers with + button */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Reference Number
+                Reference Number(s)
               </label>
-              <input
-                type="text"
-                name="reference_number"
-                value={formData.reference_number}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-              />
+              <div className="flex flex-col gap-2">
+                {referenceNumbers.map((ref, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={ref}
+                      onChange={(e) => handleReferenceChange(index, e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+                      placeholder={`Reference #${index + 1}`}
+                    />
+                    {/* Remove button — only show if more than one field */}
+                    {referenceNumbers.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeReferenceNumber(index)}
+                        className="text-red-500 hover:text-red-700 font-bold text-lg px-2"
+                        title="Remove"
+                      >
+                        &minus;
+                      </button>
+                    )}
+                    {/* Add button — only show on last field */}
+                    {index === referenceNumbers.length - 1 && (
+                      <button
+                        type="button"
+                        onClick={addReferenceNumber}
+                        className="text-blue-500 hover:text-blue-700 font-bold text-lg px-2"
+                        title="Add another reference number"
+                      >
+                        +
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div>
@@ -259,52 +324,10 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
                 <option value="53">53'</option>
               </select>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Destination City
-              </label>
-              <input
-                type="text"
-                name="destination_city"
-                value={formData.destination_city}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Destination State
-              </label>
-              <select
-                name="destination_state"
-                value={formData.destination_state}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select...</option>
-                {US_STATES.map(state => (
-                  <option key={state} value={state}>{state}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Notes
-              </label>
-              <textarea
-                name="notes"
-                value={formData.notes}
-                onChange={handleChange}
-                rows={3}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
           </div>
 
-          <div className="flex justify-end gap-3 mt-6">
+          {/* Footer Buttons */}
+          <div className="mt-6 flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
@@ -325,3 +348,4 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     </div>
   );
 }
+
