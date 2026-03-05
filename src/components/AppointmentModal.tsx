@@ -21,7 +21,7 @@ export default function AppointmentModal({
   onClose,
   onSave,
   appointment,
-  initialDate = new Date().toISOString().split('T')[0],
+  initialDate = new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>,
   existingAppointment,
   onCheckDuplicate,
 }: AppointmentModalProps) {
@@ -36,8 +36,9 @@ export default function AppointmentModal({
     source: 'manual',
   });
 
-  // Reference numbers managed as a separate array state
-  const [referenceNumbers, setReferenceNumbers] = useState<string[]>(['']);
+  // Multi-entry states for Sales Orders and Deliveries
+  const [salesOrders, setSalesOrders] = useState<string[]>(['']);
+  const [deliveries, setDeliveries] = useState<string[]>(['']);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -57,16 +58,16 @@ export default function AppointmentModal({
         source: activeAppointment.source,
       });
 
-      // Populate reference numbers from existing appointment if available
-      if (activeAppointment.reference_numbers) {
-        const refs = activeAppointment.reference_numbers
-          .split(',')
-          .map((r: string) => r.trim())
-          .filter((r: string) => r !== '');
-        setReferenceNumbers(refs.length > 0 ? refs : ['']);
-      } else {
-        setReferenceNumbers(['']);
-      }
+      // Parse existing comma-separated values back into arrays
+      const existingSOs = activeAppointment.sales_order
+        ? activeAppointment.sales_order.split(',').map(s => s.trim()).filter(Boolean)
+        : [''];
+      const existingDOs = activeAppointment.delivery
+        ? activeAppointment.delivery.split(',').map(s => s.trim()).filter(Boolean)
+        : [''];
+
+      setSalesOrders(existingSOs.length > 0 ? existingSOs : ['']);
+      setDeliveries(existingDOs.length > 0 ? existingDOs : ['']);
     } else {
       setFormData({
         appointment_date: initialDate,
@@ -77,7 +78,8 @@ export default function AppointmentModal({
         notes: '',
         source: 'manual',
       });
-      setReferenceNumbers(['']);
+      setSalesOrders(['']);
+      setDeliveries(['']);
     }
     setError('');
   }, [activeAppointment, initialDate, isOpen]);
@@ -86,55 +88,74 @@ export default function AppointmentModal({
     if (!isOpen) setEditingExisting(false);
   }, [isOpen]);
 
-  // Handle changes to any reference number input
-  const handleReferenceChange = (index: number, value: string) => {
-    setReferenceNumbers(prev => {
+  // ── Sales Order helpers ──────────────────────────────────────────
+  const handleSalesOrderChange = (index: number, value: string) => {
+    setSalesOrders(prev => {
       const updated = [...prev];
       updated[index] = value;
+      // Fire duplicate check using first SO and first delivery
+      onCheckDuplicate?.(updated<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>, deliveries<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a> ?? '');
       return updated;
     });
   };
 
-  // Add a new empty reference number field
-  const addReferenceNumber = () => {
-    setReferenceNumbers(prev => [...prev, '']);
+  const addSalesOrder = () => setSalesOrders(prev => [...prev, '']);
+
+  const removeSalesOrder = (index: number) =>
+    setSalesOrders(prev => prev.filter((_, i) => i !== index));
+
+  // ── Delivery helpers ─────────────────────────────────────────────
+  const handleDeliveryChange = (index: number, value: string) => {
+    setDeliveries(prev => {
+      const updated = [...prev];
+      updated[index] = value;
+      // Fire duplicate check using first SO and first delivery
+      onCheckDuplicate?.(salesOrders<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a> ?? '', updated<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
+      return updated;
+    });
   };
 
-  // Remove a reference number field by index (never remove the first one)
-  const removeReferenceNumber = (index: number) => {
-    setReferenceNumbers(prev => prev.filter((_, i) => i !== index));
-  };
+  const addDelivery = () => setDeliveries(prev => [...prev, '']);
 
+  const removeDelivery = (index: number) =>
+    setDeliveries(prev => prev.filter((_, i) => i !== index));
+
+  // ── Submit ───────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!formData.sales_order && !formData.delivery) {
-      setError('Either Sales Order or Delivery is required');
+    const filledSOs = salesOrders.map(s => s.trim()).filter(Boolean);
+    const filledDOs = deliveries.map(d => d.trim()).filter(Boolean);
+
+    if (filledSOs.length === 0 && filledDOs.length === 0) {
+      setError('At least one Sales Order or Delivery is required');
       return;
     }
+
+    // Check for blank intermediate entries
+    const hasBlankSO = salesOrders.some((s, i) => s.trim() === '' && salesOrders.length > 1);
+    const hasBlankDO = deliveries.some((d, i) => d.trim() === '' && deliveries.length > 1);
+    if (hasBlankSO) {
+      setError('Please fill in all Sales Order fields or remove empty ones');
+      return;
+    }
+    if (hasBlankDO) {
+      setError('Please fill in all Delivery fields or remove empty ones');
+      return;
+    }
+
     if (!formData.customer) {
       setError('Customer is required');
       return;
     }
 
-    // Validate reference numbers — check for blank intermediate entries
-    const hasBlankEntry = referenceNumbers.some(
-      (r, i) => r.trim() === '' && referenceNumbers.length > 1
-    );
-    if (hasBlankEntry) {
-      setError('Please fill in all reference number fields or remove empty ones');
-      return;
-    }
-
-    const filledRefs = referenceNumbers.map(r => r.trim()).filter(r => r !== '');
-    const referenceNumberValue = filledRefs.length > 0 ? filledRefs.join(', ') : null;
-
     setSaving(true);
     try {
       await onSave({
         ...formData,
-        reference_numbers: referenceNumberValue,
+        sales_order: filledSOs.join(', '),
+        delivery: filledDOs.join(', '),
       });
       onClose();
     } catch (err: any) {
@@ -160,6 +181,10 @@ export default function AppointmentModal({
     : appointment
     ? 'Edit Appointment'
     : 'Add Appointment';
+
+  // For the required asterisk logic, check if the OTHER field group is empty
+  const noDeliveries = deliveries.every(d => d.trim() === '');
+  const noSalesOrders = salesOrders.every(s => s.trim() === '');
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -226,11 +251,14 @@ export default function AppointmentModal({
           )}
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+              {error}
+            </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
 
+            {/* Date */}
             <div>
               <label className="block text-sm font-medium mb-1">Date *</label>
               <input
@@ -242,6 +270,7 @@ export default function AppointmentModal({
               />
             </div>
 
+            {/* Time Slot */}
             <div>
               <label className="block text-sm font-medium mb-1">Time Slot *</label>
               <select
@@ -256,6 +285,7 @@ export default function AppointmentModal({
               </select>
             </div>
 
+            {/* Customer */}
             <div>
               <label className="block text-sm font-medium mb-1">
                 Customer <span className="text-red-500">*</span>
@@ -273,77 +303,39 @@ export default function AppointmentModal({
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Sales Order {!formData.delivery && <span className="text-red-500">*</span>}
-              </label>
-              <input
-                type="text"
-                value={formData.sales_order}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setFormData({ ...formData, sales_order: val });
-                  onCheckDuplicate?.(val, formData.delivery ?? '');
-                }}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter sales order number"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Delivery {!formData.sales_order && <span className="text-red-500">*</span>}
-              </label>
-              <input
-                type="text"
-                value={formData.delivery}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setFormData({ ...formData, delivery: val });
-                  onCheckDuplicate?.(formData.sales_order ?? '', val);
-                }}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter delivery number"
-              />
-            </div>
-
-            {/* Reference Numbers */}
+            {/* Sales Orders — multi-entry */}
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-sm font-medium">
-                  Reference Number(s)
+                  Sales Order{salesOrders.length > 1 ? 's' : ''}{' '}
+                  {noDeliveries && <span className="text-red-500">*</span>}
                 </label>
                 <button
                   type="button"
-                  onClick={addReferenceNumber}
+                  onClick={addSalesOrder}
                   className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
-                  title="Add another reference number"
+                  title="Add another sales order"
                 >
                   <Plus size={16} />
                   Add
                 </button>
               </div>
               <div className="space-y-2">
-                {referenceNumbers.map((ref, index) => (
+                {salesOrders.map((so, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <input
                       type="text"
-                      value={ref}
-                      onChange={(e) => handleReferenceChange(index, e.target.value)}
-                      placeholder={
-                        index === 0
-                          ? 'e.g., REF-001'
-                          : `Reference #${index + 1}`
-                      }
+                      value={so}
+                      onChange={(e) => handleSalesOrderChange(index, e.target.value)}
+                      placeholder={index === 0 ? 'Enter sales order number' : `Sales Order #${index + 1}`}
                       className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
                     />
-                    {/* Only show remove button for additional fields */}
                     {index > 0 && (
                       <button
                         type="button"
-                        onClick={() => removeReferenceNumber(index)}
+                        onClick={() => removeSalesOrder(index)}
                         className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors"
-                        title="Remove this reference number"
+                        title="Remove this sales order"
                       >
                         <Minus size={18} />
                       </button>
@@ -353,6 +345,49 @@ export default function AppointmentModal({
               </div>
             </div>
 
+            {/* Deliveries — multi-entry */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium">
+                  Deliver{deliveries.length > 1 ? 'ies' : 'y'}{' '}
+                  {noSalesOrders && <span className="text-red-500">*</span>}
+                </label>
+                <button
+                  type="button"
+                  onClick={addDelivery}
+                  className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                  title="Add another delivery"
+                >
+                  <Plus size={16} />
+                  Add
+                </button>
+              </div>
+              <div className="space-y-2">
+                {deliveries.map((delivery, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={delivery}
+                      onChange={(e) => handleDeliveryChange(index, e.target.value)}
+                      placeholder={index === 0 ? 'Enter delivery number' : `Delivery #${index + 1}`}
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => removeDelivery(index)}
+                        className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors"
+                        title="Remove this delivery"
+                      >
+                        <Minus size={18} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Notes */}
             <div>
               <label className="block text-sm font-medium mb-1">Notes</label>
               <textarea
@@ -364,6 +399,7 @@ export default function AppointmentModal({
               />
             </div>
 
+            {/* Actions */}
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
@@ -388,5 +424,3 @@ export default function AppointmentModal({
     </div>
   );
 }
-
-
