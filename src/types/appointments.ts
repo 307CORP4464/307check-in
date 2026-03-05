@@ -18,10 +18,12 @@ export interface AppointmentInput {
   customer: string | null;
   notes?: string;
   source?: AppointmentSource;  
+  reference_numbers?: string | null;
 }
 
 export interface Appointment {
   id: number;
+  reference_numbers?: string | null;
   appointment_date: string;
   appointment_time: string;
   sales_order?: string | null;
