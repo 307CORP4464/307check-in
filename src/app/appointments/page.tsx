@@ -397,6 +397,7 @@ export default function AppointmentsPage() {
 
 return (
   <div className="min-h-screen bg-gray-50">
+
     {/* Header */}
     <div className="bg-white border-b shadow-sm">
       <div className="max-w-[1600px] mx-auto px-4 py-4">
@@ -411,24 +412,24 @@ return (
             </p>
           </div>
           <div className="flex gap-3">
-              <Link href="/appointments" className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium">
-                Appointments
-              </Link>  
-              <Link href="/dock-status" className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium">
-                Dock Status
-              </Link>    
-              <Link href="/dashboard" className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium">
-                Dashboard
-              </Link>
-              <Link href="/logs" className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium">
-                Daily Logs
-              </Link>
-              <Link href="/tracking" className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium">
-                Tracking
-              </Link>
-              <Link href="/check-in" className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium">
-                Check-In Form
-              </Link>
+            <Link href="/appointments" className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium">
+              Appointments
+            </Link>
+            <Link href="/dock-status" className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium">
+              Dock Status
+            </Link>
+            <Link href="/dashboard" className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium">
+              Dashboard
+            </Link>
+            <Link href="/logs" className="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium">
+              Daily Logs
+            </Link>
+            <Link href="/tracking" className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium">
+              Tracking
+            </Link>
+            <Link href="/check-in" className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium">
+              Check-In Form
+            </Link>
           </div>
         </div>
       </div>
@@ -509,10 +510,11 @@ return (
             </div>
           </div>
         </div>
-      </div>
+      </div> {/* ✅ Closes Row 1 grid */}
 
       {/* Row 2: Appointments by Customer + Search Bar side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+
         {/* Appointments by Customer */}
         <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4">
           <h3 className="text-sm font-bold text-gray-700 mb-3 text-center">
@@ -541,101 +543,105 @@ return (
                 </div>
               ))}
           </div>
-        </div>
+        </div> {/* ✅ Closes Appointments by Customer */}
 
         {/* Search & Status Breakdown - Combined */}
-<div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4 mb-4">
-  
-  {/* Search Bar */}
-  <h3 className="text-sm font-bold text-gray-700 mb-3 text-center">
-    Search Appointments
-  </h3>
-  <div className="relative mb-4">
-    <input
-      type="text"
-      placeholder="Search by Sales Order or Delivery Number..."
-      value={searchQuery}
-      onChange={(e) => setSearchQuery(e.target.value)}
-      className="w-full px-4 py-2 pl-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-    />
-    <svg
-      className="absolute left-3 top-3 h-5 w-5 text-gray-400"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-      />
-    </svg>
-    {searchQuery && (
-      <button
-        onClick={clearSearch}
-        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-      >
-        ✕
-      </button>
-    )}
-  </div>
+        <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg p-4">
 
-  {/* Divider */}
-  <div className="border-t border-gray-200 mb-3" />
+          {/* Search Bar */}
+          <h3 className="text-sm font-bold text-gray-700 mb-3 text-center">
+            Search Appointments
+          </h3>
+          <div className="relative mb-4">
+            <input
+              type="text"
+              placeholder="Search by Sales Order or Delivery Number..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-4 py-2 pl-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <svg
+              className="absolute left-3 top-3 h-5 w-5 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            {searchQuery && (
+              <button
+                onClick={clearSearch}
+                className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            )}
+          </div>
 
-  {/* Status Breakdown */}
-  <div className="flex items-center justify-between mb-2">
-    <h3 className="text-sm font-bold text-gray-700">
-      Status Breakdown
-    </h3>
-    {statusFilter !== 'all' && (
-      <button
-        onClick={() => setStatusFilter('all')}
-        className="text-xs text-gray-500 hover:text-gray-700 underline"
-      >
-        Clear Filter
-      </button>
-    )}
-  </div>
+          {/* Divider */}
+          <div className="border-t border-gray-200 mb-3" />
 
-  <div className="flex flex-wrap gap-2">
-    {statusBreakdownButtons.map(({ filter, label, count, activeClass, inactiveClass }) => (
-      <button
-        key={filter}
-        onClick={() => setStatusFilter(isFilterActive(filter) ? 'all' : filter)}
-        className={`
-          inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
-          border transition-colors duration-150 cursor-pointer
-          ${isFilterActive(filter) ? activeClass : inactiveClass}
-        `}
-      >
-        {label}
-        <span
-          className={`
-            inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold
-            ${isFilterActive(filter) ? 'bg-white bg-opacity-25 text-inherit' : 'bg-gray-100 text-gray-600'}
-          `}
-        >
-          {count}
-        </span>
-      </button>
-    ))}
-  </div>
+          {/* Status Breakdown */}
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-bold text-gray-700">
+              Status Breakdown
+            </h3>
+            {statusFilter !== 'all' && (
+              <button
+                onClick={() => setStatusFilter('all')}
+                className="text-xs text-gray-500 hover:text-gray-700 underline"
+              >
+                Clear Filter
+              </button>
+            )}
+          </div>
 
-  {/* Active filter message */}
-  {statusFilter !== 'all' && (
-    <p className="mt-2 text-xs text-gray-500">
-      Showing{' '}
-      <span className="font-semibold">{filteredAppointments.length}</span>{' '}
-      appointment{filteredAppointments.length !== 1 ? 's' : ''} with status:{' '}
-      <span className="font-semibold capitalize">
-        {statusBreakdownButtons.find(b => b.filter === statusFilter)?.label}
-      </span>
-    </p>
-  )}
+          <div className="flex flex-wrap gap-2">
+            {statusBreakdownButtons.map(({ filter, label, count, activeClass, inactiveClass }) => (
+              <button
+                key={filter}
+                onClick={() => setStatusFilter(isFilterActive(filter) ? 'all' : filter)}
+                className={`
+                  inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
+                  border transition-colors duration-150 cursor-pointer
+                  ${isFilterActive(filter) ? activeClass : inactiveClass}
+                `}
+              >
+                {label}
+                <span
+                  className={`
+                    inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold
+                    ${isFilterActive(filter) ? 'bg-white bg-opacity-25 text-inherit' : 'bg-gray-100 text-gray-600'}
+                  `}
+                >
+                  {count}
+                </span>
+              </button>
+            ))}
+          </div>
 
-{/* Appointments Table - now INSIDE the max-w wrapper */}
+          {/* Active filter message */}
+          {statusFilter !== 'all' && (
+            <p className="mt-2 text-xs text-gray-500">
+              Showing{' '}
+              <span className="font-semibold">{filteredAppointments.length}</span>{' '}
+              appointment{filteredAppointments.length !== 1 ? 's' : ''} with status:{' '}
+              <span className="font-semibold capitalize">
+                {statusBreakdownButtons.find(b => b.filter === statusFilter)?.label}
+              </span>
+            </p>
+          )}
+
+        </div> {/* ✅ Closes Search & Status Breakdown */}
+
+      </div> {/* ✅ Closes Row 2 grid */}
+
+      {/* Appointments Table */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
         {loading ? (
           <div className="flex justify-center items-center py-12">
@@ -644,7 +650,9 @@ return (
         ) : filteredAppointments.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500">
-              {searchQuery ? 'No appointments found matching your search' : 'No appointments scheduled for this date'}
+              {searchQuery
+                ? 'No appointments found matching your search'
+                : 'No appointments scheduled for this date'}
             </p>
           </div>
         ) : (
@@ -661,7 +669,7 @@ return (
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Delivery #
                   </th>
-                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Customer
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -689,10 +697,12 @@ return (
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                         {appointment.delivery || '-'}
                       </td>
-                       <td className="px-4 py-3 text-sm text-gray-900">
+                      <td className="px-4 py-3 text-sm text-gray-900">
                         {appointment.customer}
                       </td>
-                       <td className="px-4 py-3 text-sm">{appointment.notes || '-'}</td>
+                      <td className="px-4 py-3 text-sm">
+                        {appointment.notes || '-'}
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
                         {getStatusBadge(dailyLogStatus)}
                       </td>
@@ -717,10 +727,10 @@ return (
             </table>
           </div>
         )}
-      </div>
-    </div>
+      </div> {/* ✅ Closes Appointments Table */}
 
-
+    </div> {/* ✅ Closes Main Content max-w wrapper */}
+  
 {modalOpen && (
 <AppointmentModal
   isOpen={modalOpen}
@@ -751,5 +761,3 @@ return (
 </div>
 );
 }
-
-    
