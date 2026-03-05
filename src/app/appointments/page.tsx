@@ -660,16 +660,6 @@ export default function AppointmentsPage() {
           ))}
         </div>
 
-        {statusFilter !== 'all' && (
-          <p className="mt-2 text-xs text-gray-500">
-            Showing <span className="font-semibold">{filteredAppointments.length}</span> appointment
-            {filteredAppointments.length !== 1 ? 's' : ''} with status:{' '}
-            <span className="font-semibold capitalize">
-              {statusBreakdownButtons.find(b => b.filter === statusFilter)?.label}
-            </span>
-          </p>
-        )}
-      </div>
 {/* Appointments Table - now INSIDE the max-w wrapper */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
         {loading ? (
