@@ -25,9 +25,6 @@ const formatTimeInIndianapolis = (isoString: string): string => {
   }
 };
 
-const CUSTOMERS = ['TATE', 'PRIM', 'XARC', 'BAGS', 'TRAX', 'ADM'] as const;
-type CustomerName = typeof CUSTOMERS[number];
-
 interface CheckIn {
   id: string;
   check_in_time: string;
@@ -43,15 +40,6 @@ interface CheckIn {
   end_time?: string | null;
   destination_city?: string;
   destination_state?: string;
-  customer?: 'TATE' | 'PRIM' | 'XARC' | 'BAGS' | 'TRAX' | 'ADM';
-}
-
-
-interface CustomerBreakdown {
-  customer: CustomerName;
-  inbound: number;
-  outbound: number;
-  total: number;
 }
 
 interface DetentionInstance {
@@ -88,7 +76,6 @@ interface DailyStats {
   detentionInstances: DetentionInstance[];
   halfHourBreakdown: { [key: string]: number };
   dockSetUsage: { label: string; count: number }[];
-  customerBreakdown: CustomerBreakdown[]; // 👈 new
 }
 
 const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
@@ -216,39 +203,6 @@ const getDockSetLabel = (dockNumber: string | undefined): string | null => {
   return set ? set.label : null;
 };
 
-const getCustomerBreakdown = (checkIns: CheckIn[]): CustomerBreakdown[] => {
-  const breakdown: Record<CustomerName, CustomerBreakdown> = {} as Record<
-    CustomerName,
-    CustomerBreakdown
-  >;
-
-  CUSTOMERS.forEach((customer) => {
-    breakdown[customer] = {
-      customer,
-      inbound: 0,
-      outbound: 0,
-      total: 0,
-    };
-  });
-
-  checkIns.forEach((checkIn) => {
-    // Since customer is now properly typed, no need for string manipulation
-    const customer = checkIn.customer;
-    
-    if (customer && CUSTOMERS.includes(customer)) {
-      if (checkIn.load_type === 'inbound') {
-        breakdown[customer].inbound += 1;
-      } else if (checkIn.load_type === 'outbound') {
-        breakdown[customer].outbound += 1;
-      }
-      breakdown[customer].total += 1;
-    }
-  });
-
-  return CUSTOMERS.map((c) => breakdown[c]);
-};
-
-
 export default function Tracking() {
   const router = useRouter();
   const supabase = createBrowserClient(
@@ -261,7 +215,7 @@ export default function Tracking() {
   const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [expandedDetention, setExpandedDetention] = useState<{ [date: string]: boolean }>({});
-  
+
   const getCurrentDateInIndianapolis = () => {
     const now = new Date();
     const formatter = new Intl.DateTimeFormat('en-US', {
@@ -307,114 +261,108 @@ export default function Tracking() {
   };
 
   const fetchTrackingData = async () => {
-  try {
-    setLoading(true);
-    setError(null);
+    try {
+      setLoading(true);
+      setError(null);
 
-    const startOfDayIndy = zonedTimeToUtc(`${startDate} 00:00:00`, TIMEZONE);
-    const endOfDayIndy = zonedTimeToUtc(`${endDate} 23:59:59`, TIMEZONE);
+      const startOfDayIndy = zonedTimeToUtc(`${startDate} 00:00:00`, TIMEZONE);
+      const endOfDayIndy = zonedTimeToUtc(`${endDate} 23:59:59`, TIMEZONE);
 
-    const { data, error } = await supabase
-  .from('check_ins')
-  .select(`
-    id,
-    check_in_time,
-    check_out_time,
-    status,
-    driver_name,
-    carrier_name,
-    trailer_number,
-    load_type,
-    reference_number,
-    dock_number,
-    appointment_time,
-    end_time,
-    destination_city,
-    destination_state,
-    customer
-  `)
-  .gte('check_in_time', startOfDayIndy.toISOString())
-  .lte('check_in_time', endOfDayIndy.toISOString())
-  .order('check_in_time', { ascending: true });
+      const { data, error } = await supabase
+        .from('check_ins')
+        .select('*')
+        .gte('check_in_time', startOfDayIndy.toISOString())
+        .lte('check_in_time', endOfDayIndy.toISOString())
+        .order('check_in_time', { ascending: true });
 
+      if (error) throw error;
 
-    if (error) throw error;
+      // Group by Indianapolis date
+      const statsByDate: { [key: string]: CheckIn[] } = {};
 
-    // Group by Indianapolis date
-    const statsByDate: { [key: string]: CheckIn[] } = {};
+      (data || []).forEach((checkIn: CheckIn) => {
+        const date = new Date(checkIn.check_in_time);
+        const formatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: TIMEZONE,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+        const parts = formatter.formatToParts(date);
+        const year = parts.find(p => p.type === 'year')?.value;
+        const month = parts.find(p => p.type === 'month')?.value;
+        const day = parts.find(p => p.type === 'day')?.value;
+        const dateKey = `${year}-${month}-${day}`;
 
-    (data || []).forEach((checkIn: CheckIn) => {
-      const date = new Date(checkIn.check_in_time);
-      const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone: TIMEZONE,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
+        if (!statsByDate[dateKey]) statsByDate[dateKey] = [];
+        statsByDate[dateKey].push(checkIn);
       });
-      const parts = formatter.formatToParts(date);
-      const year = parts.find(p => p.type === 'year')?.value;
-      const month = parts.find(p => p.type === 'month')?.value;
-      const day = parts.find(p => p.type === 'day')?.value;
-      const dateKey = `${year}-${month}-${day}`;
 
-      if (!statsByDate[dateKey]) statsByDate[dateKey] = [];
-      statsByDate[dateKey].push(checkIn);
-    });
-
-    // Build stats for each date — checkIns is correctly scoped here
-    const statsArray: DailyStats[] = Object.entries(statsByDate)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([dateKey, checkIns]) => {
+      // Calculate stats per date
+      const stats: DailyStats[] = Object.entries(statsByDate).map(([date, checkIns]) => {
         const totalInbound = checkIns.filter(c => c.load_type === 'inbound').length;
         const totalOutbound = checkIns.filter(c => c.load_type === 'outbound').length;
         const totalCheckedIn = checkIns.length;
 
-        const onTimeCount = checkIns.filter(c =>
+        // --- On-time fix: check ALL check-ins regardless of end_time ---
+        const checkInsWithAppointments = checkIns.filter(c =>
+          c.appointment_time &&
+          c.appointment_time !== 'work_in' &&
+          c.appointment_time !== 'paid_to_load' &&
+          c.appointment_time !== 'paid_charge_customer'
+        );
+
+        const onTimeCheckIns = checkInsWithAppointments.filter(c =>
           isOnTime(c.check_in_time, c.appointment_time)
-        ).length;
+        );
 
+        const onTimeCount = onTimeCheckIns.length;
         const onTimePercentage =
-          totalCheckedIn > 0 ? Math.round((onTimeCount / totalCheckedIn) * 100) : 0;
+          checkInsWithAppointments.length > 0
+            ? Math.round((onTimeCount / checkInsWithAppointments.length) * 100)
+            : 0;
 
+        // --- Detention instances ---
         const detentionInstances: DetentionInstance[] = checkIns
-          .map(c => {
-            const { hasDetention, minutes } = calculateDetention(c);
-            if (!hasDetention) return null;
+          .map(checkIn => {
+            const detention = calculateDetention(checkIn);
+            if (!detention.hasDetention) return null;
             return {
-              reference_number: c.reference_number || 'N/A',
-              check_in_time: c.check_in_time,
-              appointment_time: c.appointment_time || '',
-              end_time: c.end_time || '',
-              detention_minutes: minutes,
-              driver_name: c.driver_name || 'N/A',
-              carrier_name: c.carrier_name || 'N/A',
+              reference_number: checkIn.reference_number || '',
+              check_in_time: checkIn.check_in_time,
+              appointment_time: checkIn.appointment_time || '',
+              end_time: checkIn.end_time || '',
+              detention_minutes: detention.minutes,
+              carrier_name: checkIn.carrier_name || 'N/A'
             };
           })
           .filter((d): d is DetentionInstance => d !== null);
 
+        // --- Half-hour breakdown ---
         const halfHourBreakdown: { [key: string]: number } = {};
         checkIns.forEach(c => {
           const slot = getHalfHourSlot(c.check_in_time);
           halfHourBreakdown[slot] = (halfHourBreakdown[slot] || 0) + 1;
         });
 
+        // --- Dock set usage ---
         const dockSetCounts: { [label: string]: number } = {};
+        DOCK_SETS.forEach(s => { dockSetCounts[s.label] = 0; });
+
         checkIns.forEach(c => {
           const label = getDockSetLabel(c.dock_number);
           if (label) {
             dockSetCounts[label] = (dockSetCounts[label] || 0) + 1;
           }
         });
+
         const dockSetUsage = DOCK_SETS.map(s => ({
           label: s.label,
-          count: dockSetCounts[s.label] || 0,
+          count: dockSetCounts[s.label] || 0
         }));
 
-        // ✅ customerBreakdown is called here, AFTER checkIns is defined
-        const customerBreakdown = getCustomerBreakdown(checkIns);
-
         return {
-          date: dateKey,
+          date,
           totalInbound,
           totalOutbound,
           totalCheckedIn,
@@ -422,20 +370,20 @@ export default function Tracking() {
           onTimePercentage,
           detentionInstances,
           halfHourBreakdown,
-          dockSetUsage,
-          customerBreakdown,
+          dockSetUsage
         };
       });
 
-    setDailyStats(statsArray);
-  } catch (err) {
-    console.error('Error fetching tracking data:', err);
-    setError('Failed to load tracking data.');
-  } finally {
-    setLoading(false);
-  }
-};
-
+      // Sort by date descending
+      stats.sort((a, b) => b.date.localeCompare(a.date));
+      setDailyStats(stats);
+    } catch (err) {
+      console.error('Error fetching tracking data:', err);
+      setError('Failed to load tracking data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleDetention = (date: string) => {
     setExpandedDetention(prev => ({ ...prev, [date]: !prev[date] }));
@@ -620,99 +568,6 @@ return (
                 </div>
               </div>
             )}
-
-{/* Check-ins by Customer - Always Visible */}
-<div style={{ marginTop: '12px' }}>
-  <p style={{ 
-    color: '#1a56db', 
-    fontWeight: '600', 
-    marginBottom: '6px',
-    fontSize: '13px' 
-  }}>
-    Check-ins by Customer
-  </p>
-  <table style={{ 
-    width: '100%', 
-    borderCollapse: 'collapse', 
-    fontSize: '12px' 
-  }}>
-    <thead>
-      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-        <th style={{ 
-          textAlign: 'left', 
-          padding: '4px 8px', 
-          color: '#1a56db',
-          fontWeight: '600'
-        }}>
-          Customer
-        </th>
-        <th style={{ 
-          textAlign: 'center', 
-          padding: '4px 8px', 
-          color: '#1a56db',
-          fontWeight: '600'
-        }}>
-          Inbound
-        </th>
-        <th style={{ 
-          textAlign: 'center', 
-          padding: '4px 8px', 
-          color: '#1a56db',
-          fontWeight: '600'
-        }}>
-          Outbound
-        </th>
-        <th style={{ 
-          textAlign: 'center', 
-          padding: '4px 8px', 
-          color: '#1a56db',
-          fontWeight: '600'
-        }}>
-          Total
-        </th>
-      </tr>
-    </thead>
-    <tbody>
-      {(stat.customerBreakdown ?? []).map((row) => (
-        <tr 
-          key={row.customer} 
-          style={{ borderBottom: '1px solid #f3f4f6' }}
-        >
-          <td style={{ padding: '4px 8px' }}>{row.customer}</td>
-          <td style={{ padding: '4px 8px', textAlign: 'center' }}>
-            {row.inbound}
-          </td>
-          <td style={{ padding: '4px 8px', textAlign: 'center' }}>
-            {row.outbound}
-          </td>
-          <td style={{ padding: '4px 8px', textAlign: 'center' }}>
-            {row.total}
-          </td>
-        </tr>
-      ))}
-      {/* Totals Row */}
-      <tr style={{ 
-        borderTop: '2px solid #e5e7eb', 
-        fontWeight: '600',
-        backgroundColor: '#f9fafb'
-      }}>
-        <td style={{ padding: '4px 8px' }}>Totals</td>
-        <td style={{ padding: '4px 8px', textAlign: 'center' }}>
-          {(stat.customerBreakdown ?? []).reduce((sum, row) => sum + (row.inbound ?? 0), 0)}
-        </td>
-        <td style={{ padding: '4px 8px', textAlign: 'center' }}>
-          {(stat.customerBreakdown ?? []).reduce((sum, row) => sum + (row.outbound ?? 0), 0)}
-        </td>
-        <td style={{ padding: '4px 8px', textAlign: 'center' }}>
-          {(stat.customerBreakdown ?? []).reduce((sum, row) => sum + (row.total ?? 0), 0)}
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-
-
-            
 {/* Detention Section */}
 <div className="p-6">
   <div className="flex items-center mb-3">
