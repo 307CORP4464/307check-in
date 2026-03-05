@@ -634,7 +634,6 @@ return (
       </span>
     </p>
   )}
-</div>
 
 {/* Appointments Table - now INSIDE the max-w wrapper */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
