@@ -48,7 +48,7 @@ const US_STATES = [
 
 const TRAILER_LENGTHS = [
   { value: '', label: 'Select trailer length' },
-  { value: 'Box', label: 'Box Truck' },
+  { value: 'Box/Van', label: 'Box Truck or Van' },
   { value: '20', label: '20 ft' },
   { value: '40', label: '40 ft' },
   { value: '45', label: '45 ft' },
