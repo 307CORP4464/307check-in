@@ -602,78 +602,86 @@ return (
                 </div>
               </div>
             )}
-{/* Customer Breakdown Section */}
-<div className="mt-4">
-  <button
-    onClick={() =>
-      setExpandedCustomerBreakdown((prev) => ({
-        ...prev,
-        [stat.date]: !prev[stat.date],
-      }))
-    }
-    className="flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800"
-  >
-    {expandedCustomerBreakdown[stat.date] ? '▼' : '▶'} Check-ins by Customer
-  </button>
 
-  {expandedCustomerBreakdown[stat.date] && (
-    <div className="mt-2 overflow-x-auto">
-      <table className="min-w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="px-4 py-2 text-left font-semibold text-gray-700">
-              Customer
-            </th>
-            <th className="px-4 py-2 text-center font-semibold text-blue-600">
-              Inbound
-            </th>
-            <th className="px-4 py-2 text-center font-semibold text-green-600">
-              Outbound
-            </th>
-            <th className="px-4 py-2 text-center font-semibold text-gray-700">
-              Total
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {stat.customerBreakdown.map((row, idx) => (
-            <tr
-              key={row.customer}
-              className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-            >
-              <td className="px-4 py-2 font-medium text-gray-800">
-                {row.customer}
-              </td>
-              <td className="px-4 py-2 text-center text-blue-700">
-                {row.inbound}
-              </td>
-              <td className="px-4 py-2 text-center text-green-700">
-                {row.outbound}
-              </td>
-              <td className="px-4 py-2 text-center font-semibold text-gray-900">
-                {row.total}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-        {/* Totals footer row */}
-        <tfoot className="bg-gray-100 border-t border-gray-300">
-          <tr>
-            <td className="px-4 py-2 font-bold text-gray-700">Totals</td>
-            <td className="px-4 py-2 text-center font-bold text-blue-700">
-              {stat.customerBreakdown.reduce((sum, r) => sum + r.inbound, 0)}
-            </td>
-            <td className="px-4 py-2 text-center font-bold text-green-700">
-              {stat.customerBreakdown.reduce((sum, r) => sum + r.outbound, 0)}
-            </td>
-            <td className="px-4 py-2 text-center font-bold text-gray-900">
-              {stat.customerBreakdown.reduce((sum, r) => sum + r.total, 0)}
-            </td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  )}
+{/* Check-ins by Customer - Always Visible */}
+<div style={{ marginTop: '12px' }}>
+  <p style={{ 
+    color: '#1a56db', 
+    fontWeight: '600', 
+    marginBottom: '6px',
+    fontSize: '13px' 
+  }}>
+    Check-ins by Customer
+  </p>
+  <table style={{ 
+    width: '100%', 
+    borderCollapse: 'collapse', 
+    fontSize: '12px' 
+  }}>
+    <thead>
+      <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+        <th style={{ 
+          textAlign: 'left', 
+          padding: '4px 8px', 
+          color: '#1a56db',
+          fontWeight: '600'
+        }}>
+          Customer
+        </th>
+        <th style={{ 
+          textAlign: 'center', 
+          padding: '4px 8px', 
+          color: '#1a56db',
+          fontWeight: '600'
+        }}>
+          Inbound
+        </th>
+        <th style={{ 
+          textAlign: 'center', 
+          padding: '4px 8px', 
+          color: '#1a56db',
+          fontWeight: '600'
+        }}>
+          Outbound
+        </th>
+        <th style={{ 
+          textAlign: 'center', 
+          padding: '4px 8px', 
+          color: '#1a56db',
+          fontWeight: '600'
+        }}>
+          Total
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      {stat.customerBreakdown.map((row) => (
+        <tr key={row.customer} style={{ borderBottom: '1px solid #f3f4f6' }}>
+          <td style={{ padding: '4px 8px' }}>{row.customer}</td>
+          <td style={{ padding: '4px 8px', textAlign: 'center' }}>{row.inbound}</td>
+          <td style={{ padding: '4px 8px', textAlign: 'center' }}>{row.outbound}</td>
+          <td style={{ padding: '4px 8px', textAlign: 'center' }}>{row.total}</td>
+        </tr>
+      ))}
+      {/* Totals Row */}
+      <tr style={{ 
+        borderTop: '2px solid #e5e7eb', 
+        fontWeight: '600',
+        backgroundColor: '#f9fafb'
+      }}>
+        <td style={{ padding: '4px 8px' }}>Totals</td>
+        <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+          {stat.customerBreakdown.reduce((sum, row) => sum + row.inbound, 0)}
+        </td>
+        <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+          {stat.customerBreakdown.reduce((sum, row) => sum + row.outbound, 0)}
+        </td>
+        <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+          {stat.customerBreakdown.reduce((sum, row) => sum + row.total, 0)}
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 
             
