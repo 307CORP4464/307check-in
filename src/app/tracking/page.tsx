@@ -259,7 +259,6 @@ export default function Tracking() {
   const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [expandedDetention, setExpandedDetention] = useState<{ [date: string]: boolean }>({});
-  const [expandedCustomerBreakdown, setExpandedCustomerBreakdown] = useState<{ [date: string]: boolean }>({});
   
   const getCurrentDateInIndianapolis = () => {
     const now = new Date();
