@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Plus, Minus } from 'lucide-react';
 import { Appointment, AppointmentInput, TIME_SLOTS } from '@/types/appointments';
 
 interface AppointmentModalProps {
@@ -20,7 +21,7 @@ export default function AppointmentModal({
   onClose,
   onSave,
   appointment,
-  initialDate = new Date().toISOString().split('T')[0],
+  initialDate = new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>,
   existingAppointment,
   onCheckDuplicate,
 }: AppointmentModalProps) {
@@ -34,6 +35,10 @@ export default function AppointmentModal({
     notes: '',
     source: 'manual',
   });
+
+  // Reference numbers managed as a separate array state
+  const [referenceNumbers, setReferenceNumbers] = useState<string[]>(['']);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [editingExisting, setEditingExisting] = useState(false);
@@ -51,6 +56,17 @@ export default function AppointmentModal({
         notes: activeAppointment.notes || '',
         source: activeAppointment.source,
       });
+
+      // Populate reference numbers from existing appointment if available
+      if (activeAppointment.reference_numbers) {
+        const refs = activeAppointment.reference_numbers
+          .split(',')
+          .map((r: string) => r.trim())
+          .filter((r: string) => r !== '');
+        setReferenceNumbers(refs.length > 0 ? refs : ['']);
+      } else {
+        setReferenceNumbers(['']);
+      }
     } else {
       setFormData({
         appointment_date: initialDate,
@@ -61,6 +77,7 @@ export default function AppointmentModal({
         notes: '',
         source: 'manual',
       });
+      setReferenceNumbers(['']);
     }
     setError('');
   }, [activeAppointment, initialDate, isOpen]);
@@ -68,6 +85,25 @@ export default function AppointmentModal({
   useEffect(() => {
     if (!isOpen) setEditingExisting(false);
   }, [isOpen]);
+
+  // Handle changes to any reference number input
+  const handleReferenceChange = (index: number, value: string) => {
+    setReferenceNumbers(prev => {
+      const updated = [...prev];
+      updated[index] = value;
+      return updated;
+    });
+  };
+
+  // Add a new empty reference number field
+  const addReferenceNumber = () => {
+    setReferenceNumbers(prev => [...prev, '']);
+  };
+
+  // Remove a reference number field by index (never remove the first one)
+  const removeReferenceNumber = (index: number) => {
+    setReferenceNumbers(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,9 +118,24 @@ export default function AppointmentModal({
       return;
     }
 
+    // Validate reference numbers — check for blank intermediate entries
+    const hasBlankEntry = referenceNumbers.some(
+      (r, i) => r.trim() === '' && referenceNumbers.length > 1
+    );
+    if (hasBlankEntry) {
+      setError('Please fill in all reference number fields or remove empty ones');
+      return;
+    }
+
+    const filledRefs = referenceNumbers.map(r => r.trim()).filter(r => r !== '');
+    const referenceNumberValue = filledRefs.length > 0 ? filledRefs.join(', ') : null;
+
     setSaving(true);
     try {
-      await onSave(formData);
+      await onSave({
+        ...formData,
+        reference_numbers: referenceNumberValue,
+      });
       onClose();
     } catch (err: any) {
       setError(err.message || 'Error saving appointment');
@@ -179,6 +230,7 @@ export default function AppointmentModal({
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+
             <div>
               <label className="block text-sm font-medium mb-1">Date *</label>
               <input
@@ -255,14 +307,60 @@ export default function AppointmentModal({
               />
             </div>
 
+            {/* Reference Numbers */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium">
+                  Reference Number(s)
+                </label>
+                <button
+                  type="button"
+                  onClick={addReferenceNumber}
+                  className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                  title="Add another reference number"
+                >
+                  <Plus size={16} />
+                  Add
+                </button>
+              </div>
+              <div className="space-y-2">
+                {referenceNumbers.map((ref, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={ref}
+                      onChange={(e) => handleReferenceChange(index, e.target.value)}
+                      placeholder={
+                        index === 0
+                          ? 'e.g., REF-001'
+                          : `Reference #${index + 1}`
+                      }
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    {/* Only show remove button for additional fields */}
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => removeReferenceNumber(index)}
+                        className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors"
+                        title="Remove this reference number"
+                      >
+                        <Minus size={18} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium mb-1">Notes</label>
               <textarea
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter any additional notes"
                 rows={3}
+                placeholder="Optional notes"
               />
             </div>
 
@@ -270,23 +368,25 @@ export default function AppointmentModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
                 disabled={saving}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                 disabled={saving}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50"
               >
-                {saving ? 'Saving...' : 'Save'}
+                {saving ? 'Saving...' : 'Save Appointment'}
               </button>
             </div>
+
           </form>
         </div>
       </div>
     </div>
   );
 }
+
 
