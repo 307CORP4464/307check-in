@@ -28,8 +28,8 @@ const formatTimeInIndianapolis = (timeString: string): string => {
     const match = timeString.match(timePattern);
     
     if (match) {
-      const hours = match[1];
-      const minutes = match[2];
+      const hours = match<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>;
+      const minutes = match<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[2]</a>;
       return `${hours}:${minutes}`;
     }
     
@@ -99,6 +99,8 @@ const getStatusBadge = (status: string | null) => {
   );
 };
 
+// Define filter type
+type StatusFilter = 'all' | 'not_checked_in' | 'checked_in' | 'pending' | 'checked_out' | 'work_in';
 
 export default function AppointmentsPage() {
   const router = useRouter();
@@ -107,7 +109,7 @@ export default function AppointmentsPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -116,6 +118,8 @@ export default function AppointmentsPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [checkInStatuses, setCheckInStatuses] = useState<Record<string, string>>({});
   const [existingAppointment, setExistingAppointment] = useState<Appointment | null>(null);
+  // New state for status filter
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
   const getDailyLogStatus = (appointment: Appointment): string | null => {
     const salesOrder = appointment.sales_order?.trim().toLowerCase();
@@ -143,6 +147,8 @@ export default function AppointmentsPage() {
   useEffect(() => {
     loadAppointments();
     fetchCheckInStatuses();
+    // Reset status filter when date changes
+    setStatusFilter('all');
   }, [selectedDate]);
 
   const loadAppointments = async () => {
@@ -161,10 +167,11 @@ export default function AppointmentsPage() {
   const changeDateByDays = (days: number) => {
     const currentDate = new Date(selectedDate);
     currentDate.setDate(currentDate.getDate() + days);
-    setSelectedDate(currentDate.toISOString().split('T')[0]);
+    setSelectedDate(currentDate.toISOString().split('T')<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
   };
 
-  const filteredAppointments = appointments.filter(apt => {
+  // Base filter by search query
+  const searchFilteredAppointments = appointments.filter(apt => {
     if (!searchQuery.trim()) return true;
     
     const query = searchQuery.toLowerCase().trim();
@@ -174,31 +181,57 @@ export default function AppointmentsPage() {
     return salesOrder.includes(query) || delivery.includes(query);
   });
 
-  const totalAppointmentsCount = filteredAppointments.length;
+  // Further filter by status
+  const filteredAppointments = searchFilteredAppointments.filter(apt => {
+    if (statusFilter === 'all') return true;
 
-  const workInCount = filteredAppointments.filter(apt => {
+    const status = getDailyLogStatus(apt);
+    const time = apt.appointment_time?.toLowerCase() || '';
+    const isWorkIn = time.includes('work in');
+
+    if (statusFilter === 'work_in') return isWorkIn;
+    if (statusFilter === 'not_checked_in') return !status;
+    if (statusFilter === 'checked_in') return status?.toLowerCase() === 'checked_in';
+    if (statusFilter === 'pending') return status?.toLowerCase() === 'pending';
+    if (statusFilter === 'checked_out') {
+      const s = status?.toLowerCase();
+      return s === 'checked_out' || s === 'unloaded';
+    }
+
+    return true;
+  });
+
+  // Counts based on search-filtered appointments (before status filter)
+  const totalAppointmentsCount = searchFilteredAppointments.length;
+
+  const workInCount = searchFilteredAppointments.filter(apt => {
     const time = apt.appointment_time?.toLowerCase() || '';
     return time.includes('work in');
   }).length;
 
-  const checkedOutCount = filteredAppointments.filter(apt => {
+  const checkedOutCount = searchFilteredAppointments.filter(apt => {
     const status = getDailyLogStatus(apt);
     if (!status) return false;
     const s = status.toLowerCase();
     return s === 'checked_out' || s === 'unloaded';
   }).length;
 
-  const checkedInCount = filteredAppointments.filter(apt => {
+  const checkedInCount = searchFilteredAppointments.filter(apt => {
     const status = getDailyLogStatus(apt);
     if (!status) return false;
     return status.toLowerCase() === 'checked_in';
   }).length;
 
-  const notCheckedInCount = filteredAppointments.filter(apt => {
+  const pendingCount = searchFilteredAppointments.filter(apt => {
+    const status = getDailyLogStatus(apt);
+    if (!status) return false;
+    return status.toLowerCase() === 'pending';
+  }).length;
+
+  const notCheckedInCount = searchFilteredAppointments.filter(apt => {
     const status = getDailyLogStatus(apt);
     return !status;
   }).length;
-
 
   const handleCheckDuplicate = (salesOrder: string, delivery: string) => {
     if (editingAppointment) {
@@ -273,26 +306,24 @@ export default function AppointmentsPage() {
     }
   };
 
-const findDuplicateAppointment = (salesOrder: string, delivery: string): Appointment | null => {
-  return appointments.find((a) =>
-    (salesOrder.trim() !== '' && a.sales_order === salesOrder.trim()) ||
-    (delivery.trim() !== '' && a.delivery === delivery.trim())
-  ) ?? null;
-};
+  const findDuplicateAppointment = (salesOrder: string, delivery: string): Appointment | null => {
+    return appointments.find((a) =>
+      (salesOrder.trim() !== '' && a.sales_order === salesOrder.trim()) ||
+      (delivery.trim() !== '' && a.delivery === delivery.trim())
+    ) ?? null;
+  };
 
+  const handleEdit = (appointment: Appointment) => {
+    setExistingAppointment(null);
+    setEditingAppointment(appointment);
+    setModalOpen(true);
+  };
 
-const handleEdit = (appointment: Appointment) => {
-  setExistingAppointment(null); // ← clear any stale duplicate state
-  setEditingAppointment(appointment);
-  setModalOpen(true);
-};
-
-  // wherever you open the modal for a new appointment
-const handleAddNew = () => {
-  setExistingAppointment(null); // ← clear stale state
-  setEditingAppointment(null);
-  setModalOpen(true);
-};
+  const handleAddNew = () => {
+    setExistingAppointment(null);
+    setEditingAppointment(null);
+    setModalOpen(true);
+  };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this appointment?')) return;
@@ -309,8 +340,63 @@ const handleAddNew = () => {
     setSearchQuery('');
   };
 
-return (
-  <div className="min-h-screen bg-gray-50">
+  // Helper to determine if a filter button is active
+  const isFilterActive = (filter: StatusFilter) => statusFilter === filter;
+
+  // Status breakdown button config
+  const statusBreakdownButtons: {
+    filter: StatusFilter;
+    label: string;
+    count: number;
+    activeClass: string;
+    inactiveClass: string;
+  }[] = [
+    {
+      filter: 'all',
+      label: 'Total',
+      count: totalAppointmentsCount,
+      activeClass: 'bg-blue-600 text-white border-blue-600',
+      inactiveClass: 'bg-white text-blue-700 border-blue-300 hover:bg-blue-50',
+    },
+    {
+      filter: 'not_checked_in',
+      label: 'Not Checked In',
+      count: notCheckedInCount,
+      activeClass: 'bg-blue-500 text-white border-blue-500',
+      inactiveClass: 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50',
+    },
+    {
+      filter: 'checked_in',
+      label: 'Checked In',
+      count: checkedInCount,
+      activeClass: 'bg-purple-600 text-white border-purple-600',
+      inactiveClass: 'bg-white text-purple-700 border-purple-300 hover:bg-purple-50',
+    },
+    {
+      filter: 'pending',
+      label: 'Pending',
+      count: pendingCount,
+      activeClass: 'bg-yellow-500 text-white border-yellow-500',
+      inactiveClass: 'bg-white text-yellow-700 border-yellow-300 hover:bg-yellow-50',
+    },
+    {
+      filter: 'checked_out',
+      label: 'Checked Out',
+      count: checkedOutCount,
+      activeClass: 'bg-green-600 text-white border-green-600',
+      inactiveClass: 'bg-white text-green-700 border-green-300 hover:bg-green-50',
+    },
+    {
+      filter: 'work_in',
+      label: 'Work In',
+      count: workInCount,
+      activeClass: 'bg-gray-700 text-white border-gray-700',
+      inactiveClass: 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50',
+    },
+  ];
+
+  return (
+     <div className="min-h-screen bg-gray-50">
     {/* Header */}
     <div className="bg-white border-b shadow-sm">
       <div className="max-w-[1600px] mx-auto px-4 py-4">
@@ -348,7 +434,7 @@ return (
       </div>
     </div>
 
-    {/* Main Content */}
+       {/* Main Content */}
     <div className="max-w-[1600px] mx-auto px-4 py-6">
 
       {/* Row 1: Upload + Date Selector with Counters */}
@@ -390,7 +476,7 @@ return (
             + Add Manual Appointment
           </button>
 
-          {/* Counters inside the same box */}
+ {/* Counters inside the same box */}
           <div className="border-t pt-4 mt-2">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
               <div className="flex items-center justify-between">
@@ -495,7 +581,58 @@ return (
         </div>
       </div>
 
-      {/* Appointments Table - now INSIDE the max-w wrapper */}
+          
+      {/* Status Breakdown Section */}
+      <div className="bg-white rounded-lg shadow p-4 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+            Status Breakdown
+          </h2>
+          {statusFilter !== 'all' && (
+            <button
+              onClick={() => setStatusFilter('all')}
+              className="text-xs text-gray-500 hover:text-gray-700 underline"
+            >
+              Clear Filter
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {statusBreakdownButtons.map(({ filter, label, count, activeClass, inactiveClass }) => (
+            <button
+              key={filter}
+              onClick={() => setStatusFilter(isFilterActive(filter) ? 'all' : filter)}
+              className={`
+                inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
+                border transition-colors duration-150 cursor-pointer
+                ${isFilterActive(filter) ? activeClass : inactiveClass}
+              `}
+            >
+              {label}
+              <span
+                className={`
+                  inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold
+                  ${isFilterActive(filter) ? 'bg-white bg-opacity-25 text-inherit' : 'bg-gray-100 text-gray-600'}
+                `}
+              >
+                {count}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {statusFilter !== 'all' && (
+          <p className="mt-2 text-xs text-gray-500">
+            Showing <span className="font-semibold">{filteredAppointments.length}</span> appointment
+            {filteredAppointments.length !== 1 ? 's' : ''} with status:{' '}
+            <span className="font-semibold capitalize">
+              {statusBreakdownButtons.find(b => b.filter === statusFilter)?.label}
+            </span>
+          </p>
+        )}
+      </div>
+{/* Appointments Table - now INSIDE the max-w wrapper */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
         {loading ? (
           <div className="flex justify-center items-center py-12">
@@ -611,4 +748,3 @@ return (
 </div>
 );
 }
-
