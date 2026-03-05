@@ -63,7 +63,6 @@ interface DetentionInstance {
   carrier_name: string;
 }
 
-
 // Dock sets definition
 const DOCK_SETS: { label: string; docks: number[] }[] = [
   { label: '64-70', docks: [64, 65, 66, 67, 68, 69, 70] },
@@ -90,7 +89,6 @@ interface DailyStats {
   dockSetUsage: { label: string; count: number }[];
   customerBreakdown: CustomerBreakdown[]; // 👈 new
 }
-
 
 const isOnTime = (checkInTime: string, appointmentTime: string | null | undefined): boolean => {
   if (
@@ -263,7 +261,8 @@ export default function Tracking() {
   const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [expandedDetention, setExpandedDetention] = useState<{ [date: string]: boolean }>({});
-
+  const [expandedCustomerBreakdown, setExpandedCustomerBreakdown] = useState<{ [date: string]: boolean }>({});
+  
   const getCurrentDateInIndianapolis = () => {
     const now = new Date();
     const formatter = new Intl.DateTimeFormat('en-US', {
