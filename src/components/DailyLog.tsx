@@ -791,7 +791,7 @@ return (
         <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
       </td>
 
-      {/* Destination */}
+      {/* Load Info */}
 <td className="px-4 py-3 text-sm">
   <div className="flex flex-col">
     {/* Customer name displayed above destination */}
