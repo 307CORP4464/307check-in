@@ -231,7 +231,15 @@ const getCustomerBreakdown = (checkIns: CheckIn[]): CustomerBreakdown[] => {
   });
 
   checkIns.forEach((checkIn) => {
-    const rawCustomer = (checkIn.customer ?? '').toString().trim().toUpperCase(); // 👈 uses customer
+    // Debug log - remove after fixing
+    console.log('Raw customer value:', JSON.stringify(checkIn.customer), 'load_type:', checkIn.load_type);
+    
+    const rawCustomer = (checkIn.customer ?? '')
+      .toString()
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z]/g, ''); // Strip any non-alpha characters
+
     if (CUSTOMERS.includes(rawCustomer as CustomerName)) {
       const key = rawCustomer as CustomerName;
       if (checkIn.load_type === 'inbound') {
@@ -240,6 +248,9 @@ const getCustomerBreakdown = (checkIns: CheckIn[]): CustomerBreakdown[] => {
         breakdown[key].outbound += 1;
       }
       breakdown[key].total += 1;
+    } else if (rawCustomer !== '') {
+      // Warn about unmatched customers
+      console.warn('Unmatched customer:', JSON.stringify(rawCustomer));
     }
   });
 
@@ -654,12 +665,21 @@ return (
       </tr>
     </thead>
     <tbody>
-      {stat.customerBreakdown.map((row) => (
-        <tr key={row.customer} style={{ borderBottom: '1px solid #f3f4f6' }}>
+      {(stat.customerBreakdown ?? []).map((row) => (
+        <tr 
+          key={row.customer} 
+          style={{ borderBottom: '1px solid #f3f4f6' }}
+        >
           <td style={{ padding: '4px 8px' }}>{row.customer}</td>
-          <td style={{ padding: '4px 8px', textAlign: 'center' }}>{row.inbound}</td>
-          <td style={{ padding: '4px 8px', textAlign: 'center' }}>{row.outbound}</td>
-          <td style={{ padding: '4px 8px', textAlign: 'center' }}>{row.total}</td>
+          <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+            {row.inbound}
+          </td>
+          <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+            {row.outbound}
+          </td>
+          <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+            {row.total}
+          </td>
         </tr>
       ))}
       {/* Totals Row */}
@@ -670,18 +690,19 @@ return (
       }}>
         <td style={{ padding: '4px 8px' }}>Totals</td>
         <td style={{ padding: '4px 8px', textAlign: 'center' }}>
-          {stat.customerBreakdown.reduce((sum, row) => sum + row.inbound, 0)}
+          {(stat.customerBreakdown ?? []).reduce((sum, row) => sum + (row.inbound ?? 0), 0)}
         </td>
         <td style={{ padding: '4px 8px', textAlign: 'center' }}>
-          {stat.customerBreakdown.reduce((sum, row) => sum + row.outbound, 0)}
+          {(stat.customerBreakdown ?? []).reduce((sum, row) => sum + (row.outbound ?? 0), 0)}
         </td>
         <td style={{ padding: '4px 8px', textAlign: 'center' }}>
-          {stat.customerBreakdown.reduce((sum, row) => sum + row.total, 0)}
+          {(stat.customerBreakdown ?? []).reduce((sum, row) => sum + (row.total ?? 0), 0)}
         </td>
       </tr>
     </tbody>
   </table>
 </div>
+
 
             
 {/* Detention Section */}
