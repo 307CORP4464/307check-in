@@ -104,7 +104,9 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
       console.error('Error formatting work in date:', error);
     }
     
-return `${month}/${day}/${year} - Work In`;
+    // ✅ FIXED: Removed the broken `return \`${month}/${day}/${year} - Work In\`` line
+    // that was referencing out-of-scope variables. Fall back to plain 'Work In' instead.
+    return 'Work In';
   }
   
   // If no time at all, return N/A
@@ -170,6 +172,7 @@ return `${month}/${day}/${year} - Work In`;
     return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
 };
+
 
 const getDateComponentsInIndianapolis = (isoString: string): { year: number, month: number, day: number, hour: number, minute: number } => {
   const date = new Date(isoString);
