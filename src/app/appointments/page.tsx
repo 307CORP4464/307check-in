@@ -502,6 +502,10 @@ return (
                   <p className="text-xs font-medium text-orange-500">Checked In</p>
                   <p className="text-lg font-bold text-orange-700">{checkedInCount}</p>
                 </div>
+                 <div className="text-center">
+                  <p className="text-xs font-medium text-orange-500">Pending</p>
+                  <p className="text-lg font-bold text-orange-700">{pendingCount}</p>
+                </div>
                 <div className="text-center">
                   <p className="text-xs font-medium text-orange-500">Not Checked In</p>
                   <p className="text-lg font-bold text-orange-700">{notCheckedInCount}</p>
