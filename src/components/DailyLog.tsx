@@ -855,7 +855,7 @@ return (
         {formatTimeInIndianapolis(checkIn.check_in_time, true)}
       </td>
 
-  {/* Appointment Time */}
+ {/* Appointment Time */}
 <td className="border px-4 py-3">
   {(() => {
     const status = getAppointmentStatus(
@@ -868,7 +868,8 @@ return (
       status.color === 'green' ? 'bg-green-200' :
       status.color === 'red' ? 'bg-red-200' :
       status.color === 'yellow' ? 'bg-yellow-200' :
-      status.color === 'orange' ? 'bg-orange-200' ;
+      status.color === 'orange' ? 'bg-orange-200' :
+      'bg-gray-300';
     
     return (
       <div className={`inline-block px-2 py-1 rounded ${bgColor}`}>
@@ -880,6 +881,7 @@ return (
     );
   })()}
 </td>
+
 
 
       {/* End Time */}
