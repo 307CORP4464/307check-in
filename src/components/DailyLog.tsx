@@ -831,7 +831,7 @@ return (
           </thead>
           
 <tbody className="bg-white divide-y divide-gray-200">
-  {filteredCheckIns.map((checkIn) => (
+  {displayedCheckIns.map((checkIn) => (
     <tr key={checkIn.id} className="hover:bg-gray-50">
       {/* Type */}
       <td className="px-4 py-3 whitespace-nowrap">
