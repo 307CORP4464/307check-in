@@ -104,7 +104,8 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
       console.error('Error formatting work in date:', error);
     }
     
-    return 'Work In';
+    // AFTER
+return `${month}/${day}/${year} - Work In`;
   }
   
   // If no time at all, return N/A
@@ -197,12 +198,41 @@ const getAppointmentStatus = (
   checkInTime: string, 
   appointmentTime: string | null | undefined,
   appointmentDate: string | null | undefined
-): { color: 'green' | 'orange' | 'red' | 'none', message: string | null } => {
+// AFTER
+): { color: 'green' | 'orange' | 'red' | 'yellow' | 'none', message: string | null } => {
   
-  // No appointment time or work-in = red
-  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
-    return { color: 'red', message: null };
+  // AFTER
+if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
+  // Check if checked in on the correct day for a work-in
+  if ((appointmentTime === 'work_in' || appointmentTime === 'Work In') && appointmentDate) {
+    try {
+      const checkInComponents = getDateComponentsInIndianapolis(checkInTime);
+      let aptYear: number, aptMonth: number, aptDay: number;
+
+      if (appointmentDate.includes('/')) {
+        [aptMonth, aptDay, aptYear] = appointmentDate.split('/').map(Number);
+      } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}/)) {
+        const datePart = appointmentDate.substring(0, 10);
+        [aptYear, aptMonth, aptDay] = datePart.split('-').map(Number);
+      } else {
+        return { color: 'red', message: null };
+      }
+
+      const checkInDateObj = new Date(checkInComponents.year, checkInComponents.month - 1, checkInComponents.day);
+      const aptDateObj = new Date(aptYear, aptMonth - 1, aptDay);
+      const diffTime = checkInDateObj.getTime() - aptDateObj.getTime();
+      const dayDiff = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+      if (dayDiff === 0) {
+        return { color: 'yellow', message: null };
+      }
+    } catch (error) {
+      console.error('Error checking work-in date:', error);
+    }
   }
+  return { color: 'red', message: null };
+}
+
 
   // Normalize: "08:00" → "0800", "0800" stays "0800"
   const normalizedTime = appointmentTime.replace(/:/g, '').trim();
@@ -836,7 +866,9 @@ return (
     const bgColor = 
       status.color === 'green' ? 'bg-green-200' :
       status.color === 'red' ? 'bg-red-200' :
+      status.color === 'yellow' ? 'bg-yellow-200' :
       status.color === 'orange' ? 'bg-orange-200' :
+      none: 'bg-gray-300',
       '';
     
     return (
