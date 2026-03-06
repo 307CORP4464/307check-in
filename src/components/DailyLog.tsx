@@ -869,8 +869,7 @@ return (
       status.color === 'green' ? 'bg-green-200' :
       status.color === 'red' ? 'bg-red-200' :
       status.color === 'yellow' ? 'bg-yellow-200' :
-      status.color === 'orange' ? 'bg-orange-200' :
-      'bg-gray-300';
+      status.color === 'orange' ? 'bg-orange-200' ;
     
     return (
       <div className={`inline-block px-2 py-1 rounded ${bgColor}`}>
