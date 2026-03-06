@@ -103,7 +103,6 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
       console.error('Error formatting work in date:', error);
     }
     
-   // AFTER
 return `${month}/${day}/${year} - Work In`;
 
   }
@@ -184,11 +183,10 @@ const getAppointmentStatus = (
   checkInTime: string, 
   appointmentTime: string | null | undefined,
   appointmentDate: string | null | undefined
-// AFTER
+
 ): { color: 'green' | 'orange' | 'red' | 'yellow' | 'none', message: string | null } => {
 
   
-  // AFTER
 if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
   // Check if checked in on the correct day for a work-in
   if ((appointmentTime === 'work_in' || appointmentTime === 'Work In') && appointmentDate) {
