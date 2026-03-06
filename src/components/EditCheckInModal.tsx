@@ -30,7 +30,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // Parse existing reference numbers (comma-separated) into an array
   const parseReferenceNumbers = (refNum?: string): string[] => {
     if (!refNum) return [''];
     const parts = refNum.split(',').map(s => s.trim()).filter(Boolean);
@@ -74,7 +73,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     }));
   };
 
-  // Reference number handlers
   const handleReferenceChange = (index: number, value: string) => {
     setReferenceNumbers(prev => {
       const updated = [...prev];
@@ -89,7 +87,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
 
   const removeReferenceNumber = (index: number) => {
     setReferenceNumbers(prev => {
-      if (prev.length === 1) return ['']; // Always keep at least one field
+      if (prev.length === 1) return [''];
       return prev.filter((_, i) => i !== index);
     });
   };
@@ -99,7 +97,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     setError(null);
     setSaving(true);
 
-    // Join all non-empty reference numbers with a comma
     const combinedReferenceNumber = referenceNumbers
       .map(r => r.trim())
       .filter(Boolean)
@@ -181,7 +178,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
                       className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
                       placeholder={`Reference #${index + 1}`}
                     />
-                    {/* Remove button — only show if more than one field */}
                     {referenceNumbers.length > 1 && (
                       <button
                         type="button"
@@ -192,7 +188,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
                         &minus;
                       </button>
                     )}
-                    {/* Add button — only show on last field */}
                     {index === referenceNumbers.length - 1 && (
                       <button
                         type="button"
@@ -271,7 +266,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
                 Driver Phone
               </label>
               <input
-                type="tel"
+                type="text"
                 name="driver_phone"
                 value={formData.driver_phone}
                 onChange={handleChange}
@@ -309,36 +304,75 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Trailer Length
               </label>
-              <select
+              <input
+                type="text"
                 name="trailer_length"
                 value={formData.trailer_length}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Destination City
+              </label>
+              <input
+                type="text"
+                name="destination_city"
+                value={formData.destination_city}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Destination State
+              </label>
+              <select
+                name="destination_state"
+                value={formData.destination_state}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Select...</option>
-                <option value="Box/Van">Box Truck or Van</option>
-                <option value="20">20'</option>
-                <option value="40">40'</option>
-                <option value="45">45'</option>
-                <option value="48">48'</option>
-                <option value="53">53'</option>
+                <option value="">Select State...</option>
+                {US_STATES.map(state => (
+                  <option key={state} value={state}>{state}</option>
+                ))}
               </select>
             </div>
           </div>
 
-          {/* Footer Buttons */}
-          <div className="mt-6 flex justify-end gap-3">
+          {/* ===== NOTES BOX AT THE BOTTOM ===== */}
+          <div className="mt-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Notes
+            </label>
+            <textarea
+              name="notes"
+              value={formData.notes}
+              onChange={handleChange}
+              rows={4}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 resize-vertical"
+              placeholder="Add any additional notes here..."
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              disabled={saving}
             >
               Cancel
             </button>
             <button
               type="submit"
+              className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
               disabled={saving}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
