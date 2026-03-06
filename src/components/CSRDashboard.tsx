@@ -680,6 +680,7 @@ export default function CSRDashboard() {
            status.color === 'orange' ? 'bg-orange-100' :
            status.color === 'yellow' ? 'bg-yellow-100' :
            status.color === 'red' ? 'bg-red-100' : '';
+    none: 'bg-gray-300',
   })()
 }`}>
   <div>{formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}</div>
