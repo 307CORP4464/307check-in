@@ -445,7 +445,6 @@ export default function DailyLog() {
   const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [showInProgressOnly, setShowInProgressOnly] = useState(false);
 
   const getCurrentDateInIndianapolis = () => {
     const now = new Date();
@@ -462,14 +461,6 @@ export default function DailyLog() {
     return `${year}-${month}-${day}`;
   };
   
-const filteredCheckIns = showInProgressOnly
-  ? checkIns.filter((entry: any) => 
-      !entry.end_time || 
-      entry.end_time === 'In Progress' || 
-      entry.status === 'in_progress'
-    )
-  : checkIns;
-
   const [selectedDate, setSelectedDate] = useState<string>(getCurrentDateInIndianapolis());
   const [selectedForStatusChange, setSelectedForStatusChange] = useState<CheckIn | null>(null);
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
