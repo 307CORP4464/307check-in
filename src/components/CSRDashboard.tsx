@@ -285,6 +285,7 @@ if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Wo
   } catch (error) {
     console.error('Error in getAppointmentStatus:', error);
     return { color: 'none', message: null };
+  }
 };
 
 
