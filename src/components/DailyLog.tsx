@@ -98,14 +98,13 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         const year = date.getFullYear();
-        return `${month}/${day}/${year} - Work In`;
+        return `${month}/${day}/${year}, Work In`;
       }
     } catch (error) {
       console.error('Error formatting work in date:', error);
     }
     
-    // ✅ FIXED: Removed the broken `return \`${month}/${day}/${year} - Work In\`` line
-    // that was referencing out-of-scope variables. Fall back to plain 'Work In' instead.
+    // Fallback if date is invalid
     return 'Work In';
   }
   
@@ -139,7 +138,6 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
       
       // Validate the date
       if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
-        // Format the date to MM/DD/YYYY
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         const year = date.getFullYear();
@@ -172,6 +170,7 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
 };
+
 
 
 const getDateComponentsInIndianapolis = (isoString: string): { year: number, month: number, day: number, hour: number, minute: number } => {
