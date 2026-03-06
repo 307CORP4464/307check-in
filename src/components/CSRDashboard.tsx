@@ -75,72 +75,65 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
 };
 
 const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
-  // Handle Work In cases - show date if available
   if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
     if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
       return 'Work In';
     }
-    
     try {
       let date: Date;
       if (appointmentDate.includes('/')) {
-        const [month, day, year] = appointmentDate.split('/').map(Number);
-        date = new Date(year, month - 1, day);
+        const [m, d, y] = appointmentDate.split('/').map(Number);
+        date = new Date(y, m - 1, d);
       } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        const [year, month, day] = appointmentDate.split('-').map(Number);
-        date = new Date(year, month - 1, day);
+        const [y, m, d] = appointmentDate.split('-').map(Number);
+        date = new Date(y, m - 1, d);
       } else {
         date = new Date(appointmentDate);
       }
-      
       if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const year = date.getFullYear();
-        return `Work In - ${month}/${day}/${year}`;
+        const mo = String(date.getMonth() + 1).padStart(2, '0');
+        const dy = String(date.getDate()).padStart(2, '0');
+        const yr = date.getFullYear();
+        return `${mo}/${dy}/${yr} - Work In`;
       }
     } catch (error) {
       console.error('Error formatting work in date:', error);
     }
-    
-return `${month}/${day}/${year} - Work In`;
-
+    return 'Work In';
   }
-  
+
   if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
     return 'N/A';
   }
-  
+
   try {
     let formattedDate = '';
     if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
       let date: Date;
       if (appointmentDate.includes('/')) {
-        const [month, day, year] = appointmentDate.split('/').map(Number);
-        date = new Date(year, month - 1, day);
+        const [m, d, y] = appointmentDate.split('/').map(Number);
+        date = new Date(y, m - 1, d);
       } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        const [year, month, day] = appointmentDate.split('-').map(Number);
-        date = new Date(year, month - 1, day);
+        const [y, m, d] = appointmentDate.split('-').map(Number);
+        date = new Date(y, m - 1, d);
       } else {
         date = new Date(appointmentDate);
       }
       if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const year = date.getFullYear();
-        formattedDate = `${month}/${day}/${year}`;
+        const mo = String(date.getMonth() + 1).padStart(2, '0');
+        const dy = String(date.getDate()).padStart(2, '0');
+        const yr = date.getFullYear();
+        formattedDate = `${mo}/${dy}/${yr}`;
       }
     }
     const formattedTime = formatAppointmentTime(appointmentTime);
     if (!formattedDate) {
       return formattedTime !== 'N/A' ? formattedTime : 'N/A';
     }
-    if (formattedDate && formattedTime && formattedTime !== 'N/A') {
+    if (formattedTime && formattedTime !== 'N/A') {
       return `${formattedDate}, ${formattedTime}`;
     } else if (formattedDate) {
       return formattedDate;
-    } else if (formattedTime && formattedTime !== 'N/A') {
-      return formattedTime;
     }
     return 'N/A';
   } catch (error) {
@@ -525,8 +518,6 @@ export default function CSRDashboard() {
     }
   };
 
-  
-  
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b shadow-sm">
