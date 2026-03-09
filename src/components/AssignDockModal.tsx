@@ -598,7 +598,7 @@ const printReceipt = () => {
             <tr><td>Original</td><td></td><td>Quality Manager</td><td>Operations Manager</td><td>10/28/2015</td></tr>
             <tr><td>2</td><td>Changed question 9.</td><td>Quality Manager</td><td>Operations Manager</td><td>10/30/2017</td></tr>
             <tr><td>3</td><td>Updated questions</td><td>Quality Manager</td><td>Operations Manager</td><td>09/19/2018</td></tr>
-            <tr><td>4</td><td>Updated question 4 to add pallet inspection.</td><td>Quality Manager</td><td>Operations Manager</td><td>01/14/2026</td></tr>
+            <tr><td>4</td><td>Updated question 4 to add pallet inspection.</td><td>Quality Manager</td><td>Operations Manager</td><td>03/10/2026</td></tr>
           </tbody>
         </table>
 
@@ -716,6 +716,7 @@ const printReceipt = () => {
           <tbody>
             <tr><td>Original</td><td>Outbound Inspection - Restructured</td><td>Quality Manager</td><td>Operations Manager</td><td>7/24/2025</td></tr>
             <tr><td>2</td><td>Added loadbar question</td><td>Quality Manager</td><td>Operations Manager</td><td>7/31/2025</td></tr>
+            <tr><td>2</td><td>updated format and added revisions table. </td><td>Quality Manager</td><td>Operations Manager</td><td>3/10/2026</td></tr>
           </tbody>
         </table>
 
