@@ -691,9 +691,9 @@ const printReceipt = () => {
             </tr>
           </thead>
           <tbody>
-            <tr><td>ALL THE INSTRUCTIONS ON THE BILL OF LADING BEEN FOLLOWED?</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>TRAILER HAS BEEN LATCH PROPERLY?</td><td class="checkbox-cell">☐</td></tr>
-            <tr><td>THE TRAILER BEEN SEALED?</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>ALL THE INSTRUCTIONS ON THE BILL OF LADING HAVE BEEN FOLLOWED?</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>TRAILER HAS BEEN LATCHED PROPERLY?</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>THE TRAILER HAS BEEN SEALED?</td><td class="checkbox-cell">☐</td></tr>
             <tr><td>CUSTOMER REQUIRED PHOTOS TAKEN AND SENT?</td><td class="checkbox-cell">☐</td></tr>
             <tr><td>INITIALS OF PERSON THAT SEALED</td><td class="checkbox-cell">__________</td></tr>
             
