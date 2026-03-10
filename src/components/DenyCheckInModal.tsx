@@ -12,13 +12,24 @@ interface DenyCheckInModalProps {
     driver_phone?: string;
     reference_number?: string;
     carrier_name?: string;
+    scheduled_time?: string;
   };
   onClose: () => void;
   onDeny: () => void;
 }
 
+type DenialOption = 'invalid_number' | 'too_early' | 'not_from_1403' | 'other';
+
+const DENIAL_OPTIONS: { value: DenialOption; label: string }[] = [
+  { value: 'invalid_number', label: 'Invalid Number' },
+  { value: 'too_early', label: 'Too Early' },
+  { value: 'not_from_1403', label: 'Not from 1403' },
+  { value: 'other', label: 'Other' },
+];
+
 export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheckInModalProps) {
-  const [notes, setNotes] = useState('');
+  const [selectedOption, setSelectedOption] = useState<DenialOption | null>(null);
+  const [customMessage, setCustomMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,11 +38,43 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
+  const getPrewrittenMessage = (option: DenialOption): string => {
+    const scheduledTime = checkIn.scheduled_time
+      ? new Date(checkIn.scheduled_time).toLocaleString('en-US', {
+          dateStyle: 'short',
+          timeStyle: 'short',
+        })
+      : 'your scheduled time';
+
+    const messages: Record<DenialOption, string> = {
+      invalid_number:
+        'The number you have provided is the correct format however it does not match any orders in the system. Please contact your dispatch for another number and reattempt check in.',
+      too_early: `You have attempted to check in to early for your scheduled appointment time, ${scheduledTime}. We do not have docks available currently. Please resubmit the check in form 1 hour before your appointment time.`,
+      not_from_1403:
+        'The number you have provided is a valid number however it does not ship from this location. Please contact your dispatch.',
+      other: customMessage,
+    };
+
+    return messages[option];
+  };
+
+  const getDisplayMessage = (): string => {
+    if (!selectedOption) return '';
+    return getPrewrittenMessage(selectedOption);
+  };
+
   const handleDeny = async () => {
-    if (!notes.trim()) {
-      setError('Please provide a reason for denial');
+    if (!selectedOption) {
+      setError('Please select a reason for denial');
       return;
     }
+
+    if (selectedOption === 'other' && !customMessage.trim()) {
+      setError('Please provide a custom message for the denial reason');
+      return;
+    }
+
+    const denialMessage = getPrewrittenMessage(selectedOption);
 
     setIsSubmitting(true);
     setError(null);
@@ -40,9 +83,9 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
       // Update check-in status to denied
       const { error: updateError } = await supabase
         .from('check_ins')
-        .update({ 
+        .update({
           status: 'denied',
-          notes: `DENIED: ${notes}`
+          notes: `DENIED: ${denialMessage}`,
         })
         .eq('id', checkIn.id);
 
@@ -54,7 +97,7 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
         driverName: checkIn.driver_name || 'Driver',
         carrierName: checkIn.carrier_name || 'N/A',
         referenceNumber: checkIn.reference_number || 'N/A',
-        denialReason: notes,
+        denialReason: denialMessage,
       });
 
       if (!emailResult.success) {
@@ -76,7 +119,8 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
         <h2 className="text-2xl font-bold mb-4 text-gray-800">Deny Check-in</h2>
-        
+
+        {/* Driver Info */}
         <div className="mb-4 p-3 bg-gray-50 rounded">
           <p className="text-sm text-gray-600">
             <strong>Driver:</strong> {checkIn.driver_name || 'N/A'}
@@ -95,20 +139,70 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
           </div>
         )}
 
-        <div className="mb-6">
+        {/* Denial Reason Selection */}
+        <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Reason for Denial <span className="text-red-500">*</span>
           </label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Please provide the reason for denying this check-in..."
-            rows={5}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            disabled={isSubmitting}
-          />
+          <div className="flex flex-col gap-2">
+            {DENIAL_OPTIONS.map((option) => (
+              <label
+                key={option.value}
+                className={`flex items-center gap-3 p-3 border rounded-md cursor-pointer transition-colors ${
+                  selectedOption === option.value
+                    ? 'border-red-500 bg-red-50'
+                    : 'border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="denialReason"
+                  value={option.value}
+                  checked={selectedOption === option.value}
+                  onChange={() => {
+                    setSelectedOption(option.value);
+                    setError(null);
+                  }}
+                  disabled={isSubmitting}
+                  className="accent-red-600"
+                />
+                <span className="text-sm font-medium text-gray-700">{option.label}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
+        {/* Message Preview - shown for preset options */}
+        {selectedOption && selectedOption !== 'other' && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-xs font-semibold text-blue-700 mb-1 uppercase tracking-wide">
+              Message that will be sent to driver:
+            </p>
+            <p className="text-sm text-blue-800 italic">{getDisplayMessage()}</p>
+          </div>
+        )}
+
+        {/* Custom Message Box - shown only for "Other" */}
+        {selectedOption === 'other' && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Custom Message <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={customMessage}
+              onChange={(e) => {
+                setCustomMessage(e.target.value);
+                setError(null);
+              }}
+              placeholder="Type your custom denial message here. This will be sent directly to the driver..."
+              rows={4}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 resize-none text-sm"
+              disabled={isSubmitting}
+            />
+          </div>
+        )}
+
+        {/* Action Buttons */}
         <div className="flex gap-3">
           <button
             onClick={onClose}
