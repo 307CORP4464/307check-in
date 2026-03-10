@@ -12,7 +12,7 @@ interface DenyCheckInModalProps {
     driver_phone?: string;
     reference_number?: string;
     carrier_name?: string;
-    appointment_time?: string;
+    appointment_time?: string | null;
   };
   onClose: () => void;
   onDeny: () => void;
