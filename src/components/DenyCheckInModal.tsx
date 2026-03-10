@@ -12,19 +12,24 @@ interface DenyCheckInModalProps {
     driver_phone?: string;
     reference_number?: string;
     carrier_name?: string;
-    appointment_time?: string | null;
+    appointment_time?: string;
   };
   onClose: () => void;
   onDeny: () => void;
 }
 
-type DenialOption = 'invalid_number' | 'too_early' | 'not_from_1403' | 'other';
+type DenialOption =
+  | 'invalid_number'
+  | 'too_early'
+  | 'not_from_1403'
+  | 'no_appointment'
+  | 'other';
 
 const DENIAL_OPTIONS: { value: DenialOption; label: string }[] = [
-  { value: 'no_appointment', label: 'No Appointment Scheduled' },
   { value: 'invalid_number', label: 'Invalid Number' },
   { value: 'too_early', label: 'Too Early' },
   { value: 'not_from_1403', label: 'Not from 1403' },
+  { value: 'no_appointment', label: 'No Appointment Scheduled' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -40,7 +45,7 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
   );
 
   const getPrewrittenMessage = (option: DenialOption): string => {
-    const scheduledTime = checkIn.appointment_time
+    const appointmentTime = checkIn.appointment_time
       ? new Date(checkIn.appointment_time).toLocaleString('en-US', {
           dateStyle: 'short',
           timeStyle: 'short',
@@ -48,22 +53,17 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
       : 'your appointment time';
 
     const messages: Record<DenialOption, string> = {
-      no_appointment: 
-        'The number you provided is a valid number however this order does not have an appointment scheduled for today. In order to load today you will need to provide the $204 same day loading fee. This can be paid with cash, verifiable check such as EFS or Comchek, or venmo. Please see us in the office once you have the payment ready.',
       invalid_number:
         'The number you have provided is the correct format however it does not match any orders in the system. Please contact your dispatch for another number and reattempt check in.',
       too_early: `You have attempted to check in to early for your scheduled appointment time, ${appointmentTime}. We do not have docks available currently. Please resubmit the check in form 1 hour before your appointment time.`,
       not_from_1403:
         'The number you have provided is a valid number however it does not ship from this location. Please contact your dispatch.',
+      no_appointment:
+        'The number you provided is a valid number however this order does not have an appointment scheduled for today. In order to load today you will need to provide the $204 same day loading fee. This can be paid with cash, verifiable check such as EFS or Comchek, or Venmo. Please see us in the office once you have the payment ready.',
       other: customMessage,
     };
 
     return messages[option];
-  };
-
-  const getDisplayMessage = (): string => {
-    if (!selectedOption) return '';
-    return getPrewrittenMessage(selectedOption);
   };
 
   const handleDeny = async () => {
@@ -83,7 +83,6 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
     setError(null);
 
     try {
-      // Update check-in status to denied
       const { error: updateError } = await supabase
         .from('check_ins')
         .update({
@@ -94,7 +93,6 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
 
       if (updateError) throw updateError;
 
-      // Send denial email using the email trigger
       const emailResult = await triggerCheckInDenialEmail({
         driverEmail: checkIn.driver_email || '',
         driverName: checkIn.driver_name || 'Driver',
@@ -105,7 +103,6 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
 
       if (!emailResult.success) {
         console.error('Failed to send denial email:', emailResult.error);
-        // Don't throw error - denial was successful even if email fails
       }
 
       onDeny();
@@ -175,13 +172,15 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
           </div>
         </div>
 
-        {/* Message Preview - shown for preset options */}
+        {/* Message Preview - shown for all preset options */}
         {selectedOption && selectedOption !== 'other' && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
             <p className="text-xs font-semibold text-blue-700 mb-1 uppercase tracking-wide">
               Message that will be sent to driver:
             </p>
-            <p className="text-sm text-blue-800 italic">{getDisplayMessage()}</p>
+            <p className="text-sm text-blue-800 italic leading-relaxed">
+              {getPrewrittenMessage(selectedOption)}
+            </p>
           </div>
         )}
 
