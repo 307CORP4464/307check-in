@@ -41,7 +41,7 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
 
   const getPrewrittenMessage = (option: DenialOption): string => {
     const scheduledTime = checkIn.appointment_time
-      ? new Date(checkIn.scheduled_time).toLocaleString('en-US', {
+      ? new Date(checkIn.appointment_time).toLocaleString('en-US', {
           dateStyle: 'short',
           timeStyle: 'short',
         })
