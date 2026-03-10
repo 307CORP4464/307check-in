@@ -12,7 +12,7 @@ interface DenyCheckInModalProps {
     driver_phone?: string;
     reference_number?: string;
     carrier_name?: string;
-    scheduled_time?: string;
+    appointment_time?: string;
   };
   onClose: () => void;
   onDeny: () => void;
@@ -21,6 +21,7 @@ interface DenyCheckInModalProps {
 type DenialOption = 'invalid_number' | 'too_early' | 'not_from_1403' | 'other';
 
 const DENIAL_OPTIONS: { value: DenialOption; label: string }[] = [
+  { value: 'no_appointment', label: 'No Appointment Scheduled' },
   { value: 'invalid_number', label: 'Invalid Number' },
   { value: 'too_early', label: 'Too Early' },
   { value: 'not_from_1403', label: 'Not from 1403' },
@@ -39,17 +40,19 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
   );
 
   const getPrewrittenMessage = (option: DenialOption): string => {
-    const scheduledTime = checkIn.scheduled_time
+    const scheduledTime = checkIn.appointment_time
       ? new Date(checkIn.scheduled_time).toLocaleString('en-US', {
           dateStyle: 'short',
           timeStyle: 'short',
         })
-      : 'your scheduled time';
+      : 'your appointment time';
 
     const messages: Record<DenialOption, string> = {
+      no_appointment: 
+        'The number you provided is a valid number however this order does not have an appointment scheduled for today. In order to load today you will need to provide the $204 same day loading fee. This can be paid with cash, verifiable check such as EFS or Comchek, or venmo. Please see us in the office once you have the payment ready.',
       invalid_number:
         'The number you have provided is the correct format however it does not match any orders in the system. Please contact your dispatch for another number and reattempt check in.',
-      too_early: `You have attempted to check in to early for your scheduled appointment time, ${scheduledTime}. We do not have docks available currently. Please resubmit the check in form 1 hour before your appointment time.`,
+      too_early: `You have attempted to check in to early for your scheduled appointment time, ${appointmentTime}. We do not have docks available currently. Please resubmit the check in form 1 hour before your appointment time.`,
       not_from_1403:
         'The number you have provided is a valid number however it does not ship from this location. Please contact your dispatch.',
       other: customMessage,
