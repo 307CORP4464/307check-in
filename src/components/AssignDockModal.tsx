@@ -240,49 +240,72 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
       return false;
     }
   };
+  
+const handleAssign = async () => {
+  if (!dockNumber) {
+    setError('Please select a dock number');
+    return;
+  }
 
-  const handleAssign = async () => {
-    if (!dockNumber) {
-      setError('Please select a dock number');
-      return;
+  // ✅ HARD BLOCK: Re-query Supabase at submission time to prevent race conditions
+  if (dockNumber !== 'Ramp') {
+    const { data: blockedCheck } = await supabase
+      .from('blocked_docks')
+      .select('reason')
+      .eq('dock_number', dockNumber)
+      .maybeSingle();
+
+    if (blockedCheck) {
+      setError(`❌ Dock ${dockNumber} is blocked: "${blockedCheck.reason}". Please select a different dock.`);
+      setDockInfo({
+        dock_number: dockNumber,
+        status: 'blocked',
+        orders: [],
+        blocked_reason: blockedCheck.reason,
+      });
+      setShowWarning(true);
+      return; // ✅ Stop submission completely
+    }
+  }
+
+  setLoading(true);
+  setError(null);
+  setEmailStatus(null);
+
+  try {
+    const { error: updateError } = await supabase
+      .from('check_ins')
+      .update({
+        dock_number: dockNumber,
+        status: 'checked_in',
+        driver_email: driverEmail,
+        appointment_time: checkIn.appointment_time,
+      })
+      .eq('id', checkIn.id);
+
+    if (updateError) throw updateError;
+
+    if (sendEmail && driverEmail) {
+      await sendEmailNotification(dockNumber, driverEmail);
     }
 
-    setLoading(true);
-    setError(null);
-    setEmailStatus(null);
-
-    try {
-      const { error: updateError } = await supabase
-        .from('check_ins')
-        .update({
-          dock_number: dockNumber,
-          status: 'checked_in',
-          driver_email: driverEmail,
-          appointment_time: checkIn.appointment_time,
-        })
-        .eq('id', checkIn.id);
-
-      if (updateError) throw updateError;
-
-      if (sendEmail && driverEmail) {
-        await sendEmailNotification(dockNumber, driverEmail);
-      }
-
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('dock-assignment-changed', {
-          detail: { dockNumber, checkInId: checkIn.id }
-        }));
-      }
-
-      printReceipt();
-      onSuccess();
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to assign dock');
-    } finally {
-      setLoading(false);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('dock-assignment-changed', {
+        detail: { dockNumber, checkInId: checkIn.id }
+      }));
     }
-  };
+
+    printReceipt();
+    onSuccess();
+    onClose();
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to assign dock');
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 const printReceipt = () => {
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
@@ -899,12 +922,19 @@ const printReceipt = () => {
               Cancel
             </button>
             <button
-              onClick={handleAssign}
-              disabled={loading || !dockNumber}
-              className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Assigning...' : 'Assign Dock'}
-            </button>
+  onClick={handleAssign}
+  disabled={loading || checkingDock || dockInfo?.status === 'blocked'}
+  className={`px-4 py-2 rounded font-medium text-white transition-colors ${
+    dockInfo?.status === 'blocked'
+      ? 'bg-gray-400 cursor-not-allowed'
+      : loading || checkingDock
+      ? 'bg-blue-300 cursor-not-allowed'
+      : 'bg-blue-600 hover:bg-blue-700'
+  }`}
+>
+  {loading ? 'Assigning...' : checkingDock ? 'Checking Dock...' : 'Assign Dock'}
+</button>
+
           </div>
         </div>
       </div>
