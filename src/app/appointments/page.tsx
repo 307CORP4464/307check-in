@@ -396,19 +396,16 @@ export default function AppointmentsPage() {
   ];
 
 return (
-    {/* Mobile-responsive header */}
-<header className="bg-white shadow-sm">
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 gap-2">
-      
-      {/* Logo/Title */}
-      <h1 className="text-lg font-bold text-gray-900 whitespace-nowrap">
-        Warehouse Portal
-      </h1>
+  <div className="min-h-screen bg-gray-50">
 
-      {/* Nav links - scrollable on mobile */}
-      <nav className="w-full sm:w-auto overflow-x-auto">
-        <div className="flex gap-2 pb-1 sm:pb-0 min-w-max">
+    {/* Header */}
+    <div className="bg-white border-b shadow-sm">
+      <div className="max-w-[1600px] mx-auto px-4 py-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Appointment Scheduling</h1>
+          </div>
+          <div className="flex gap-3">
             <Link href="/appointments" className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium">
               Appointments
             </Link>
@@ -431,6 +428,7 @@ return (
         </div>
       </div>
     </div>
+
 
     {/* Main Content */}
     <div className="max-w-[1600px] mx-auto px-4 py-6">
