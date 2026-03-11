@@ -29,7 +29,9 @@ interface DockInfo {
   dock_number: string;
   status: 'available' | 'in-use' | 'blocked';
   orders: Array<{ reference_number?: string; trailer_number?: string }>;
+  blocked_reason?: string; // ✅ Add this
 }
+
 
 export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }: AssignDockModalProps) {
   const [dockNumber, setDockNumber] = useState(checkIn.dock_number || '');
@@ -113,54 +115,65 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     }
   }, [dockNumber]);
 
-  const checkDockStatus = async (dock: string) => {
-    setCheckingDock(true);
-    try {
-      if (typeof window !== 'undefined') {
-        const blockedStr = localStorage.getItem('blocked_docks');
-        if (blockedStr) {
-          const blocked = JSON.parse(blockedStr);
-          if (blocked[dock]) {
-            setDockInfo({ dock_number: dock, status: 'blocked', orders: [] });
-            setShowWarning(true);
-            setCheckingDock(false);
-            return;
-          }
-        }
-      }
+ const checkDockStatus = async (dock: string) => {
+  setCheckingDock(true);
+  try {
+    // ✅ Check blocked_docks table in Supabase (not localStorage)
+    const { data: blockedData, error: blockedError } = await supabase
+      .from('blocked_docks')
+      .select('reason')
+      .eq('dock_number', dock)
+      .maybeSingle();
 
-      const { data: existingOrders, error } = await supabase
-        .from('check_ins')
-        .select('reference_number, trailer_number')
-        .eq('dock_number', dock)
-        .in('status', ['checked_in', 'pending'])
-        .neq('id', checkIn.id);
-
-      if (error) throw error;
-
-      if (existingOrders && existingOrders.length > 0) {
-        setDockInfo({
-          dock_number: dock,
-          status: 'in-use',
-          orders: existingOrders
-        });
-        setShowWarning(true);
-      } else {
-        setDockInfo({
-          dock_number: dock,
-          status: 'available',
-          orders: []
-        });
-        setShowWarning(false);
-      }
-    } catch (err) {
-      console.error('Error checking dock status:', err);
-      setDockInfo(null);
-      setShowWarning(false);
-    } finally {
-      setCheckingDock(false);
+    if (blockedError) {
+      console.error('Error checking blocked docks:', blockedError);
     }
-  };
+
+    if (blockedData) {
+  setDockInfo({
+    dock_number: dock,
+    status: 'blocked',
+    orders: [],
+    blocked_reason: blockedData.reason // ✅ Pass the reason
+  });
+  setShowWarning(true);
+  setCheckingDock(false);
+  return;
+}
+
+    // Check for existing check-ins on this dock
+    const { data: existingOrders, error } = await supabase
+      .from('check_ins')
+      .select('reference_number, trailer_number')
+      .eq('dock_number', dock)
+      .in('status', ['checked_in', 'pending'])
+      .neq('id', checkIn.id);
+
+    if (error) throw error;
+
+    if (existingOrders && existingOrders.length > 0) {
+      setDockInfo({
+        dock_number: dock,
+        status: 'in-use',
+        orders: existingOrders
+      });
+      setShowWarning(true);
+    } else {
+      setDockInfo({
+        dock_number: dock,
+        status: 'available',
+        orders: []
+      });
+      setShowWarning(false);
+    }
+  } catch (err) {
+    console.error('Error checking dock status:', err);
+    setDockInfo(null);
+    setShowWarning(false);
+  } finally {
+    setCheckingDock(false);
+  }
+};
 
   const sendEmailNotification = async (dock: string, email: string) => {
     try {
