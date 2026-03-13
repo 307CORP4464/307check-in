@@ -245,7 +245,6 @@ interface CheckIn {
   destination_city?: string;
   destination_state?: string;
   notes?: string;
-  has_appointment?: boolean; // ← add this
 }
 
 
