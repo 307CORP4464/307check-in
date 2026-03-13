@@ -464,55 +464,60 @@ const fetchCheckInsForDate = async () => {
 
     // Step 3: Fetch appointments in BATCHES to avoid URL length limits
     if (allReferenceNumbers.length > 0) {
-      const BATCH_SIZE = 20; // Prevent URL from getting too long
-      
-      for (let i = 0; i < allReferenceNumbers.length; i += BATCH_SIZE) {
-        const batch = allReferenceNumbers.slice(i, i + BATCH_SIZE);
-        
-        const orFilter = batch
-          .flatMap(ref => [
-            `sales_order.eq.${ref}`,
-            `delivery.eq.${ref}`
-          ])
-          .join(',');
+  const BATCH_SIZE = 20;
 
-        console.log(`Fetching batch ${i / BATCH_SIZE + 1}, refs:`, batch);
+  for (let i = 0; i < allReferenceNumbers.length; i += BATCH_SIZE) {
+    const batch = allReferenceNumbers.slice(i, i + BATCH_SIZE);
 
-        const { data: appointmentsData, error: appointmentsError } = await supabase
-          .from('appointments')
-          .select('sales_order, delivery, appointment_time, appointment_date, customer')
-          .or(orFilter);
+    // ✅ Use ilike for partial matching since refs may be combined in one field
+    const orFilter = batch
+      .flatMap(ref => [
+        `sales_order.ilike.%${ref}%`,
+        `delivery.ilike.%${ref}%`
+      ])
+      .join(',');
 
-        if (appointmentsError) {
-          console.error('Error fetching appointments batch:', appointmentsError);
-          continue; // Don't stop — process remaining batches
-        }
+    console.log('Querying with filter:', orFilter);
 
-        console.log(`Appointments found in batch:`, appointmentsData);
+    const { data: appointmentsData, error: appointmentsError } = await supabase
+      .from('appointments')
+      .select('sales_order, delivery, appointment_time, appointment_date, customer')
+      .or(orFilter);
 
-        if (appointmentsData) {
-          appointmentsData.forEach(apt => {
-            const appointmentInfo = {
-              time: apt.appointment_time ?? null,
-              date: apt.appointment_date ?? null,
-              customer: apt.customer ?? null
-            };
+    console.log('Appointments returned:', appointmentsData);
 
-            console.log('Mapping appointment:', appointmentInfo, 
-              'sales_order:', apt.sales_order, 
-              'delivery:', apt.delivery
-            );
-
-            if (apt.sales_order) {
-              appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
-            }
-            if (apt.delivery) {
-              appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
-            }
-          });
-        }
-      }
+    if (appointmentsError) {
+      console.error('Appointments error:', appointmentsError);
+      continue;
     }
+
+    if (appointmentsData) {
+      appointmentsData.forEach(apt => {
+        const appointmentInfo = {
+          time: apt.appointment_time ?? null,
+          date: apt.appointment_date ?? null,
+          customer: apt.customer ?? null
+        };
+
+        // Parse and map all refs from sales_order
+        if (apt.sales_order) {
+          parseReferenceNumbers(apt.sales_order).forEach(ref => {
+            appointmentsMap.set(ref.trim(), appointmentInfo);
+          });
+          appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
+        }
+
+        // Parse and map all refs from delivery
+        if (apt.delivery) {
+          parseReferenceNumbers(apt.delivery).forEach(ref => {
+            appointmentsMap.set(ref.trim(), appointmentInfo);
+          });
+          appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
+        }
+      });
+    }
+  }
+}
 
     console.log('Final appointments map:', Object.fromEntries(appointmentsMap));
 
