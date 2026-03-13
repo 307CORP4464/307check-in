@@ -565,7 +565,7 @@ private getStatusChangeTemplate(
         <table width="100%" cellpadding="0" cellspacing="0">
           <tr>
             <td style="padding: 8px 0;">
-              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>1.</strong> Place 2 load bard or straps in your trailer.</p>
+              <p style="margin: 0; font-size: 15px; color: #333333;"><strong>1.</strong> Place 2 load bars or straps in your trailer.</p>
             </td>
           </tr>
           <tr>
