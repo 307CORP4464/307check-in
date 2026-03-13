@@ -274,76 +274,90 @@ export default function CSRDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  // ─── Shared fetch logic (accessible by handlers) ───
-  const fetchAllData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+ const fetchAllData = async () => {
+  try {
+    setLoading(true);
+    setError(null);
 
-      const today = getTodayInIndianapolis();
+    const today = getTodayInIndianapolis();
 
-      // Fetch pending check-ins
-      const { data: checkInsData, error: checkInsError } = await supabase
-        .from('check_ins')
-        .select('*')
-        .eq('status', 'pending')
-        .order('check_in_time', { ascending: true });
+    // Fetch pending check-ins
+    const { data: checkInsData, error: checkInsError } = await supabase
+      .from('check_ins')
+      .select('*')
+      .eq('status', 'pending')
+      .order('check_in_time', { ascending: true });
 
-      if (checkInsError) throw checkInsError;
+    if (checkInsError) throw checkInsError;
 
-      const referenceNumbers = checkInsData
-        ?.map((ci: any) => ci.reference_number)
-        .filter((ref: any) => ref && ref.trim() !== '') || [];
+    const referenceNumbers = checkInsData
+      ?.map((ci: any) => ci.reference_number)
+      .filter((ref: any) => ref && ref.trim() !== '') || [];
 
-      let appointmentsMap = new Map();
+    // appointmentsMap: key = reference number, value = { time, date }
+    const appointmentsMap = new Map<string, { time: string; date: string }>();
 
-      if (referenceNumbers.length > 0) {
-        const { data: appointmentsData, error: appointmentsError } = await supabase
-          .from('appointments')
-          .select('sales_order, delivery, appointment_time, appointment_date')
-          .eq('appointment_date', today)
-          .or(
-            `sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`
-          );
+    if (referenceNumbers.length > 0) {
+      const { data: appointmentsData, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select('sales_order, delivery, appointment_time, appointment_date')
+        .eq('appointment_date', today)
+        .or(
+          `sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`
+        );
 
-        if (appointmentsError) {
-          console.error('Error fetching appointments:', appointmentsError);
-        } else if (appointmentsData) {
-          appointmentsData.forEach((apt: any) => {
-            const appointmentInfo = {
-              time: apt.appointment_time,
-              date: apt.appointment_date,
-            };
-            if (apt.sales_order) appointmentsMap.set(apt.sales_order, appointmentInfo);
-            if (apt.delivery) appointmentsMap.set(apt.delivery, appointmentInfo);
-          });
-        }
+      if (appointmentsError) {
+        console.error('Error fetching appointments:', appointmentsError);
+      } else if (appointmentsData) {
+        appointmentsData.forEach((apt: any) => {
+          // ✅ Store BOTH time AND date
+          const appointmentInfo = {
+            time: apt.appointment_time ?? null,
+            date: apt.appointment_date ?? today, // fallback to today if null
+          };
+          if (apt.sales_order) appointmentsMap.set(String(apt.sales_order), appointmentInfo);
+          if (apt.delivery) appointmentsMap.set(String(apt.delivery), appointmentInfo);
+        });
+      }
+    }
+
+    // Merge appointment info into each check-in
+    const processedCheckIns = checkInsData?.map((ci: any) => {
+      const ref = ci.reference_number ? String(ci.reference_number) : null;
+      const aptInfo = ref ? appointmentsMap.get(ref) : null;
+
+      // Debug log to verify matching
+      if (ref) {
+        console.log(`CheckIn ref: ${ref} → aptInfo:`, aptInfo);
       }
 
-      // Also update the appointments state map for other uses
-      const fullAppointmentMap = new Map<string, Appointment>();
-      appointmentsMap.forEach((value: any, key: string) => {
-        fullAppointmentMap.set(key, value);
-      });
-      setAppointments(fullAppointmentMap);
+      return {
+        ...ci,
+        // ✅ Use appointment lookup date first, then fallback to check-in's stored date
+        appointment_time: aptInfo?.time ?? ci.appointment_time ?? null,
+        appointment_date: aptInfo?.date ?? ci.appointment_date ?? null,
+      };
+    }) || [];
 
-      const processedCheckIns = checkInsData?.map((ci: any) => {
-        const aptInfo = appointmentsMap.get(ci.reference_number);
-        return {
-          ...ci,
-          appointment_time: aptInfo?.time ?? ci.appointment_time ?? null,
-          appointment_date: aptInfo?.date ?? ci.appointment_date ?? null,
-        };
-      }) || [];
+    console.log('Processed check-ins sample:', processedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
 
-      setCheckIns(processedCheckIns);
-    } catch (err) {
-      console.error('Fetch error:', err);
-      setError('Failed to load check-ins');
-    } finally {
-      setLoading(false);
-    }
-  };
+    setCheckIns(processedCheckIns);
+
+    // Also update the appointments state map
+    const fullAppointmentMap = new Map<string, Appointment>();
+    appointmentsMap.forEach((value, key) => {
+      fullAppointmentMap.set(key, value as any);
+    });
+    setAppointments(fullAppointmentMap);
+
+  } catch (err) {
+    console.error('Fetch error:', err);
+    setError('Failed to load check-ins');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // ─── Initial load + real-time subscription ───
   useEffect(() => {
@@ -536,9 +550,8 @@ export default function CSRDashboard() {
       checkIn.appointment_date
     );
     return status.color === 'green' ? 'bg-green-100' :
-           status.color === 'orange' ? 'bg-orange-100' :
            status.color === 'yellow' ? 'bg-yellow-100' :
-           status.color === 'red' ? 'bg-red-100' : '';
+           status.color === 'red' ? 'bg-red-200' : '';
   })()
 }`}>
   <div>{formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}</div>
