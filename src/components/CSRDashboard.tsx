@@ -182,15 +182,20 @@ const getAppointmentStatus = (
   appointmentDate: string | null | undefined
 ): { color: 'green' | 'orange' | 'red' | 'yellow' | 'none'; message: string | null } => {
 
-  // Work-in → always yellow
-  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
+  // No appointment at all → red
+  if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
+    return { color: 'red', message: null };
+  }
+
+  // Work-in → yellow
+  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
     return { color: 'yellow', message: null };
   }
 
   // Normalize: "08:00" → "0800"
   const normalizedTime = appointmentTime.replace(/:/g, '').trim();
   if (!normalizedTime.match(/^\d{4}$/)) {
-    return { color: 'green', message: null };
+    return { color: 'red', message: null }; // Unrecognized format → red
   }
 
   try {
@@ -208,13 +213,16 @@ const getAppointmentStatus = (
     if (diffMinutes <= 0) {
       return { color: 'green', message: null };
     } else if (diffMinutes <= 15) {
-      return { color: 'yellow', message: `${diffMinutes} min late` };
+      return { color: 'orange', message: `${diffMinutes} min late` };
+    } else {
+      return { color: 'red', message: `${diffMinutes} min late` };
     }
   } catch (error) {
     console.error('Error in getAppointmentStatus:', error);
-    return { color: 'green', message: null };
+    return { color: 'red', message: null };
   }
 };
+
 
 // ─── Types ───
 interface CheckIn {
@@ -237,7 +245,9 @@ interface CheckIn {
   destination_city?: string;
   destination_state?: string;
   notes?: string;
+  has_appointment?: boolean; // ← add this
 }
+
 
 interface Appointment {
   id: string;
