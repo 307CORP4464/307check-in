@@ -171,8 +171,6 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
   }
 };
 
-
-
 const getDateComponentsInIndianapolis = (isoString: string): { year: number, month: number, day: number, hour: number, minute: number } => {
   const date = new Date(isoString);
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -253,6 +251,15 @@ const getAppointmentStatus = (
   }
 };
 
+const parseReferenceNumbers = (referenceNumber: string | undefined): string[] => {
+  if (!referenceNumber) return [];
+  
+  // Split by common delimiters: comma, semicolon, space, pipe
+  return referenceNumber
+    .split(/[,;\s|]+/)
+    .map(ref => ref.trim())
+    .filter(ref => ref.length > 0);
+};
 
 interface CheckIn {
   id: string;
