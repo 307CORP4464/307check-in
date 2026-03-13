@@ -447,80 +447,133 @@ const fetchCheckInsForDate = async () => {
 
     if (checkInsError) throw checkInsError;
 
-    // Step 2: Get ALL individual reference numbers (splitting multi-ref fields)
-    // e.g. "12345, 67890" becomes ["12345", "67890"]
+    // Step 2: Get ALL individual reference numbers
     const allReferenceNumbers = Array.from(new Set(
       (checkInsData || [])
         .flatMap(ci => parseReferenceNumbers(ci.reference_number))
         .filter(ref => ref.trim() !== '')
     ));
 
-    let appointmentsMap = new Map<string, { time: string, date: string, customer: string }>();
+    console.log('All parsed reference numbers:', allReferenceNumbers);
 
-    // Step 3: Fetch appointment data using all individual reference numbers
+    let appointmentsMap = new Map<string, { 
+      time: string | null, 
+      date: string | null, 
+      customer: string | null 
+    }>();
+
+    // Step 3: Fetch appointments in BATCHES to avoid URL length limits
     if (allReferenceNumbers.length > 0) {
-      const orFilter = allReferenceNumbers
-        .flatMap(ref => [
-          `sales_order.eq.${ref}`,
-          `delivery.eq.${ref}`
-        ])
-        .join(',');
+      const BATCH_SIZE = 20; // Prevent URL from getting too long
+      
+      for (let i = 0; i < allReferenceNumbers.length; i += BATCH_SIZE) {
+        const batch = allReferenceNumbers.slice(i, i + BATCH_SIZE);
+        
+        const orFilter = batch
+          .flatMap(ref => [
+            `sales_order.eq.${ref}`,
+            `delivery.eq.${ref}`
+          ])
+          .join(',');
 
-      const { data: appointmentsData, error: appointmentsError } = await supabase
-        .from('appointments')
-        .select('sales_order, delivery, appointment_time, appointment_date, customer')
-        .or(orFilter);
+        console.log(`Fetching batch ${i / BATCH_SIZE + 1}, refs:`, batch);
 
-      if (appointmentsError) {
-        console.error('Error fetching appointments:', appointmentsError);
-      } else if (appointmentsData) {
-        appointmentsData.forEach(apt => {
-          const appointmentInfo = {
-            time: apt.appointment_time,
-            date: apt.appointment_date,
-            customer: apt.customer
-          };
-          // Map by sales_order
-          if (apt.sales_order) {
-            appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
-          }
-          // Map by delivery
-          if (apt.delivery) {
-            appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
-          }
-        });
+        const { data: appointmentsData, error: appointmentsError } = await supabase
+          .from('appointments')
+          .select('sales_order, delivery, appointment_time, appointment_date, customer')
+          .or(orFilter);
+
+        if (appointmentsError) {
+          console.error('Error fetching appointments batch:', appointmentsError);
+          continue; // Don't stop — process remaining batches
+        }
+
+        console.log(`Appointments found in batch:`, appointmentsData);
+
+        if (appointmentsData) {
+          appointmentsData.forEach(apt => {
+            const appointmentInfo = {
+              time: apt.appointment_time ?? null,
+              date: apt.appointment_date ?? null,
+              customer: apt.customer ?? null
+            };
+
+            console.log('Mapping appointment:', appointmentInfo, 
+              'sales_order:', apt.sales_order, 
+              'delivery:', apt.delivery
+            );
+
+            if (apt.sales_order) {
+              appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
+            }
+            if (apt.delivery) {
+              appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
+            }
+          });
+        }
       }
     }
 
+    console.log('Final appointments map:', Object.fromEntries(appointmentsMap));
+
     // Step 4: Enrich check-ins with appointment data
-    // For multi-ref check-ins, try each ref number until one matches
     const enrichedCheckIns = (checkInsData || []).map(checkIn => {
       const refs = parseReferenceNumbers(checkIn.reference_number);
       
+      console.log(`Check-in ${checkIn.id} refs:`, refs);
+
       // Try to find a matching appointment for any of the reference numbers
       let appointmentInfo = null;
       for (const ref of refs) {
-        if (appointmentsMap.has(ref)) {
-          appointmentInfo = appointmentsMap.get(ref);
-          break; // Use the first match found
+        const trimmedRef = ref.trim();
+        if (appointmentsMap.has(trimmedRef)) {
+          appointmentInfo = appointmentsMap.get(trimmedRef);
+          console.log(`Match found for ref "${trimmedRef}":`, appointmentInfo);
+          break;
         }
       }
 
+      if (!appointmentInfo) {
+        console.log(`No appointment match for check-in ${checkIn.id}, refs:`, refs);
+      }
+
+      // ✅ FIX: Use explicit null checks instead of || 
+      // This prevents empty strings from causing fallthrough issues
+      const appointment_time = appointmentInfo !== null 
+        ? appointmentInfo.time 
+        : (checkIn.appointment_time ?? null);
+        
+      const appointment_date = appointmentInfo !== null 
+        ? appointmentInfo.date 
+        : (checkIn.appointment_date ?? null);
+        
+      const customer = appointmentInfo !== null 
+        ? appointmentInfo.customer 
+        : (checkIn.customer ?? null);
+
+      console.log(`Final appointment for check-in ${checkIn.id}:`, {
+        appointment_time,
+        appointment_date,
+        customer
+      });
+
       return {
         ...checkIn,
-        appointment_time: appointmentInfo?.time || checkIn.appointment_time || null,
-        appointment_date: appointmentInfo?.date || checkIn.appointment_date || null,
-        customer: appointmentInfo?.customer || checkIn.customer || null
+        appointment_time,
+        appointment_date,
+        customer
       };
     });
 
     setCheckIns(enrichedCheckIns);
   } catch (err) {
+    console.error('fetchCheckInsForDate error:', err);
     setError(err instanceof Error ? err.message : 'An error occurred');
   } finally {
     setLoading(false);
   }
 };
+
   
   useEffect(() => {
     const getUser = async () => {
