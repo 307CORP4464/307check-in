@@ -225,123 +225,6 @@ const getDayDifference = (checkInComponents: any, appointmentDate: Date): number
   return Math.round(diffTime / (1000 * 60 * 60 * 24));
 };
 
-const getAppointmentStatus = (
-  checkInTime: string, 
-  appointmentTime: string | null | undefined,
-  appointmentDate: string | null | undefined
-
-): { color: 'green' | 'orange' | 'red' | 'yellow' | 'none', message: string | null } => {
-
-  
-if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
-  // Check if checked in on the correct day for a work-in
-  if ((appointmentTime === 'work_in' || appointmentTime === 'Work In') && appointmentDate) {
-    try {
-      const checkInComponents = getDateComponentsInIndianapolis(checkInTime);
-      let aptYear: number, aptMonth: number, aptDay: number;
-
-      if (appointmentDate.includes('/')) {
-        [aptMonth, aptDay, aptYear] = appointmentDate.split('/').map(Number);
-      } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}/)) {
-        const datePart = appointmentDate.substring(0, 10);
-        [aptYear, aptMonth, aptDay] = datePart.split('-').map(Number);
-      } else {
-        return { color: 'red', message: null };
-      }
-
-      const checkInDateObj = new Date(checkInComponents.year, checkInComponents.month - 1, checkInComponents.day);
-      const aptDateObj = new Date(aptYear, aptMonth - 1, aptDay);
-      const diffTime = checkInDateObj.getTime() - aptDateObj.getTime();
-      const dayDiff = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-      if (dayDiff === 0) {
-        return { color: 'yellow', message: null };
-      }
-    } catch (error) {
-      console.error('Error checking work-in date:', error);
-    }
-  }
-  return { color: 'red', message: null };
-}
-
-  // Normalize: "08:00" → "0800", "0800" stays "0800"
-  const normalizedTime = appointmentTime.replace(/:/g, '').trim();
-
-  // Must be exactly 4 digits after normalization
-  if (!normalizedTime.match(/^\d{4}$/)) {
-    return { color: 'none', message: null };
-  }
-
-  if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
-    return { color: 'none', message: null };
-  }
-
-  try {
-    const checkInComponents = getDateComponentsInIndianapolis(checkInTime);
-
-    // Fix: hour12:false can return 24 for midnight
-    let checkInHour = checkInComponents.hour;
-    if (checkInHour === 24) checkInHour = 0;
-
-    // Parse appointment date
-    let aptYear: number, aptMonth: number, aptDay: number;
-
-    if (appointmentDate.includes('/')) {
-      [aptMonth, aptDay, aptYear] = appointmentDate.split('/').map(Number);
-    } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}/)) {
-      // Handles "2026-02-17" and "2026-02-17T00:00:00"
-      const datePart = appointmentDate.substring(0, 10);
-      [aptYear, aptMonth, aptDay] = datePart.split('-').map(Number);
-    } else {
-      return { color: 'none', message: null };
-    }
-
-    // Day comparison
-    const checkInDateObj = new Date(checkInComponents.year, checkInComponents.month - 1, checkInComponents.day);
-    const aptDateObj = new Date(aptYear, aptMonth - 1, aptDay);
-    const diffTime = checkInDateObj.getTime() - aptDateObj.getTime();
-    const dayDiff = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-    // Different day - early
-    if (dayDiff < 0) {
-      const daysEarly = Math.abs(dayDiff);
-      return { 
-        color: 'orange', 
-        message: `${daysEarly} day${daysEarly > 1 ? 's' : ''} early` 
-      };
-    }
-
-    // Different day - late
-    if (dayDiff > 0) {
-      return { 
-        color: 'orange', 
-        message: `${dayDiff} day${dayDiff > 1 ? 's' : ''} late` 
-      };
-    }
-
-    // ─── SAME DAY ───────────────────────────────────────────
-    const appointmentHour = parseInt(normalizedTime.substring(0, 2));
-    const appointmentMinute = parseInt(normalizedTime.substring(2, 4));
-
-    const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-    const checkInTotalMinutes = checkInHour * 60 + checkInComponents.minute;
-    const minuteDifference = checkInTotalMinutes - appointmentTotalMinutes;
-
-    // Early or within 10 min after appointment = GREEN
-    if (minuteDifference <= 10) {
-      return { color: 'green', message: null };
-    }
-
-    // More than 15 min late = RED
-    return { color: 'red', message: null };
-
-  } catch (error) {
-    console.error('Error in getAppointmentStatus:', error);
-    return { color: 'none', message: null };
-  }
-};
-
-
 interface CheckIn {
   id: string;
   check_in_time: string;
@@ -403,21 +286,25 @@ export default function CSRDashboard() {
   }, [supabase]);
 
   useEffect(() => {
-    fetchCheckIns();
-    fetchAppointments();
-    const channel = supabase
-      .channel('dashboard_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, () => {
-        fetchCheckIns();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
-        fetchAppointments();
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase]);
+  const fetchCheckIns = async () => {
+    const today = getTodayInIndianapolis();
+
+    const { data, error } = await supabase
+      .from('your_table_name')        // ← your actual table
+      .select('*')
+      .eq('appointment_date', today)  // ← your actual date column
+      .order('check_in_time', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching check-ins:', error);
+      return;
+    }
+    setCheckIns(data || []);
+  };
+
+  fetchCheckIns();
+}, []);
+
 
   const fetchAppointments = async () => {
     try {
@@ -434,6 +321,7 @@ export default function CSRDashboard() {
       data?.forEach(apt => {
         if (apt.sales_order) appointmentMap.set(apt.sales_order, apt);
         if (apt.delivery) appointmentMap.set(apt.delivery, apt);
+        
       });
       setAppointments(appointmentMap);
     } catch (err) {
