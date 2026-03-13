@@ -290,7 +290,7 @@ export default function CSRDashboard() {
     const today = getTodayInIndianapolis();
 
     const { data, error } = await supabase
-      .from('your_table_name')        // ← your actual table
+      .from('check_ins')        
       .select('*')
       .eq('appointment_date', today)  // ← your actual date column
       .order('check_in_time', { ascending: true });
