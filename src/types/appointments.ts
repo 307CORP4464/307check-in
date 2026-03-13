@@ -11,6 +11,7 @@ export type TimeSlot = typeof TIME_SLOTS[number];
 export type AppointmentSource = 'excel' | 'manual';
 
 export interface AppointmentInput {
+  id: string;
   appointment_date: string;
   appointment_time: string;
   customer?: string;
