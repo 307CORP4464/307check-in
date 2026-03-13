@@ -259,10 +259,10 @@ export default function CSRDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [assignDockModal, setAssignDockModal] = useState<{ isOpen: boolean; checkIn: CheckIn | null }>({ isOpen: false, checkIn: null });
-  const [editModal, setEditModal] = useState<{ isOpen: boolean; checkIn: CheckIn | null }>({ isOpen: false, checkIn: null });
-  const [denyModal, setDenyModal] = useState<{ isOpen: boolean; checkIn: CheckIn | null }>({ isOpen: false, checkIn: null });
-  const [manualCheckInModal, setManualCheckInModal] = useState(false);
+  const [assignDockModal, setSelectedAssignDock] = useState<{ isOpen: boolean; checkIn: CheckIn | null }>({ isOpen: false, checkIn: null });
+  const [editModal, setSelectedForEdit] = useState<{ isOpen: boolean; checkIn: CheckIn | null }>({ isOpen: false, checkIn: null });
+  const [denyModal, setSelectedForDeny] = useState<{ isOpen: boolean; checkIn: CheckIn | null }>({ isOpen: false, checkIn: null });
+  const [manualCheckInModal, setShowManualCheckIn] = useState(false);
 
   const router = useRouter();
   const supabase = createBrowserClient(
@@ -505,7 +505,7 @@ export default function CSRDashboard() {
 
       <div className="mb-4 flex justify-between items-center">
         <button
-          onClick={() => setManualCheckInModal(true)}
+          onClick={() => setShowManualCheckIn(true)}
           className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-2"
         >
           <svg
