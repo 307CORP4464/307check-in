@@ -13,7 +13,7 @@ export default function AppointmentUpload({ onUploadComplete }: AppointmentUploa
   const [file, setFile] = useState<File | null>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
+    const selectedFile = e.target.files?.<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
     if (!selectedFile) return;
 
     const validExtensions = ['.xls', '.xlsx', '.csv', '.txt'];
@@ -83,11 +83,12 @@ export default function AppointmentUpload({ onUploadComplete }: AppointmentUploa
   };
 
   const downloadTemplate = () => {
+    // ✅ UPDATED TEMPLATE with all new columns
     const csv = [
-      'Apt. Start Date,Start Time,Customer,Sales Order,Delivery', // ✅ UPDATED
-      '01/09/2026,08:00:00,ACME Corp,2616791,86630766',
-      '01/09/2026,09:00:00,TechCo,2624547,86634397',
-      '01/09/2026,10:30:00,BuildCo,2616755,86630763'
+      'Apt. Start Date,Start Time,Customer,Sales Order,Delivery,Carrier,Mode,Requested Ship Date,Ship-to City,Ship-to State',
+      '03/12/2026,08:00:00,,2627874,86662541,ZZZZ,PICKUP,03/11/2026,FRANKFORT,IN',
+      '03/12/2026,09:30:00,,2627835,86661057,KRAFT,TL,03/09/2026,DOVER,DE',
+      '03/12/2026,10:30:00,,2631001,86663285,MNDZL,TL,03/12/2026,MICHIGAN CITY,IN'
     ].join('\n');
     
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -108,11 +109,21 @@ export default function AppointmentUpload({ onUploadComplete }: AppointmentUploa
           📋 Required Excel Columns:
         </p>
         <ul className="text-sm text-blue-700 list-disc list-inside space-y-1">
-          <li><strong>Apt. Start Date</strong> - Format: MM/DD/YYYY (e.g., 01/09/2026)</li>
+          <li><strong>Apt. Start Date</strong> - Format: MM/DD/YYYY (e.g., 03/12/2026)</li>
           <li><strong>Start Time</strong> - Format: HH:MM:SS (e.g., 08:00:00)</li>
-          <li><strong>Customer</strong> - Customer name (required)</li> {/* ✅ ADDED */}
           <li><strong>Sales Order</strong> - Sales order number</li>
           <li><strong>Delivery</strong> - Delivery number</li>
+        </ul>
+        <p className="text-sm text-blue-800 mt-2 font-semibold">
+          📋 Optional Columns:
+        </p>
+        <ul className="text-sm text-blue-700 list-disc list-inside space-y-1">
+          <li><strong>Customer</strong> - Customer name</li>
+          <li><strong>Carrier</strong> - Carrier code (e.g., ZZZZ, KRAFT)</li>
+          <li><strong>Mode</strong> - Shipment mode (e.g., PICKUP, TL, DRAYAGE)</li>
+          <li><strong>Requested Ship Date</strong> - Format: MM/DD/YYYY</li>
+          <li><strong>Ship-to City</strong> - Destination city</li>
+          <li><strong>Ship-to State</strong> - Destination state</li>
         </ul>
         <button
           onClick={downloadTemplate}
@@ -166,20 +177,8 @@ export default function AppointmentUpload({ onUploadComplete }: AppointmentUploa
             {uploading ? (
               <>
                 <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle 
-                    className="opacity-25" 
-                    cx="12" 
-                    cy="12" 
-                    r="10" 
-                    stroke="currentColor" 
-                    strokeWidth="4" 
-                    fill="none" 
-                  />
-                  <path 
-                    className="opacity-75" 
-                    fill="currentColor" 
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" 
-                  />
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
                 Processing...
               </>
@@ -209,20 +208,8 @@ export default function AppointmentUpload({ onUploadComplete }: AppointmentUploa
         {uploading && (
           <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <svg className="animate-spin h-5 w-5 text-blue-600" viewBox="0 0 24 24">
-              <circle 
-                className="opacity-25" 
-                cx="12" 
-                cy="12" 
-                r="10" 
-                stroke="currentColor" 
-                strokeWidth="4" 
-                fill="none" 
-              />
-              <path 
-                className="opacity-75" 
-                fill="currentColor" 
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" 
-              />
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
             <span className="text-blue-700 font-medium">Processing appointments...</span>
           </div>
@@ -231,3 +218,4 @@ export default function AppointmentUpload({ onUploadComplete }: AppointmentUploa
     </div>
   );
 }
+
