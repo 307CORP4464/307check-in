@@ -208,9 +208,7 @@ const getAppointmentStatus = (
     if (diffMinutes <= 0) {
       return { color: 'green', message: null };
     } else if (diffMinutes <= 15) {
-      return { color: 'orange', message: `${diffMinutes} min late` };
-    } else {
-      return { color: 'red', message: `${diffMinutes} min late` };
+      return { color: 'yellow', message: `${diffMinutes} min late` };
     }
   } catch (error) {
     console.error('Error in getAppointmentStatus:', error);
