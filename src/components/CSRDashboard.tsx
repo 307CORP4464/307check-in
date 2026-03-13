@@ -11,9 +11,6 @@ import DenyCheckInModal from './DenyCheckInModal';
 import ManualCheckInModal from './ManualCheckInModal';
 
 
-
-
-
 const calculateWaitTime = (checkInTime: string): number => {
   const checkIn = new Date(checkInTime);
   const now = new Date();
@@ -286,25 +283,25 @@ export default function CSRDashboard() {
   }, [supabase]);
 
   useEffect(() => {
-  const fetchCheckIns = async () => {
-    const today = getTodayInIndianapolis();
+ const fetchCheckIns = async () => {
+  const today = getTodayInIndianapolis();
+  
+  console.log('Fetching check-ins for date:', today); // Debug log
 
-    const { data, error } = await supabase
-      .from('check_ins')        
-      .select('*')
-      .eq('appointment_date', today)  // ← your actual date column
-      .order('check_in_time', { ascending: true });
+  const { data, error } = await supabase
+    .from('checkins')              // ← REPLACE with your real table name
+    .select('*')
+    .eq('appointment_date', today) // ← REPLACE with your real date column name
+    .order('check_in_time', { ascending: true }); // ← REPLACE with your real time column
 
-    if (error) {
-      console.error('Error fetching check-ins:', error);
-      return;
-    }
-    setCheckIns(data || []);
-  };
+  if (error) {
+    console.error('Error fetching check-ins:', error);
+    return;
+  }
 
-  fetchCheckIns();
-}, []);
-
+  console.log('Fetched check-ins:', data?.length, 'records'); // Debug log
+  setCheckIns(data || []);
+};
 
   const fetchAppointments = async () => {
     try {
