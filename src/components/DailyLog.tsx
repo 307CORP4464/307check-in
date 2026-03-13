@@ -447,20 +447,29 @@ const fetchCheckInsForDate = async () => {
 
     if (checkInsError) throw checkInsError;
 
-    // Step 2: Get reference numbers to look up appointments
-    const referenceNumbers = checkInsData
-      ?.map(ci => ci.reference_number)
-      .filter(ref => ref && ref.trim() !== '') || [];
+    // Step 2: Get ALL individual reference numbers (splitting multi-ref fields)
+    // e.g. "12345, 67890" becomes ["12345", "67890"]
+    const allReferenceNumbers = Array.from(new Set(
+      (checkInsData || [])
+        .flatMap(ci => parseReferenceNumbers(ci.reference_number))
+        .filter(ref => ref.trim() !== '')
+    ));
 
-    let appointmentsMap = new Map();
+    let appointmentsMap = new Map<string, { time: string, date: string, customer: string }>();
 
-    // Step 3: Fetch appointment data from appointments table
-    if (referenceNumbers.length > 0) {
+    // Step 3: Fetch appointment data using all individual reference numbers
+    if (allReferenceNumbers.length > 0) {
+      const orFilter = allReferenceNumbers
+        .flatMap(ref => [
+          `sales_order.eq.${ref}`,
+          `delivery.eq.${ref}`
+        ])
+        .join(',');
+
       const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('appointments')
-        // ✅ Added 'customer' to the select
         .select('sales_order, delivery, appointment_time, appointment_date, customer')
-        .or(`sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`);
+        .or(orFilter);
 
       if (appointmentsError) {
         console.error('Error fetching appointments:', appointmentsError);
@@ -469,36 +478,49 @@ const fetchCheckInsForDate = async () => {
           const appointmentInfo = {
             time: apt.appointment_time,
             date: apt.appointment_date,
-            customer: apt.customer  // ✅ Added customer to the map
+            customer: apt.customer
           };
+          // Map by sales_order
           if (apt.sales_order) {
-            appointmentsMap.set(apt.sales_order, appointmentInfo);
+            appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
           }
+          // Map by delivery
           if (apt.delivery) {
-            appointmentsMap.set(apt.delivery, appointmentInfo);
+            appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
           }
         });
       }
     }
 
     // Step 4: Enrich check-ins with appointment data
-    const enrichedCheckIns = checkInsData?.map(checkIn => {
-      const appointmentInfo = appointmentsMap.get(checkIn.reference_number);
+    // For multi-ref check-ins, try each ref number until one matches
+    const enrichedCheckIns = (checkInsData || []).map(checkIn => {
+      const refs = parseReferenceNumbers(checkIn.reference_number);
+      
+      // Try to find a matching appointment for any of the reference numbers
+      let appointmentInfo = null;
+      for (const ref of refs) {
+        if (appointmentsMap.has(ref)) {
+          appointmentInfo = appointmentsMap.get(ref);
+          break; // Use the first match found
+        }
+      }
+
       return {
         ...checkIn,
         appointment_time: appointmentInfo?.time || checkIn.appointment_time || null,
         appointment_date: appointmentInfo?.date || checkIn.appointment_date || null,
-        // ✅ Pull customer from appointment, fall back to check_in's own customer field
         customer: appointmentInfo?.customer || checkIn.customer || null
       };
-    }) || [];
+    });
 
     // DEBUG - Log the first record to see enriched data
     if (enrichedCheckIns.length > 0) {
-      console.log('📊 First enriched check-in record:', enrichedCheckIns[0]);
-      console.log('📅 appointment_date field:', enrichedCheckIns[0].appointment_date);
-      console.log('⏰ appointment_time field:', enrichedCheckIns[0].appointment_time);
-      console.log('👤 customer field:', enrichedCheckIns[0].customer); // ✅ New debug line
+      console.log('📊 First enriched check-in record:', enrichedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
+      console.log('📅 appointment_date field:', enrichedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_date);
+      console.log('⏰ appointment_time field:', enrichedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.appointment_time);
+      console.log('👤 customer field:', enrichedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.customer);
+      console.log('🔢 reference_number field:', enrichedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.reference_number);
     }
     
     setCheckIns(enrichedCheckIns);
@@ -508,7 +530,7 @@ const fetchCheckInsForDate = async () => {
     setLoading(false);
   }
 };
-
+  
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
