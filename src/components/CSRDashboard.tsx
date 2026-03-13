@@ -192,6 +192,10 @@ const getAppointmentStatus = (
     return { color: 'yellow', message: null };
   }
 
+  // LTL → yellow
+  if (appointmentTime === 'LTL' || appointmentTime === 'LTL') {
+    return { color: 'yellow', message: null };
+  }
   // Normalize: "08:00" → "0800"
   const normalizedTime = appointmentTime.replace(/:/g, '').trim();
   if (!normalizedTime.match(/^\d{4}$/)) {
