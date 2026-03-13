@@ -210,18 +210,21 @@ const getAppointmentStatus = (
     const aptTotalMinutes = aptHour * 60 + aptMinute;
     const diffMinutes = checkInTotalMinutes - aptTotalMinutes;
 
+    // Checked in before or at appointment time → green
     if (diffMinutes <= 0) {
       return { color: 'green', message: null };
-    } else if (diffMinutes <= 15) {
-      return { color: 'yellow', message: `${diffMinutes} min late` };
-    } else {
-      return { color: 'red', message: `${diffMinutes} min late` };
     }
+    // Checked in after appointment time → yellow
+    else {
+      return { color: 'yellow', message: null };
+    }
+
   } catch (error) {
     console.error('Error in getAppointmentStatus:', error);
     return { color: 'red', message: null };
   }
 };
+
 
 
 // ─── Types ───
