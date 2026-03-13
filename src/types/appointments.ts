@@ -22,6 +22,7 @@ export interface AppointmentInput {
   ship_to_city?: string;
   ship_to_state?: string;
   source?: string;
+  notes?: string;
 }
 
 export interface Appointment {
@@ -39,4 +40,5 @@ export interface Appointment {
   source?: string;
   created_at?: string;
   updated_at?: string;
+  notes?: string;
 }
