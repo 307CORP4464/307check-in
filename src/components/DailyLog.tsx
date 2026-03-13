@@ -196,121 +196,63 @@ const getDateComponentsInIndianapolis = (isoString: string): { year: number, mon
 };
 
 const getAppointmentStatus = (
-  checkInTime: string, 
+  checkInTime: string,
   appointmentTime: string | null | undefined,
   appointmentDate: string | null | undefined
+): { color: 'green' | 'orange' | 'red' | 'yellow' | 'none'; message: string | null } => {
 
-): { color: 'green' | 'orange' | 'red' | 'yellow' | 'none', message: string | null } => {
-  
-
-if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
-  // Check if checked in on the correct day for a work-in
-  if ((appointmentTime === 'work_in' || appointmentTime === 'Work In') && appointmentDate) {
-    try {
-      const checkInComponents = getDateComponentsInIndianapolis(checkInTime);
-      let aptYear: number, aptMonth: number, aptDay: number;
-
-      if (appointmentDate.includes('/')) {
-        [aptMonth, aptDay, aptYear] = appointmentDate.split('/').map(Number);
-      } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}/)) {
-        const datePart = appointmentDate.substring(0, 10);
-        [aptYear, aptMonth, aptDay] = datePart.split('-').map(Number);
-      } else {
-        return { color: 'red', message: null };
-      }
-
-      const checkInDateObj = new Date(checkInComponents.year, checkInComponents.month - 1, checkInComponents.day);
-      const aptDateObj = new Date(aptYear, aptMonth - 1, aptDay);
-      const diffTime = checkInDateObj.getTime() - aptDateObj.getTime();
-      const dayDiff = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-      if (dayDiff === 0) {
-        return { color: 'yellow', message: null };
-      }
-    } catch (error) {
-      console.error('Error checking work-in date:', error);
-    }
+  // No appointment at all → red
+  if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
+    return { color: 'red', message: null };
   }
-  return { color: 'red', message: null };
-}
 
+  // LTL, Charge, or Paid → orange
+  if (
+    appointmentTime === 'LTL' ||
+    appointmentTime === 'Charge' ||
+    appointmentTime === 'Paid'
+  ) {
+    return { color: 'orange', message: null };
+  }
 
-  // Normalize: "08:00" → "0800", "0800" stays "0800"
+  // Work-in → yellow
+  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
+    return { color: 'yellow', message: null };
+  }
+
+  // Normalize: "08:00" → "0800"
   const normalizedTime = appointmentTime.replace(/:/g, '').trim();
-
-  // Must be exactly 4 digits after normalization
   if (!normalizedTime.match(/^\d{4}$/)) {
-    return { color: 'none', message: null };
-  }
-
-  if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
-    return { color: 'none', message: null };
+    return { color: 'red', message: null }; // Unrecognized format → red
   }
 
   try {
     const checkInComponents = getDateComponentsInIndianapolis(checkInTime);
-
-    // Fix: hour12:false can return 24 for midnight
     let checkInHour = checkInComponents.hour;
     if (checkInHour === 24) checkInHour = 0;
 
-    // Parse appointment date
-    let aptYear: number, aptMonth: number, aptDay: number;
+    const aptHour = parseInt(normalizedTime.substring(0, 2));
+    const aptMinute = parseInt(normalizedTime.substring(2, 4));
 
-    if (appointmentDate.includes('/')) {
-      [aptMonth, aptDay, aptYear] = appointmentDate.split('/').map(Number);
-    } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}/)) {
-      // Handles "2026-02-17" and "2026-02-17T00:00:00"
-      const datePart = appointmentDate.substring(0, 10);
-      [aptYear, aptMonth, aptDay] = datePart.split('-').map(Number);
-    } else {
-      return { color: 'none', message: null };
-    }
-
-    // Day comparison
-    const checkInDateObj = new Date(checkInComponents.year, checkInComponents.month - 1, checkInComponents.day);
-    const aptDateObj = new Date(aptYear, aptMonth - 1, aptDay);
-    const diffTime = checkInDateObj.getTime() - aptDateObj.getTime();
-    const dayDiff = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-    // Different day - early
-    if (dayDiff < 0) {
-      const daysEarly = Math.abs(dayDiff);
-      return { 
-        color: 'orange', 
-        message: `${daysEarly} day${daysEarly > 1 ? 's' : ''} early` 
-      };
-    }
-
-    // Different day - late
-    if (dayDiff > 0) {
-      return { 
-        color: 'orange', 
-        message: `${dayDiff} day${dayDiff > 1 ? 's' : ''} late` 
-      };
-    }
-
-    // ─── SAME DAY ───────────────────────────────────────────
-    const appointmentHour = parseInt(normalizedTime.substring(0, 2));
-    const appointmentMinute = parseInt(normalizedTime.substring(2, 4));
-
-    const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
     const checkInTotalMinutes = checkInHour * 60 + checkInComponents.minute;
-    const minuteDifference = checkInTotalMinutes - appointmentTotalMinutes;
+    const aptTotalMinutes = aptHour * 60 + aptMinute;
+    const diffMinutes = checkInTotalMinutes - aptTotalMinutes;
 
-    // Early or within 10 min after appointment = GREEN
-    if (minuteDifference <= 10) {
+    // Checked in before or at appointment time → green
+    if (diffMinutes <= 0) {
       return { color: 'green', message: null };
     }
-
-    // More than 15 min late = RED
-    return { color: 'red', message: null };
+    // Checked in after appointment time → yellow
+    else {
+      return { color: 'yellow', message: null };
+    }
 
   } catch (error) {
     console.error('Error in getAppointmentStatus:', error);
-    return { color: 'none', message: null };
+    return { color: 'red', message: null };
   }
 };
+
 
 interface CheckIn {
   id: string;
@@ -333,6 +275,17 @@ interface CheckIn {
   destination_city?: string;
   destination_state?: string;
   customer?: string;
+}
+
+interface Appointment {
+  id: string;
+  sales_order?: string;
+  delivery?: string;
+  appointment_time?: string;
+  appointment_date?: string;
+  carrier_name?: string;
+  load_type?: string;
+  status?: string;
 }
 
 const calculateDetention = (
@@ -446,6 +399,8 @@ export default function DailyLog() {
   const [userEmail, setUserEmail] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showInProgressOnly, setShowInProgressOnly] = useState(false);
+  const [appointments, setAppointments] = useState<Map<string, Appointment>>(new Map());
+
 
   
   const getCurrentDateInIndianapolis = () => {
