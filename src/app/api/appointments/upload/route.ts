@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const sheetName = workbook.SheetNames<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+    const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
 
     if (!worksheet) {
@@ -78,15 +78,15 @@ export async function POST(request: NextRequest) {
         console.log('First 5 raw rows:', JSON.stringify(allRows.slice(0, 5)));
       }
 
-      if (allRows.length > 0 && allRows<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>.length === 1) {
+      if (allRows.length > 0 && allRows[0].length === 1) {
         console.log('Single column detected - attempting to re-parse as delimited text');
 
         const singleColText = allRows
-          .map((row) => String(row<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a> || '').trim())
+          .map((row) => String(row[0] || '').trim())
           .filter((line) => line.length > 0);
 
         if (singleColText.length > 0) {
-          const firstLine = singleColText<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+          const firstLine = singleColText[0];
           let delimiter = '\t';
           if (firstLine.includes('|')) delimiter = '|';
           else if (firstLine.includes(',') && !firstLine.includes('\t')) delimiter = ',';
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
             cellNF: false,
             cellText: true,
           });
-          const ws2 = wb2.Sheets[wb2.SheetNames<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>];
+          const ws2 = wb2.Sheets[wb2.SheetNames[0]];
           if (ws2) {
             rawData = XLSX.utils.sheet_to_json(ws2, { raw: false, defval: '' }) as any[];
             console.log('Retry with raw:true succeeded, row count:', rawData.length);
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
     }
 
     // STEP 3: Map columns flexibly — NOW INCLUDING NEW COLUMNS
-    const firstRow = rawData<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+    const firstRow = rawData[0];
     const allKeys = Object.keys(firstRow);
     console.log('Detected columns:', allKeys);
 
@@ -343,7 +343,7 @@ export async function POST(request: NextRequest) {
         } else {
           const timeMatch = timeStr.match(/^(\d{1,2}):(\d{2})(:\d{2})?/);
           if (timeMatch) {
-            formattedTime = `${timeMatch<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>.padStart(2, '0')}:${timeMatch<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[2]</a>}`;
+            formattedTime = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`;
           } else {
             const timeNum = parseFloat(timeStr);
             if (!isNaN(timeNum)) {
