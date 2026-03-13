@@ -3,12 +3,9 @@
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
-import { differenceInMinutes } from 'date-fns';
 import Link from 'next/link';
-import AssignDockModal from './AssignDockModal';
+import StatusChangeModal from './StatusChangeModal';
 import EditCheckInModal from './EditCheckInModal';
-import DenyCheckInModal from './DenyCheckInModal';
-import ManualCheckInModal from './ManualCheckInModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
@@ -31,31 +28,23 @@ const getTodayInIndianapolis = (): string => {
 const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
   try {
     if (!isoString || isoString === '' || isoString === 'null' || isoString === 'undefined') {
-      console.error('Empty or invalid date string:', isoString);
       return 'No Check-in Time';
     }
     const date = new Date(isoString);
-    if (isNaN(date.getTime()) || date.getTime() < 0) {
-      console.error('Invalid date:', isoString);
-      return 'Invalid Date';
-    }
-    if (date.getFullYear() < 2000) {
-      console.error('Date too old, likely invalid:', isoString, date);
-      return 'Invalid Date';
-    }
+    if (isNaN(date.getTime()) || date.getTime() < 0) return 'Invalid Date';
+    if (date.getFullYear() < 2000) return 'Invalid Date';
     const options: Intl.DateTimeFormatOptions = {
       timeZone: TIMEZONE,
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false
+      hour12: false,
     };
     if (includeDate) {
       options.year = 'numeric';
       options.month = '2-digit';
       options.day = '2-digit';
     }
-    const formatter = new Intl.DateTimeFormat('en-US', options);
-    return formatter.format(date);
+    return new Intl.DateTimeFormat('en-US', options).format(date);
   } catch (e) {
     console.error('Time formatting error:', e, isoString);
     return 'Error';
@@ -69,13 +58,6 @@ const formatPhoneNumber = (phone: string | undefined): string => {
     return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
   }
   return phone;
-};
-
-const calculateWaitTime = (checkInTime: string): number => {
-  const checkIn = new Date(checkInTime);
-  const now = new Date();
-  const diffMs = now.getTime() - checkIn.getTime();
-  return diffMs / (1000 * 60);
 };
 
 const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
@@ -258,9 +240,8 @@ interface CheckIn {
   notes?: string;
 }
 
-
 interface Appointment {
-  id: string;
+  id?: string;
   sales_order?: string;
   delivery?: string;
   appointment_time?: string;
@@ -270,17 +251,13 @@ interface Appointment {
   status?: string;
 }
 
-export default function CSRDashboard() {
+// ─── Component ───
+export default function DailyLog() {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
-  const [appointments, setAppointments] = useState<Map<string, Appointment>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [userEmail, setUserEmail] = useState<string>('');
-  const [selectedForDock, setSelectedForDock] = useState<CheckIn | null>(null);
+  const [selectedForStatus, setSelectedForStatus] = useState<CheckIn | null>(null);
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
-  const [selectedForDeny, setSelectedForDeny] = useState<CheckIn | null>(null);
-  const [showManualCheckIn, setShowManualCheckIn] = useState(false);
 
   const router = useRouter();
   const supabase = createBrowserClient(
@@ -288,68 +265,111 @@ export default function CSRDashboard() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // Update current time every minute
+  // ─── Shared fetch function ───
+  const fetchAllData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const today = getTodayInIndianapolis();
+
+      const { data: checkInsData, error: checkInsError } = await supabase
+        .from('check_ins')
+        .select('*')
+        .order('check_in_time', { ascending: false }); // newest first for daily log
+
+      if (checkInsError) throw checkInsError;
+
+      const referenceNumbers = checkInsData
+        ?.map((ci: any) => ci.reference_number)
+        .filter((ref: any) => ref && ref.trim() !== '') || [];
+
+      const appointmentsMap = new Map<string, { time: string; date: string }>();
+
+      if (referenceNumbers.length > 0) {
+        const { data: appointmentsData, error: appointmentsError } = await supabase
+          .from('appointments')
+          .select('sales_order, delivery, appointment_time, appointment_date')
+          .eq('appointment_date', today)
+          .or(
+            `sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`
+          );
+
+        if (appointmentsError) {
+          console.error('Error fetching appointments:', appointmentsError);
+        } else if (appointmentsData) {
+          appointmentsData.forEach((apt: any) => {
+            const appointmentInfo = {
+              time: apt.appointment_time ?? null,
+              date: apt.appointment_date ?? today,
+            };
+            if (apt.sales_order) appointmentsMap.set(String(apt.sales_order), appointmentInfo);
+            if (apt.delivery) appointmentsMap.set(String(apt.delivery), appointmentInfo);
+          });
+        }
+      }
+
+      const processedCheckIns = checkInsData?.map((ci: any) => {
+        const ref = ci.reference_number ? String(ci.reference_number) : null;
+        const aptInfo = ref ? appointmentsMap.get(ref) : null;
+        const hasAppointment = aptInfo != null;
+
+        return {
+          ...ci,
+          appointment_time: hasAppointment
+            ? (aptInfo?.time ?? ci.appointment_time ?? null)
+            : null,
+          appointment_date: hasAppointment
+            ? (aptInfo?.date ?? ci.appointment_date ?? null)
+            : null,
+          has_appointment: hasAppointment,
+        };
+      }) || [];
+
+      setCheckIns(processedCheckIns);
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError('Failed to load check-ins');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── Initial load + real-time subscription ───
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    return () => clearInterval(timer);
+    fetchAllData();
+
+    const subscription = supabase
+      .channel('daily_log_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'check_ins' },
+        () => {
+          fetchAllData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
   }, []);
 
- const fetchAllData = async () => {
-  try {
-    setLoading(true);
-    setError(null);
+  // ─── Handlers ───
+  const handleStatusChangeSuccess = () => {
+    setSelectedForStatus(null);
+    fetchAllData();
+  };
 
-    const today = getTodayInIndianapolis();
+  const handleEditSuccess = () => {
+    setSelectedForEdit(null);
+    fetchAllData();
+  };
 
-    // Fetch pending check-ins
-    const { data: checkInsData, error: checkInsError } = await supabase
-      .from('check_ins')
-      .select('*')
-      .eq('status', 'pending')
-      .order('check_in_time', { ascending: true });
+  const handleRefresh = () => {
+    fetchAllData();
+  };
 
-    if (checkInsError) throw checkInsError;
-
-    const referenceNumbers = checkInsData
-      ?.map((ci: any) => ci.reference_number)
-      .filter((ref: any) => ref && ref.trim() !== '') || [];
-
-    // appointmentsMap: key = reference number, value = { time, date }
-    const appointmentsMap = new Map<string, { time: string; date: string }>();
-
-    if (referenceNumbers.length > 0) {
-      const { data: appointmentsData, error: appointmentsError } = await supabase
-        .from('appointments')
-        .select('sales_order, delivery, appointment_time, appointment_date')
-        .eq('appointment_date', today)
-        .or(
-          `sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`
-        );
-
-      if (appointmentsError) {
-        console.error('Error fetching appointments:', appointmentsError);
-      } else if (appointmentsData) {
-        appointmentsData.forEach((apt: any) => {
-          // ✅ Store BOTH time AND date
-          const appointmentInfo = {
-            time: apt.appointment_time ?? null,
-            date: apt.appointment_date ?? today, // fallback to today if null
-          };
-          if (apt.sales_order) appointmentsMap.set(String(apt.sales_order), appointmentInfo);
-          if (apt.delivery) appointmentsMap.set(String(apt.delivery), appointmentInfo);
-        });
-      }
-    }
-
-    // Merge appointment info into each check-in
-    const processedCheckIns = checkInsData?.map((ci: any) => {
-      const ref = ci.reference_number ? String(ci.reference_number) : null;
-      const aptInfo = ref ? appointmentsMap.get(ref) : null;
-
-      // Debug log to verify matching
-      if (ref) {
-        console.log(`CheckIn ref: ${ref} → aptInfo:`, aptInfo);
-      }
 
       return {
         ...ci,
