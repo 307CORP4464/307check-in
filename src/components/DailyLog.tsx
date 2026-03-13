@@ -516,54 +516,53 @@ const fetchCheckInsForDate = async () => {
 
     console.log('Final appointments map:', Object.fromEntries(appointmentsMap));
 
-    // Step 4: Enrich check-ins with appointment data
-    const enrichedCheckIns = (checkInsData || []).map(checkIn => {
-      const refs = parseReferenceNumbers(checkIn.reference_number);
-      
-      console.log(`Check-in ${checkIn.id} refs:`, refs);
+   // Step 4: Enrich check-ins with appointment data
+const enrichedCheckIns = (checkInsData || []).map(checkIn => {
+  const refs = parseReferenceNumbers(checkIn.reference_number);
 
-      // Try to find a matching appointment for any of the reference numbers
-      let appointmentInfo = null;
-      for (const ref of refs) {
-        const trimmedRef = ref.trim();
-        if (appointmentsMap.has(trimmedRef)) {
-          appointmentInfo = appointmentsMap.get(trimmedRef);
-          console.log(`Match found for ref "${trimmedRef}":`, appointmentInfo);
-          break;
-        }
-      }
+  // Try to find a matching appointment for any of the reference numbers
+  let appointmentInfo: { time: string | null, date: string | null, customer: string | null } | undefined = undefined;
+  
+  for (const ref of refs) {
+    const trimmedRef = ref.trim();
+    if (appointmentsMap.has(trimmedRef)) {
+      appointmentInfo = appointmentsMap.get(trimmedRef);
+      console.log(`Match found for ref "${trimmedRef}":`, appointmentInfo);
+      break;
+    }
+  }
 
-      if (!appointmentInfo) {
-        console.log(`No appointment match for check-in ${checkIn.id}, refs:`, refs);
-      }
+  if (!appointmentInfo) {
+    console.log(`No appointment match for check-in ${checkIn.id}, refs:`, refs);
+  }
 
-      // ✅ FIX: Use explicit null checks instead of || 
-      // This prevents empty strings from causing fallthrough issues
-      const appointment_time = appointmentInfo !== null 
-        ? appointmentInfo.time 
-        : (checkIn.appointment_time ?? null);
-        
-      const appointment_date = appointmentInfo !== null 
-        ? appointmentInfo.date 
-        : (checkIn.appointment_date ?? null);
-        
-      const customer = appointmentInfo !== null 
-        ? appointmentInfo.customer 
-        : (checkIn.customer ?? null);
+  // ✅ FIX: Check for undefined AND null (Map.get() returns T | undefined)
+  const appointment_time = appointmentInfo !== undefined && appointmentInfo !== null
+    ? appointmentInfo.time
+    : (checkIn.appointment_time ?? null);
 
-      console.log(`Final appointment for check-in ${checkIn.id}:`, {
-        appointment_time,
-        appointment_date,
-        customer
-      });
+  const appointment_date = appointmentInfo !== undefined && appointmentInfo !== null
+    ? appointmentInfo.date
+    : (checkIn.appointment_date ?? null);
 
-      return {
-        ...checkIn,
-        appointment_time,
-        appointment_date,
-        customer
-      };
-    });
+  const customer = appointmentInfo !== undefined && appointmentInfo !== null
+    ? appointmentInfo.customer
+    : (checkIn.customer ?? null);
+
+  console.log(`Final appointment for check-in ${checkIn.id}:`, {
+    appointment_time,
+    appointment_date,
+    customer
+  });
+
+  return {
+    ...checkIn,
+    appointment_time,
+    appointment_date,
+    customer
+  };
+});
+
 
     setCheckIns(enrichedCheckIns);
   } catch (err) {
