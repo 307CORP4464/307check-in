@@ -187,15 +187,20 @@ const getAppointmentStatus = (
     return { color: 'red', message: null };
   }
 
+  // LTL, Charge, or Paid → orange
+  if (
+    appointmentTime === 'LTL' ||
+    appointmentTime === 'Charge' ||
+    appointmentTime === 'Paid'
+  ) {
+    return { color: 'orange', message: null };
+  }
+
   // Work-in → yellow
   if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
     return { color: 'yellow', message: null };
   }
 
-  // LTL → yellow
-  if (appointmentTime === 'LTL' || appointmentTime === 'LTL') {
-    return { color: 'yellow', message: null };
-  }
   // Normalize: "08:00" → "0800"
   const normalizedTime = appointmentTime.replace(/:/g, '').trim();
   if (!normalizedTime.match(/^\d{4}$/)) {
@@ -228,7 +233,6 @@ const getAppointmentStatus = (
     return { color: 'red', message: null };
   }
 };
-
 
 
 // ─── Types ───
