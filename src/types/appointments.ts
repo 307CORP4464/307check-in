@@ -13,24 +13,30 @@ export type AppointmentSource = 'excel' | 'manual';
 export interface AppointmentInput {
   appointment_date: string;
   appointment_time: string;
-  sales_order: string;
+  customer?: string;
+  sales_order?: string;
   delivery?: string;
-  customer: string | null;
-  notes?: string;
-  source?: AppointmentSource;  
-  reference_numbers?: string | null;
+  carrier?: string;
+  mode?: string;
+  requested_ship_date?: string;
+  ship_to_city?: string;
+  ship_to_state?: string;
+  source?: string;
 }
 
 export interface Appointment {
-  id: number;
-  reference_numbers?: string | null;
+  id: string;
   appointment_date: string;
   appointment_time: string;
-  sales_order?: string | null;
-  delivery?: string | null;
-  customer: string | null;
-  notes?: string | null;
-  source: 'excel' | 'manual';
-  created_at: string; 
+  customer?: string;
+  sales_order?: string;
+  delivery?: string;
+  carrier?: string;
+  mode?: string;
+  requested_ship_date?: string;
+  ship_to_city?: string;
+  ship_to_state?: string;
+  source?: string;
+  created_at?: string;
   updated_at?: string;
 }
