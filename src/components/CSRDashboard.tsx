@@ -259,10 +259,12 @@ export default function CSRDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [assignDockModal, setSelectedAssignDock] = useState<{ isOpen: boolean; checkIn: CheckIn | null }>({ isOpen: false, checkIn: null });
-  const [editModal, setSelectedForEdit] = useState<{ isOpen: boolean; checkIn: CheckIn | null }>({ isOpen: false, checkIn: null });
-  const [denyModal, setSelectedForDeny] = useState<{ isOpen: boolean; checkIn: CheckIn | null }>({ isOpen: false, checkIn: null });
-  const [manualCheckInModal, setShowManualCheckIn] = useState(false);
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [selectedForDock, setSelectedForDock] = useState<CheckIn | null>(null);
+  const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
+  const [selectedForDeny, setSelectedForDeny] = useState<CheckIn | null>(null);
+  const [showManualCheckIn, setShowManualCheckIn] = useState(false);
+
 
   const router = useRouter();
   const supabase = createBrowserClient(
