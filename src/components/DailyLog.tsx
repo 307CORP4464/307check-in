@@ -207,8 +207,8 @@ const getAppointmentStatus = (
   // LTL, Charge, or Paid → orange
   if (
     appointmentTime === 'LTL' ||
-    appointmentTime === 'Charge' ||
-    appointmentTime === 'Paid'
+    appointmentTime === 'Charge Customer no appointment' ||
+    appointmentTime === 'Paid no appointment'
   ) {
     return { color: 'orange', message: null };
   }
