@@ -383,22 +383,24 @@ export default function CSRDashboard() {
   }, []);
 
   // ─── Handlers ───
-  const handleAssignDock = (checkIn: CheckIn) => {
-    setAssignDockModal({ isOpen: true, checkIn });
+  const handleDockAssignSuccess = () => {
+    setSelectedForDock(null);
+    fetchCheckIns();
   };
 
-  const handleEdit = (checkIn: CheckIn) => {
-    setEditModal({ isOpen: true, checkIn });
+  const handleEditSuccess = () => {
+    setSelectedForEdit(null);
+    fetchCheckIns();
   };
 
-  const handleDeny = (checkIn: CheckIn) => {
-    setDenyModal({ isOpen: true, checkIn });
+  const handleDenySuccess = () => {
+    setSelectedForDeny(null);
+    fetchCheckIns();
   };
 
-  const handleModalClose = () => {
-    setAssignDockModal({ isOpen: false, checkIn: null });
-    setEditModal({ isOpen: false, checkIn: null });
-    setDenyModal({ isOpen: false, checkIn: null });
+  const handleManualCheckInSuccess = () => {
+    setShowManualCheckIn(false);
+    fetchCheckIns();
   };
 
   const handleRefresh = async () => {
