@@ -10,50 +10,9 @@ import EditCheckInModal from './EditCheckInModal';
 import DenyCheckInModal from './DenyCheckInModal';
 import ManualCheckInModal from './ManualCheckInModal';
 
-const TIMEZONE = 'America/Indiana/Indianapolis';
 
-const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
-  try {
-    if (!isoString || isoString === '' || isoString === 'null' || isoString === 'undefined') {
-      console.error('Empty or invalid date string:', isoString);
-      return 'No Check-in Time';
-    }
-    const date = new Date(isoString);
-    if (isNaN(date.getTime()) || date.getTime() < 0) {
-      console.error('Invalid date:', isoString);
-      return 'Invalid Date';
-    }
-    if (date.getFullYear() < 2000) {
-      console.error('Date too old, likely invalid:', isoString, date);
-      return 'Invalid Date';
-    }
-    const options: Intl.DateTimeFormatOptions = {
-      timeZone: TIMEZONE,
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    };
-    if (includeDate) {
-      options.year = 'numeric';
-      options.month = '2-digit';
-      options.day = '2-digit';
-    }
-    const formatter = new Intl.DateTimeFormat('en-US', options);
-    return formatter.format(date);
-  } catch (e) {
-    console.error('Time formatting error:', e, isoString);
-    return 'Error';
-  }
-};
 
-const formatPhoneNumber = (phone: string | undefined): string => {
-  if (!phone) return 'N/A';
-  const cleaned = phone.replace(/\D/g, '');
-  if (cleaned.length === 10) {
-    return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
-  }
-  return phone;
-};
+
 
 const calculateWaitTime = (checkInTime: string): number => {
   const checkIn = new Date(checkInTime);
@@ -63,108 +22,202 @@ const calculateWaitTime = (checkInTime: string): number => {
   return diffMinutes;
 };
 
+
+const TIMEZONE = 'America/Indiana/Indianapolis';
+
+// ─── Get today's date string in Indianapolis timezone (YYYY-MM-DD) ───
+const getTodayInIndianapolis = (): string => {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = formatter.formatToParts(now);
+  const year = parts.find(p => p.type === 'year')?.value;
+  const month = parts.find(p => p.type === 'month')?.value;
+  const day = parts.find(p => p.type === 'day')?.value;
+  return `${year}-${month}-${day}`;
+};
+
+// ─── Format check-in time ───
+const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
+  try {
+    if (!isoString || isoString === '' || isoString === 'null' || isoString === 'undefined') {
+      return 'No Check-in Time';
+    }
+    const date = new Date(isoString);
+    if (isNaN(date.getTime()) || date.getTime() < 0) return 'Invalid Date';
+    if (date.getFullYear() < 2000) return 'Invalid Date';
+
+    const options: Intl.DateTimeFormatOptions = {
+      timeZone: TIMEZONE,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    };
+    if (includeDate) {
+      options.year = 'numeric';
+      options.month = '2-digit';
+      options.day = '2-digit';
+    }
+    return new Intl.DateTimeFormat('en-US', options).format(date);
+  } catch (e) {
+    console.error('Time formatting error:', e, isoString);
+    return 'Error';
+  }
+};
+
+// ─── Format phone number ───
+const formatPhoneNumber = (phone: string | undefined): string => {
+  if (!phone) return 'N/A';
+  const cleaned = phone.replace(/\D/g, '');
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+  }
+  return phone;
+};
+
+// ─── Format appointment time only ───
 const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
   if (!appointmentTime) return 'N/A';
   if (appointmentTime === 'work_in') return 'Work In';
   if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-    const hours = appointmentTime.substring(0, 2);
-    const minutes = appointmentTime.substring(2, 4);
-    return `${hours}:${minutes}`;
+    return `${appointmentTime.substring(0, 2)}:${appointmentTime.substring(2, 4)}`;
   }
   return appointmentTime;
 };
 
-const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
-  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
+// ─── Format appointment date + time (keeps date showing) ───
+const formatAppointmentDateTime = (
+  appointmentDate: string | null | undefined,
+  appointmentTime: string | null | undefined
+): string => {
+  const isWorkIn = appointmentTime === 'work_in' || appointmentTime === 'Work In';
+
+  const parseDate = (dateStr: string): Date | null => {
+    try {
+      if (dateStr.includes('/')) {
+        const [m, d, y] = dateStr.split('/').map(Number);
+        const date = new Date(y, m - 1, d);
+        return isNaN(date.getTime()) || date.getFullYear() < 2000 ? null : date;
+      } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+        const [y, m, d] = dateStr.substring(0, 10).split('-').map(Number);
+        const date = new Date(y, m - 1, d);
+        return isNaN(date.getTime()) || date.getFullYear() < 2000 ? null : date;
+      }
+      const date = new Date(dateStr);
+      return isNaN(date.getTime()) || date.getFullYear() < 2000 ? null : date;
+    } catch {
+      return null;
+    }
+  };
+
+  const formatDateStr = (date: Date): string => {
+    const mo = String(date.getMonth() + 1).padStart(2, '0');
+    const dy = String(date.getDate()).padStart(2, '0');
+    const yr = date.getFullYear();
+    return `${mo}/${dy}/${yr}`;
+  };
+
+  if (isWorkIn) {
     if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
       return 'Work In';
     }
-    try {
-      let date: Date;
-      if (appointmentDate.includes('/')) {
-        const [m, d, y] = appointmentDate.split('/').map(Number);
-        date = new Date(y, m - 1, d);
-      } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        const [y, m, d] = appointmentDate.split('-').map(Number);
-        date = new Date(y, m - 1, d);
-      } else {
-        date = new Date(appointmentDate);
-      }
-      if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
-        const mo = String(date.getMonth() + 1).padStart(2, '0');
-        const dy = String(date.getDate()).padStart(2, '0');
-        const yr = date.getFullYear();
-        return `${mo}/${dy}/${yr} - Work In`;
-      }
-    } catch (error) {
-      console.error('Error formatting work in date:', error);
-    }
-    return 'Work In';
+    const date = parseDate(appointmentDate);
+    return date ? `${formatDateStr(date)}, Work In` : 'Work In';
   }
 
   if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
     return 'N/A';
   }
 
-  try {
-    let formattedDate = '';
-    if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
-      let date: Date;
-      if (appointmentDate.includes('/')) {
-        const [m, d, y] = appointmentDate.split('/').map(Number);
-        date = new Date(y, m - 1, d);
-      } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        const [y, m, d] = appointmentDate.split('-').map(Number);
-        date = new Date(y, m - 1, d);
-      } else {
-        date = new Date(appointmentDate);
-      }
-      if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
-        const mo = String(date.getMonth() + 1).padStart(2, '0');
-        const dy = String(date.getDate()).padStart(2, '0');
-        const yr = date.getFullYear();
-        formattedDate = `${mo}/${dy}/${yr}`;
-      }
-    }
-    const formattedTime = formatAppointmentTime(appointmentTime);
-    if (!formattedDate) {
-      return formattedTime !== 'N/A' ? formattedTime : 'N/A';
-    }
-    if (formattedTime && formattedTime !== 'N/A') {
-      return `${formattedDate}, ${formattedTime}`;
-    } else if (formattedDate) {
-      return formattedDate;
-    }
-    return 'N/A';
-  } catch (error) {
-    console.error('Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
-    const formattedTime = formatAppointmentTime(appointmentTime);
+  const formattedTime = formatAppointmentTime(appointmentTime);
+
+  if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
     return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
+
+  const date = parseDate(appointmentDate);
+  if (!date) return formattedTime !== 'N/A' ? formattedTime : 'N/A';
+
+  return formattedTime !== 'N/A'
+    ? `${formatDateStr(date)}, ${formattedTime}`
+    : formatDateStr(date);
 };
 
-
-const getDateComponentsInIndianapolis = (isoString: string): { year: number, month: number, day: number, hour: number, minute: number } => {
+// ─── Get date components in Indianapolis timezone ───
+const getDateComponentsInIndianapolis = (
+  isoString: string
+): { year: number; month: number; day: number; hour: number; minute: number } => {
   const date = new Date(isoString);
-  const formatter = new Intl.DateTimeFormat('en-US', {
+  const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: TIMEZONE,
     year: 'numeric',
     month: 'numeric',
     day: 'numeric',
     hour: 'numeric',
     minute: 'numeric',
-    hour12: false
-  });
-  
-  const parts = formatter.formatToParts(date);
+    hour12: false,
+  }).formatToParts(date);
+
   return {
     year: parseInt(parts.find(p => p.type === 'year')?.value || '0'),
     month: parseInt(parts.find(p => p.type === 'month')?.value || '0'),
     day: parseInt(parts.find(p => p.type === 'day')?.value || '0'),
     hour: parseInt(parts.find(p => p.type === 'hour')?.value || '0'),
-    minute: parseInt(parts.find(p => p.type === 'minute')?.value || '0')
+    minute: parseInt(parts.find(p => p.type === 'minute')?.value || '0'),
   };
 };
+
+// ─── Get appointment status (today-only, no day-diff logic) ───
+const getAppointmentStatus = (
+  checkInTime: string,
+  appointmentTime: string | null | undefined,
+  appointmentDate: string | null | undefined
+): { color: 'green' | 'orange' | 'red' | 'yellow' | 'none'; message: string | null } => {
+
+  // Work-in → always yellow (valid same-day walk-in)
+  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
+    return { color: 'yellow', message: null };
+  }
+
+  // Normalize time: "08:00" → "0800"
+  const normalizedTime = appointmentTime.replace(/:/g, '').trim();
+
+  if (!normalizedTime.match(/^\d{4}$/)) {
+    // ── FIX: Instead of 'none' (gray), default to green for valid check-ins
+    // that just have an unrecognized time format
+    return { color: 'green', message: null };
+  }
+
+  try {
+    const checkInComponents = getDateComponentsInIndianapolis(checkInTime);
+    let checkInHour = checkInComponents.hour;
+    if (checkInHour === 24) checkInHour = 0;
+
+    const aptHour = parseInt(normalizedTime.substring(0, 2));
+    const aptMinute = parseInt(normalizedTime.substring(2, 4));
+
+    const checkInTotalMinutes = checkInHour * 60 + checkInComponents.minute;
+    const aptTotalMinutes = aptHour * 60 + aptMinute;
+    const diffMinutes = checkInTotalMinutes - aptTotalMinutes;
+
+    if (diffMinutes <= 0) {
+      return { color: 'green', message: null };
+    } else if (diffMinutes <= 15) {
+      return { color: 'orange', message: `${diffMinutes} min late` };
+    } else {
+      return { color: 'red', message: `${diffMinutes} min late` };
+    }
+  } catch (error) {
+    console.error('Error in getAppointmentStatus:', error);
+    return { color: 'green', message: null }; // Safe fallback
+  }
+};
+
+
 const getDayDifference = (checkInComponents: any, appointmentDate: Date): number => {
   const checkInDate = new Date(checkInComponents.year, checkInComponents.month - 1, checkInComponents.day);
   const aptDate = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate());
