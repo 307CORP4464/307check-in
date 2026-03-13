@@ -252,7 +252,6 @@ interface Appointment {
   status?: string;
 }
 
-// ─── Component ───
 export default function CSRDashboard() {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [appointments, setAppointments] = useState<Map<string, Appointment>>(new Map());
@@ -264,7 +263,6 @@ export default function CSRDashboard() {
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
   const [selectedForDeny, setSelectedForDeny] = useState<CheckIn | null>(null);
   const [showManualCheckIn, setShowManualCheckIn] = useState(false);
-
 
   const router = useRouter();
   const supabase = createBrowserClient(
@@ -278,103 +276,88 @@ export default function CSRDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  // ─── Main data fetch ───
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      try {
-        const today = getTodayInIndianapolis();
-        const { data, error } = await supabase
+  // ─── Shared fetch logic (accessible by handlers) ───
+  const fetchAllData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const today = getTodayInIndianapolis();
+
+      // Fetch pending check-ins
+      const { data: checkInsData, error: checkInsError } = await supabase
+        .from('check_ins')
+        .select('*')
+        .eq('status', 'pending')
+        .order('check_in_time', { ascending: true });
+
+      if (checkInsError) throw checkInsError;
+
+      const referenceNumbers = checkInsData
+        ?.map((ci: any) => ci.reference_number)
+        .filter((ref: any) => ref && ref.trim() !== '') || [];
+
+      let appointmentsMap = new Map();
+
+      if (referenceNumbers.length > 0) {
+        const { data: appointmentsData, error: appointmentsError } = await supabase
           .from('appointments')
-          .select('*')
-          .eq('appointment_date', today);
+          .select('sales_order, delivery, appointment_time, appointment_date')
+          .eq('appointment_date', today)
+          .or(
+            `sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`
+          );
 
-        if (error) throw error;
-
-        const appointmentMap = new Map<string, Appointment>();
-        data?.forEach(apt => {
-          if (apt.sales_order) appointmentMap.set(apt.sales_order, apt);
-          if (apt.delivery) appointmentMap.set(apt.delivery, apt);
-        });
-        setAppointments(appointmentMap);
-      } catch (err) {
-        console.error('Fetch appointments error:', err);
-      }
-    };
-
-    const fetchCheckIns = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const { data: checkInsData, error: checkInsError } = await supabase
-          .from('check_ins')
-          .select('*')
-          .eq('status', 'pending')
-          .order('check_in_time', { ascending: true });
-
-        if (checkInsError) throw checkInsError;
-
-        const referenceNumbers = checkInsData
-          ?.map((ci: any) => ci.reference_number)
-          .filter((ref: any) => ref && ref.trim() !== '') || [];
-
-        let appointmentsMap = new Map();
-
-        if (referenceNumbers.length > 0) {
-          const today = getTodayInIndianapolis();
-
-          const { data: appointmentsData, error: appointmentsError } = await supabase
-            .from('appointments')
-            .select('sales_order, delivery, appointment_time, appointment_date')
-            .eq('appointment_date', today)
-            .or(
-              `sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`
-            );
-
-          if (appointmentsError) {
-            console.error('Error fetching appointments:', appointmentsError);
-          } else if (appointmentsData) {
-            appointmentsData.forEach((apt: any) => {
-              const appointmentInfo = {
-                time: apt.appointment_time,
-                date: apt.appointment_date,
-              };
-              if (apt.sales_order) appointmentsMap.set(apt.sales_order, appointmentInfo);
-              if (apt.delivery) appointmentsMap.set(apt.delivery, appointmentInfo);
-            });
-          }
+        if (appointmentsError) {
+          console.error('Error fetching appointments:', appointmentsError);
+        } else if (appointmentsData) {
+          appointmentsData.forEach((apt: any) => {
+            const appointmentInfo = {
+              time: apt.appointment_time,
+              date: apt.appointment_date,
+            };
+            if (apt.sales_order) appointmentsMap.set(apt.sales_order, appointmentInfo);
+            if (apt.delivery) appointmentsMap.set(apt.delivery, appointmentInfo);
+          });
         }
-
-        const processedCheckIns = checkInsData?.map((ci: any) => {
-          const aptInfo = appointmentsMap.get(ci.reference_number);
-          return {
-            ...ci,
-            appointment_time: aptInfo?.time ?? ci.appointment_time ?? null,
-            appointment_date: aptInfo?.date ?? ci.appointment_date ?? null,
-          };
-        }) || [];
-
-        setCheckIns(processedCheckIns);
-      } catch (err) {
-        console.error('Fetch check-ins error:', err);
-        setError('Failed to load check-ins');
-      } finally {
-        setLoading(false);
       }
-    };
 
-    fetchAppointments();
-    fetchCheckIns();
+      // Also update the appointments state map for other uses
+      const fullAppointmentMap = new Map<string, Appointment>();
+      appointmentsMap.forEach((value: any, key: string) => {
+        fullAppointmentMap.set(key, value);
+      });
+      setAppointments(fullAppointmentMap);
 
-    // Real-time subscription
+      const processedCheckIns = checkInsData?.map((ci: any) => {
+        const aptInfo = appointmentsMap.get(ci.reference_number);
+        return {
+          ...ci,
+          appointment_time: aptInfo?.time ?? ci.appointment_time ?? null,
+          appointment_date: aptInfo?.date ?? ci.appointment_date ?? null,
+        };
+      }) || [];
+
+      setCheckIns(processedCheckIns);
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError('Failed to load check-ins');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── Initial load + real-time subscription ───
+  useEffect(() => {
+    fetchAllData();
+
     const subscription = supabase
       .channel('check_ins_changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'check_ins' },
         () => {
-          fetchAppointments();
-          fetchCheckIns();
+          fetchAllData();
         }
       )
       .subscribe();
@@ -387,70 +370,26 @@ export default function CSRDashboard() {
   // ─── Handlers ───
   const handleDockAssignSuccess = () => {
     setSelectedForDock(null);
-    fetchCheckIns();
+    fetchAllData(); // ✅ Now accessible
   };
 
   const handleEditSuccess = () => {
     setSelectedForEdit(null);
-    fetchCheckIns();
+    fetchAllData(); // ✅ Now accessible
   };
 
   const handleDenySuccess = () => {
     setSelectedForDeny(null);
-    fetchCheckIns();
+    fetchAllData(); // ✅ Now accessible
   };
 
   const handleManualCheckInSuccess = () => {
     setShowManualCheckIn(false);
-    fetchCheckIns();
+    fetchAllData(); // ✅ Now accessible
   };
 
-  const handleRefresh = async () => {
-    const today = getTodayInIndianapolis();
-
-    const { data: checkInsData, error: checkInsError } = await supabase
-      .from('check_ins')
-      .select('*')
-      .eq('status', 'pending')
-      .order('check_in_time', { ascending: true });
-
-    if (checkInsError) {
-      console.error('Refresh error:', checkInsError);
-      return;
-    }
-
-    const referenceNumbers = checkInsData
-      ?.map((ci: any) => ci.reference_number)
-      .filter((ref: any) => ref && ref.trim() !== '') || [];
-
-    let appointmentsMap = new Map();
-
-    if (referenceNumbers.length > 0) {
-      const { data: appointmentsData } = await supabase
-        .from('appointments')
-        .select('sales_order, delivery, appointment_time, appointment_date')
-        .eq('appointment_date', today)
-        .or(
-          `sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`
-        );
-
-      appointmentsData?.forEach((apt: any) => {
-        const appointmentInfo = { time: apt.appointment_time, date: apt.appointment_date };
-        if (apt.sales_order) appointmentsMap.set(apt.sales_order, appointmentInfo);
-        if (apt.delivery) appointmentsMap.set(apt.delivery, appointmentInfo);
-      });
-    }
-
-    const processedCheckIns = checkInsData?.map((ci: any) => {
-      const aptInfo = appointmentsMap.get(ci.reference_number);
-      return {
-        ...ci,
-        appointment_time: aptInfo?.time ?? ci.appointment_time ?? null,
-        appointment_date: aptInfo?.date ?? ci.appointment_date ?? null,
-      };
-    }) || [];
-
-    setCheckIns(processedCheckIns);
+  const handleRefresh = () => {
+    fetchAllData(); // ✅ Now accessible
   };
 
 
