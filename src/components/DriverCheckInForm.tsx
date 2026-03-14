@@ -13,8 +13,6 @@ interface FormData {
   trailerNumber: string;
   trailerLength: string;
   loadType: 'inbound' | 'outbound';
-  destinationCity: string;
-  destinationState: string;
   emailConsent: boolean;
 }
 
@@ -26,8 +24,6 @@ const INITIAL_FORM_DATA: FormData = {
   trailerNumber: '',
   trailerLength: '',
   loadType: 'inbound',
-  destinationCity: '',
-  destinationState: '',
   emailConsent: false,
 };
 
@@ -344,8 +340,6 @@ export default function DriverCheckInForm() {
           trailer_length: formData.trailerLength || null,
           load_type: formData.loadType,
           reference_number: referenceNumberValue,
-          destination_city: formData.destinationCity || null,
-          destination_state: formData.destinationState || null,
           status: 'pending',
           check_in_time: new Date().toISOString(),
           email_consent: formData.emailConsent,
@@ -366,8 +360,6 @@ export default function DriverCheckInForm() {
   referenceNumber: referenceNumbers.filter(r => r).join(', '), // or however you handle this
   loadType: formData.loadType,
   checkInTime: new Date().toISOString(), // or however you get this
-  destinationCity: formData.destinationCity,   // ← ADD THIS
-  destinationState: formData.destinationState, // ← ADD THIS
 });
 
         } catch (emailErr) {
@@ -526,8 +518,8 @@ export default function DriverCheckInForm() {
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="inbound">Inbound</option>
-                    <option value="outbound">Outbound</option>
+                    <option value="outbound">Outbound Pickup</option>
+                    <option value="inboundbound">Inbound Delivery</option>
                   </select>
                 </div>
 
@@ -636,42 +628,6 @@ export default function DriverCheckInForm() {
                   >
                     {TRAILER_LENGTHS.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* ── Destination ── */}
-            <div className="border-b pb-5">
-              <h2 className="text-lg font-semibold text-gray-700 mb-4">Destination</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Destination City
-                  </label>
-                  <input
-                    type="text"
-                    name="destinationCity"
-                    value={formData.destinationCity}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Los Angeles"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Destination State
-                  </label>
-                  <select
-                    name="destinationState"
-                    value={formData.destinationState}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select state</option>
-                    {US_STATES.map(state => (
-                      <option key={state} value={state}>{state}</option>
                     ))}
                   </select>
                 </div>
