@@ -474,9 +474,6 @@ export default function CSRDashboard() {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">CSR Dashboard</h1>
-              <p className="text-xs text-gray-500">
-                Current time: {formatTimeInIndianapolis(new Date().toISOString())}
-              </p>
             </div>
             <div className="flex gap-3">
               <Link
