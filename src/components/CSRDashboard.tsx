@@ -305,7 +305,7 @@ export default function CSRDashboard() {
 
     const today = getTodayInIndianapolis();
 
-    // Fetch pending check-ins
+    // ── Step 1: Fetch pending check-ins ──
     const { data: checkInsData, error: checkInsError } = await supabase
       .from('check_ins')
       .select('*')
@@ -314,11 +314,14 @@ export default function CSRDashboard() {
 
     if (checkInsError) throw checkInsError;
 
-    const referenceNumbers = checkInsData
-      ?.map((ci: any) => ci.reference_number)
-      .filter((ref: any) => ref && ref.trim() !== '') || [];
+    // ── Step 2: Collect reference numbers ──
+    const referenceNumbers: string[] = (checkInsData ?? [])
+      .map((ci: any) => ci.reference_number)
+      .filter((ref: any): ref is string => !!ref && String(ref).trim() !== '');
 
-    // ✅ Store the FULL appointment object, not just time/date
+    console.log('📋 Reference numbers from check-ins:', referenceNumbers);
+
+    // ── Step 3: Build the full appointment map ──
     const fullAppointmentMap = new Map<string, Appointment>();
 
     if (referenceNumbers.length > 0) {
@@ -338,45 +341,77 @@ export default function CSRDashboard() {
           ship_to_state,
           carrier,
           mode
-        `);
+        `)
+        .or(
+          referenceNumbers
+            .map(r => `sales_order.eq.${r},delivery.eq.${r}`)
+            .join(',')
+        );
 
       if (appointmentsError) {
-        console.error('Error fetching appointments:', appointmentsError);
-      } else if (appointmentsData) {
-        appointmentsData.forEach((apt: any) => {
-          // ✅ Store the FULL appointment object keyed by sales_order and delivery
-          if (apt.sales_order) fullAppointmentMap.set(String(apt.sales_order), apt);
-          if (apt.delivery) fullAppointmentMap.set(String(apt.delivery), apt);
+        console.error('❌ Appointments fetch error:', appointmentsError);
+      } else {
+        console.log('✅ Raw appointments returned:', appointmentsData);
+
+        (appointmentsData ?? []).forEach((apt: any) => {
+          console.log('📦 Appointment record:', {
+            sales_order: apt.sales_order,
+            delivery: apt.delivery,
+            appointment_time: apt.appointment_time,
+            requested_ship_date: apt.requested_ship_date,
+            ship_to_city: apt.ship_to_city,
+            ship_to_state: apt.ship_to_state,
+            carrier: apt.carrier,
+            mode: apt.mode,
+          });
+
+          const record: Appointment = {
+            id: apt.id,
+            sales_order: apt.sales_order,
+            delivery: apt.delivery,
+            appointment_time: apt.appointment_time,
+            appointment_date: apt.appointment_date,
+            carrier_name: apt.carrier_name,
+            load_type: apt.load_type,
+            status: apt.status,
+            requested_ship_date: apt.requested_ship_date,
+            ship_to_city: apt.ship_to_city,
+            ship_to_state: apt.ship_to_state,
+            carrier: apt.carrier,
+            mode: apt.mode,
+          };
+
+          if (apt.sales_order) {
+            fullAppointmentMap.set(String(apt.sales_order).trim(), record);
+          }
+          if (apt.delivery) {
+            fullAppointmentMap.set(String(apt.delivery).trim(), record);
+          }
         });
       }
     }
 
-    // Merge appointment info into each check-in
-    const processedCheckIns = checkInsData?.map((ci: any) => {
-      const ref = ci.reference_number ? String(ci.reference_number) : null;
+    console.log('🗺️ Appointment map keys:', Array.from(fullAppointmentMap.keys()));
+
+    // ── Step 4: Merge into check-ins ──
+    const processedCheckIns = (checkInsData ?? []).map((ci: any) => {
+      const ref = ci.reference_number ? String(ci.reference_number).trim() : null;
       const apt = ref ? fullAppointmentMap.get(ref) : null;
 
-      if (ref) {
-        console.log(`CheckIn ref: ${ref} → matched appointment:`, apt);
-      }
+      console.log(`🔍 CheckIn ref="${ref}" → apt found:`, !!apt, apt?.appointment_time);
 
       return {
         ...ci,
-        // ✅ Pull appointment_time and appointment_date from the matched appointment
         appointment_time: apt?.appointment_time ?? ci.appointment_time ?? null,
         appointment_date: apt?.appointment_date ?? ci.appointment_date ?? today,
       };
-    }) || [];
-
-    console.log('Processed check-ins sample:', processedCheckIns[0]);
+    });
 
     setCheckIns(processedCheckIns);
-
-    // ✅ Set the full appointments map so the table columns can access all fields
     setAppointments(fullAppointmentMap);
 
   } catch (err) {
-    console.error('Fetch error:', err);
+    console.error('💥 Fetch error:', err);
     setError('Failed to load check-ins');
   } finally {
     setLoading(false);
