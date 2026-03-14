@@ -648,7 +648,7 @@ export default function CSRDashboard() {
 
                        {/* Requested Ship Date and Destination */}
                       <td className="px-4 py-3 text-sm">
-                        <div>{checkIn.customer || "N/A'}</div>
+                        <div>{checkIn.customer || 'N/A'}</div>
                         <div>{checkIn.requested_ship_date || 'N/A'}</div>
                         <div> {checkIn.ship_to_city && checkIn.ship_to_state
                           ? `${checkIn.ship_to_city}, ${checkIn.ship_to_state}`
