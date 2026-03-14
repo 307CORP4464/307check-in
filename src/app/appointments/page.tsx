@@ -712,7 +712,7 @@ return (
                 {/* Load Info: ship_date on top, then city, then state */}
                 <td className="px-4 py-3 text-sm text-gray-700">
                   <div className="flex flex-col">
-                    {appointment.ship_date && (
+                    {appointment.requested_ship_date && (
                       <span className="font-medium text-gray-900 text-xs">
                         {appointment.requested_ship_date}
                       </span>
