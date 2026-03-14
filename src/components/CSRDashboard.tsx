@@ -297,7 +297,8 @@ export default function CSRDashboard() {
     return () => clearInterval(timer);
   }, []);
 
- const fetchAllData = async () => {
+
+  const fetchAllData = async () => {
   try {
     setLoading(true);
     setError(null);
@@ -317,41 +318,35 @@ export default function CSRDashboard() {
       ?.map((ci: any) => ci.reference_number)
       .filter((ref: any) => ref && ref.trim() !== '') || [];
 
-    // appointmentsMap: key = reference number, value = { time, date }
-    const appointmentsMap = new Map<string, { time: string; date: string }>();
+    // ✅ Store the FULL appointment object, not just time/date
+    const fullAppointmentMap = new Map<string, Appointment>();
 
     if (referenceNumbers.length > 0) {
-    // Find your appointments query and update the select to include new fields
-const { data: appointmentsData, error: appointmentsError } = await supabase
-  .from('appointments') 
-  .select(`
-    id,
-    sales_order,
-    delivery,
-    appointment_time,
-    appointment_date,
-    carrier_name,
-    load_type,
-    status,
-    requested_ship_date,
-    ship_to_city,
-    ship_to_state,
-    carrier,
-    mode
-  `);
-
+      const { data: appointmentsData, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select(`
+          id,
+          sales_order,
+          delivery,
+          appointment_time,
+          appointment_date,
+          carrier_name,
+          load_type,
+          status,
+          requested_ship_date,
+          ship_to_city,
+          ship_to_state,
+          carrier,
+          mode
+        `);
 
       if (appointmentsError) {
         console.error('Error fetching appointments:', appointmentsError);
       } else if (appointmentsData) {
         appointmentsData.forEach((apt: any) => {
-          // ✅ Store BOTH time AND date
-          const appointmentInfo = {
-            time: apt.appointment_time ?? null,
-            date: apt.appointment_date ?? today, // fallback to today if null
-          };
-          if (apt.sales_order) appointmentsMap.set(String(apt.sales_order), appointmentInfo);
-          if (apt.delivery) appointmentsMap.set(String(apt.delivery), appointmentInfo);
+          // ✅ Store the FULL appointment object keyed by sales_order and delivery
+          if (apt.sales_order) fullAppointmentMap.set(String(apt.sales_order), apt);
+          if (apt.delivery) fullAppointmentMap.set(String(apt.delivery), apt);
         });
       }
     }
@@ -359,30 +354,25 @@ const { data: appointmentsData, error: appointmentsError } = await supabase
     // Merge appointment info into each check-in
     const processedCheckIns = checkInsData?.map((ci: any) => {
       const ref = ci.reference_number ? String(ci.reference_number) : null;
-      const aptInfo = ref ? appointmentsMap.get(ref) : null;
+      const apt = ref ? fullAppointmentMap.get(ref) : null;
 
-      // Debug log to verify matching
       if (ref) {
-        console.log(`CheckIn ref: ${ref} → aptInfo:`, aptInfo);
+        console.log(`CheckIn ref: ${ref} → matched appointment:`, apt);
       }
 
       return {
         ...ci,
-        // ✅ Use appointment lookup date first, then fallback to check-in's stored date
-        appointment_time: aptInfo?.time ?? ci.appointment_time ?? null,
-        appointment_date: aptInfo?.date ?? ci.appointment_date ?? null,
+        // ✅ Pull appointment_time and appointment_date from the matched appointment
+        appointment_time: apt?.appointment_time ?? ci.appointment_time ?? null,
+        appointment_date: apt?.appointment_date ?? ci.appointment_date ?? today,
       };
     }) || [];
 
-    console.log('Processed check-ins sample:', processedCheckIns[0]);
+    console.log('Processed check-ins sample:', processedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
 
     setCheckIns(processedCheckIns);
 
-    // Also update the appointments state map
-    const fullAppointmentMap = new Map<string, Appointment>();
-    appointmentsMap.forEach((value, key) => {
-      fullAppointmentMap.set(key, value as any);
-    });
+    // ✅ Set the full appointments map so the table columns can access all fields
     setAppointments(fullAppointmentMap);
 
   } catch (err) {
@@ -392,6 +382,7 @@ const { data: appointmentsData, error: appointmentsError } = await supabase
     setLoading(false);
   }
 };
+
 
 
   // ─── Initial load + real-time subscription ───
