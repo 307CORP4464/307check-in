@@ -322,59 +322,94 @@ export default function CSRDashboard() {
       ?.map((ci: any) => ci.reference_number)
       .filter((ref: any) => ref && ref.trim() !== '') || [];
 
-    // appointmentsMap: key = reference number, value = { time, date }
-    const appointmentsMap = new Map<string, { time: string; date: string }>();
+    // ✅ Updated map to store ALL fields we need
+    const appointmentsMap = new Map<string, {
+      time: string | null;
+      date: string | null;
+      ship_to_city: string | null;
+      ship_to_state: string | null;
+      carrier: string | null;
+      mode: string | null;
+      requested_ship_date: string | null;
+    }>();
 
     if (referenceNumbers.length > 0) {
       const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('appointments')
-        .select('sales_order, delivery, appointment_time, appointment_date, carrier, mode, ship_to_city, ship_to_state')
-        .eq('appointment_date', today)
+        .select(
+          'sales_order, delivery, appointment_time, appointment_date, carrier, mode, ship_to_city, ship_to_state, requested_ship_date'
+        )
         .or(
           `sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`
         );
+        // ✅ REMOVED .eq('appointment_date', today) — this was filtering out
+        //    appointments that don't match today's date, causing N/A for
+        //    check-ins with appointments on other dates
 
       if (appointmentsError) {
         console.error('Error fetching appointments:', appointmentsError);
       } else if (appointmentsData) {
         appointmentsData.forEach((apt: any) => {
-          // ✅ Store BOTH time AND date
+          // ✅ Now store ALL the fields we need
           const appointmentInfo = {
             time: apt.appointment_time ?? null,
-            date: apt.appointment_date ?? today, // fallback to today if null
+            date: apt.appointment_date ?? today,
+            ship_to_city: apt.ship_to_city ?? null,
+            ship_to_state: apt.ship_to_state ?? null,
+            carrier: apt.carrier ?? null,
+            mode: apt.mode ?? null,
+            requested_ship_date: apt.requested_ship_date ?? null,
           };
-          if (apt.sales_order) appointmentsMap.set(String(apt.sales_order), appointmentInfo);
-          if (apt.delivery) appointmentsMap.set(String(apt.delivery), appointmentInfo);
+
+          if (apt.sales_order) {
+            appointmentsMap.set(String(apt.sales_order), appointmentInfo);
+          }
+          if (apt.delivery) {
+            appointmentsMap.set(String(apt.delivery), appointmentInfo);
+          }
         });
       }
     }
 
-    // Merge appointment info into each check-in
+    // ✅ Merge ALL appointment fields into each check-in
     const processedCheckIns = checkInsData?.map((ci: any) => {
       const ref = ci.reference_number ? String(ci.reference_number) : null;
       const aptInfo = ref ? appointmentsMap.get(ref) : null;
 
-      // Debug log to verify matching
       if (ref) {
         console.log(`CheckIn ref: ${ref} → aptInfo:`, aptInfo);
       }
 
       return {
         ...ci,
-        // ✅ Use appointment lookup date first, then fallback to check-in's stored date
         appointment_time: aptInfo?.time ?? ci.appointment_time ?? null,
         appointment_date: aptInfo?.date ?? ci.appointment_date ?? null,
+        // ✅ These were missing before — now properly merged
+        ship_to_city: aptInfo?.ship_to_city ?? ci.ship_to_city ?? null,
+        ship_to_state: aptInfo?.ship_to_state ?? ci.ship_to_state ?? null,
+        carrier: aptInfo?.carrier ?? ci.carrier ?? null,
+        mode: aptInfo?.mode ?? ci.mode ?? null,
+        requested_ship_date: aptInfo?.requested_ship_date ?? ci.requested_ship_date ?? null,
       };
     }) || [];
 
-    console.log('Processed check-ins sample:', processedCheckIns[0]);
+    console.log('Processed check-ins sample:', processedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
 
     setCheckIns(processedCheckIns);
 
-    // Also update the appointments state map
+    // Update the appointments state map
     const fullAppointmentMap = new Map<string, Appointment>();
     appointmentsMap.forEach((value, key) => {
-      fullAppointmentMap.set(key, value as any);
+      fullAppointmentMap.set(key, {
+        id: key,
+        appointment_time: value.time ?? undefined,
+        appointment_date: value.date ?? undefined,
+        ship_to_city: value.ship_to_city ?? undefined,
+        ship_to_state: value.ship_to_state ?? undefined,
+        carrier: value.carrier ?? undefined,
+        mode: value.mode ?? undefined,
+        requested_ship_date: value.requested_ship_date ?? undefined,
+      });
     });
     setAppointments(fullAppointmentMap);
 
@@ -385,7 +420,6 @@ export default function CSRDashboard() {
     setLoading(false);
   }
 };
-
 
   // ─── Initial load + real-time subscription ───
   useEffect(() => {
