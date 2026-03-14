@@ -253,11 +253,8 @@ interface CheckIn {
   appointment_time?: string | null;
   start_time?: string | null;
   end_time?: string | null;
-  destination_city?: string;
-  destination_state?: string;
   notes?: string;
 }
-
 
 interface Appointment {
   id: string;
@@ -268,6 +265,12 @@ interface Appointment {
   carrier_name?: string;
   load_type?: string;
   status?: string;
+  // New fields
+  requested_ship_date?: string | null;
+  ship_to_city?: string | null;
+  ship_to_state?: string | null;
+  carrier?: string | null;
+  mode?: string | null;
 }
 
 export default function CSRDashboard() {
@@ -318,13 +321,25 @@ export default function CSRDashboard() {
     const appointmentsMap = new Map<string, { time: string; date: string }>();
 
     if (referenceNumbers.length > 0) {
-      const { data: appointmentsData, error: appointmentsError } = await supabase
-        .from('appointments')
-        .select('sales_order, delivery, appointment_time, appointment_date')
-        .eq('appointment_date', today)
-        .or(
-          `sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`
-        );
+    // Find your appointments query and update the select to include new fields
+const { data: appointmentsData, error: appointmentsError } = await supabase
+  .from('appointments') 
+  .select(`
+    id,
+    sales_order,
+    delivery,
+    appointment_time,
+    appointment_date,
+    carrier_name,
+    load_type,
+    status,
+    requested_ship_date,
+    ship_to_city,
+    ship_to_state,
+    carrier,
+    mode
+  `);
+
 
       if (appointmentsError) {
         console.error('Error fetching appointments:', appointmentsError);
@@ -537,7 +552,8 @@ export default function CSRDashboard() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference Number</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver Info</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destination</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Load Info</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transport</th>                    
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wait Time</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -607,12 +623,81 @@ export default function CSRDashboard() {
                         <div className="text-gray-500 text-xs">{checkIn.trailer_length || 'N/A'}</div>
                       </td>
 
-                      {/* Destination */}
-                      <td className="px-4 py-3 text-sm">
-                        {checkIn.destination_city && checkIn.destination_state
-                          ? `${checkIn.destination_city}, ${checkIn.destination_state}`
-                          : 'N/A'}
-                      </td>
+{/* Replace with these two new cells: */}
+<td className="px-4 py-3 text-sm text-gray-900">
+  {(() => {
+    const appt = checkIn.reference_number
+      ? appointments.get(checkIn.reference_number)
+      : null;
+
+    const shipDate = appt?.requested_ship_date
+      ? (() => {
+          try {
+            let date: Date;
+            if (appt.requested_ship_date!.match(/^\d{4}-\d{2}-\d{2}/)) {
+              const [y, m, d] = appt.requested_ship_date!.substring(0, 10).split('-').map(Number);
+              date = new Date(y, m - 1, d);
+            } else {
+              date = new Date(appt.requested_ship_date!);
+            }
+            if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
+              const mo = String(date.getMonth() + 1).padStart(2, '0');
+              const dy = String(date.getDate()).padStart(2, '0');
+              const yr = date.getFullYear();
+              return `${mo}/${dy}/${yr}`;
+            }
+            return null;
+          } catch {
+            return null;
+          }
+        })()
+      : null;
+
+    const city = appt?.ship_to_city ?? null;
+    const state = appt?.ship_to_state ?? null;
+
+    const locationLine =
+      city && state ? `${city}, ${state}` : city || state || null;
+
+    if (!shipDate && !locationLine) return <span className="text-gray-400">N/A</span>;
+
+    return (
+      <div className="flex flex-col">
+        {shipDate && (
+          <span className="font-medium text-gray-900">{shipDate}</span>
+        )}
+        {locationLine && (
+          <span className="text-gray-600 text-xs">{locationLine}</span>
+        )}
+      </div>
+    );
+  })()}
+</td>
+
+<td className="px-4 py-3 text-sm text-gray-900">
+  {(() => {
+    const appt = checkIn.reference_number
+      ? appointments.get(checkIn.reference_number)
+      : null;
+
+    const carrier = appt?.carrier ?? null;
+    const mode = appt?.mode ?? null;
+
+    if (!carrier && !mode) return <span className="text-gray-400">N/A</span>;
+
+    return (
+      <div className="flex flex-col">
+        {carrier && (
+          <span className="font-medium text-gray-900">{carrier}</span>
+        )}
+        {mode && (
+          <span className="text-gray-600 text-xs">{mode}</span>
+        )}
+      </div>
+    );
+  })()}
+</td>
+
 
                       {/* Wait Time */}
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
