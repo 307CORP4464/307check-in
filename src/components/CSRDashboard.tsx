@@ -625,7 +625,7 @@ export default function CSRDashboard() {
 
                       {/* Transport */}
                       <td className="px-4 py-3 text-sm">
-                        {checkIn.carrier && checkIn.smode
+                        {checkIn.carrier && checkIn.mode
                           ? `${checkIn.carrier}, ${checkIn.mode}`
                           : 'N/A'}
                       </td>
