@@ -702,6 +702,35 @@ return (
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                         {appointment.delivery || '-'}
                       </td>
+                      {/* Load Information Column */}
+<td className="px-4 py-3 text-sm text-gray-700">
+  <div className="flex flex-col">
+    {apt.ship_date && (
+      <span className="font-medium text-gray-900 text-xs">
+        {apt.ship_date}
+      </span>
+    )}
+    {apt.ship_to_city && (
+      <span>{apt.ship_to_city}</span>
+    )}
+    {apt.ship_to_state && (
+      <span>{apt.ship_to_state}</span>
+    )}
+  </div>
+</td>
+
+{/* Transport Column */}
+<td className="px-4 py-3 text-sm text-gray-700">
+  <div className="flex flex-col">
+    {apt.carrier && (
+      <span className="font-medium text-gray-900">{apt.carrier}</span>
+    )}
+    {apt.mode && (
+      <span className="text-xs text-gray-500">{apt.mode}</span>
+    )}
+  </div>
+</td>
+
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {appointment.customer}
                       </td>
