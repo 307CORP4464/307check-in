@@ -397,12 +397,6 @@ return (
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Data Tracking</h1>
-            {userEmail && (
-              <p className="text-sm text-gray-600 mt-1">Logged in as: {userEmail}</p>
-            )}
-            <p className="text-xs text-gray-500">
-              Current time: {formatTimeInIndianapolis(new Date().toISOString())}
-            </p>
           </div>
           <div className="flex gap-3">
             <Link 
