@@ -618,9 +618,10 @@ export default function CSRDashboard() {
 
                       {/* Load Info */}
                       <td className="px-4 py-3 text-sm">
-                        {checkIn.ship_to_city && checkIn.ship_to_state
+                        <div>{checkIn.requested_ship_date || 'N/A'}</div>
+                        <div> {checkIn.ship_to_city && checkIn.ship_to_state
                           ? `${checkIn.ship_to_city}, ${checkIn.ship_to_state}`
-                          : 'N/A'}
+                          : 'N/A'}</div>  
                       </td>
 
                       {/* Transport */}
