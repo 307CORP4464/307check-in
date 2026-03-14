@@ -714,7 +714,7 @@ return (
                   <div className="flex flex-col">
                     {appointment.ship_date && (
                       <span className="font-medium text-gray-900 text-xs">
-                        {appointment.ship_date}
+                        {appointment.requested_ship_date}
                       </span>
                     )}
                     {appointment.ship_to_city && (
