@@ -709,27 +709,27 @@ return (
                   {appointment.delivery || '-'}
                 </td>
 
-                {/* Load Info: ship_date on top, then city, then state */}
-                <td className="px-4 py-3 text-sm text-gray-700">
-                  <div className="flex flex-col">
-                    {appointment.requested_ship_date && (
-                      <span className="font-medium text-gray-900 text-xs">
-                        {appointment.requested_ship_date}
-                      </span>
-                    )}
-                    {appointment.ship_to_city && (
-                      <span>{appointment.ship_to_city}</span>
-                    )}
-                    {appointment.ship_to_state && (
-                      <span className="text-xs text-gray-500">
-                        {appointment.ship_to_state}
-                      </span>
-                    )}
-                    {!appointment.requested_ship_date && !appointment.ship_to_city && !appointment.ship_to_state && (
-                      <span>-</span>
-                    )}
-                  </div>
-                </td>
+               {/* Load Info: ship_date on top, then city + state on same line */}
+<td className="px-4 py-3 text-sm text-gray-700">
+  <div className="flex flex-col">
+    {appointment.requested_ship_date && (
+      <span className="font-medium text-gray-900 text-xs">
+        {appointment.requested_ship_date}
+      </span>
+    )}
+    {(appointment.ship_to_city || appointment.ship_to_state) && (
+      <span className="text-xs text-gray-500">
+        {[appointment.ship_to_city, appointment.ship_to_state]
+          .filter(Boolean)
+          .join(", ")}
+      </span>
+    )}
+    {!appointment.requested_ship_date && !appointment.ship_to_city && !appointment.ship_to_state && (
+      <span>-</span>
+    )}
+  </div>
+</td>
+
 
                 {/* Transport: carrier on top, mode below */}
                 <td className="px-4 py-3 text-sm text-gray-700">
