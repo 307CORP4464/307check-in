@@ -253,8 +253,14 @@ interface CheckIn {
   appointment_time?: string | null;
   start_time?: string | null;
   end_time?: string | null;
+  ship_to_city?: string | null;
+  ship_to_state?: string | null;
+  carrier?: string | null;
+  mode?: string | null;
+  requested_ship_date?: string | null;
   notes?: string;
 }
+
 
 interface Appointment {
   id: string;
@@ -265,12 +271,11 @@ interface Appointment {
   carrier_name?: string;
   load_type?: string;
   status?: string;
-  // New fields
-  requested_ship_date?: string | null;
-  ship_to_city?: string | null;
-  ship_to_state?: string | null;
-  carrier?: string | null;
-  mode?: string | null;
+  ship_to_city?: string;
+  ship_to_state?: string;
+  carrier?: string;
+  mode?: string;
+  requested_ship_date?: string;
 }
 
 export default function CSRDashboard() {
@@ -297,15 +302,14 @@ export default function CSRDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-
-const fetchAllData = async () => {
+ const fetchAllData = async () => {
   try {
     setLoading(true);
     setError(null);
 
     const today = getTodayInIndianapolis();
 
-    // ── Step 1: Fetch pending check-ins ──
+    // Fetch pending check-ins
     const { data: checkInsData, error: checkInsError } = await supabase
       .from('check_ins')
       .select('*')
@@ -314,133 +318,119 @@ const fetchAllData = async () => {
 
     if (checkInsError) throw checkInsError;
 
-    // ── Step 2: Collect reference numbers ──
-    const referenceNumbers: string[] = (checkInsData ?? [])
-      .map((ci: any) => ci.reference_number)
-      .filter((ref: any): ref is string => !!ref && String(ref).trim() !== '');
+    const referenceNumbers = checkInsData
+      ?.map((ci: any) => ci.reference_number)
+      .filter((ref: any) => ref && ref.trim() !== '') || [];
 
-    console.log('📋 Reference numbers from check-ins:', referenceNumbers);
-
-    // ── Step 3: Build the full appointment map ──
-    const fullAppointmentMap = new Map<string, Appointment>();
+    // appointmentsMap: key = reference number, value = { time, date }
+    const appointmentsMap = new Map<string, { time: string; date: string }>();
 
     if (referenceNumbers.length > 0) {
-      
-      // ✅ FIX: Use two separate .in() queries instead of .or()
-      // Query 1: match by sales_order
-      const { data: bySOData, error: bySOError } = await supabase
+      const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('appointments')
-        .select(`
-          id,
-          sales_order,
-          delivery,
-          appointment_time,
-          appointment_date,
-          carrier_name,
-          load_type,
-          status,
-          requested_ship_date,
-          ship_to_city,
-          ship_to_state,
-          carrier,
-          mode
-        `)
-        .in('sales_order', referenceNumbers);
+        .select('sales_order, delivery, appointment_time, appointment_date, carrier, mode, ship_to_city, ship_to_state')
+        .eq('appointment_date', today)
+        .or(
+          `sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`
+        );
 
-      if (bySOError) {
-        console.error('❌ Appointments by sales_order error:', bySOError);
-      } else {
-        console.log('✅ Appointments by sales_order:', bySOData?.length ?? 0);
+      if (appointmentsError) {
+        console.error('Error fetching appointments:', appointmentsError);
+      } else if (appointmentsData) {
+        appointmentsData.forEach((apt: any) => {
+          // ✅ Store BOTH time AND date
+          const appointmentInfo = {
+            time: apt.appointment_time ?? null,
+            date: apt.appointment_date ?? today, // fallback to today if null
+          };
+          if (apt.sales_order) appointmentsMap.set(String(apt.sales_order), appointmentInfo);
+          if (apt.delivery) appointmentsMap.set(String(apt.delivery), appointmentInfo);
+        });
       }
-
-      // Query 2: match by delivery
-      const { data: byDelData, error: byDelError } = await supabase
-        .from('appointments')
-        .select(`
-          id,
-          sales_order,
-          delivery,
-          appointment_time,
-          appointment_date,
-          carrier_name,
-          load_type,
-          status,
-          requested_ship_date,
-          ship_to_city,
-          ship_to_state,
-          carrier,
-          mode
-        `)
-        .in('delivery', referenceNumbers);
-
-      if (byDelError) {
-        console.error('❌ Appointments by delivery error:', byDelError);
-      } else {
-        console.log('✅ Appointments by delivery:', byDelData?.length ?? 0);
-      }
-
-      // ✅ Merge both result sets into the map
-      const allAppointments = [
-        ...(bySOData ?? []),
-        ...(byDelData ?? []),
-      ];
-
-      console.log('📦 Total appointment records found:', allAppointments.length);
-
-      allAppointments.forEach((apt: any) => {
-        const record: Appointment = {
-          id: apt.id,
-          sales_order: apt.sales_order,
-          delivery: apt.delivery,
-          appointment_time: apt.appointment_time,
-          appointment_date: apt.appointment_date,
-          carrier_name: apt.carrier_name,
-          load_type: apt.load_type,
-          status: apt.status,
-          requested_ship_date: apt.requested_ship_date,
-          ship_to_city: apt.ship_to_city,
-          ship_to_state: apt.ship_to_state,
-          carrier: apt.carrier,
-          mode: apt.mode,
-        };
-
-        if (apt.sales_order) {
-          fullAppointmentMap.set(String(apt.sales_order).trim(), record);
-        }
-        if (apt.delivery) {
-          fullAppointmentMap.set(String(apt.delivery).trim(), record);
-        }
-      });
     }
 
-    console.log('🗺️ Appointment map keys:', Array.from(fullAppointmentMap.keys()));
-    console.log('🗺️ Map size:', fullAppointmentMap.size); // ✅ Should now be > 0
+    // Merge appointment info into each check-in
+    const processedCheckIns = checkInsData?.map((ci: any) => {
+      const ref = ci.reference_number ? String(ci.reference_number) : null;
+      const aptInfo = ref ? appointmentsMap.get(ref) : null;
 
-    // ── Step 4: Merge into check-ins ──
-    const processedCheckIns = (checkInsData ?? []).map((ci: any) => {
-      const ref = ci.reference_number ? String(ci.reference_number).trim() : null;
-      const apt = ref ? fullAppointmentMap.get(ref) : null;
-
-      console.log(`🔍 CheckIn ref="${ref}" → apt found:`, !!apt);
+      // Debug log to verify matching
+      if (ref) {
+        console.log(`CheckIn ref: ${ref} → aptInfo:`, aptInfo);
+      }
 
       return {
         ...ci,
-        appointment_time: apt?.appointment_time ?? ci.appointment_time ?? null,
-        appointment_date: apt?.appointment_date ?? ci.appointment_date ?? today,
+        // ✅ Use appointment lookup date first, then fallback to check-in's stored date
+        appointment_time: aptInfo?.time ?? ci.appointment_time ?? null,
+        appointment_date: aptInfo?.date ?? ci.appointment_date ?? null,
       };
-    });
+    }) || [];
+
+    console.log('Processed check-ins sample:', processedCheckIns[0]);
 
     setCheckIns(processedCheckIns);
+
+    // Also update the appointments state map
+    const fullAppointmentMap = new Map<string, Appointment>();
+    appointmentsMap.forEach((value, key) => {
+      fullAppointmentMap.set(key, value as any);
+    });
     setAppointments(fullAppointmentMap);
 
   } catch (err) {
-    console.error('💥 Fetch error:', err);
+    console.error('Fetch error:', err);
     setError('Failed to load check-ins');
   } finally {
     setLoading(false);
   }
 };
 
+
+  // ─── Initial load + real-time subscription ───
+  useEffect(() => {
+    fetchAllData();
+
+    const subscription = supabase
+      .channel('check_ins_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'check_ins' },
+        () => {
+          fetchAllData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, []);
+
+  // ─── Handlers ───
+  const handleDockAssignSuccess = () => {
+    setSelectedForDock(null);
+    fetchAllData(); // ✅ Now accessible
+  };
+
+  const handleEditSuccess = () => {
+    setSelectedForEdit(null);
+    fetchAllData(); // ✅ Now accessible
+  };
+
+  const handleDenySuccess = () => {
+    setSelectedForDeny(null);
+    fetchAllData(); // ✅ Now accessible
+  };
+
+  const handleManualCheckInSuccess = () => {
+    setShowManualCheckIn(false);
+    fetchAllData(); // ✅ Now accessible
+  };
+
+  const handleRefresh = () => {
+    fetchAllData(); // ✅ Now accessible
+  };
 
 
   return (
@@ -556,7 +546,7 @@ const fetchAllData = async () => {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver Info</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Load Info</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transport</th>                    
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transport</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wait Time</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -625,89 +615,20 @@ const fetchAllData = async () => {
                         <div>{checkIn.trailer_number || 'N/A'}</div>
                         <div className="text-gray-500 text-xs">{checkIn.trailer_length || 'N/A'}</div>
                       </td>
-                      {/* DEBUG - Remove after fixing */}
-<td className="px-4 py-3 text-xs text-gray-400">
-  {checkIn.reference_number || 'NO REF'} |{' '}
-  {appointments.get(checkIn.reference_number ?? '') ? 'FOUND' : 'NOT FOUND'} |{' '}
-  Map size: {appointments.size}
-</td>
 
+                      {/* Load Info */}
+                      <td className="px-4 py-3 text-sm">
+                        {checkIn.ship_to_city && checkIn.ship_to_state
+                          ? `${checkIn.ship_to_city}, ${checkIn.ship_to_state}`
+                          : 'N/A'}
+                      </td>
 
-{/* Replace with these two new cells: */}
-<td className="px-4 py-3 text-sm text-gray-900">
-  {(() => {
-    const appt = checkIn.reference_number
-      ? appointments.get(checkIn.reference_number)
-      : null;
-
-    const shipDate = appt?.requested_ship_date
-      ? (() => {
-          try {
-            let date: Date;
-            if (appt.requested_ship_date!.match(/^\d{4}-\d{2}-\d{2}/)) {
-              const [y, m, d] = appt.requested_ship_date!.substring(0, 10).split('-').map(Number);
-              date = new Date(y, m - 1, d);
-            } else {
-              date = new Date(appt.requested_ship_date!);
-            }
-            if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
-              const mo = String(date.getMonth() + 1).padStart(2, '0');
-              const dy = String(date.getDate()).padStart(2, '0');
-              const yr = date.getFullYear();
-              return `${mo}/${dy}/${yr}`;
-            }
-            return null;
-          } catch {
-            return null;
-          }
-        })()
-      : null;
-
-    const city = appt?.ship_to_city ?? null;
-    const state = appt?.ship_to_state ?? null;
-
-    const locationLine =
-      city && state ? `${city}, ${state}` : city || state || null;
-
-    if (!shipDate && !locationLine) return <span className="text-gray-400">N/A</span>;
-
-    return (
-      <div className="flex flex-col">
-        {shipDate && (
-          <span className="font-medium text-gray-900">{shipDate}</span>
-        )}
-        {locationLine && (
-          <span className="text-gray-600 text-xs">{locationLine}</span>
-        )}
-      </div>
-    );
-  })()}
-</td>
-
-<td className="px-4 py-3 text-sm text-gray-900">
-  {(() => {
-    const appt = checkIn.reference_number
-      ? appointments.get(checkIn.reference_number)
-      : null;
-
-    const carrier = appt?.carrier ?? null;
-    const mode = appt?.mode ?? null;
-
-    if (!carrier && !mode) return <span className="text-gray-400">N/A</span>;
-
-    return (
-      <div className="flex flex-col">
-        {carrier && (
-          <span className="font-medium text-gray-900">{carrier}</span>
-        )}
-        {mode && (
-          <span className="text-gray-600 text-xs">{mode}</span>
-        )}
-      </div>
-    );
-  })()}
-</td>
-
+                      {/* Transport */}
+                      <td className="px-4 py-3 text-sm">
+                        {checkIn.carrier && checkIn.smode
+                          ? `${checkIn.carrier}, ${checkIn.mode}`
+                          : 'N/A'}
+                      </td>
 
                       {/* Wait Time */}
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
