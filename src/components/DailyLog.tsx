@@ -843,13 +843,13 @@ return (
                 Driver Info
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Trailer Info
+                Trailer
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Load Info
+                Customer, Req. Date and Dest.
               </th>
                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Transport
+                SCAC and Mode
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Reference #
@@ -942,7 +942,7 @@ return (
       <td className="font-bold text-gray-900"> {checkIn.reference_number || 'N/A'}</td>
 
       {/* Dock */}
-      <td className="px-4 py-4 text-sm text-gray-900">
+      <td className="font-bold text-gray-900">
         {checkIn.dock_number || 'N/A'}
       </td>
 
@@ -977,8 +977,6 @@ return (
     );
   })()}
 </td>
-
-
 
       {/* End Time */}
       <td className="px-4 py-3 whitespace-nowrap text-sm">
