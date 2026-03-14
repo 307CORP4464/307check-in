@@ -256,6 +256,7 @@ interface CheckIn {
   ship_to_city?: string | null;
   ship_to_state?: string | null;
   carrier?: string | null;
+  customer?: string | null;
   mode?: string | null;
   requested_ship_date?: string | null;
   notes?: string;
@@ -274,6 +275,7 @@ interface Appointment {
   ship_to_city?: string;
   ship_to_state?: string;
   carrier?: string;
+  customer?: string;
   mode?: string;
   requested_ship_date?: string;
 }
@@ -330,6 +332,7 @@ export default function CSRDashboard() {
       ship_to_state: string | null;
       carrier: string | null;
       mode: string | null;
+      customer: string | null;
       requested_ship_date: string | null;
     }>();
 
@@ -337,7 +340,7 @@ export default function CSRDashboard() {
       const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('appointments')
         .select(
-          'sales_order, delivery, appointment_time, appointment_date, carrier, mode, ship_to_city, ship_to_state, requested_ship_date'
+          'sales_order, delivery, appointment_time, appointment_date, carrier, mode, ship_to_city, ship_to_state, requested_ship_date, customer'
         )
         .or(
           `sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`
@@ -358,6 +361,7 @@ export default function CSRDashboard() {
             ship_to_state: apt.ship_to_state ?? null,
             carrier: apt.carrier ?? null,
             mode: apt.mode ?? null,
+            customer: apt.customer ?? null,
             requested_ship_date: apt.requested_ship_date ?? null,
           };
 
@@ -575,8 +579,8 @@ export default function CSRDashboard() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-in Time</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Req. Date & Dest.</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SCAC & Mode</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Req. Date and Dest.</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SCAC and Mode</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference #</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wait Time</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
