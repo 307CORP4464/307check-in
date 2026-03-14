@@ -282,7 +282,7 @@ interface CheckIn {
   ship_to_city?: string | null;
   ship_to_state?: string | null;
   carrier?: string | null;
-  mmode?: string | null;
+  mode?: string | null;
   requested_ship_date?: string | null;
   customer?: string;
 }
@@ -299,7 +299,7 @@ interface Appointment {
   ship_to_city?: string | null;
   ship_to_state?: string | null;
   carrier?: string | null;
-  mmode?: string | null;
+  mode?: string | null;
   requested_ship_date?: string | null;
 }
 
