@@ -571,13 +571,13 @@ export default function CSRDashboard() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-in Time</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference Number</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver Info</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Load Info</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transport</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-in Time</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Req. Date & Dest.</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SCAC & Mode</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference #</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wait Time</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -596,24 +596,37 @@ export default function CSRDashboard() {
                         </span>
                       </td>
 
+                      {/* Driver Info */}
+                      <td className="px-4 py-3 text-sm">
+                        <div>{checkIn.driver_name || 'N/A'}</div>
+                        <div className="text-gray-500 text-xs">{formatPhoneNumber(checkIn.driver_phone)}</div>
+                        <div className="text-gray-500 text-xs">{checkIn.carrier_name || 'N/A'}</div>
+                      </td>
+
+                      {/* Trailer */}
+                      <td className="px-4 py-3 text-sm">
+                        <div>{checkIn.trailer_number || 'N/A'}</div>
+                        <div className="text-gray-500 text-xs">{checkIn.trailer_length || 'N/A'}</div>
+                      </td>
+                      
                       {/* Check-in Time */}
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
                         {formatTimeInIndianapolis(checkIn.check_in_time, true)}
                       </td>
 
                       {/* Appointment Date & Time */}
-<td className={`px-4 py-3 text-sm ${
-  (() => {
-    const status = getAppointmentStatus(
-      checkIn.check_in_time, 
-      checkIn.appointment_time,
-      checkIn.appointment_date
-    );
-    return status.color === 'green' ? 'bg-green-100' :
-           status.color === 'yellow' ? 'bg-yellow-100' :
-           status.color === 'red' ? 'bg-red-200' : '';
-  })()
-}`}>
+                     <td className={`px-4 py-3 text-sm ${
+                      (() => {
+                       const status = getAppointmentStatus(
+                         checkIn.check_in_time, 
+                         checkIn.appointment_time,
+                         checkIn.appointment_date
+                       );
+                        return status.color === 'green' ? 'bg-green-100' :
+                               status.color === 'yellow' ? 'bg-yellow-100' :
+                               status.color === 'red' ? 'bg-red-200' : '';
+                        })()
+                       }`}>
   <div>{formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}</div>
   {(() => {
     const status = getAppointmentStatus(
@@ -629,26 +642,9 @@ export default function CSRDashboard() {
   })()}
 </td>
 
-                      {/* Reference Number */}
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                        {checkIn.reference_number || 'N/A'}
-                      </td>
-
-                      {/* Driver Info */}
+                       {/* Requested Ship Date and Destination */}
                       <td className="px-4 py-3 text-sm">
-                        <div>{checkIn.driver_name || 'N/A'}</div>
-                        <div className="text-gray-500 text-xs">{formatPhoneNumber(checkIn.driver_phone)}</div>
-                        <div className="text-gray-500 text-xs">{checkIn.carrier_name || 'N/A'}</div>
-                      </td>
-
-                      {/* Trailer */}
-                      <td className="px-4 py-3 text-sm">
-                        <div>{checkIn.trailer_number || 'N/A'}</div>
-                        <div className="text-gray-500 text-xs">{checkIn.trailer_length || 'N/A'}</div>
-                      </td>
-
-                      {/* Load Info */}
-                      <td className="px-4 py-3 text-sm">
+                        <div>{checkIn.customer || "N/A'}</div>
                         <div>{checkIn.requested_ship_date || 'N/A'}</div>
                         <div> {checkIn.ship_to_city && checkIn.ship_to_state
                           ? `${checkIn.ship_to_city}, ${checkIn.ship_to_state}`
@@ -660,6 +656,11 @@ export default function CSRDashboard() {
                         {checkIn.carrier && checkIn.mode
                           ? `${checkIn.carrier}, ${checkIn.mode}`
                           : 'N/A'}
+                      </td>
+
+                      {/* Reference Number */}
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                        {checkIn.reference_number || 'N/A'}
                       </td>
 
                       {/* Wait Time */}
@@ -679,12 +680,14 @@ export default function CSRDashboard() {
                         >
                           Edit
                         </button>
+                        
                         <button
                           onClick={() => setSelectedForDock(checkIn)}
                           className="text-green-600 hover:text-green-900"
                         >
                           Assign
                         </button>
+                        
                         <button
                           onClick={() => setSelectedForDeny(checkIn)}
                           className="text-red-600 hover:text-red-900"
