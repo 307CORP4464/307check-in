@@ -648,6 +648,13 @@ export default function CSRDashboard() {
                         <div>{checkIn.trailer_number || 'N/A'}</div>
                         <div className="text-gray-500 text-xs">{checkIn.trailer_length || 'N/A'}</div>
                       </td>
+                      {/* DEBUG - Remove after fixing */}
+<td className="px-4 py-3 text-xs text-gray-400">
+  {checkIn.reference_number || 'NO REF'} |{' '}
+  {appointments.get(checkIn.reference_number ?? '') ? 'FOUND' : 'NOT FOUND'} |{' '}
+  Map size: {appointments.size}
+</td>
+
 
 {/* Replace with these two new cells: */}
 <td className="px-4 py-3 text-sm text-gray-900">
