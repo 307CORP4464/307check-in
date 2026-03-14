@@ -711,10 +711,10 @@ return (
       </span>
     )}
     {apt.ship_to_city && (
-      <span>{apt.ship_to_city}</span>
+      <span>{ship_to_city}</span>
     )}
     {apt.ship_to_state && (
-      <span>{apt.ship_to_state}</span>
+      <span>{ship_to_state}</span>
     )}
   </div>
 </td>
@@ -723,10 +723,10 @@ return (
 <td className="px-4 py-3 text-sm text-gray-700">
   <div className="flex flex-col">
     {apt.carrier && (
-      <span className="font-medium text-gray-900">{apt.carrier}</span>
+      <span className="font-medium text-gray-900">{carrier}</span>
     )}
     {apt.mode && (
-      <span className="text-xs text-gray-500">{apt.mode}</span>
+      <span className="text-xs text-gray-500">{mode}</span>
     )}
   </div>
 </td>
