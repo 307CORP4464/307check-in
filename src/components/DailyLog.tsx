@@ -437,6 +437,18 @@ export default function DailyLog() {
   const [selectedForStatusChange, setSelectedForStatusChange] = useState<CheckIn | null>(null);
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
 
+type AppointmentInfo = {
+  time: string | null;
+  date: string | null;
+  customer: string | null;
+  ship_to_city: string | null;
+  ship_to_state: string | null;
+  carrier: string | null;
+  mode: string | null;
+  requested_ship_date: string | null;
+};
+
+  
 const fetchCheckInsForDate = async () => {
   try {
     setLoading(true);
@@ -543,43 +555,41 @@ const fetchCheckInsForDate = async () => {
     console.log('Final appointments map:', Object.fromEntries(appointmentsMap));
 
     // Step 4: Enrich check-ins with ALL appointment data
-    const enrichedCheckIns = (checkInsData || []).map(checkIn => {
-      const refs = parseReferenceNumbers(checkIn.reference_number);
+const enrichedCheckIns = (checkInsData || []).map(checkIn => {
+  const refs = parseReferenceNumbers(checkIn.reference_number);
 
-      let appointmentInfo: typeof appointmentsMap extends Map<string, infer V> ? V : never
-        | undefined = undefined;
+  // ✅ Clean simple type — no more complex conditional type
+  let appointmentInfo: AppointmentInfo | undefined = undefined;
 
-      for (const ref of refs) {
-        const trimmedRef = ref.trim();
-        if (appointmentsMap.has(trimmedRef)) {
-          appointmentInfo = appointmentsMap.get(trimmedRef);
-          console.log(`Match found for ref "${trimmedRef}":`, appointmentInfo);
-          break;
-        }
-      }
+  for (const ref of refs) {
+    const trimmedRef = ref.trim();
+    if (appointmentsMap.has(trimmedRef)) {
+      appointmentInfo = appointmentsMap.get(trimmedRef);
+      console.log(`Match found for ref "${trimmedRef}":`, appointmentInfo);
+      break;
+    }
+  }
 
-      if (!appointmentInfo) {
-        console.log(`No appointment match for check-in ${checkIn.id}, refs:`, refs);
-      }
+  if (!appointmentInfo) {
+    console.log(`No appointment match for check-in ${checkIn.id}, refs:`, refs);
+  }
 
-      // ✅ Pull each field from appointmentInfo, fallback to check-in's own value
-      return {
-        ...checkIn,
-        appointment_time: appointmentInfo?.time ?? checkIn.appointment_time ?? null,
-        appointment_date: appointmentInfo?.date ?? checkIn.appointment_date ?? null,
-        customer: appointmentInfo?.customer ?? checkIn.customer ?? null,
-        // ✅ These three were missing before — now properly enriched
-        ship_to_city: appointmentInfo?.ship_to_city ?? checkIn.ship_to_city ?? null,
-        ship_to_state: appointmentInfo?.ship_to_state ?? checkIn.ship_to_state ?? null,
-        carrier: appointmentInfo?.carrier ?? checkIn.carrier ?? null,
-        mode: appointmentInfo?.mode ?? checkIn.mode ?? null,
-        requested_ship_date: appointmentInfo?.requested_ship_date ?? checkIn.requested_ship_date ?? null,
-      };
-    });
+  return {
+    ...checkIn,
+    appointment_time: appointmentInfo?.time ?? checkIn.appointment_time ?? null,
+    appointment_date: appointmentInfo?.date ?? checkIn.appointment_date ?? null,
+    customer: appointmentInfo?.customer ?? checkIn.customer ?? null,
+    ship_to_city: appointmentInfo?.ship_to_city ?? checkIn.ship_to_city ?? null,
+    ship_to_state: appointmentInfo?.ship_to_state ?? checkIn.ship_to_state ?? null,
+    carrier: appointmentInfo?.carrier ?? checkIn.carrier ?? null,
+    mode: appointmentInfo?.mode ?? checkIn.mode ?? null,
+    requested_ship_date: appointmentInfo?.requested_ship_date ?? checkIn.requested_ship_date ?? null,
+  };
+});
 
-    console.log('Enriched check-ins sample:', enrichedCheckIns[0]);
+console.log('Enriched check-ins sample:', enrichedCheckIns[0]);
+setCheckIns(enrichedCheckIns);
 
-    setCheckIns(enrichedCheckIns);
 
   } catch (err) {
     console.error('fetchCheckInsForDate error:', err);
