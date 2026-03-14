@@ -15,8 +15,12 @@ interface EditCheckInModalProps {
     reference_number?: string;
     appointment_time?: string | null;
     dock_number?: string;
-    destination_city?: string;
-    destination_state?: string;
+    customer?: string;
+    requested_ship_date?: string | null;
+    ship_to_city?: string;
+    ship_to_state?: string;
+    carrier?: string;
+    mode?: string;
     notes?: string;
   };
   onClose: () => void;
@@ -49,18 +53,26 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     load_type: checkIn.load_type || 'inbound' as 'inbound' | 'outbound',
     appointment_time: checkIn.appointment_time || '',
     dock_number: checkIn.dock_number || '',
-    destination_city: checkIn.destination_city || '',
-    destination_state: checkIn.destination_state || '',
+    customer: checkIn.customer || '',
+    requested_ship_date: checkIn.requested_ship_date || '',
+    ship_to_city: checkIn.ship_to_city || '',
+    ship_to_state: checkIn.ship_to_state || '',
+    carrier: checkIn.carrier || '',
+    mode: checkIn.mode || '',
     notes: checkIn.notes || '',
   });
 
-const US_STATES = [
-  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'MX', 'CN'
-] as const;
+  const US_STATES = [
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'MX', 'CN'
+  ] as const;
+
+  const MODES = [
+    'TL', 'LTL', 'Intermodal', 'Flatbed', 'Reefer', 'Partial', 'Van', 'Other'
+  ];
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -115,8 +127,12 @@ const US_STATES = [
           reference_number: combinedReferenceNumber,
           appointment_time: formData.appointment_time || null,
           dock_number: formData.dock_number || null,
-          destination_city: formData.destination_city,
-          destination_state: formData.destination_state,
+          customer: formData.customer || null,
+          requested_ship_date: formData.requested_ship_date || null,
+          ship_to_city: formData.ship_to_city || null,
+          ship_to_state: formData.ship_to_state || null,
+          carrier: formData.carrier || null,
+          mode: formData.mode || null,
           notes: formData.notes,
         })
         .eq('id', checkIn.id);
@@ -148,6 +164,8 @@ const US_STATES = [
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            {/* Load Type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Load Type
@@ -163,7 +181,7 @@ const US_STATES = [
               </select>
             </div>
 
-            {/* Reference Numbers with + button */}
+            {/* Reference Numbers */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Reference Number(s)
@@ -203,6 +221,7 @@ const US_STATES = [
               </div>
             </div>
 
+            {/* Appointment Time */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Appointment Time
@@ -234,6 +253,7 @@ const US_STATES = [
               </select>
             </div>
 
+            {/* Dock Number */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Dock Number
@@ -248,6 +268,7 @@ const US_STATES = [
               />
             </div>
 
+            {/* Driver Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Driver Name
@@ -261,6 +282,7 @@ const US_STATES = [
               />
             </div>
 
+            {/* Driver Phone */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Driver Phone
@@ -274,6 +296,7 @@ const US_STATES = [
               />
             </div>
 
+            {/* Carrier Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Carrier Name
@@ -287,6 +310,7 @@ const US_STATES = [
               />
             </div>
 
+            {/* Trailer Number */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Trailer Number
@@ -300,6 +324,7 @@ const US_STATES = [
               />
             </div>
 
+            {/* Trailer Length */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Trailer Length
@@ -313,50 +338,117 @@ const US_STATES = [
               />
             </div>
 
+            {/* ── Optional Fields ── */}
+
+            {/* Customer */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Destination City
+                Customer <span className="text-gray-400 font-normal">(optional)</span>
               </label>
               <input
                 type="text"
-                name="destination_city"
-                value={formData.destination_city}
+                name="customer"
+                value={formData.customer}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+                placeholder="Customer name"
+              />
+            </div>
+
+            {/* Requested Ship Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Requested Ship Date <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="date"
+                name="requested_ship_date"
+                value={formData.requested_ship_date}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
+            {/* Ship To City */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Destination State
+                Ship To City <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                name="ship_to_city"
+                value={formData.ship_to_city}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+                placeholder="City"
+              />
+            </div>
+
+            {/* Ship To State */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ship To State <span className="text-gray-400 font-normal">(optional)</span>
               </label>
               <select
-                name="destination_state"
-                value={formData.destination_state}
+                name="ship_to_state"
+                value={formData.ship_to_state}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Select State...</option>
+                <option value="">Select state...</option>
                 {US_STATES.map(state => (
                   <option key={state} value={state}>{state}</option>
                 ))}
               </select>
             </div>
-          </div>
 
-          {/* ===== NOTES BOX AT THE BOTTOM ===== */}
-          <div className="mt-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Notes
-            </label>
-            <textarea
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              rows={4}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 resize-vertical"
-              placeholder="Add any additional notes here..."
-            />
+            {/* Carrier */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Carrier <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                name="carrier"
+                value={formData.carrier}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+                placeholder="Carrier"
+              />
+            </div>
+
+            {/* Mode */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Mode <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <select
+                name="mode"
+                value={formData.mode}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select mode...</option>
+                {MODES.map(mode => (
+                  <option key={mode} value={mode}>{mode}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Notes — full width */}
+            <div className="col-span-1 md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Notes
+              </label>
+              <textarea
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+                rows={3}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+                placeholder="Any additional notes..."
+              />
+            </div>
           </div>
 
           {/* Action Buttons */}
@@ -364,15 +456,14 @@ const US_STATES = [
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              disabled={saving}
+              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
               disabled={saving}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
@@ -382,4 +473,3 @@ const US_STATES = [
     </div>
   );
 }
-
