@@ -34,7 +34,8 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const parseReferenceNumbers = (refNum?: string): string[] => {
+  // ✅ Accepts string | null | undefined
+  const parseReferenceNumbers = (refNum?: string | null): string[] => {
     if (!refNum) return [''];
     const parts = refNum.split(',').map(s => s.trim()).filter(Boolean);
     return parts.length > 0 ? parts : [''];
@@ -61,7 +62,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     mode: checkIn.mode || '',
     notes: checkIn.notes || '',
   });
-
 
   const US_STATES = [
     'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
@@ -339,8 +339,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
               />
             </div>
 
-            {/* ── Optional Fields ── */}
-
             {/* Customer */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -436,7 +434,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
               </select>
             </div>
 
-            {/* Notes — full width */}
+            {/* Notes - full width */}
             <div className="col-span-1 md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Notes
@@ -450,6 +448,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
                 placeholder="Any additional notes..."
               />
             </div>
+
           </div>
 
           {/* Action Buttons */}
@@ -474,3 +473,4 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     </div>
   );
 }
+
