@@ -440,7 +440,7 @@ export default function DailyLog() {
 const fetchCheckInsForDate = async () => {
   try {
     setLoading(true);
-    
+
     const startOfDayIndy = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
     const endOfDayIndy = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
 
@@ -464,121 +464,123 @@ const fetchCheckInsForDate = async () => {
 
     console.log('All parsed reference numbers:', allReferenceNumbers);
 
-    let appointmentsMap = new Map<string, { 
-      time: string | null, 
-      date: string | null, 
-      customer: string | null 
+    // ✅ Updated map type to include all fields we need
+    let appointmentsMap = new Map<string, {
+      time: string | null;
+      date: string | null;
+      customer: string | null;
+      ship_to_city: string | null;
+      ship_to_state: string | null;
+      carrier: string | null;
+      mode: string | null;
+      requested_ship_date: string | null;
     }>();
 
-    // Step 3: Fetch appointments in BATCHES to avoid URL length limits
+    // Step 3: Fetch appointments in batches
     if (allReferenceNumbers.length > 0) {
-  const BATCH_SIZE = 20;
+      const BATCH_SIZE = 20;
 
-  for (let i = 0; i < allReferenceNumbers.length; i += BATCH_SIZE) {
-    const batch = allReferenceNumbers.slice(i, i + BATCH_SIZE);
+      for (let i = 0; i < allReferenceNumbers.length; i += BATCH_SIZE) {
+        const batch = allReferenceNumbers.slice(i, i + BATCH_SIZE);
 
-    // ✅ Use ilike for partial matching since refs may be combined in one field
-    const orFilter = batch
-      .flatMap(ref => [
-        `sales_order.ilike.%${ref}%`,
-        `delivery.ilike.%${ref}%`
-      ])
-      .join(',');
+        const orFilter = batch
+          .flatMap(ref => [
+            `sales_order.ilike.%${ref}%`,
+            `delivery.ilike.%${ref}%`
+          ])
+          .join(',');
 
-    console.log('Querying with filter:', orFilter);
+        console.log('Querying with filter:', orFilter);
 
-    const { data: appointmentsData, error: appointmentsError } = await supabase
-      .from('appointments')
-      .select('sales_order, delivery, appointment_time, appointment_date, customer, requested_ship_date, carrier, mode, ship_to_city, ship_to_state')
-      .or(orFilter);
+        const { data: appointmentsData, error: appointmentsError } = await supabase
+          .from('appointments')
+          .select(
+            'sales_order, delivery, appointment_time, appointment_date, customer, requested_ship_date, carrier, mode, ship_to_city, ship_to_state'
+          )
+          .or(orFilter);
 
-    console.log('Appointments returned:', appointmentsData);
+        console.log('Appointments returned:', appointmentsData);
 
-    if (appointmentsError) {
-      console.error('Appointments error:', appointmentsError);
-      continue;
-    }
-
-    if (appointmentsData) {
-      appointmentsData.forEach(apt => {
-        const appointmentInfo = {
-          time: apt.appointment_time ?? null,
-          date: apt.appointment_date ?? null,
-          customer: apt.customer ?? null
-          
-        };
-
-        // Parse and map all refs from sales_order
-        if (apt.sales_order) {
-          parseReferenceNumbers(apt.sales_order).forEach(ref => {
-            appointmentsMap.set(ref.trim(), appointmentInfo);
-          });
-          appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
+        if (appointmentsError) {
+          console.error('Appointments error:', appointmentsError);
+          continue;
         }
 
-        // Parse and map all refs from delivery
-        if (apt.delivery) {
-          parseReferenceNumbers(apt.delivery).forEach(ref => {
-            appointmentsMap.set(ref.trim(), appointmentInfo);
+        if (appointmentsData) {
+          appointmentsData.forEach(apt => {
+            // ✅ Now storing ALL fields — this was the root cause of N/A
+            const appointmentInfo = {
+              time: apt.appointment_time ?? null,
+              date: apt.appointment_date ?? null,
+              customer: apt.customer ?? null,
+              ship_to_city: apt.ship_to_city ?? null,
+              ship_to_state: apt.ship_to_state ?? null,
+              carrier: apt.carrier ?? null,
+              mode: apt.mode ?? null,
+              requested_ship_date: apt.requested_ship_date ?? null,
+            };
+
+            // Map by sales_order refs
+            if (apt.sales_order) {
+              parseReferenceNumbers(apt.sales_order).forEach(ref => {
+                appointmentsMap.set(ref.trim(), appointmentInfo);
+              });
+              appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
+            }
+
+            // Map by delivery refs
+            if (apt.delivery) {
+              parseReferenceNumbers(apt.delivery).forEach(ref => {
+                appointmentsMap.set(ref.trim(), appointmentInfo);
+              });
+              appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
+            }
           });
-          appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
         }
-      });
+      }
     }
-  }
-}
 
     console.log('Final appointments map:', Object.fromEntries(appointmentsMap));
 
-   // Step 4: Enrich check-ins with appointment data
-const enrichedCheckIns = (checkInsData || []).map(checkIn => {
-  const refs = parseReferenceNumbers(checkIn.reference_number);
+    // Step 4: Enrich check-ins with ALL appointment data
+    const enrichedCheckIns = (checkInsData || []).map(checkIn => {
+      const refs = parseReferenceNumbers(checkIn.reference_number);
 
-  // Try to find a matching appointment for any of the reference numbers
-  let appointmentInfo: { time: string | null, date: string | null, customer: string | null } | undefined = undefined;
-  
-  for (const ref of refs) {
-    const trimmedRef = ref.trim();
-    if (appointmentsMap.has(trimmedRef)) {
-      appointmentInfo = appointmentsMap.get(trimmedRef);
-      console.log(`Match found for ref "${trimmedRef}":`, appointmentInfo);
-      break;
-    }
-  }
+      let appointmentInfo: typeof appointmentsMap extends Map<string, infer V> ? V : never
+        | undefined = undefined;
 
-  if (!appointmentInfo) {
-    console.log(`No appointment match for check-in ${checkIn.id}, refs:`, refs);
-  }
+      for (const ref of refs) {
+        const trimmedRef = ref.trim();
+        if (appointmentsMap.has(trimmedRef)) {
+          appointmentInfo = appointmentsMap.get(trimmedRef);
+          console.log(`Match found for ref "${trimmedRef}":`, appointmentInfo);
+          break;
+        }
+      }
 
-  // ✅ FIX: Check for undefined AND null (Map.get() returns T | undefined)
-  const appointment_time = appointmentInfo !== undefined && appointmentInfo !== null
-    ? appointmentInfo.time
-    : (checkIn.appointment_time ?? null);
+      if (!appointmentInfo) {
+        console.log(`No appointment match for check-in ${checkIn.id}, refs:`, refs);
+      }
 
-  const appointment_date = appointmentInfo !== undefined && appointmentInfo !== null
-    ? appointmentInfo.date
-    : (checkIn.appointment_date ?? null);
+      // ✅ Pull each field from appointmentInfo, fallback to check-in's own value
+      return {
+        ...checkIn,
+        appointment_time: appointmentInfo?.time ?? checkIn.appointment_time ?? null,
+        appointment_date: appointmentInfo?.date ?? checkIn.appointment_date ?? null,
+        customer: appointmentInfo?.customer ?? checkIn.customer ?? null,
+        // ✅ These three were missing before — now properly enriched
+        ship_to_city: appointmentInfo?.ship_to_city ?? checkIn.ship_to_city ?? null,
+        ship_to_state: appointmentInfo?.ship_to_state ?? checkIn.ship_to_state ?? null,
+        carrier: appointmentInfo?.carrier ?? checkIn.carrier ?? null,
+        mode: appointmentInfo?.mode ?? checkIn.mode ?? null,
+        requested_ship_date: appointmentInfo?.requested_ship_date ?? checkIn.requested_ship_date ?? null,
+      };
+    });
 
-  const customer = appointmentInfo !== undefined && appointmentInfo !== null
-    ? appointmentInfo.customer
-    : (checkIn.customer ?? null);
-
-  console.log(`Final appointment for check-in ${checkIn.id}:`, {
-    appointment_time,
-    appointment_date,
-    customer
-  });
-
-  return {
-    ...checkIn,
-    appointment_time,
-    appointment_date,
-    customer
-  };
-});
-
+    console.log('Enriched check-ins sample:', enrichedCheckIns[0]);
 
     setCheckIns(enrichedCheckIns);
+
   } catch (err) {
     console.error('fetchCheckInsForDate error:', err);
     setError(err instanceof Error ? err.message : 'An error occurred');
@@ -586,6 +588,7 @@ const enrichedCheckIns = (checkInsData || []).map(checkIn => {
     setLoading(false);
   }
 };
+
 
   
   useEffect(() => {
