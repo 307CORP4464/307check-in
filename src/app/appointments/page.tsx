@@ -647,4 +647,52 @@ export default function AppointmentsPage() {
                               Edit
                             </button>
                             <button
-                              onClick={
+                        onClick={async () => {
+                          if (confirm('Delete this appointment?')) {
+                            await deleteAppointment(apt.id);
+                            await loadAppointments();
+                          }
+                        }}
+                        className="text-red-500 hover:text-red-700 font-medium text-sm"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {modalOpen && (
+<AppointmentModal
+  isOpen={modalOpen}
+  onClose={() => {
+    setModalOpen(false);
+    setEditingAppointment(null);
+    setExistingAppointment(null);
+  }}
+  onSave={handleSave}
+  appointment={editingAppointment}
+  initialDate={selectedDate}
+  existingAppointment={existingAppointment}
+  onCheckDuplicate={(salesOrder, delivery) => {
+  if (editingAppointment) {
+    setExistingAppointment(null);
+    return;
+  }
+  const so = salesOrder.trim().toLowerCase();
+  const del = delivery.trim().toLowerCase();
+  const found = appointments.find((a) =>   // ← correct
+    (so !== '' && a.sales_order?.trim().toLowerCase() === so) ||
+    (del !== '' && a.delivery?.trim().toLowerCase() === del)
+  ) ?? null;
+  setExistingAppointment(found);
+}}
+/>
+)}
+</div>
+);
+}
