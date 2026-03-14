@@ -725,7 +725,7 @@ return (
                         {appointment.ship_to_state}
                       </span>
                     )}
-                    {!appointment.ship_date && !appointment.ship_to_city && !appointment.ship_to_state && (
+                    {!appointment.requested_ship_date && !appointment.ship_to_city && !appointment.ship_to_state && (
                       <span>-</span>
                     )}
                   </div>
