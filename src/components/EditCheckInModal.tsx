@@ -6,22 +6,22 @@ import { createBrowserClient } from '@supabase/ssr';
 interface EditCheckInModalProps {
   checkIn: {
     id: string;
-    driver_name?: string;
-    driver_phone?: string;
-    carrier_name?: string;
-    trailer_number?: string;
-    trailer_length?: string;
+    driver_name?: string | null;
+    driver_phone?: string | null;
+    carrier_name?: string | null;
+    trailer_number?: string | null;
+    trailer_length?: string | null;
     load_type?: 'inbound' | 'outbound';
-    reference_number?: string;
+    reference_number?: string | null;
     appointment_time?: string | null;
-    dock_number?: string;
-    customer?: string;
+    dock_number?: string | null;
+    customer?: string | null;
     requested_ship_date?: string | null;
-    ship_to_city?: string;
-    ship_to_state?: string;
-    carrier?: string;
-    mode?: string;
-    notes?: string;
+    ship_to_city?: string | null;
+    ship_to_state?: string | null;
+    carrier?: string | null;
+    mode?: string | null;
+    notes?: string | null;
   };
   onClose: () => void;
   onSuccess: () => void;
@@ -61,6 +61,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     mode: checkIn.mode || '',
     notes: checkIn.notes || '',
   });
+
 
   const US_STATES = [
     'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
