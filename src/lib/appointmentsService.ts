@@ -23,21 +23,11 @@ export async function getAppointmentsByDate(date: string): Promise<Appointment[]
 export async function createAppointment(input: AppointmentInput): Promise<Appointment> {
   const sales_order = input.sales_order?.trim() || null;
   const delivery = input.delivery?.trim() || null;
-  const customer = input.customer?.trim() || null; // ✅ ADD THIS
+  const customer = input.customer?.trim() || null;
 
   if (!sales_order && !delivery) {
     throw new Error('Either Sales Order or Delivery must be provided');
   }
-
-  console.log('📝 Creating appointment:', {
-    appointment_date: input.appointment_date,
-    appointment_time: input.appointment_time,
-    sales_order: sales_order,
-    delivery: delivery,
-    customer: customer, // ✅ ADD THIS
-    notes: input.notes?.trim() || null,
-    source: input.source || 'manual'
-  });
 
   const { data, error } = await supabase
     .from('appointments')
@@ -46,7 +36,12 @@ export async function createAppointment(input: AppointmentInput): Promise<Appoin
       appointment_time: input.appointment_time,
       sales_order: sales_order,
       delivery: delivery,
-      customer: customer, // ✅ ADD THIS
+      customer: customer,
+      carrier: input.carrier?.trim() || null,
+      mode: input.mode?.trim() || null,
+      requested_ship_date: input.requested_ship_date?.trim() || null,
+      ship_to_city: input.ship_to_city?.trim() || null,
+      ship_to_state: input.ship_to_state?.trim() || null,
       notes: input.notes?.trim() || null,
       source: input.source || 'manual'
     }])
@@ -75,7 +70,12 @@ export async function updateAppointment(
       appointment_time: input.appointment_time,
       sales_order: input.sales_order?.trim() || null,
       delivery: input.delivery?.trim() || null,
-      customer: input.customer?.trim() || null, // ✅ ADD THIS
+      customer: input.customer?.trim() || null,
+      carrier: input.carrier?.trim() || null,
+      mode: input.mode?.trim() || null,
+      requested_ship_date: input.requested_ship_date?.trim() || null,
+      ship_to_city: input.ship_to_city?.trim() || null,
+      ship_to_state: input.ship_to_state?.trim() || null,
       notes: input.notes?.trim() || null
     })
     .eq('id', id)
@@ -136,7 +136,6 @@ export async function checkDuplicateAppointment(
   return (data?.length || 0) > 0;
 }
 
-// ✅ NEW FUNCTION: Get customer breakdown
 export async function getCustomerBreakdown(date: string): Promise<{ customer: string; count: number }[]> {
   const { data, error } = await supabase
     .from('appointments')
@@ -148,7 +147,6 @@ export async function getCustomerBreakdown(date: string): Promise<{ customer: st
     return [];
   }
 
-  // Count appointments by customer
   const breakdown = data.reduce((acc: { [key: string]: number }, apt) => {
     const customer = apt.customer || 'Unknown';
     acc[customer] = (acc[customer] || 0) + 1;
@@ -159,4 +157,3 @@ export async function getCustomerBreakdown(date: string): Promise<{ customer: st
     .map(([customer, count]) => ({ customer, count }))
     .sort((a, b) => b.count - a.count);
 }
-
