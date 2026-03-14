@@ -641,129 +641,157 @@ return (
       </div> {/* ✅ Closes Row 2 grid */}
 
       {/* Appointments Table */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-          </div>
-        ) : filteredAppointments.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500">
-              {searchQuery
-                ? 'No appointments found matching your search'
-                : 'No appointments scheduled for this date'}
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Time
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Sales Order
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Delivery #
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Load Info
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Transport
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Customer
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Notes
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredAppointments.map((appointment) => {
-                  const dailyLogStatus = getDailyLogStatus(appointment);
-                  return (
-                    <tr key={appointment.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {formatTimeInIndianapolis(appointment.appointment_time)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        {appointment.sales_order || '-'}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        {appointment.delivery || '-'}
-                      </td>
-                      {/* Load Information Column */}
-<td className="px-4 py-3 text-sm text-gray-700">
-  <div className="flex flex-col">
-    {apt.ship_date && (
-      <span className="font-medium text-gray-900 text-xs">
-        {apt.ship_date}
-      </span>
-    )}
-    {apt.ship_to_city && (
-      <span>{ship_to_city}</span>
-    )}
-    {apt.ship_to_state && (
-      <span>{ship_to_state}</span>
-    )}
-  </div>
-</td>
+<div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+  {loading ? (
+    <div className="flex justify-center items-center py-12">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+    </div>
+  ) : filteredAppointments.length === 0 ? (
+    <div className="text-center py-12">
+      <p className="text-gray-500">
+        {searchQuery
+          ? 'No appointments found matching your search'
+          : 'No appointments scheduled for this date'}
+      </p>
+    </div>
+  ) : (
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Time
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Sales Order
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Delivery #
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Load Info
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Transport
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Customer
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Notes
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Status
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {filteredAppointments.map((appointment) => {
+            const dailyLogStatus = getDailyLogStatus(appointment);
+            return (
+              <tr key={appointment.id} className="hover:bg-gray-50">
 
-{/* Transport Column */}
-<td className="px-4 py-3 text-sm text-gray-700">
-  <div className="flex flex-col">
-    {apt.carrier && (
-      <span className="font-medium text-gray-900">{carrier}</span>
-    )}
-    {apt.mode && (
-      <span className="text-xs text-gray-500">{mode}</span>
-    )}
-  </div>
-</td>
+                {/* Time */}
+                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {formatTimeInIndianapolis(appointment.appointment_time)}
+                </td>
 
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {appointment.customer}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        {appointment.notes || '-'}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {getStatusBadge(dailyLogStatus)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm space-x-2">
-                        <button
-                          onClick={() => handleEdit(appointment)}
-                          className="text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(appointment.id)}
-                          className="text-red-600 hover:text-red-800 font-medium"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div> {/* ✅ Closes Appointments Table */}
+                {/* Sales Order */}
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                  {appointment.sales_order || '-'}
+                </td>
 
-    </div> {/* ✅ Closes Main Content max-w wrapper */}
+                {/* Delivery # */}
+                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                  {appointment.delivery || '-'}
+                </td>
+
+                {/* Load Info: ship_date on top, then city, then state */}
+                <td className="px-4 py-3 text-sm text-gray-700">
+                  <div className="flex flex-col">
+                    {appointment.ship_date && (
+                      <span className="font-medium text-gray-900 text-xs">
+                        {appointment.ship_date}
+                      </span>
+                    )}
+                    {appointment.ship_to_city && (
+                      <span>{appointment.ship_to_city}</span>
+                    )}
+                    {appointment.ship_to_state && (
+                      <span className="text-xs text-gray-500">
+                        {appointment.ship_to_state}
+                      </span>
+                    )}
+                    {!appointment.ship_date && !appointment.ship_to_city && !appointment.ship_to_state && (
+                      <span>-</span>
+                    )}
+                  </div>
+                </td>
+
+                {/* Transport: carrier on top, mode below */}
+                <td className="px-4 py-3 text-sm text-gray-700">
+                  <div className="flex flex-col">
+                    {appointment.carrier && (
+                      <span className="font-medium text-gray-900">
+                        {appointment.carrier}
+                      </span>
+                    )}
+                    {appointment.mode && (
+                      <span className="text-xs text-gray-500">
+                        {appointment.mode}
+                      </span>
+                    )}
+                    {!appointment.carrier && !appointment.mode && (
+                      <span>-</span>
+                    )}
+                  </div>
+                </td>
+
+                {/* Customer */}
+                <td className="px-4 py-3 text-sm text-gray-900">
+                  {appointment.customer}
+                </td>
+
+                {/* Notes */}
+                <td className="px-4 py-3 text-sm">
+                  {appointment.notes || '-'}
+                </td>
+
+                {/* Status */}
+                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                  {getStatusBadge(dailyLogStatus)}
+                </td>
+
+                {/* Actions */}
+                <td className="px-4 py-3 whitespace-nowrap text-sm space-x-2">
+                  <button
+                    onClick={() => handleEdit(appointment)}
+                    className="text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(appointment.id)}
+                    className="text-red-600 hover:text-red-800 font-medium"
+                  >
+                    Delete
+                  </button>
+                </td>
+
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  )}
+</div> {/* ✅ Closes Appointments Table */}
+
+</div> {/* ✅ Closes Main Content max-w wrapper */}
+
   
 {modalOpen && (
 <AppointmentModal
