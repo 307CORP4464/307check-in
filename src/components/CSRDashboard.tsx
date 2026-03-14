@@ -298,7 +298,7 @@ export default function CSRDashboard() {
   }, []);
 
 
-  const fetchAllData = async () => {
+const fetchAllData = async () => {
   try {
     setLoading(true);
     setError(null);
@@ -325,7 +325,10 @@ export default function CSRDashboard() {
     const fullAppointmentMap = new Map<string, Appointment>();
 
     if (referenceNumbers.length > 0) {
-      const { data: appointmentsData, error: appointmentsError } = await supabase
+      
+      // ✅ FIX: Use two separate .in() queries instead of .or()
+      // Query 1: match by sales_order
+      const { data: bySOData, error: bySOError } = await supabase
         .from('appointments')
         .select(`
           id,
@@ -342,63 +345,83 @@ export default function CSRDashboard() {
           carrier,
           mode
         `)
-        .or(
-          referenceNumbers
-            .map(r => `sales_order.eq.${r},delivery.eq.${r}`)
-            .join(',')
-        );
+        .in('sales_order', referenceNumbers);
 
-      if (appointmentsError) {
-        console.error('❌ Appointments fetch error:', appointmentsError);
+      if (bySOError) {
+        console.error('❌ Appointments by sales_order error:', bySOError);
       } else {
-        console.log('✅ Raw appointments returned:', appointmentsData);
-
-        (appointmentsData ?? []).forEach((apt: any) => {
-          console.log('📦 Appointment record:', {
-            sales_order: apt.sales_order,
-            delivery: apt.delivery,
-            appointment_time: apt.appointment_time,
-            requested_ship_date: apt.requested_ship_date,
-            ship_to_city: apt.ship_to_city,
-            ship_to_state: apt.ship_to_state,
-            carrier: apt.carrier,
-            mode: apt.mode,
-          });
-
-          const record: Appointment = {
-            id: apt.id,
-            sales_order: apt.sales_order,
-            delivery: apt.delivery,
-            appointment_time: apt.appointment_time,
-            appointment_date: apt.appointment_date,
-            carrier_name: apt.carrier_name,
-            load_type: apt.load_type,
-            status: apt.status,
-            requested_ship_date: apt.requested_ship_date,
-            ship_to_city: apt.ship_to_city,
-            ship_to_state: apt.ship_to_state,
-            carrier: apt.carrier,
-            mode: apt.mode,
-          };
-
-          if (apt.sales_order) {
-            fullAppointmentMap.set(String(apt.sales_order).trim(), record);
-          }
-          if (apt.delivery) {
-            fullAppointmentMap.set(String(apt.delivery).trim(), record);
-          }
-        });
+        console.log('✅ Appointments by sales_order:', bySOData?.length ?? 0);
       }
+
+      // Query 2: match by delivery
+      const { data: byDelData, error: byDelError } = await supabase
+        .from('appointments')
+        .select(`
+          id,
+          sales_order,
+          delivery,
+          appointment_time,
+          appointment_date,
+          carrier_name,
+          load_type,
+          status,
+          requested_ship_date,
+          ship_to_city,
+          ship_to_state,
+          carrier,
+          mode
+        `)
+        .in('delivery', referenceNumbers);
+
+      if (byDelError) {
+        console.error('❌ Appointments by delivery error:', byDelError);
+      } else {
+        console.log('✅ Appointments by delivery:', byDelData?.length ?? 0);
+      }
+
+      // ✅ Merge both result sets into the map
+      const allAppointments = [
+        ...(bySOData ?? []),
+        ...(byDelData ?? []),
+      ];
+
+      console.log('📦 Total appointment records found:', allAppointments.length);
+
+      allAppointments.forEach((apt: any) => {
+        const record: Appointment = {
+          id: apt.id,
+          sales_order: apt.sales_order,
+          delivery: apt.delivery,
+          appointment_time: apt.appointment_time,
+          appointment_date: apt.appointment_date,
+          carrier_name: apt.carrier_name,
+          load_type: apt.load_type,
+          status: apt.status,
+          requested_ship_date: apt.requested_ship_date,
+          ship_to_city: apt.ship_to_city,
+          ship_to_state: apt.ship_to_state,
+          carrier: apt.carrier,
+          mode: apt.mode,
+        };
+
+        if (apt.sales_order) {
+          fullAppointmentMap.set(String(apt.sales_order).trim(), record);
+        }
+        if (apt.delivery) {
+          fullAppointmentMap.set(String(apt.delivery).trim(), record);
+        }
+      });
     }
 
     console.log('🗺️ Appointment map keys:', Array.from(fullAppointmentMap.keys()));
+    console.log('🗺️ Map size:', fullAppointmentMap.size); // ✅ Should now be > 0
 
     // ── Step 4: Merge into check-ins ──
     const processedCheckIns = (checkInsData ?? []).map((ci: any) => {
       const ref = ci.reference_number ? String(ci.reference_number).trim() : null;
       const apt = ref ? fullAppointmentMap.get(ref) : null;
 
-      console.log(`🔍 CheckIn ref="${ref}" → apt found:`, !!apt, apt?.appointment_time);
+      console.log(`🔍 CheckIn ref="${ref}" → apt found:`, !!apt);
 
       return {
         ...ci,
@@ -418,52 +441,6 @@ export default function CSRDashboard() {
   }
 };
 
-
-
-  // ─── Initial load + real-time subscription ───
-  useEffect(() => {
-    fetchAllData();
-
-    const subscription = supabase
-      .channel('check_ins_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'check_ins' },
-        () => {
-          fetchAllData();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(subscription);
-    };
-  }, []);
-
-  // ─── Handlers ───
-  const handleDockAssignSuccess = () => {
-    setSelectedForDock(null);
-    fetchAllData(); // ✅ Now accessible
-  };
-
-  const handleEditSuccess = () => {
-    setSelectedForEdit(null);
-    fetchAllData(); // ✅ Now accessible
-  };
-
-  const handleDenySuccess = () => {
-    setSelectedForDeny(null);
-    fetchAllData(); // ✅ Now accessible
-  };
-
-  const handleManualCheckInSuccess = () => {
-    setShowManualCheckIn(false);
-    fetchAllData(); // ✅ Now accessible
-  };
-
-  const handleRefresh = () => {
-    fetchAllData(); // ✅ Now accessible
-  };
 
 
   return (
