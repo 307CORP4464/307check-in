@@ -279,8 +279,11 @@ interface CheckIn {
   end_time?: string | null;
   start_time?: string | null;
   notes?: string;
-  destination_city?: string;
-  destination_state?: string;
+  ship_to_city?: string | null;
+  ship_to_state?: string | null;
+  carrier?: string | null;
+  mmode?: string | null;
+  requested_ship_date?: string | null;
   customer?: string;
 }
 
@@ -293,6 +296,11 @@ interface Appointment {
   carrier_name?: string;
   load_type?: string;
   status?: string;
+  ship_to_city?: string | null;
+  ship_to_state?: string | null;
+  carrier?: string | null;
+  mmode?: string | null;
+  requested_ship_date?: string | null;
 }
 
 const calculateDetention = (
@@ -481,7 +489,7 @@ const fetchCheckInsForDate = async () => {
 
     const { data: appointmentsData, error: appointmentsError } = await supabase
       .from('appointments')
-      .select('sales_order, delivery, appointment_time, appointment_date, customer')
+      .select('sales_order, delivery, appointment_time, appointment_date, customer, requested_ship_date, carrier, mode, ship_to_city, ship_to_state')
       .or(orFilter);
 
     console.log('Appointments returned:', appointmentsData);
@@ -497,6 +505,7 @@ const fetchCheckInsForDate = async () => {
           time: apt.appointment_time ?? null,
           date: apt.appointment_date ?? null,
           customer: apt.customer ?? null
+          
         };
 
         // Parse and map all refs from sales_order
@@ -826,6 +835,9 @@ return (
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Load Info
               </th>
+               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Transport
+              </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Reference #
               </th>
@@ -886,15 +898,29 @@ return (
       {/* Load Info */}
 <td className="px-4 py-3 text-sm">
   <div className="flex flex-col">
-    {/* Customer name displayed above destination */}
     <span className="font-semibold text-gray-900">
       {checkIn.customer || 'N/A'}
     </span>
+      <span className="font-semibold text-gray-900">
+      {checkIn.requested_ship_date || 'N/A'}
+    </span>
     {/* Destination city and state below customer */}
     <span className="text-gray-500 text-xs mt-0.5">
-      {checkIn.destination_city && checkIn.destination_state
-        ? `${checkIn.destination_city}, ${checkIn.destination_state}`
-        : checkIn.destination_city || checkIn.destination_state || 'N/A'}
+      {checkIn.ship_to_city && checkIn.ship_to_state
+        ? `${checkIn.ship_to_city}, ${checkIn.ship_to_state}`
+        : checkIn.ship_to_city || checkIn.ship_to_state || 'N/A'}
+    </span>
+  </div>
+</td>
+
+            {/* Transport */}
+<td className="px-4 py-3 text-sm">
+  <div className="flex flex-col">
+    <span className="font-semibold text-gray-900">
+      {checkIn.carrier || 'N/A'}
+    </span>
+     <span className="font-semibold text-gray-900">
+      {checkIn.mode || 'N/A'}
     </span>
   </div>
 </td>
