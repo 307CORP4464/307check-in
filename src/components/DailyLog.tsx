@@ -952,7 +952,7 @@ return (
       </td>
 
  {/* Appointment Time */}
-<td className="border px-4 py-3">
+<td className="px-4 py-3 whitespace-nowrap text-sm">
   {(() => {
     const status = getAppointmentStatus(
       checkIn.check_in_time,
