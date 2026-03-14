@@ -118,7 +118,6 @@ export default function AppointmentsPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [checkInStatuses, setCheckInStatuses] = useState<Record<string, string>>({});
   const [existingAppointment, setExistingAppointment] = useState<Appointment | null>(null);
-  // New state for status filter
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
   const getDailyLogStatus = (appointment: Appointment): string | null => {
@@ -147,7 +146,6 @@ export default function AppointmentsPage() {
   useEffect(() => {
     loadAppointments();
     fetchCheckInStatuses();
-    // Reset status filter when date changes
     setStatusFilter('all');
   }, [selectedDate]);
 
@@ -170,7 +168,6 @@ export default function AppointmentsPage() {
     setSelectedDate(currentDate.toISOString().split('T')[0]);
   };
 
-  // Base filter by search query
   const searchFilteredAppointments = appointments.filter(apt => {
     if (!searchQuery.trim()) return true;
     
@@ -181,7 +178,6 @@ export default function AppointmentsPage() {
     return salesOrder.includes(query) || delivery.includes(query);
   });
 
-  // Further filter by status
   const filteredAppointments = searchFilteredAppointments.filter(apt => {
     if (statusFilter === 'all') return true;
 
@@ -201,7 +197,6 @@ export default function AppointmentsPage() {
     return true;
   });
 
-  // Counts based on search-filtered appointments (before status filter)
   const totalAppointmentsCount = searchFilteredAppointments.length;
 
   const workInCount = searchFilteredAppointments.filter(apt => {
@@ -302,11 +297,10 @@ export default function AppointmentsPage() {
         setCheckInStatuses(statusMap);
       }
     } catch (error) {
-      console.error('Error fetching check-in statuses:', error);
+      console.error('Error in fetchCheckInStatuses:', error);
     }
   };
-
-  const findDuplicateAppointment = (salesOrder: string, delivery: string): Appointment | null => {
+   const findDuplicateAppointment = (salesOrder: string, delivery: string): Appointment | null => {
     return appointments.find((a) =>
       (salesOrder.trim() !== '' && a.sales_order === salesOrder.trim()) ||
       (delivery.trim() !== '' && a.delivery === delivery.trim())
@@ -395,8 +389,11 @@ export default function AppointmentsPage() {
     },
   ];
 
-return (
-  <div className="min-h-screen bg-gray-50">
+
+  // ── TABLE ──────────────────────────────────────────────────────────────────
+  return (
+    <div className="p-6">
+      <div className="min-h-screen bg-gray-50">
 
     {/* Header */}
     <div className="bg-white border-b shadow-sm">
@@ -428,9 +425,7 @@ return (
         </div>
       </div>
     </div>
-
-
-    {/* Main Content */}
+ {/* Main Content */}
     <div className="max-w-[1600px] mx-auto px-4 py-6">
 
       {/* Row 1: Upload + Date Selector with Counters */}
@@ -640,97 +635,174 @@ return (
 
       </div> {/* ✅ Closes Row 2 grid */}
 
-      {/* Appointments Table */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-          </div>
-        ) : filteredAppointments.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500">
-              {searchQuery
-                ? 'No appointments found matching your search'
-                : 'No appointments scheduled for this date'}
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Time
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Sales Order
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Delivery #
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Customer
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Notes
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredAppointments.map((appointment) => {
-                  const dailyLogStatus = getDailyLogStatus(appointment);
-                  return (
-                    <tr key={appointment.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {formatTimeInIndianapolis(appointment.appointment_time)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        {appointment.sales_order || '-'}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        {appointment.delivery || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
-                        {appointment.customer}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        {appointment.notes || '-'}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {getStatusBadge(dailyLogStatus)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm space-x-2">
-                        <button
-                          onClick={() => handleEdit(appointment)}
-                          className="text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(appointment.id)}
-                          className="text-red-600 hover:text-red-800 font-medium"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div> {/* ✅ Closes Appointments Table */}
 
-    </div> {/* ✅ Closes Main Content max-w wrapper */}
-  
-{modalOpen && (
+      {/* Table */}
+      <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+        <table className="min-w-full divide-y divide-gray-200 text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              {/* ── existing columns ── */}
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                Time
+              </th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                Sales Order
+              </th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                Delivery
+              </th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                Load In Info
+              </th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                Transport Info
+              </th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                Customer
+              </th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                Dock
+              </th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                Status
+              </th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
+                Actions
+              </th>
+            </tr>
+          </thead>
+
+          <tbody className="bg-white divide-y divide-gray-100">
+            {loading ? (
+              <tr>
+                <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
+                  Loading…
+                </td>
+              </tr>
+            ) : filteredAppointments.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
+                  No appointments found.
+                </td>
+              </tr>
+            ) : (
+              filteredAppointments.map((apt) => {
+                const dailyLogStatus = getDailyLogStatus(apt);
+
+                // ── destination: "City, ST" ──────────────────────────────
+                const destinationParts = [
+                  apt.destination_city,
+                  apt.destination_state,
+                ].filter(Boolean);
+                const destination =
+                  destinationParts.length > 0
+                    ? destinationParts.join(', ')
+                    : null;
+
+                return (
+                  <tr key={apt.id} className="hover:bg-gray-50 transition-colors">
+                    {/* Time */}
+                    <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
+                      {formatTimeInIndianapolis(apt.appointment_time || '')}
+                    </td>
+
+                    {/* Sales Order */}
+                    <td className="px-4 py-3 whitespace-nowrap text-gray-700">
+                      {apt.sales_order || '—'}
+                    </td>
+
+                    {/* Delivery */}
+                    <td className="px-4 py-3 whitespace-nowrap text-gray-700">
+                      {apt.delivery || '—'}
+                    </td>
+
+                    {/* ── NEW: Load In Info ────────────────────────────── */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {apt.requested_ship_date || destination ? (
+                        <div className="flex flex-col gap-0.5">
+                          {apt.requested_ship_date && (
+                            <span className="text-gray-900 font-medium">
+                              {apt.requested_ship_date}
+                            </span>
+                          )}
+                          {destination && (
+                            <span className="text-gray-500 text-xs">
+                              {destination}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+
+                    {/* ── NEW: Transport Info ──────────────────────────── */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {apt.carrier || apt.mode ? (
+                        <div className="flex flex-col gap-0.5">
+                          {apt.carrier && (
+                            <span className="text-gray-900 font-medium">
+                              {apt.carrier}
+                            </span>
+                          )}
+                          {apt.mode && (
+                            <span className="text-gray-500 text-xs">
+                              {apt.mode}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+
+                    {/* Customer */}
+                    <td className="px-4 py-3 whitespace-nowrap text-gray-700">
+                      {apt.customer || '—'}
+                    </td>
+
+                    {/* Dock */}
+                    <td className="px-4 py-3 whitespace-nowrap text-gray-700">
+                      {apt.dock || '—'}
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {getStatusBadge(dailyLogStatus)}
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <button
+                        onClick={() => {
+                          setEditingAppointment(apt);
+                          setModalOpen(true);
+                        }}
+                        className="text-blue-600 hover:text-blue-800 font-medium text-sm mr-3"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (confirm('Delete this appointment?')) {
+                            await deleteAppointment(apt.id);
+                            await loadAppointments();
+                          }
+                        }}
+                        className="text-red-500 hover:text-red-700 font-medium text-sm"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {modalOpen && (
 <AppointmentModal
   isOpen={modalOpen}
   onClose={() => {
