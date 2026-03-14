@@ -5,8 +5,6 @@ interface TriggerData {
   carrierName: string;
   trailerNumber: string;
   referenceNumber: string;
-  destinationCity: string;
-  destinationState: string;
   loadType?: string;
   dockNumber?: string;
   appointmentTime?: string;
