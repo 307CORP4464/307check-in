@@ -676,10 +676,10 @@ return (
               Delivery #
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Load Info
+              Req. Date and Dest.
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Transport
+              SCAC and Mode
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Customer
@@ -736,8 +736,6 @@ return (
     )}
   </div>
 </td>
-
-
                 {/* Transport: carrier on top, mode below */}
                 <td className="px-4 py-3 text-sm text-gray-700">
                   <div className="flex flex-col">
