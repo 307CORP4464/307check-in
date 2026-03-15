@@ -62,22 +62,46 @@ export async function updateAppointment(
   input: Partial<AppointmentInput>
 ): Promise<Appointment> {
   console.log('🔄 Updating appointment:', id, input);
-  
+
+  // Only build the update object with fields that were actually provided
+  const updateData: Record<string, any> = {};
+
+  if (input.appointment_date !== undefined)
+    updateData.appointment_date = input.appointment_date;
+
+  if (input.appointment_time !== undefined)
+    updateData.appointment_time = input.appointment_time;
+
+  if (input.sales_order !== undefined)
+    updateData.sales_order = input.sales_order?.trim() || null;
+
+  if (input.delivery !== undefined)
+    updateData.delivery = input.delivery?.trim() || null;
+
+  if (input.customer !== undefined)
+    updateData.customer = input.customer?.trim() || null;
+
+  if (input.carrier !== undefined)
+    updateData.carrier = input.carrier?.trim() || null;
+
+  if (input.mode !== undefined)
+    updateData.mode = input.mode?.trim() || null;
+
+  if (input.requested_ship_date !== undefined)
+    updateData.requested_ship_date = input.requested_ship_date?.trim() || null;
+
+  if (input.ship_to_city !== undefined)
+    updateData.ship_to_city = input.ship_to_city?.trim() || null;
+
+  if (input.ship_to_state !== undefined)
+    updateData.ship_to_state = input.ship_to_state?.trim() || null;
+
+  if (input.notes !== undefined)
+    updateData.notes = input.notes?.trim() || null;
+
   const { data, error } = await supabase
     .from('appointments')
-    .update({
-      appointment_date: input.appointment_date,
-      appointment_time: input.appointment_time,
-      sales_order: input.sales_order?.trim() || null,
-      delivery: input.delivery?.trim() || null,
-      customer: input.customer?.trim() || null,
-      carrier: input.carrier?.trim() || null,
-      mode: input.mode?.trim() || null,
-      requested_ship_date: input.requested_ship_date?.trim() || null,
-      ship_to_city: input.ship_to_city?.trim() || null,
-      ship_to_state: input.ship_to_state?.trim() || null,
-      notes: input.notes?.trim() || null
-    })
+    .update(updateData)
     .eq('id', id)
     .select()
     .single();
@@ -86,7 +110,7 @@ export async function updateAppointment(
     console.error('❌ Update error:', error);
     throw error;
   }
-  
+
   console.log('✅ Updated appointment:', data);
   return data;
 }
