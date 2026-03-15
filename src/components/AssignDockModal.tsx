@@ -288,6 +288,42 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     }
   };
 
+  const handleDockClick = (dock: DockStatus) => {
+  // Blocked docks cannot be selected at all
+  if (dock.status === 'blocked') {
+    return;
+  }
+
+  // Double-booked docks cannot be selected (they're already full)
+  if (dock.status === 'double-booked') {
+    return;
+  }
+
+  // If dock is in-use, require CSR confirmation before double-booking
+  if (dock.status === 'in-use') {
+    setPendingDockNumber(dock.dock_number);
+    setShowDoubleBookConfirm(true);
+    return;
+  }
+
+  // Available — assign directly
+  setDockNumber(dock.dock_number);
+  setShowWarning(false);
+};
+
+const confirmDoubleBook = () => {
+  if (pendingDockNumber) {
+    setDockNumber(pendingDockNumber);
+  }
+  setShowDoubleBookConfirm(false);
+  setPendingDockNumber(null);
+};
+
+const cancelDoubleBook = () => {
+  setShowDoubleBookConfirm(false);
+  setPendingDockNumber(null);
+};
+
   const sendEmailNotification = async (dock: string, email: string) => {
     try {
       let appointmentStatus = 'No Appointment';
@@ -941,7 +977,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
                   <button
                     key={dock.dock_number}
                     type="button"
-                    onClick={() => setDockNumber(dock.dock_number)}
+                    onClick={() => handleDockClick(dock)}
                     className={getDockCardStyle(dock, isSelected)}
                     title={
                       dock.status === 'blocked'
