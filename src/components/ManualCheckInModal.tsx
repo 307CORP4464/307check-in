@@ -20,8 +20,6 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
     load_type: 'outbound' as 'inbound' | 'outbound',
     carrier_name: '',
     trailer_number: '',
-    destination_city: '',
-    destination_state: '',
     notes: ''
   });
 
@@ -90,8 +88,6 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
           trailer_number: formData.trailer_number,
           load_type: formData.load_type,
           reference_number: referenceNumberValue,
-          destination_city: formData.destination_city || null,
-          destination_state: formData.destination_state || null,
           notes: formData.notes || null,
           status: 'pending',
           check_in_time: new Date().toISOString()
@@ -104,8 +100,6 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
         load_type: 'outbound',
         carrier_name: '',
         trailer_number: '',
-        destination_city: '',
-        destination_state: '',
         notes: ''
       });
       setReferenceNumbers(['']);
@@ -191,7 +185,7 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
                           value={ref}
                           onChange={e => handleReferenceChange(index, e.target.value)}
                           required={index === 0}
-                          placeholder={index === 0 ? 'e.g., SO12345 or DO12345' : `Reference #${index + 1}`}
+                          placeholder={index === 0 ? 'e.g., 2######' : `Reference #${index + 1}`}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         {/* Only show remove button for additional fields (not the first) */}
@@ -240,40 +234,6 @@ export default function ManualCheckInModal({ isOpen, onClose, onSuccess }: Manua
                     value={formData.trailer_number}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Destination Information */}
-            <div className="border-b pb-4">
-              <h3 className="text-lg font-semibold mb-3 text-gray-700">Destination</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Destination City
-                  </label>
-                  <input
-                    type="text"
-                    name="destination_city"
-                    value={formData.destination_city}
-                    onChange={handleChange}
-                    placeholder="e.g., Los Angeles"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Destination State
-                  </label>
-                  <input
-                    type="text"
-                    name="destination_state"
-                    value={formData.destination_state}
-                    onChange={handleChange}
-                    placeholder="e.g., CA"
-                    maxLength={2}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
