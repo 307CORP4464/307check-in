@@ -13,6 +13,7 @@ interface AssignDockModalProps {
     driver_phone?: string;
     driver_email?: string;
     trailer_number?: string;
+    trailer_length?: string;
     ship_to_city?: string;
     ship_to_state?: string;
     check_in_time?: string | null;
