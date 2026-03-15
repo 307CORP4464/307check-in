@@ -478,7 +478,7 @@ export default function CSRDashboard() {
   <div className="max-w-[1600px] mx-auto px-4 py-4">
     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Data Tracking</h1>
+        <h1 className="text-2xl font-bold text-gray-900">CSR Dashboard</h1>
       </div>
       <div className="flex flex-wrap gap-2">
         <Link 
