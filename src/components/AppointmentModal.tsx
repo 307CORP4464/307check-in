@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Minus } from 'lucide-react';
+import { Plus, Minus, ChevronDown, ChevronUp } from 'lucide-react';
 import { Appointment, AppointmentInput, TIME_SLOTS } from '@/types/appointments';
 
 interface AppointmentModalProps {
@@ -32,17 +32,22 @@ export default function AppointmentModal({
     sales_order: '',
     delivery: '',
     customer: '',
+    carrier: '',
+    mode: '',
+    requested_ship_date: '',
+    ship_to_city: '',
+    ship_to_state: '',
     notes: '',
     source: 'manual',
   });
 
-  // Multi-entry states for Sales Orders and Deliveries
   const [salesOrders, setSalesOrders] = useState<string[]>(['']);
   const [deliveries, setDeliveries] = useState<string[]>(['']);
-
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [editingExisting, setEditingExisting] = useState(false);
+  // Controls the Load & Transport collapsible section
+  const [showLoadInfo, setShowLoadInfo] = useState(false);
 
   const activeAppointment = editingExisting ? existingAppointment : appointment;
 
@@ -54,11 +59,15 @@ export default function AppointmentModal({
         sales_order: activeAppointment.sales_order || '',
         delivery: activeAppointment.delivery || '',
         customer: activeAppointment.customer || '',
+        carrier: activeAppointment.carrier || '',
+        mode: activeAppointment.mode || '',
+        requested_ship_date: activeAppointment.requested_ship_date || '',
+        ship_to_city: activeAppointment.ship_to_city || '',
+        ship_to_state: activeAppointment.ship_to_state || '',
         notes: activeAppointment.notes || '',
         source: activeAppointment.source,
       });
 
-      // Parse existing comma-separated values back into arrays
       const existingSOs = activeAppointment.sales_order
         ? activeAppointment.sales_order.split(',').map(s => s.trim()).filter(Boolean)
         : [''];
@@ -68,6 +77,16 @@ export default function AppointmentModal({
 
       setSalesOrders(existingSOs.length > 0 ? existingSOs : ['']);
       setDeliveries(existingDOs.length > 0 ? existingDOs : ['']);
+
+      // Auto-expand Load & Transport section if any of those fields have data
+      const hasLoadInfo =
+        !!activeAppointment.carrier ||
+        !!activeAppointment.mode ||
+        !!activeAppointment.requested_ship_date ||
+        !!activeAppointment.ship_to_city ||
+        !!activeAppointment.ship_to_state;
+      setShowLoadInfo(hasLoadInfo);
+
     } else {
       setFormData({
         appointment_date: initialDate,
@@ -75,11 +94,17 @@ export default function AppointmentModal({
         sales_order: '',
         delivery: '',
         customer: '',
+        carrier: '',
+        mode: '',
+        requested_ship_date: '',
+        ship_to_city: '',
+        ship_to_state: '',
         notes: '',
         source: 'manual',
       });
       setSalesOrders(['']);
       setDeliveries(['']);
+      setShowLoadInfo(false);
     }
     setError('');
   }, [activeAppointment, initialDate, isOpen]);
@@ -93,14 +118,12 @@ export default function AppointmentModal({
     setSalesOrders(prev => {
       const updated = [...prev];
       updated[index] = value;
-      // Fire duplicate check using first SO and first delivery
       onCheckDuplicate?.(updated[0], deliveries[0] ?? '');
       return updated;
     });
   };
 
   const addSalesOrder = () => setSalesOrders(prev => [...prev, '']);
-
   const removeSalesOrder = (index: number) =>
     setSalesOrders(prev => prev.filter((_, i) => i !== index));
 
@@ -109,14 +132,12 @@ export default function AppointmentModal({
     setDeliveries(prev => {
       const updated = [...prev];
       updated[index] = value;
-      // Fire duplicate check using first SO and first delivery
       onCheckDuplicate?.(salesOrders[0] ?? '', updated[0]);
       return updated;
     });
   };
 
   const addDelivery = () => setDeliveries(prev => [...prev, '']);
-
   const removeDelivery = (index: number) =>
     setDeliveries(prev => prev.filter((_, i) => i !== index));
 
@@ -133,9 +154,8 @@ export default function AppointmentModal({
       return;
     }
 
-    // Check for blank intermediate entries
-    const hasBlankSO = salesOrders.some((s, i) => s.trim() === '' && salesOrders.length > 1);
-    const hasBlankDO = deliveries.some((d, i) => d.trim() === '' && deliveries.length > 1);
+    const hasBlankSO = salesOrders.some(s => s.trim() === '' && salesOrders.length > 1);
+    const hasBlankDO = deliveries.some(d => d.trim() === '' && deliveries.length > 1);
     if (hasBlankSO) {
       setError('Please fill in all Sales Order fields or remove empty ones');
       return;
@@ -175,22 +195,24 @@ export default function AppointmentModal({
   if (!isOpen) return null;
 
   const showDuplicateWarning = !appointment && !editingExisting && !!existingAppointment;
-
   const modalTitle = editingExisting
     ? 'Edit Existing Appointment'
     : appointment
     ? 'Edit Appointment'
     : 'Add Appointment';
 
-  // For the required asterisk logic, check if the OTHER field group is empty
   const noDeliveries = deliveries.every(d => d.trim() === '');
   const noSalesOrders = salesOrders.every(s => s.trim() === '');
+
+  const inputClass = "w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const labelClass = "block text-sm font-medium mb-1";
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="p-6">
 
+          {/* Header */}
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">{modalTitle}</h2>
             <button
@@ -202,7 +224,7 @@ export default function AppointmentModal({
             </button>
           </div>
 
-          {/* ⚠️ Duplicate Warning Banner */}
+          {/* Duplicate Warning */}
           {showDuplicateWarning && existingAppointment && (
             <div className="mb-4 p-4 bg-amber-50 border border-amber-300 rounded-lg">
               <div className="flex items-start gap-2">
@@ -260,26 +282,26 @@ export default function AppointmentModal({
 
             {/* Date */}
             <div>
-              <label className="block text-sm font-medium mb-1">Date *</label>
+              <label className={labelClass}>Date *</label>
               <input
                 type="date"
                 value={formData.appointment_date}
-                onChange={(e) => setFormData({ ...formData, appointment_date: e.target.value })}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                onChange={e => setFormData({ ...formData, appointment_date: e.target.value })}
+                className={inputClass}
                 required
               />
             </div>
 
-            {/* Time Slot */}
+            {/* Time */}
             <div>
-              <label className="block text-sm font-medium mb-1">Time Slot *</label>
+              <label className={labelClass}>Time *</label>
               <select
                 value={formData.appointment_time}
-                onChange={(e) => setFormData({ ...formData, appointment_time: e.target.value })}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                onChange={e => setFormData({ ...formData, appointment_time: e.target.value })}
+                className={inputClass}
                 required
               >
-                {TIME_SLOTS.map((slot) => (
+                {TIME_SLOTS.map(slot => (
                   <option key={slot} value={slot}>{slot}</option>
                 ))}
               </select>
@@ -287,132 +309,192 @@ export default function AppointmentModal({
 
             {/* Customer */}
             <div>
-              <label className="block text-sm font-medium mb-1">
-                Customer <span className="text-red-500">*</span>
-              </label>
+              <label className={labelClass}>Customer *</label>
               <select
-                value={formData.customer || ''}
-                onChange={(e) => setFormData({ ...formData, customer: e.target.value })}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                value={formData.customer}
+                onChange={e => setFormData({ ...formData, customer: e.target.value })}
+                className={inputClass}
                 required
               >
-                <option value="">Select a customer</option>
-                {CUSTOMERS.map((c) => (
+                <option value="">Select customer...</option>
+                {CUSTOMERS.map(c => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
             </div>
 
-            {/* Sales Orders — multi-entry */}
+            {/* Sales Orders */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium">
-                  Sales Order{salesOrders.length > 1 ? 's' : ''}{' '}
-                  {noDeliveries && <span className="text-red-500">*</span>}
-                </label>
-                <button
-                  type="button"
-                  onClick={addSalesOrder}
-                  className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
-                  title="Add another sales order"
-                >
-                  <Plus size={16} />
-                  Add
-                </button>
-              </div>
-              <div className="space-y-2">
-                {salesOrders.map((so, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={so}
-                      onChange={(e) => handleSalesOrderChange(index, e.target.value)}
-                      placeholder={index === 0 ? 'Enter sales order number' : `Sales Order #${index + 1}`}
-                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                    />
-                    {index > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => removeSalesOrder(index)}
-                        className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors"
-                        title="Remove this sales order"
-                      >
-                        <Minus size={18} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <label className={labelClass}>
+                Sales Order {noDeliveries ? '*' : ''}
+              </label>
+              {salesOrders.map((so, index) => (
+                <div key={index} className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={so}
+                    onChange={e => handleSalesOrderChange(index, e.target.value)}
+                    placeholder="e.g. SO-12345"
+                    className={inputClass}
+                  />
+                  {salesOrders.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeSalesOrder(index)}
+                      className="p-2 text-red-500 hover:text-red-700"
+                    >
+                      <Minus size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addSalesOrder}
+                className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+              >
+                <Plus size={14} /> Add Sales Order
+              </button>
             </div>
 
-            {/* Deliveries — multi-entry */}
+            {/* Deliveries */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium">
-                  Deliver{deliveries.length > 1 ? 'ies' : 'y'}{' '}
-                  {noSalesOrders && <span className="text-red-500">*</span>}
-                </label>
-                <button
-                  type="button"
-                  onClick={addDelivery}
-                  className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
-                  title="Add another delivery"
-                >
-                  <Plus size={16} />
-                  Add
-                </button>
-              </div>
-              <div className="space-y-2">
-                {deliveries.map((delivery, index) => (
-                  <div key={index} className="flex items-center gap-2">
+              <label className={labelClass}>
+                Delivery {noSalesOrders ? '*' : ''}
+              </label>
+              {deliveries.map((del, index) => (
+                <div key={index} className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={del}
+                    onChange={e => handleDeliveryChange(index, e.target.value)}
+                    placeholder="e.g. DO-12345"
+                    className={inputClass}
+                  />
+                  {deliveries.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeDelivery(index)}
+                      className="p-2 text-red-500 hover:text-red-700"
+                    >
+                      <Minus size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addDelivery}
+                className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+              >
+                <Plus size={14} /> Add Delivery
+              </button>
+            </div>
+
+            {/* ── Load & Transport Info (collapsible) ── */}
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowLoadInfo(prev => !prev)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 text-sm font-medium text-gray-700 transition-colors"
+              >
+                <span>Load &amp; Transport Info</span>
+                {showLoadInfo ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+
+              {showLoadInfo && (
+                <div className="p-4 space-y-3 border-t border-gray-200">
+
+                  {/* Carrier */}
+                  <div>
+                    <label className={labelClass}>Carrier</label>
                     <input
                       type="text"
-                      value={delivery}
-                      onChange={(e) => handleDeliveryChange(index, e.target.value)}
-                      placeholder={index === 0 ? 'Enter delivery number' : `Delivery #${index + 1}`}
-                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                      value={formData.carrier || ''}
+                      onChange={e => setFormData({ ...formData, carrier: e.target.value })}
+                      placeholder="e.g. FedEx, UPS"
+                      className={inputClass}
                     />
-                    {index > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => removeDelivery(index)}
-                        className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors"
-                        title="Remove this delivery"
-                      >
-                        <Minus size={18} />
-                      </button>
-                    )}
                   </div>
-                ))}
-              </div>
+
+                  {/* Mode */}
+                  <div>
+                    <label className={labelClass}>Mode</label>
+                    <input
+                      type="text"
+                      value={formData.mode || ''}
+                      onChange={e => setFormData({ ...formData, mode: e.target.value })}
+                      placeholder="e.g. LTL, FTL, Parcel"
+                      className={inputClass}
+                    />
+                  </div>
+
+                  {/* Requested Ship Date */}
+                  <div>
+                    <label className={labelClass}>Requested Ship Date</label>
+                    <input
+                      type="date"
+                      value={formData.requested_ship_date || ''}
+                      onChange={e => setFormData({ ...formData, requested_ship_date: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  {/* Ship To City + State side by side */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelClass}>Ship To City</label>
+                      <input
+                        type="text"
+                        value={formData.ship_to_city || ''}
+                        onChange={e => setFormData({ ...formData, ship_to_city: e.target.value })}
+                        placeholder="City"
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>State</label>
+                      <input
+                        type="text"
+                        value={formData.ship_to_state || ''}
+                        onChange={e => setFormData({ ...formData, ship_to_state: e.target.value })}
+                        placeholder="e.g. IN"
+                        maxLength={2}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+
+                </div>
+              )}
             </div>
 
             {/* Notes */}
             <div>
-              <label className="block text-sm font-medium mb-1">Notes</label>
+              <label className={labelClass}>Notes</label>
               <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                value={formData.notes || ''}
+                onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Any additional notes..."
                 rows={3}
-                placeholder="Optional notes"
+                className={inputClass}
               />
             </div>
 
-            {/* Actions */}
+            {/* Buttons */}
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={saving}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Save Appointment'}
               </button>
@@ -424,3 +506,4 @@ export default function AppointmentModal({
     </div>
   );
 }
+
