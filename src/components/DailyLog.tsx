@@ -557,15 +557,24 @@ if (allReferenceNumbers.length > 0) {
 const enrichedCheckIns = (checkInsData || []).map(checkIn => {
   const refs = parseReferenceNumbers(checkIn.reference_number);
 
-  // ✅ Clean simple type — no more complex conditional type
   let appointmentInfo: AppointmentInfo | undefined = undefined;
 
   for (const ref of refs) {
     const trimmedRef = ref.trim();
     if (appointmentsMap.has(trimmedRef)) {
-      appointmentInfo = appointmentsMap.get(trimmedRef);
-      console.log(`Match found for ref "${trimmedRef}":`, appointmentInfo);
-      break;
+      const candidate = appointmentsMap.get(trimmedRef);
+
+      // ✅ Only use appointment if its date matches the selected date
+      if (candidate?.date === selectedDate) {
+        appointmentInfo = candidate;
+        console.log(`Match found for ref "${trimmedRef}":`, appointmentInfo);
+        break;
+      } else {
+        console.log(
+          `Skipping appointment for ref "${trimmedRef}" — date mismatch:`,
+          candidate?.date, '!==', selectedDate
+        );
+      }
     }
   }
 
@@ -575,8 +584,10 @@ const enrichedCheckIns = (checkInsData || []).map(checkIn => {
 
   return {
     ...checkIn,
-    appointment_time: appointmentInfo?.time ?? checkIn.appointment_time ?? null,
-    appointment_date: appointmentInfo?.date ?? checkIn.appointment_date ?? null,
+    // ✅ If no same-day appointment found, set to null instead of falling back
+    // to whatever was previously stored on the check-in row
+    appointment_time: appointmentInfo?.time ?? null,
+    appointment_date: appointmentInfo?.date ?? null,
     customer: appointmentInfo?.customer ?? checkIn.customer ?? null,
     ship_to_city: appointmentInfo?.ship_to_city ?? checkIn.ship_to_city ?? null,
     ship_to_state: appointmentInfo?.ship_to_state ?? checkIn.ship_to_state ?? null,
@@ -585,6 +596,7 @@ const enrichedCheckIns = (checkInsData || []).map(checkIn => {
     requested_ship_date: appointmentInfo?.requested_ship_date ?? checkIn.requested_ship_date ?? null,
   };
 });
+
 
 console.log('Enriched check-ins sample:', enrichedCheckIns[0]);
 setCheckIns(enrichedCheckIns);
