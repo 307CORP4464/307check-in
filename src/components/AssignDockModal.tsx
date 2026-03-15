@@ -14,8 +14,8 @@ interface AssignDockModalProps {
     driver_email?: string;
     trailer_number?: string;
     trailer_length?: string;
-    ship_to_city?: string;
-    ship_to_state?: string;
+    ship_to_city?: string | null;   // ✅ Allow null
+    ship_to_state?: string | null;  // ✅ Allow null
     check_in_time?: string | null;
     grossWeight?: string;
     load_type?: 'inbound' | 'outbound';
@@ -24,6 +24,7 @@ interface AssignDockModalProps {
   onSuccess: () => void;
   isOpen: boolean;
 }
+
 
 interface DockInfo {
   dock_number: string;
