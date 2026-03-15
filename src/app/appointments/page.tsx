@@ -251,28 +251,35 @@ export default function AppointmentsPage() {
   };
 
   const handleSave = async (data: AppointmentInput) => {
-    try {
+  try {
+    if (editingAppointment) {
+      // Merge existing appointment data with the new form data
+      // This preserves any fields not present in the edit modal
+      const appointmentData: AppointmentInput = {
+        ...editingAppointment,  // ← Start with ALL existing fields
+        ...data,                // ← Override only the fields from the form
+        source: data.source,    // ← Preserve source explicitly
+      };
+      await updateAppointment(editingAppointment.id, appointmentData);
+    } else {
       const appointmentData: AppointmentInput = {
         ...data,
-        source: editingAppointment ? data.source : 'manual'
+        source: 'manual',
       };
-
-      if (editingAppointment) {
-        await updateAppointment(editingAppointment.id, appointmentData);
-      } else {
-        await createAppointment(appointmentData);
-      }
-
-      setModalOpen(false);
-      setEditingAppointment(null);
-      await loadAppointments();
-      await fetchCheckInStatuses();
-    } catch (error: any) {
-      console.error('Error saving appointment:', error);
-      alert(error.message || 'Error saving appointment');
-      throw error;
+      await createAppointment(appointmentData);
     }
-  };
+
+    setModalOpen(false);
+    setEditingAppointment(null);
+    await loadAppointments();
+    await fetchCheckInStatuses();
+  } catch (error: any) {
+    console.error('Error saving appointment:', error);
+    alert(error.message || 'Error saving appointment');
+    throw error;
+  }
+};
+
 
   const fetchCheckInStatuses = async () => {
     try {
