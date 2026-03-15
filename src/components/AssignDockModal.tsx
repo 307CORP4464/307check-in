@@ -64,6 +64,9 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
   const [showWarning, setShowWarning] = useState(false);
   const [dockStatuses, setDockStatuses] = useState<DockStatus[]>([]);
   const [loadingDocks, setLoadingDocks] = useState(false);
+  const [showDoubleBookConfirm, setShowDoubleBookConfirm] = useState(false);
+  const [pendingDockNumber, setPendingDockNumber] = useState<string | null>(null);
+
 
   // Email-related state
   const [sendEmail, setSendEmail] = useState(true);
@@ -248,26 +251,29 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
   };
 
   const getDockCardStyle = (dock: DockStatus, isSelected: boolean) => {
-    const base =
-      'relative cursor-pointer rounded-lg border-2 p-2 transition-all duration-150 select-none text-left';
+  const base =
+    'relative rounded-lg border-2 p-2 transition-all duration-150 select-none text-left';
 
-    if (isSelected) {
-      return `${base} border-blue-500 ring-2 ring-blue-400 ring-offset-1 bg-blue-50`;
-    }
+  // Blocked docks are not clickable
+  if (dock.status === 'blocked') {
+    return `${base} border-gray-400 bg-gray-300 opacity-60 cursor-not-allowed`;
+  }
 
-    switch (dock.status) {
-      case 'available':
-        return `${base} border-green-300 bg-green-50 hover:border-green-500 hover:bg-green-100`;
-      case 'in-use':
-        return `${base} border-yellow-300 bg-yellow-50 hover:border-yellow-500 hover:bg-yellow-100`;
-      case 'double-booked':
-        return `${base} border-red-400 bg-red-50 hover:border-red-600 hover:bg-red-100`;
-      case 'blocked':
-        return `${base} border-gray-400 bg-gray-100 hover:border-gray-600 hover:bg-gray-200`;
-      default:
-        return `${base} border-gray-300 bg-white hover:border-gray-400`;
-    }
-  };
+  if (isSelected) {
+    return `${base} cursor-pointer border-blue-500 ring-2 ring-blue-400 ring-offset-1 bg-blue-50`;
+  }
+
+  switch (dock.status) {
+    case 'available':
+      return `${base} cursor-pointer border-green-300 bg-green-50 hover:border-green-500 hover:bg-green-100`;
+    case 'in-use':
+      return `${base} cursor-pointer border-yellow-300 bg-yellow-50 hover:border-yellow-500 hover:bg-yellow-100`;
+    case 'double-booked':
+      return `${base} border-red-400 bg-red-300 opacity-60 cursor-not-allowed`;
+    default:
+      return `${base} cursor-pointer border-gray-300 bg-white hover:border-gray-400`;
+  }
+};
 
   const getDockStatusLabel = (status: DockStatus['status']) => {
     switch (status) {
