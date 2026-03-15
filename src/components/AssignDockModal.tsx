@@ -14,8 +14,8 @@ interface AssignDockModalProps {
     driver_email?: string;
     trailer_number?: string;
     trailer_length?: string;
-    ship_to_city?: string;
-    ship_to_state?: string;
+    destination_city?: string;
+    destination_state?: string;
     check_in_time?: string | null;
     grossWeight?: string;
     load_type?: 'inbound' | 'outbound';
@@ -530,7 +530,7 @@ const printReceipt = () => {
           <div class="section">
             <div class="row">
               <span class="label">Destination:</span>
-              <span class="value">${checkIn.ship_to_city || ''} ${checkIn.ship_to_state || ''}</span>
+              <span class="value">${checkIn.destination_city || ''} ${checkIn.destination_state || ''}</span>
             </div>
             <div class="row">
               <span class="label">Appointment:</span>
