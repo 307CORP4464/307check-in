@@ -1203,7 +1203,7 @@ const cancelDoubleBook = () => {
       </div>
       {/* Double-Book Confirmation Dialog */}
 {showDoubleBookConfirm && pendingDockNumber && (
-  <div className="fixed inset-0 z-<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[60]</a> flex items-center justify-center bg-black/50">
+  <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
     <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
       <div className="flex items-center gap-3 mb-4">
         <div className="flex-shrink-0 w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
