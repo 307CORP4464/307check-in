@@ -592,7 +592,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
           </div>
 
           <div class="reference-box">
-            <div class="reference-number">REF: ${checkIn.reference_number || 'N/A'}</div>
+            <div class="reference-number">Reference #: ${checkIn.reference_number || 'N/A'}</div>
             <div class="dock-number">ASSIGNED TO: ${dockDisplay}</div>
           </div>
 
@@ -637,7 +637,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             </div>
           </div>
 
-          <button class="print-button no-print" onclick="window.print()">Print Receipt</button>
+          <button class="print-button no-print" onclick="window.print()">Print Form</button>
         </div>
 
         <!-- Page 2: Inspection Form -->
