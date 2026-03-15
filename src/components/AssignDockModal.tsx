@@ -588,7 +588,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
               {dockStatuses.map(dock => {
                 const isSelected = dockNumber === dock.dock_number;
                 const label = getDockStatusLabel(dock.status);
-                const firstOrder = dock.orders<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
+                const firstOrder = dock.orders[0];
               
                 return (
                   <button
