@@ -228,19 +228,22 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
         blockedMap.set(row.dock_number, row.reason);
       });
 
-      allDocks.forEach(dock => {
-        const orders = dockMap.get(dock.dock_number) || [];
-        dock.orders = orders;
-        if (blockedMap.has(dock.dock_number)) {
-          dock.status = 'blocked';
-          dock.is_manually_blocked = true;
-          dock.blocked_reason = blockedMap.get(dock.dock_number);
-        } else if (orders.length > 1) {
-          dock.status = 'double-booked';
-        } else if (orders.length === 1) {
-          dock.status = 'in-use';
-        }
-      });
+     allDocks.forEach(dock => {
+  const orders = dockMap.get(dock.dock_number) || [];
+  dock.orders = orders;
+  if (blockedMap.has(dock.dock_number)) {
+    dock.status = 'blocked';
+    dock.is_manually_blocked = true;
+    dock.blocked_reason = blockedMap.get(dock.dock_number);
+  } else if (orders.length > 1) {
+    // Double-booked docks are treated as blocked — no further assignments allowed
+    dock.status = 'blocked';
+    dock.is_manually_blocked = false;
+    dock.blocked_reason = `Double-booked (${orders.length} loads assigned)`;
+  } else if (orders.length === 1) {
+    dock.status = 'in-use';
+  }
+});
 
       setDockStatuses(allDocks);
     } catch (err) {
@@ -1198,6 +1201,64 @@ const cancelDoubleBook = () => {
         </div>
 
       </div>
+      {/* Double-Book Confirmation Dialog */}
+{showDoubleBookConfirm && pendingDockNumber && (
+  <div className="fixed inset-0 z-<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[60]</a> flex items-center justify-center bg-black/50">
+    <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
+          <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900">Confirm Double-Book</h3>
+      </div>
+
+      <p className="text-sm text-gray-600 mb-2">
+        <strong>Dock {pendingDockNumber}</strong> is currently in use.
+      </p>
+
+      {(() => {
+        const dock = dockStatuses.find(d => d.dock_number === pendingDockNumber);
+        if (dock && dock.orders.length > 0) {
+          return (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+              <p className="text-xs font-medium text-yellow-800 mb-1">Current assignment(s):</p>
+              {dock.orders.map((order, idx) => (
+                <p key={idx} className="text-xs text-yellow-700">
+                  • Ref: {order.reference_number}
+                </p>
+              ))}
+            </div>
+          );
+        }
+        return null;
+      })()}
+
+      <p className="text-sm text-gray-600 mb-6">
+        Assigning a second load will <strong>double-book</strong> this dock and it will become{' '}
+        <strong className="text-red-600">blocked</strong> for further assignments. Do you want to proceed?
+      </p>
+
+      <div className="flex gap-3 justify-end">
+        <button
+          onClick={cancelDoubleBook}
+          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={confirmDoubleBook}
+          className="px-4 py-2 text-sm font-medium text-white bg-yellow-600 rounded-lg hover:bg-yellow-700 transition-colors"
+        >
+          Yes, Double-Book
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 }
