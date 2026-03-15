@@ -613,6 +613,7 @@ const fetchCheckInsForDate = async () => {
     setLoading(false);
   }
 };
+
   
   useEffect(() => {
     const getUser = async () => {
