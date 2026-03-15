@@ -448,6 +448,7 @@ type AppointmentInfo = {
   requested_ship_date: string | null;
 };
 
+  
 const fetchCheckInsForDate = async () => {
   try {
     setLoading(true);
@@ -475,6 +476,7 @@ const fetchCheckInsForDate = async () => {
 
     console.log('All parsed reference numbers:', allReferenceNumbers);
 
+    // ✅ Updated map type to include all fields we need
     let appointmentsMap = new Map<string, {
       time: string | null;
       date: string | null;
@@ -486,125 +488,119 @@ const fetchCheckInsForDate = async () => {
       requested_ship_date: string | null;
     }>();
 
-    // Step 3: Fetch appointments in batches — filtered to selectedDate only
-    if (allReferenceNumbers.length > 0) {
-      const BATCH_SIZE = 20;
+    // Step 3: Fetch appointments in batches
+if (allReferenceNumbers.length > 0) {
+  const BATCH_SIZE = 20;
 
-      for (let i = 0; i < allReferenceNumbers.length; i += BATCH_SIZE) {
-        const batch = allReferenceNumbers.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < allReferenceNumbers.length; i += BATCH_SIZE) {
+    const batch = allReferenceNumbers.slice(i, i + BATCH_SIZE);
 
-        const orFilter = batch
-          .flatMap(ref => [
-            `sales_order.ilike.%${ref}%`,
-            `delivery.ilike.%${ref}%`
-          ])
-          .join(',');
+    const orFilter = batch
+      .flatMap(ref => [
+        `sales_order.ilike.%${ref}%`,
+        `delivery.ilike.%${ref}%`
+      ])
+      .join(',');
 
-        console.log('Querying with filter:', orFilter);
+    console.log('Querying with filter:', orFilter);
 
-        const { data: appointmentsData, error: appointmentsError } = await supabase
-          .from('appointments')
-          .select(
-            'sales_order, delivery, appointment_time, appointment_date, customer, requested_ship_date, carrier, mode, ship_to_city, ship_to_state'
-          )
-          .or(orFilter)
-          .eq('appointment_date', selectedDate); // ✅ Only pull appointments for selectedDate
+    const { data: appointmentsData, error: appointmentsError } = await supabase
+      .from('appointments')
+      .select(
+        'sales_order, delivery, appointment_time, appointment_date, customer, requested_ship_date, carrier, mode, ship_to_city, ship_to_state'
+      )
+      .or(orFilter)
+      .eq('appointment_date', selectedDate); // ← ADD THIS: selectedDate is already YYYY-MM-DD
 
-        console.log('Appointments returned for date', selectedDate, ':', appointmentsData);
+    console.log('Appointments returned for date', selectedDate, ':', appointmentsData);
 
-        if (appointmentsError) {
-          console.error('Appointments error:', appointmentsError);
-          continue;
-        }
-
-        if (appointmentsData) {
-          appointmentsData.forEach(apt => {
-            const appointmentInfo = {
-              time: apt.appointment_time ?? null,
-              date: apt.appointment_date ?? null,
-              customer: apt.customer ?? null,
-              ship_to_city: apt.ship_to_city ?? null,
-              ship_to_state: apt.ship_to_state ?? null,
-              carrier: apt.carrier ?? null,
-              mode: apt.mode ?? null,
-              requested_ship_date: apt.requested_ship_date ?? null,
-            };
-
-            if (apt.sales_order) {
-              parseReferenceNumbers(apt.sales_order).forEach(ref => {
-                appointmentsMap.set(ref.trim(), appointmentInfo);
-              });
-              appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
-            }
-
-            if (apt.delivery) {
-              parseReferenceNumbers(apt.delivery).forEach(ref => {
-                appointmentsMap.set(ref.trim(), appointmentInfo);
-              });
-              appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
-            }
-          });
-        }
-      }
+    if (appointmentsError) {
+      console.error('Appointments error:', appointmentsError);
+      continue;
     }
+
+    if (appointmentsData) {
+      appointmentsData.forEach(apt => {
+        const appointmentInfo = {
+          time: apt.appointment_time ?? null,
+          date: apt.appointment_date ?? null,
+          customer: apt.customer ?? null,
+          ship_to_city: apt.ship_to_city ?? null,
+          ship_to_state: apt.ship_to_state ?? null,
+          carrier: apt.carrier ?? null,
+          mode: apt.mode ?? null,
+          requested_ship_date: apt.requested_ship_date ?? null,
+        };
+
+        if (apt.sales_order) {
+          parseReferenceNumbers(apt.sales_order).forEach(ref => {
+            appointmentsMap.set(ref.trim(), appointmentInfo);
+          });
+          appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
+        }
+
+        if (apt.delivery) {
+          parseReferenceNumbers(apt.delivery).forEach(ref => {
+            appointmentsMap.set(ref.trim(), appointmentInfo);
+          });
+          appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
+        }
+      });
+    }
+  }
+}
+
 
     console.log('Final appointments map:', Object.fromEntries(appointmentsMap));
 
-    // Step 4: Enrich check-ins — only use appointments matching selectedDate
-    const enrichedCheckIns = (checkInsData || []).map(checkIn => {
-      const refs = parseReferenceNumbers(checkIn.reference_number);
+    // Step 4: Enrich check-ins with ALL appointment data
+const enrichedCheckIns = (checkInsData || []).map(checkIn => {
+  const refs = parseReferenceNumbers(checkIn.reference_number);
 
-      let appointmentInfo: {
-        time: string | null;
-        date: string | null;
-        customer: string | null;
-        ship_to_city: string | null;
-        ship_to_state: string | null;
-        carrier: string | null;
-        mode: string | null;
-        requested_ship_date: string | null;
-      } | undefined = undefined;
+  let appointmentInfo: AppointmentInfo | undefined = undefined;
 
-      for (const ref of refs) {
-        const trimmedRef = ref.trim();
-        if (appointmentsMap.has(trimmedRef)) {
-          const candidate = appointmentsMap.get(trimmedRef);
+  for (const ref of refs) {
+    const trimmedRef = ref.trim();
+    if (appointmentsMap.has(trimmedRef)) {
+      const candidate = appointmentsMap.get(trimmedRef);
 
-          // ✅ Only use appointment if its date matches the selected date
-          if (candidate?.date === selectedDate) {
-            appointmentInfo = candidate;
-            console.log(`Match found for ref "${trimmedRef}":`, appointmentInfo);
-            break;
-          } else {
-            console.log(
-              `Skipping appointment for ref "${trimmedRef}" — date mismatch:`,
-              candidate?.date, '!==', selectedDate
-            );
-          }
-        }
+      // ✅ Only use appointment if its date matches the selected date
+      if (candidate?.date === selectedDate) {
+        appointmentInfo = candidate;
+        console.log(`Match found for ref "${trimmedRef}":`, appointmentInfo);
+        break;
+      } else {
+        console.log(
+          `Skipping appointment for ref "${trimmedRef}" — date mismatch:`,
+          candidate?.date, '!==', selectedDate
+        );
       }
+    }
+  }
 
-      if (!appointmentInfo) {
-        console.log(`No appointment match for check-in ${checkIn.id}, refs:`, refs);
-      }
+  if (!appointmentInfo) {
+    console.log(`No appointment match for check-in ${checkIn.id}, refs:`, refs);
+  }
 
-      return {
-        ...checkIn,
-        // ✅ No fallback to stale check-in appointment data
-        appointment_time: appointmentInfo?.time ?? null,
-        appointment_date: appointmentInfo?.date ?? null,
-        // Non-date-sensitive fields still fall back to stored values
-        customer: appointmentInfo?.customer ?? checkIn.customer ?? null,
-        ship_to_city: appointmentInfo?.ship_to_city ?? checkIn.ship_to_city ?? null,
-        ship_to_state: appointmentInfo?.ship_to_state ?? checkIn.ship_to_state ?? null,
-        carrier: appointmentInfo?.carrier ?? checkIn.carrier ?? null,
-        mode: appointmentInfo?.mode ?? checkIn.mode ?? null,
-        requested_ship_date: appointmentInfo?.requested_ship_date ?? checkIn.requested_ship_date ?? null,
-      };
-    });
+  return {
+    ...checkIn,
+    // ✅ If no same-day appointment found, set to null instead of falling back
+    // to whatever was previously stored on the check-in row
+    appointment_time: appointmentInfo?.time ?? null,
+    appointment_date: appointmentInfo?.date ?? null,
+    customer: appointmentInfo?.customer ?? checkIn.customer ?? null,
+    ship_to_city: appointmentInfo?.ship_to_city ?? checkIn.ship_to_city ?? null,
+    ship_to_state: appointmentInfo?.ship_to_state ?? checkIn.ship_to_state ?? null,
+    carrier: appointmentInfo?.carrier ?? checkIn.carrier ?? null,
+    mode: appointmentInfo?.mode ?? checkIn.mode ?? null,
+    requested_ship_date: appointmentInfo?.requested_ship_date ?? checkIn.requested_ship_date ?? null,
+  };
+});
 
-    console.log('Enriched check-ins sample:', enrichedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
-    setCheckIns(enrichedCheckIns);
+
+console.log('Enriched check-ins sample:', enrichedCheckIns[0]);
+setCheckIns(enrichedCheckIns);
+
 
   } catch (err) {
     console.error('fetchCheckInsForDate error:', err);
@@ -613,6 +609,7 @@ const fetchCheckInsForDate = async () => {
     setLoading(false);
   }
 };
+
 
   
   useEffect(() => {
