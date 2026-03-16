@@ -82,7 +82,11 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
 };
 
 
-const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
+const formatAppointmentDateTime = (
+  appointmentDate: string | null | undefined,
+  appointmentTime: string | null | undefined
+): string => {
+  
   // Handle Work In cases - show date if available
   if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
     if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
@@ -110,58 +114,79 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     } catch (error) {
       console.error('Error formatting work in date:', error);
     }
-    
-    // Fallback if date is invalid
     return 'Work In';
   }
-  
+
+  // ✅ ADD THIS BLOCK — Handle LTL, Charge, and Paid special types
+  const specialTypes = [
+    'LTL',
+    'Charge Customer no appointment',
+    'Paid no appointment',
+  ];
+
+  if (appointmentTime && specialTypes.includes(appointmentTime)) {
+    if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
+      try {
+        let date: Date;
+        if (appointmentDate.includes('/')) {
+          const [month, day, year] = appointmentDate.split('/').map(Number);
+          date = new Date(year, month - 1, day);
+        } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const [year, month, day] = appointmentDate.split('-').map(Number);
+          date = new Date(year, month - 1, day);
+        } else {
+          date = new Date(appointmentDate);
+        }
+
+        if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const year = date.getFullYear();
+          return `${month}/${day}/${year}, ${appointmentTime}`;
+        }
+      } catch (error) {
+        console.error('Error formatting special type date:', error);
+      }
+    }
+    // Return just the label if no valid date
+    return appointmentTime;
+  }
+
   // If no time at all, return N/A
   if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
     return 'N/A';
   }
-  
+
   try {
     let formattedDate = '';
-    
-    // Format the date if available
+
     if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
       let date: Date;
-      
-      // Check if date is in MM/DD/YYYY format
+
       if (appointmentDate.includes('/')) {
         const [month, day, year] = appointmentDate.split('/').map(Number);
         date = new Date(year, month - 1, day);
-      } 
-      // Check if date is in YYYY-MM-DD format (ISO date only, no time)
-      else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
         const [year, month, day] = appointmentDate.split('-').map(Number);
-        // Create date in local timezone, not UTC
         date = new Date(year, month - 1, day);
-      }
-      // Otherwise try ISO format with time
-      else {
+      } else {
         date = new Date(appointmentDate);
       }
-      
-      // Validate the date
+
       if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         const year = date.getFullYear();
-        
         formattedDate = `${month}/${day}/${year}`;
       }
     }
-    
-    // Format the time
+
     const formattedTime = formatAppointmentTime(appointmentTime);
-    
-    // If no date, just return time
+
     if (!formattedDate) {
       return formattedTime !== 'N/A' ? formattedTime : 'N/A';
     }
-    
-    // Combine date and time
+
     if (formattedDate && formattedTime && formattedTime !== 'N/A') {
       return `${formattedDate}, ${formattedTime}`;
     } else if (formattedDate) {
@@ -169,7 +194,7 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     } else if (formattedTime && formattedTime !== 'N/A') {
       return formattedTime;
     }
-    
+
     return 'N/A';
   } catch (error) {
     console.error('Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
@@ -177,6 +202,7 @@ const formatAppointmentDateTime = (appointmentDate: string | null | undefined, a
     return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
 };
+
 
 const getDateComponentsInIndianapolis = (isoString: string): { year: number, month: number, day: number, hour: number, minute: number } => {
   const date = new Date(isoString);
