@@ -712,9 +712,10 @@ const handleEdit = (checkIn: CheckIn) => {
 // Handler called after successful edit
 const handleEditSuccess = () => {
   setEditModalOpen(false);
-  setSelectedForEdit(null);  // ← Good practice to clear this too
-  fetchCheckIns();
+  setSelectedForEdit(null);
+  fetchCheckInsForDate(); // ✅ Correct name
 };
+
 
   const getStatusBadgeColor = (status: string): string => {
     const statusLower = status.toLowerCase();
