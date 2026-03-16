@@ -302,32 +302,32 @@ private getStatusChangeTemplate(
   notes?: string,
   endTime?: string
 ): EmailTemplate {
-  // Map status values to user-friendly text
-  const statusDisplay: Record<string, string> = {
-    'checked_in': 'Checked In',
-    'at_dock': 'At Dock',
-    'loading': 'Loading',
-    'checked_out': 'Completed',
-    'unloaded': 'Unloaded',
-    'rejected': 'Rejected',
-    'turned_away': 'Turned Away',
-    'driver_left': 'Driver Left',
+  const formatStatus = (status: string): string => {
+    switch (status) {
+      case 'checked_out': return 'Almost Finished – Waiting to Be Sealed';
+      case 'at_dock': return 'At Dock';
+      case 'rejected': return 'Rejected';
+      case 'turned_away': return 'Turned Away';
+      case 'driver_left': return 'Driver Left';
+      default: return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
   };
 
-  // Status-specific colors
-  const statusColors: Record<string, string> = {
-    'checked_out': '#4CAF50',
-    'rejected': '#f44336',
-    'turned_away': '#ff9800',
-    'driver_left': '#9e9e9e',
-  };
+  const isCheckedOut = newStatus === 'checked_out';
 
-  const statusColor = statusColors[newStatus] || '#2196F3';
-  const newStatusText = statusDisplay[newStatus] || newStatus;
-  const oldStatusText = statusDisplay[oldStatus] || oldStatus;
+  // Header color based on status
+  const headerColor = isCheckedOut ? '#FF9800' :
+    newStatus === 'rejected' || newStatus === 'turned_away' ? '#f44336' :
+    newStatus === 'driver_left' ? '#9E9E9E' : '#4CAF50';
+
+  const headerIcon = isCheckedOut ? '🟡' :
+    newStatus === 'rejected' || newStatus === 'turned_away' ? '⚠️' :
+    newStatus === 'driver_left' ? '🚚' : '✅';
 
   return {
-    subject: `Load Status Update - ${referenceNumber}`,
+    subject: isCheckedOut
+      ? `Action Required: Almost Finished – Ref #${referenceNumber}`
+      : `Status Update: ${formatStatus(newStatus)} - ${referenceNumber}`,
     html: `
       <!DOCTYPE html>
       <html>
@@ -340,47 +340,83 @@ private getStatusChangeTemplate(
           <tr>
             <td align="center">
               <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+
                 <!-- Header -->
                 <tr>
-                  <td style="background-color: ${statusColor}; padding: 30px; text-align: center;">
-                    <h1 style="color: #ffffff; margin: 0; font-size: 28px;">📋 Status Update</h1>
+                  <td style="background-color: ${headerColor}; padding: 30px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 26px;">
+                      ${headerIcon} ${isCheckedOut ? 'Almost Finished – Waiting to Be Sealed' : formatStatus(newStatus)}
+                    </h1>
                   </td>
                 </tr>
-                
+
                 <!-- Body -->
                 <tr>
                   <td style="padding: 40px 30px;">
                     <p style="font-size: 16px; color: #333333; margin: 0 0 20px;">Hello ${driverName},</p>
-                    <p style="font-size: 16px; color: #333333; margin: 0 0 30px;">Your load status has been updated.</p>
-                    
+
+                    ${isCheckedOut ? `
+                    <p style="font-size: 16px; color: #333333; margin: 0 0 20px;">
+                      Your load is <strong>almost finished</strong> and is currently waiting to be sealed.
+                    </p>
+                    ` : `
+                    <p style="font-size: 16px; color: #333333; margin: 0 0 20px;">
+                      Your load status has been updated.
+                    </p>
+                    `}
+
                     <!-- Info Box -->
-                    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-left: 4px solid ${statusColor}; margin: 20px 0;">
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-left: 4px solid ${headerColor}; margin: 20px 0;">
                       <tr>
                         <td style="padding: 20px;">
-                          <p style="margin: 0 0 10px; font-size: 14px; color: #666666;"><strong style="color: #333333;">Reference Number:</strong> ${referenceNumber}</p>
-                          <p style="margin: 0 0 10px; font-size: 14px; color: #666666;"><strong style="color: #333333;">Previous Status:</strong> ${oldStatusText}</p>
-                          <p style="margin: 0; font-size: 14px; color: #666666;"><strong style="color: #333333;">New Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">${newStatusText}</span></p>
-                          ${endTime ? `<p style="margin: 10px 0 0; font-size: 14px; color: #666666;"><strong style="color: #333333;">Completion Time:</strong> ${endTime}</p>` : ''}
+                          <p style="margin: 0 0 10px; font-size: 14px; color: #666666;">
+                            <strong style="color: #333333;">Reference Number:</strong> ${referenceNumber}
+                          </p>
+                          <p style="margin: 0 0 10px; font-size: 14px; color: #666666;">
+                            <strong style="color: #333333;">Status:</strong> ${formatStatus(newStatus)}
+                          </p>
+                          ${endTime ? `
+                          <p style="margin: 0 0 10px; font-size: 14px; color: #666666;">
+                            <strong style="color: #333333;">Time:</strong> ${endTime}
+                          </p>
+                          ` : ''}
+                          ${notes ? `
+                          <p style="margin: 0; font-size: 14px; color: #666666;">
+                            <strong style="color: #333333;">Notes:</strong> ${notes}
+                          </p>
+                          ` : ''}
                         </td>
                       </tr>
                     </table>
-                    
-                    ${notes ? `
-                    <!-- Notes Box -->
-                    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fff3cd; border: 2px solid #ffc107; margin: 20px 0;">
+
+                    ${isCheckedOut ? `
+                    <!-- Next Steps Box -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fff8e1; border: 2px solid #FF9800; border-radius: 6px; margin: 24px 0;">
                       <tr>
-                        <td style="padding: 20px;">
-                          <p style="margin: 0 0 10px; font-size: 14px; color: #333333; font-weight: bold;">Additional Notes:</p>
-                          <p style="margin: 0; font-size: 14px; color: #666666; line-height: 1.6;">${notes}</p>
+                        <td style="padding: 24px;">
+                          <p style="margin: 0 0 14px; font-size: 16px; color: #e65100;">
+                            <strong>📋 Next Steps – Please Read Carefully:</strong>
+                          </p>
+                          <table cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td style="padding: 6px 0; font-size: 15px; color: #333333;">
+                                🟢 &nbsp;<strong>Step 1:</strong> Watch for the <strong>dock light to change to GREEN</strong>.
+                              </td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 6px 0; font-size: 15px; color: #333333;">
+                                🏢 &nbsp;<strong>Step 2:</strong> Once the light turns green, <strong>come to the office for your paperwork</strong>.
+                              </td>
+                            </tr>
+                          </table>
                         </td>
                       </tr>
                     </table>
                     ` : ''}
-                    
-                    <p style="font-size: 16px; color: #333333; margin: 30px 0 20px;">Please wait for your light to be green before pulling out of the dock.</p>
+
                   </td>
                 </tr>
-                
+
                 <!-- Footer -->
                 <tr>
                   <td style="background-color: #333333; padding: 20px; text-align: center;">
@@ -388,6 +424,7 @@ private getStatusChangeTemplate(
                     <p style="color: #999999; margin: 5px 0 0; font-size: 11px;">This is an automated message, please do not reply.</p>
                   </td>
                 </tr>
+
               </table>
             </td>
           </tr>
@@ -397,6 +434,7 @@ private getStatusChangeTemplate(
     `,
   };
 }
+
 
   private getDockAssignmentTemplate(
     driverName: string,
