@@ -66,10 +66,15 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   
   if (appointmentTime === 'work_in') return 'Work In';
 
-  // ✅ ADD THIS — Explicitly pass through special types
-  const specialTypes = ['LTL', 'Charge Customer no appointment', 'Paid no appointment'];
-  if (specialTypes.includes(appointmentTime)) {
-    return appointmentTime;
+  // Map raw values to display-friendly labels
+  const specialTypeLabels: Record<string, string> = {
+    'LTL': 'LTL',
+    'Charge Customer no appointment': 'Charge',
+    'Paid no appointment': 'Paid',
+  };
+
+  if (specialTypeLabels[appointmentTime]) {
+    return specialTypeLabels[appointmentTime];
   }
   
   if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
@@ -87,12 +92,11 @@ const formatAppointmentDateTime = (
   appointmentTime: string | null | undefined
 ): string => {
   
-  // Handle Work In cases - show date if available
+  // Handle Work In cases
   if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
     if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
       return 'Work In';
     }
-    
     try {
       let date: Date;
       if (appointmentDate.includes('/')) {
@@ -104,7 +108,6 @@ const formatAppointmentDateTime = (
       } else {
         date = new Date(appointmentDate);
       }
-      
       if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
@@ -117,14 +120,16 @@ const formatAppointmentDateTime = (
     return 'Work In';
   }
 
-  // ✅ ADD THIS BLOCK — Handle LTL, Charge, and Paid special types
-  const specialTypes = [
-    'LTL',
-    'Charge Customer no appointment',
-    'Paid no appointment',
-  ];
+  // Handle special types with friendly labels
+  const specialTypeLabels: Record<string, string> = {
+    'LTL': 'LTL',
+    'Charge Customer no appointment': 'Charge',
+    'Paid no appointment': 'Paid',
+  };
 
-  if (appointmentTime && specialTypes.includes(appointmentTime)) {
+  if (appointmentTime && specialTypeLabels[appointmentTime]) {
+    const label = specialTypeLabels[appointmentTime];
+
     if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
       try {
         let date: Date;
@@ -137,19 +142,18 @@ const formatAppointmentDateTime = (
         } else {
           date = new Date(appointmentDate);
         }
-
         if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
           const month = String(date.getMonth() + 1).padStart(2, '0');
           const day = String(date.getDate()).padStart(2, '0');
           const year = date.getFullYear();
-          return `${month}/${day}/${year}, ${appointmentTime}`;
+          return `${month}/${day}/${year}, ${label}`;
         }
       } catch (error) {
         console.error('Error formatting special type date:', error);
       }
     }
-    // Return just the label if no valid date
-    return appointmentTime;
+    // No date, just return the friendly label
+    return label;
   }
 
   // If no time at all, return N/A
@@ -162,7 +166,6 @@ const formatAppointmentDateTime = (
 
     if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
       let date: Date;
-
       if (appointmentDate.includes('/')) {
         const [month, day, year] = appointmentDate.split('/').map(Number);
         date = new Date(year, month - 1, day);
@@ -172,7 +175,6 @@ const formatAppointmentDateTime = (
       } else {
         date = new Date(appointmentDate);
       }
-
       if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
