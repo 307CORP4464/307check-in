@@ -65,9 +65,12 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   if (!appointmentTime) return 'N/A';
   
   if (appointmentTime === 'work_in') return 'Work In';
-  if (appointmentTime === 'LTL') return 'LTL';
-  if (appointmentTime === 'Paid') return 'Paid No Appt';
-  if (appointmentTime === 'Charge') return 'Charge Cust. No Appt';
+
+  // ✅ ADD THIS — Explicitly pass through special types
+  const specialTypes = ['LTL', 'Charge Customer no appointment', 'Paid no appointment'];
+  if (specialTypes.includes(appointmentTime)) {
+    return appointmentTime;
+  }
   
   if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
     const hours = appointmentTime.substring(0, 2);
@@ -77,6 +80,7 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   
   return appointmentTime;
 };
+
 
 const formatAppointmentDateTime = (appointmentDate: string | null | undefined, appointmentTime: string | null | undefined): string => {
   // Handle Work In cases - show date if available
