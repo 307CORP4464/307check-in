@@ -452,8 +452,6 @@ export default function DailyLog() {
   const [showInProgressOnly, setShowInProgressOnly] = useState(false);
   const [appointments, setAppointments] = useState<Map<string, Appointment>>(new Map());
 
-
-  
   const getCurrentDateInIndianapolis = () => {
     const now = new Date();
     const formatter = new Intl.DateTimeFormat('en-US', {
@@ -712,7 +710,7 @@ setCheckIns(enrichedCheckIns);
 
 const handleEditSuccess = () => {
   setEditModalOpen(false);
-  fetchCheckIns(); // re-fetches from DB
+  fetchCheckIns();
 };
 ;
 
