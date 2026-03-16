@@ -106,47 +106,62 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSaving(true);
+  e.preventDefault();
+  setError(null);
+  setSaving(true);
 
-    const combinedReferenceNumber = referenceNumbers
-      .map(r => r.trim())
-      .filter(Boolean)
-      .join(', ');
+  const combinedReferenceNumber = referenceNumbers
+    .map(r => r.trim())
+    .filter(Boolean)
+    .join(', ');
 
-    try {
-      const { error: updateError } = await supabase
-        .from('check_ins')
-        .update({
-          driver_name: formData.driver_name,
-          driver_phone: formData.driver_phone,
-          carrier_name: formData.carrier_name,
-          trailer_number: formData.trailer_number,
-          trailer_length: formData.trailer_length,
-          load_type: formData.load_type,
-          reference_number: combinedReferenceNumber,
-          appointment_time: formData.appointment_time || null,
-          dock_number: formData.dock_number || null,
-          customer: formData.customer || null,
-          requested_ship_date: formData.requested_ship_date || null,
-          ship_to_city: formData.ship_to_city || null,
-          ship_to_state: formData.ship_to_state || null,
-          carrier: formData.carrier || null,
-          mode: formData.mode || null,
-          notes: formData.notes,
-        })
-        .eq('id', checkIn.id);
+  // 👇 ADD THIS - verify what's being sent
+  console.log('Submitting appointment_time:', formData.appointment_time);
+  console.log('Full formData:', formData);
 
-      if (updateError) throw updateError;
+  try {
+    const updatePayload = {
+      driver_name: formData.driver_name,
+      driver_phone: formData.driver_phone,
+      carrier_name: formData.carrier_name,
+      trailer_number: formData.trailer_number,
+      trailer_length: formData.trailer_length,
+      load_type: formData.load_type,
+      reference_number: combinedReferenceNumber,
+      appointment_time: formData.appointment_time || null,
+      dock_number: formData.dock_number || null,
+      customer: formData.customer || null,
+      requested_ship_date: formData.requested_ship_date || null,
+      ship_to_city: formData.ship_to_city || null,
+      ship_to_state: formData.ship_to_state || null,
+      carrier: formData.carrier || null,
+      mode: formData.mode || null,
+      notes: formData.notes,
+    };
 
-      onSuccess();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update check-in');
-    } finally {
-      setSaving(false);
-    }
-  };
+    // 👇 ADD THIS
+    console.log('Update payload:', updatePayload);
+
+    const { data, error: updateError } = await supabase
+      .from('check_ins')
+      .update(updatePayload)
+      .eq('id', checkIn.id)
+      .select(); // 👈 ADD .select() to see what was actually saved
+
+    // 👇 ADD THIS
+    console.log('Supabase response data:', data);
+    console.log('Supabase response error:', updateError);
+
+    if (updateError) throw updateError;
+
+    onSuccess();
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to update check-in');
+  } finally {
+    setSaving(false);
+  }
+};
+
 
   if (!isOpen) return null;
 
