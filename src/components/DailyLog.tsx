@@ -64,16 +64,16 @@ const formatPhoneNumber = (phone: string | undefined): string => {
 const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
   if (!appointmentTime) return 'N/A';
   
-  if (appointmentTime === 'work_in') return 'Work In';
+  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') return 'Work In';
 
-  // Map raw values to display-friendly labels
+  // ✅ Map raw DB values to friendly display labels
   const specialTypeLabels: Record<string, string> = {
     'LTL': 'LTL',
-    'Charge Customer no appointment': 'Charge',
     'Paid no appointment': 'Paid',
+    'Charge Customer no appointment': 'Charge',
   };
 
-  if (specialTypeLabels[appointmentTime]) {
+  if (specialTypeLabels[appointmentTime] !== undefined) {
     return specialTypeLabels[appointmentTime];
   }
   
@@ -598,8 +598,6 @@ const enrichedCheckIns = (checkInsData || []).map(checkIn => {
     const trimmedRef = ref.trim();
     if (appointmentsMap.has(trimmedRef)) {
       const candidate = appointmentsMap.get(trimmedRef);
-
-      // ✅ Only use appointment if its date matches the selected date
       if (candidate?.date === selectedDate) {
         appointmentInfo = candidate;
         console.log(`Match found for ref "${trimmedRef}":`, appointmentInfo);
@@ -613,16 +611,28 @@ const enrichedCheckIns = (checkInsData || []).map(checkIn => {
     }
   }
 
-  if (!appointmentInfo) {
-    console.log(`No appointment match for check-in ${checkIn.id}, refs:`, refs);
-  }
+  // ✅ SPECIAL TYPES: If no appointments table match found,
+  // preserve whatever is saved directly on the check_in row
+  const MANUAL_APPOINTMENT_TYPES = [
+    'LTL',
+    'Paid no appointment',
+    'Charge Customer no appointment',
+    'work_in',
+  ];
+
+  const checkInHasManualType = checkIn.appointment_time &&
+    MANUAL_APPOINTMENT_TYPES.includes(checkIn.appointment_time);
 
   return {
     ...checkIn,
-    // ✅ If no same-day appointment found, set to null instead of falling back
-    // to whatever was previously stored on the check-in row
-    appointment_time: appointmentInfo?.time ?? null,
-    appointment_date: appointmentInfo?.date ?? null,
+    // ✅ If appointments table found a match → use it
+    // ✅ If check_in row has a manual type saved → preserve it
+    // ✅ Otherwise → null
+    appointment_time: appointmentInfo?.time ?? 
+      (checkInHasManualType ? checkIn.appointment_time : null),
+    appointment_date: appointmentInfo?.date ?? 
+      (checkInHasManualType ? checkIn.appointment_date : null),
+    // These fields fall back to check_in values if no appointment match
     customer: appointmentInfo?.customer ?? checkIn.customer ?? null,
     ship_to_city: appointmentInfo?.ship_to_city ?? checkIn.ship_to_city ?? null,
     ship_to_state: appointmentInfo?.ship_to_state ?? checkIn.ship_to_state ?? null,
