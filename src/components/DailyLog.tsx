@@ -64,7 +64,7 @@ const formatPhoneNumber = (phone: string | undefined): string => {
 const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
   if (!appointmentTime) return 'N/A';
   
-  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') return 'Work In';
+  if (appointmentTime === 'work_in') return 'Work In';
 
   // ✅ Map raw DB values to friendly display labels
   const specialTypeLabels: Record<string, string> = {
@@ -85,6 +85,7 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   
   return appointmentTime;
 };
+
 
 
 const formatAppointmentDateTime = (
