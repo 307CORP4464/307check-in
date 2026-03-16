@@ -65,6 +65,9 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   if (!appointmentTime) return 'N/A';
   
   if (appointmentTime === 'work_in') return 'Work In';
+  if (appointmentTime === 'LTL') return 'LTL';
+  if (appointmentTime === 'Paid') return 'Paid No Appt';
+  if (appointmentTime === 'Charge') return 'Charge Cust. No Appt';
   
   if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
     const hours = appointmentTime.substring(0, 2);
