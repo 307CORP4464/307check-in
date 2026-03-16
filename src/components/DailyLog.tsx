@@ -470,6 +470,7 @@ export default function DailyLog() {
   const [selectedDate, setSelectedDate] = useState<string>(getCurrentDateInIndianapolis());
   const [selectedForStatusChange, setSelectedForStatusChange] = useState<CheckIn | null>(null);
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
 type AppointmentInfo = {
   time: string | null;
@@ -654,8 +655,6 @@ setCheckIns(enrichedCheckIns);
   }
 };
 
-
-  
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -704,15 +703,18 @@ setCheckIns(enrichedCheckIns);
     setSelectedForStatusChange(null);
   };
 
-  const handleEdit = (checkIn: CheckIn) => {
-    setSelectedForEdit(checkIn);
-  };
+// Handler to OPEN the edit modal
+const handleEdit = (checkIn: CheckIn) => {
+  setSelectedForEdit(checkIn);
+  setEditModalOpen(true);  // ← You were missing this!
+};
 
+// Handler called after successful edit
 const handleEditSuccess = () => {
   setEditModalOpen(false);
+  setSelectedForEdit(null);  // ← Good practice to clear this too
   fetchCheckIns();
 };
-;
 
   const getStatusBadgeColor = (status: string): string => {
     const statusLower = status.toLowerCase();
