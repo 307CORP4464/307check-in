@@ -304,12 +304,16 @@ export default function CSRDashboard() {
     return () => clearInterval(timer);
   }, []);
 
- const fetchAllData = async () => {
+const fetchAllData = async () => {
   try {
     setLoading(true);
     setError(null);
 
-    const today = getTodayInIndianapolis();
+    const today = getTodayInIndianapolis(); // Returns "YYYY-MM-DD"
+
+    // ─── Also build MM/DD/YYYY format in case DB stores it that way ───
+    const [yr, mo, dy] = today.split('-');
+    const todayMMDDYYYY = `${mo}/${dy}/${yr}`; // "MM/DD/YYYY"
 
     // Fetch pending check-ins
     const { data: checkInsData, error: checkInsError } = await supabase
@@ -324,7 +328,6 @@ export default function CSRDashboard() {
       ?.map((ci: any) => ci.reference_number)
       .filter((ref: any) => ref && ref.trim() !== '') || [];
 
-    // ✅ Updated map to store ALL fields we need
     const appointmentsMap = new Map<string, {
       time: string | null;
       date: string | null;
@@ -344,16 +347,15 @@ export default function CSRDashboard() {
         )
         .or(
           `sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`
-        );
-        // ✅ REMOVED .eq('appointment_date', today) — this was filtering out
-        //    appointments that don't match today's date, causing N/A for
-        //    check-ins with appointments on other dates
+        )
+        // ✅ Filter to only today's appointments
+        // Uses .or() to handle both date formats (YYYY-MM-DD and MM/DD/YYYY)
+        .or(`appointment_date.eq.${today},appointment_date.eq.${todayMMDDYYYY}`);
 
       if (appointmentsError) {
         console.error('Error fetching appointments:', appointmentsError);
       } else if (appointmentsData) {
         appointmentsData.forEach((apt: any) => {
-          // ✅ Now store ALL the fields we need
           const appointmentInfo = {
             time: apt.appointment_time ?? null,
             date: apt.appointment_date ?? today,
@@ -375,7 +377,8 @@ export default function CSRDashboard() {
       }
     }
 
-    // ✅ Merge ALL appointment fields into each check-in
+    // ✅ Merge appointment fields into each check-in
+    // If no appointment found for today, fields will be null (shows red status)
     const processedCheckIns = checkInsData?.map((ci: any) => {
       const ref = ci.reference_number ? String(ci.reference_number) : null;
       const aptInfo = ref ? appointmentsMap.get(ref) : null;
@@ -386,9 +389,8 @@ export default function CSRDashboard() {
 
       return {
         ...ci,
-        appointment_time: aptInfo?.time ?? ci.appointment_time ?? null,
-        appointment_date: aptInfo?.date ?? ci.appointment_date ?? null,
-        // ✅ These were missing before — now properly merged
+        appointment_time: aptInfo?.time ?? null,        // ✅ No longer falls back to
+        appointment_date: aptInfo?.date ?? null,        //    stale ci.appointment_time
         ship_to_city: aptInfo?.ship_to_city ?? ci.ship_to_city ?? null,
         ship_to_state: aptInfo?.ship_to_state ?? ci.ship_to_state ?? null,
         carrier: aptInfo?.carrier ?? ci.carrier ?? null,
@@ -397,11 +399,10 @@ export default function CSRDashboard() {
       };
     }) || [];
 
-    console.log('Processed check-ins sample:', processedCheckIns[0]);
+    console.log('Processed check-ins sample:', processedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
 
     setCheckIns(processedCheckIns);
 
-    // Update the appointments state map
     const fullAppointmentMap = new Map<string, Appointment>();
     appointmentsMap.forEach((value, key) => {
       fullAppointmentMap.set(key, {
@@ -424,6 +425,7 @@ export default function CSRDashboard() {
     setLoading(false);
   }
 };
+
 
   // ─── Initial load + real-time subscription ───
   useEffect(() => {
