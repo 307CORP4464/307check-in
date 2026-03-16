@@ -697,10 +697,23 @@ setCheckIns(enrichedCheckIns);
     setSelectedForEdit(checkIn);
   };
 
-  const handleEditSuccess = () => {
-    fetchCheckInsForDate();
-    setSelectedForEdit(null);
-  };
+ const handleEditSuccess = async () => {
+  setEditModalOpen(false);
+  
+  // After closing modal, re-fetch and log what comes back
+  const { data, error } = await supabase
+    .from('check_ins')
+    .select('*')
+    .eq('id', selectedCheckIn.id)
+    .single();
+    
+  console.log('Re-fetched check-in after edit:', data);
+  console.log('appointment_time value:', data?.appointment_time);
+  
+  // Then trigger your normal refresh
+  fetchCheckIns();
+};
+
 
   const getStatusBadgeColor = (status: string): string => {
     const statusLower = status.toLowerCase();
