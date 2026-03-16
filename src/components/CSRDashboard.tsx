@@ -399,7 +399,7 @@ const fetchAllData = async () => {
       };
     }) || [];
 
-    console.log('Processed check-ins sample:', processedCheckIns<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
+    console.log('Processed check-ins sample:', processedCheckIns[0]);
 
     setCheckIns(processedCheckIns);
 
