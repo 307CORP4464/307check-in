@@ -75,6 +75,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
 
   // Gross weight state
   const [grossWeight, setGrossWeight] = useState('');
+  const [grossWeightTouched, setGrossWeightTouched] = useState(false);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -150,6 +151,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
       setEmailStatus(null);
       setShowWarning(false);
       setGrossWeight('');
+      setGrossWeightTouched(false);
       fetchAllDockStatuses();
     }
   }, [isOpen, checkIn]);
@@ -898,7 +900,7 @@ const handleAssign = async () => {
           <tbody>
             <tr><td>Original</td><td>Outbound Inspection - Restructured</td><td>Quality Manager</td><td>Operations Manager</td><td>7/24/2025</td></tr>
             <tr><td>2</td><td>Added loadbar question</td><td>Quality Manager</td><td>Operations Manager</td><td>7/31/2025</td></tr>
-            <tr><td>2</td><td>updated format and added revisions table. </td><td>Quality Manager</td><td>Operations Manager</td><td>3/10/2026</td></tr>
+            <tr><td>3</td><td>updated format and added revisions table. </td><td>Quality Manager</td><td>Operations Manager</td><td>3/10/2026</td></tr>
           </tbody>
         </table>
 
@@ -1128,7 +1130,7 @@ const handleAssign = async () => {
                 placeholder="driver@example.com"
               />
             </div>
-            <div>
+          <div>
   <label htmlFor="grossWeight" className="block text-sm font-medium text-gray-700">
     Gross Weight <span className="text-red-500">*</span>
   </label>
@@ -1137,13 +1139,14 @@ const handleAssign = async () => {
     type="number"
     value={grossWeight}
     onChange={(e) => setGrossWeight(e.target.value)}
+    onBlur={() => setGrossWeightTouched(true)}
     required
     placeholder="Enter gross weight (lbs)"
     className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-      !grossWeight ? 'border-red-300' : 'border-gray-300'
+      grossWeightTouched && !grossWeight ? 'border-red-300' : 'border-gray-300'
     }`}
   />
-  {!grossWeight && (
+  {grossWeightTouched && !grossWeight && (
     <p className="mt-1 text-xs text-red-500">Gross weight is required.</p>
   )}
 </div>
