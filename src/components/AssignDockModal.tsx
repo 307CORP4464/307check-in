@@ -413,8 +413,6 @@ const handleAssign = async () => {
     }
   }
 
- 
-
     setLoading(true);
     setError(null);
     setEmailStatus(null);
