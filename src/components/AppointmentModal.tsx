@@ -334,7 +334,7 @@ export default function AppointmentModal({
                     type="text"
                     value={so}
                     onChange={e => handleSalesOrderChange(index, e.target.value)}
-                    placeholder="e.g. SO-12345"
+                    placeholder="e.g. 2xxxxxx or 44xxxxxxxx"
                     className={inputClass}
                   />
                   {salesOrders.length > 1 && (
@@ -368,7 +368,7 @@ export default function AppointmentModal({
                     type="text"
                     value={del}
                     onChange={e => handleDeliveryChange(index, e.target.value)}
-                    placeholder="e.g. DO-12345"
+                    placeholder="e.g. 8xxxxxxx"
                     className={inputClass}
                   />
                   {deliveries.length > 1 && (
