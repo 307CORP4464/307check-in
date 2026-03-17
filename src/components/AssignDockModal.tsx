@@ -384,28 +384,36 @@ const cancelDoubleBook = () => {
     }
   };
 
-  const handleAssign = async () => {
-    if (!dockNumber) {
-      setError('Please select a dock');
+const handleAssign = async () => {
+  if (!dockNumber) {
+    setError('Please select a dock');
+    return;
+  }
+
+  // ✅ Add this gross weight validation
+  if (!grossWeight || grossWeight.trim() === '') {
+    setError('Gross weight is required.');
+    return;
+  }
+
+  // Hard block re-check at submission time
+  if (dockNumber !== 'Ramp') {
+    const { data: blockedCheck } = await supabase
+      .from('blocked_docks')
+      .select('reason')
+      .eq('dock_number', dockNumber)
+      .maybeSingle();
+
+    if (blockedCheck) {
+      setError(
+        `❌ Dock ${dockNumber} is blocked: "${blockedCheck.reason}". Please select a different dock.`
+      );
+      setShowWarning(true);
       return;
     }
+  }
 
-    // Hard block re-check at submission time
-    if (dockNumber !== 'Ramp') {
-      const { data: blockedCheck } = await supabase
-        .from('blocked_docks')
-        .select('reason')
-        .eq('dock_number', dockNumber)
-        .maybeSingle();
-
-      if (blockedCheck) {
-        setError(
-          `❌ Dock ${dockNumber} is blocked: "${blockedCheck.reason}". Please select a different dock.`
-        );
-        setShowWarning(true);
-        return;
-      }
-    }
+ 
 
     setLoading(true);
     setError(null);
@@ -1123,17 +1131,25 @@ const cancelDoubleBook = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Gross Weight <span className="text-gray-400 font-normal">(optional)</span>
-              </label>
-              <input
-                type="text"
-                value={grossWeight}
-                onChange={e => setGrossWeight(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                placeholder="e.g. 42,500 lbs"
-              />
-            </div>
+  <label htmlFor="grossWeight" className="block text-sm font-medium text-gray-700">
+    Gross Weight <span className="text-red-500">*</span>
+  </label>
+  <input
+    id="grossWeight"
+    type="number"
+    value={grossWeight}
+    onChange={(e) => setGrossWeight(e.target.value)}
+    required
+    placeholder="Enter gross weight (lbs)"
+    className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+      !grossWeight ? 'border-red-300' : 'border-gray-300'
+    }`}
+  />
+  {!grossWeight && (
+    <p className="mt-1 text-xs text-red-500">Gross weight is required.</p>
+  )}
+</div>
+
           </div>
 
           {/* Send email toggle */}
@@ -1171,34 +1187,35 @@ const cancelDoubleBook = () => {
           )}
         </div>
 
-        {/* ── Footer ── */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleAssign}
-            disabled={loading || !dockNumber}
-            className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          >
-            {loading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                Assigning...
-              </>
-            ) : (
-              <>
-                Assign {dockNumber ? (dockNumber === 'Ramp' ? 'Ramp' : `Dock ${dockNumber}`) : 'Dock'}
-              </>
-            )}
-          </button>
-        </div>
+       {/* ── Footer ── */}
+<div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 shrink-0">
+  <button
+    type="button"
+    onClick={onClose}
+    disabled={loading}
+    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+  >
+    Cancel
+  </button>
+  <button
+    type="button"
+    onClick={handleAssign}
+    disabled={loading || !dockNumber || !grossWeight}  {/* ✅ Added !grossWeight */}
+    className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+  >
+    {loading ? (
+      <>
+        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+        Assigning...
+      </>
+    ) : (
+      <>
+        Assign {dockNumber ? (dockNumber === 'Ramp' ? 'Ramp' : `Dock ${dockNumber}`) : 'Dock'}
+      </>
+    )}
+  </button>
+</div>
+
 
       </div>
       {/* Double-Book Confirmation Dialog */}
