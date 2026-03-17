@@ -552,7 +552,7 @@ export default function DriverCheckInForm() {
                             required={index === 0}
                             placeholder={
                               index === 0
-                                ? 'e.g., SO12345 or 2xxxxxx'
+                                ? 'e.g., 2xxxxxx or 4xxxxxx or 8xxxxxxx'
                                 : `Reference #${index + 1}`
                             }
                             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
