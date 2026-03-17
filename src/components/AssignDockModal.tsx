@@ -1152,21 +1152,6 @@ const handleAssign = async () => {
 </div>
 
           </div>
-
-          {/* Send email toggle */}
-          <div className="flex items-center gap-2">
-            <input
-              id="sendEmail"
-              type="checkbox"
-              checked={sendEmail}
-              onChange={e => setSendEmail(e.target.checked)}
-              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-            />
-            <label htmlFor="sendEmail" className="text-sm text-gray-700">
-              Send dock assignment email to driver
-            </label>
-          </div>
-
           {/* Email status feedback */}
           {emailStatus && (
             <div
