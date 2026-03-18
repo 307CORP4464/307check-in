@@ -475,7 +475,7 @@ private getStatusChangeTemplate(
       : this.getOutboundInstructions();
     
     return {
-      subject: `Dock Assignment - ${loadType === 'inbound' ? 'Unloading' : 'Loading'}`,
+      subject: `Dock Assignment - ${referenceNumber}`,
       html: `
         <!DOCTYPE html>
         <html>
