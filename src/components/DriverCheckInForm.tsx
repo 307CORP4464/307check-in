@@ -23,7 +23,7 @@ const INITIAL_FORM_DATA: FormData = {
   carrierName: '',
   trailerNumber: '',
   trailerLength: '',
-  loadType: 'inbound',
+  loadType: 'outbound',
   emailConsent: false,
 };
 
@@ -519,7 +519,7 @@ export default function DriverCheckInForm() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="outbound">Outbound Pickup</option>
-                    <option value="inboundbound">Inbound Delivery</option>
+                    <option value="inbound">Inbound Delivery</option>
                   </select>
                 </div>
 
