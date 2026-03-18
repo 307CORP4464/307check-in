@@ -211,7 +211,7 @@ export default function Tracking() {
   const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string>('');
+
   const [expandedDetention, setExpandedDetention] = useState<{ [date: string]: boolean }>({});
 
   const getCurrentDateInIndianapolis = () => {
@@ -233,14 +233,12 @@ export default function Tracking() {
   const [endDate, setEndDate] = useState<string>(getCurrentDateInIndianapolis());
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-      } else {
-        setUserEmail(user.email || '');
-      }
-    };
+   const checkUser = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    router.push('/login');
+  }
+};
     checkUser();
   }, [supabase, router]);
 
