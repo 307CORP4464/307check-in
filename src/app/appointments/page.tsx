@@ -13,7 +13,7 @@ import AppointmentModal from '@/components/AppointmentModal';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Header from './Header';
+import Header from '@/components/Header';
 
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
