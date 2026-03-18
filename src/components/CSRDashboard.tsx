@@ -9,6 +9,7 @@ import AssignDockModal from './AssignDockModal';
 import EditCheckInModal from './EditCheckInModal';
 import DenyCheckInModal from './DenyCheckInModal';
 import ManualCheckInModal from './ManualCheckInModal';
+import Header from './Header';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
