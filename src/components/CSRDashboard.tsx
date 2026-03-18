@@ -292,8 +292,6 @@ export default function CSRDashboard() {
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
   const [selectedForDeny, setSelectedForDeny] = useState<CheckIn | null>(null);
   const [showManualCheckIn, setShowManualCheckIn] = useState(false);
-  const [prevCheckInCount, setPrevCheckInCount] = useState<number>(0);
-  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(false);
 
   const router = useRouter();
   const supabase = createBrowserClient(
@@ -489,53 +487,11 @@ useEffect(() => {
     fetchAllData(); // ✅ Now accessible
   };
 
-
-  const playDing = () => {
-  try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    const ctx = new AudioContext();
-    const oscillator = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-    oscillator.connect(gainNode);
-    gainNode.connect(ctx.destination);
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(880, ctx.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.3);
-    gainNode.gain.setValueAtTime(0.4, ctx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
-    oscillator.start(ctx.currentTime);
-    oscillator.stop(ctx.currentTime + 0.8);
-  } catch (e) {
-    console.warn('Audio not supported:', e);
-  }
-};
-
-const enableNotifications = async () => {
-  if ('Notification' in window) {
-    const permission = await Notification.requestPermission();
-    setNotificationsEnabled(permission === 'granted');
-  }
-};
-
-  
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
      <Header title="CSR Dashboard" />
-
-{checkIns.length > 0 && (
-  <span className="relative flex items-center justify-center w-8 h-8">
-    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-    <span className="relative inline-flex rounded-full h-6 w-6 bg-red-500 text-white text-xs font-bold items-center justify-center">
-      {checkIns.length}
-    </span>
-  </span>
-)}
-      </div>
     </div>
-  </div>
-</div>
 
 
       <div className="mb-4 flex justify-between items-center">
