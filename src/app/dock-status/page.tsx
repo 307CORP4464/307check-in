@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import Header from './Header';
+import Header from '@/components/Header';
 
 interface OrderInfo {
   id: string;
