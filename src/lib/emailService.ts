@@ -297,6 +297,7 @@ async sendStatusChange(
 private getStatusChangeTemplate(
   driverName: string,
   referenceNumber: string,
+  dockNumber: string,
   oldStatus: string,
   newStatus: string,
   notes?: string,
@@ -372,7 +373,9 @@ private getStatusChangeTemplate(
                           <p style="margin: 0 0 10px; font-size: 14px; color: #666666;">
                             <strong style="color: #333333;">Reference Number:</strong> ${referenceNumber}
                           </p>
-                         
+                         <p style="margin: 0 0 10px; font-size: 14px; color: #666666;">
+                            <strong style="color: #333333;">Dock Number:</strong> ${dockNumber}
+                          </p>
                         
                           <p style="margin: 0 0 10px; font-size: 14px; color: #666666;">
                             <strong style="color: #333333;">Status:</strong> ${formatStatus(newStatus)}
