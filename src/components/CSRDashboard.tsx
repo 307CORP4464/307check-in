@@ -390,28 +390,29 @@ if (referenceNumbers.length > 0) {
 }
     // ✅ Merge appointment fields into each check-in
     // If no appointment found for today, fields will be null (shows red status)
-    const processedCheckIns = checkInsData?.map((ci: any) => {
-  const refs = ci.reference_number
-    ? ci.reference_number.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean)
-    : [];
+   const processedCheckIns = checkInsData?.map((ci: any) => {
+      const refs = ci.reference_number
+        ? ci.reference_number.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean)
+        : [];
 
-  let aptInfo = null;
-  for (const ref of refs) {
-    const candidate = appointmentsMap.get(ref);
-    if (candidate) {
-      aptInfo = candidate;
-      console.log(`Match found for ref "${ref}":`, aptInfo);
-      break;
-    }
-  }
+      let aptInfo = null;
+      for (const ref of refs) {
+        const candidate = appointmentsMap.get(ref);
+        if (candidate) {
+          aptInfo = candidate;
+          console.log(`Match found for ref "${ref}":`, aptInfo);
+          break;
+        }
+      }
 
-  if (!aptInfo) {
-    console.log(`No appointment match for reference_number: "${ci.reference_number}"`);
-  }
+      if (!aptInfo) {
+        console.log(`No match for reference_number: "${ci.reference_number}" | appointmentsMap keys:`, Array.from(appointmentsMap.keys()));
+      }
+
       return {
         ...ci,
-        appointment_time: aptInfo?.time ?? null,        // ✅ No longer falls back to
-        appointment_date: aptInfo?.date ?? null,        //    stale ci.appointment_time
+        appointment_time: aptInfo?.time ?? null,
+        appointment_date: aptInfo?.date ?? null,
         ship_to_city: aptInfo?.ship_to_city ?? ci.ship_to_city ?? null,
         ship_to_state: aptInfo?.ship_to_state ?? ci.ship_to_state ?? null,
         carrier: aptInfo?.carrier ?? ci.carrier ?? null,
