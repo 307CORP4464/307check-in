@@ -391,13 +391,23 @@ if (referenceNumbers.length > 0) {
     // ✅ Merge appointment fields into each check-in
     // If no appointment found for today, fields will be null (shows red status)
     const processedCheckIns = checkInsData?.map((ci: any) => {
-      const ref = ci.reference_number ? String(ci.reference_number) : null;
-      const aptInfo = ref ? appointmentsMap.get(ref) : null;
+  const refs = ci.reference_number
+    ? ci.reference_number.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean)
+    : [];
 
-      if (ref) {
-        console.log(`CheckIn ref: ${ref} → aptInfo:`, aptInfo);
-      }
+  let aptInfo = null;
+  for (const ref of refs) {
+    const candidate = appointmentsMap.get(ref);
+    if (candidate) {
+      aptInfo = candidate;
+      console.log(`Match found for ref "${ref}":`, aptInfo);
+      break;
+    }
+  }
 
+  if (!aptInfo) {
+    console.log(`No appointment match for reference_number: "${ci.reference_number}"`);
+  }
       return {
         ...ci,
         appointment_time: aptInfo?.time ?? null,        // ✅ No longer falls back to
