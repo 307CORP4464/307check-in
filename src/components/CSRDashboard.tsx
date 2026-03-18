@@ -474,8 +474,6 @@ const fetchAllData = async () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-     <Header title="CSR Dashboard" />
       <div className="mb-4 flex justify-between items-center">
         <button
           onClick={() => setShowManualCheckIn(true)}
