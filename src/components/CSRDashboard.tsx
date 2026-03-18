@@ -354,13 +354,18 @@ const fetchAllData = async () => {
           ])
           .join(',');
 
-        const { data: appointmentsData, error: appointmentsError } = await supabase
-          .from('appointments')
-          .select(
-            'sales_order, delivery, appointment_time, appointment_date, carrier, mode, ship_to_city, ship_to_state, requested_ship_date, customer'
-          )
-          .or(orFilter)
-          .eq('appointment_date', today);
+       const { data: appointmentsData, error: appointmentsError } = await supabase
+  .from('appointments')
+  .select(
+    'sales_order, delivery, appointment_time, appointment_date, carrier, mode, ship_to_city, ship_to_state, requested_ship_date, customer'
+  )
+  .or(orFilter);
+  // date filter removed temporarily for debugging
+
+console.log('today value:', today);
+console.log('orFilter:', orFilter);
+console.log('appointmentsData:', appointmentsData);
+console.log('appointmentsError:', appointmentsError);
 
         if (appointmentsError) {
           console.error('Error fetching appointments:', appointmentsError);
