@@ -310,11 +310,7 @@ const fetchAllData = async () => {
     setLoading(true);
     setError(null);
 
-    const today = getTodayInIndianapolis(); // Returns "YYYY-MM-DD"
-
-    // ─── Also build MM/DD/YYYY format in case DB stores it that way ───
-    const [yr, mo, dy] = today.split('-');
-    const todayMMDDYYYY = `${mo}/${dy}/${yr}`; // "MM/DD/YYYY"
+    const today = getTodayInIndianapolis();
 
     // Fetch pending check-ins
     const { data: checkInsData, error: checkInsError } = await supabase
@@ -325,9 +321,14 @@ const fetchAllData = async () => {
 
     if (checkInsError) throw checkInsError;
 
-    const referenceNumbers = checkInsData
-      ?.map((ci: any) => ci.reference_number)
-      .filter((ref: any) => ref && ref.trim() !== '') || [];
+    const referenceNumbers = Array.from(new Set(
+      (checkInsData || [])
+        .flatMap((ci: any) =>
+          ci.reference_number
+            ? ci.reference_number.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean)
+            : []
+        )
+    ));
 
     const appointmentsMap = new Map<string, {
       time: string | null;
@@ -340,110 +341,112 @@ const fetchAllData = async () => {
       requested_ship_date: string | null;
     }>();
 
-if (referenceNumbers.length > 0) {
-  const BATCH_SIZE = 20;
+    if (referenceNumbers.length > 0) {
+      const BATCH_SIZE = 20;
 
-  for (let i = 0; i < referenceNumbers.length; i += BATCH_SIZE) {
-    const batch = referenceNumbers.slice(i, i + BATCH_SIZE);
+      for (let i = 0; i < referenceNumbers.length; i += BATCH_SIZE) {
+        const batch = referenceNumbers.slice(i, i + BATCH_SIZE);
 
-    const orFilter = batch
-      .flatMap((ref: string) => [
-        `sales_order.ilike.%${ref}%`,
-        `delivery.ilike.%${ref}%`
-      ])
-      .join(',');
+        const orFilter = batch
+          .flatMap((ref: string) => [
+            `sales_order.ilike.%${ref}%`,
+            `delivery.ilike.%${ref}%`
+          ])
+          .join(',');
 
-    const { data: appointmentsData, error: appointmentsError } = await supabase
-      .from('appointments')
-      .select(
-        'sales_order, delivery, appointment_time, appointment_date, carrier, mode, ship_to_city, ship_to_state, requested_ship_date, customer'
-      )
-      .or(orFilter)
-      .eq('appointment_date', today);
+        const { data: appointmentsData, error: appointmentsError } = await supabase
+          .from('appointments')
+          .select(
+            'sales_order, delivery, appointment_time, appointment_date, carrier, mode, ship_to_city, ship_to_state, requested_ship_date, customer'
+          )
+          .or(orFilter)
+          .eq('appointment_date', today);
 
-    if (appointmentsError) {
-      console.error('Error fetching appointments:', appointmentsError);
-      continue;
-    }
-
-    if (appointmentsData) {
-      appointmentsData.forEach((apt: any) => {
-        const appointmentInfo = {
-          time: apt.appointment_time ?? null,
-          date: apt.appointment_date ?? today,
-          ship_to_city: apt.ship_to_city ?? null,
-          ship_to_state: apt.ship_to_state ?? null,
-          carrier: apt.carrier ?? null,
-          mode: apt.mode ?? null,
-          customer: apt.customer ?? null,
-          requested_ship_date: apt.requested_ship_date ?? null,
-        };
-
-        if (apt.sales_order) {
-          const salesRefs = apt.sales_order.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean);
-          salesRefs.forEach((ref: string) => appointmentsMap.set(ref, appointmentInfo));
-          appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
+        if (appointmentsError) {
+          console.error('Error fetching appointments:', appointmentsError);
+          continue;
         }
 
-        if (apt.delivery) {
-          const deliveryRefs = apt.delivery.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean);
-          deliveryRefs.forEach((ref: string) => appointmentsMap.set(ref, appointmentInfo));
-          appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
+        if (appointmentsData) {
+          console.log('Appointments returned:', appointmentsData);
+          appointmentsData.forEach((apt: any) => {
+            const appointmentInfo = {
+              time: apt.appointment_time ?? null,
+              date: apt.appointment_date ?? today,
+              ship_to_city: apt.ship_to_city ?? null,
+              ship_to_state: apt.ship_to_state ?? null,
+              carrier: apt.carrier ?? null,
+              mode: apt.mode ?? null,
+              customer: apt.customer ?? null,
+              requested_ship_date: apt.requested_ship_date ?? null,
+            };
+
+            if (apt.sales_order) {
+              apt.sales_order.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean)
+                .forEach((ref: string) => appointmentsMap.set(ref, appointmentInfo));
+              appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
+            }
+
+            if (apt.delivery) {
+              apt.delivery.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean)
+                .forEach((ref: string) => appointmentsMap.set(ref, appointmentInfo));
+              appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
+            }
+          });
         }
+      } // ← end for loop
+    } // ← end if referenceNumbers.length > 0
+
+    console.log('appointmentsMap keys:', Array.from(appointmentsMap.keys()));
+
+    const processedCheckIns = (checkInsData || []).map((ci: any) => {
+      const refs = ci.reference_number
+        ? ci.reference_number.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean)
+        : [];
+
+      let aptInfo = null;
+      for (const ref of refs) {
+        const candidate = appointmentsMap.get(ref);
+        if (candidate) {
+          aptInfo = candidate;
+          console.log(`Match found for ref "${ref}":`, aptInfo);
+          break;
+        }
+      }
+
+      if (!aptInfo) {
+        console.log(`No match for: "${ci.reference_number}" | map keys:`, Array.from(appointmentsMap.keys()));
+      }
+
+      return {
+        ...ci,
+        appointment_time: aptInfo?.time ?? null,
+        appointment_date: aptInfo?.date ?? null,
+        ship_to_city: aptInfo?.ship_to_city ?? ci.ship_to_city ?? null,
+        ship_to_state: aptInfo?.ship_to_state ?? ci.ship_to_state ?? null,
+        carrier: aptInfo?.carrier ?? ci.carrier ?? null,
+        mode: aptInfo?.mode ?? ci.mode ?? null,
+        requested_ship_date: aptInfo?.requested_ship_date ?? ci.requested_ship_date ?? null,
+      };
+    });
+
+    setCheckIns(processedCheckIns);
+
+    const fullAppointmentMap = new Map<string, Appointment>();
+    appointmentsMap.forEach((value, key) => {
+      fullAppointmentMap.set(key, {
+        id: key,
+        appointment_time: value.time ?? undefined,
+        appointment_date: value.date ?? undefined,
+        ship_to_city: value.ship_to_city ?? undefined,
+        ship_to_state: value.ship_to_state ?? undefined,
+        carrier: value.carrier ?? undefined,
+        mode: value.mode ?? undefined,
+        requested_ship_date: value.requested_ship_date ?? undefined,
       });
-    }
-  } // ← end of for loop
-} // ← end of if (referenceNumbers.length > 0)
+    });
+    setAppointments(fullAppointmentMap);
 
-// ─── Merge appointment fields into each check-in ───
-const processedCheckIns = checkInsData?.map((ci: any) => {
-  const refs = ci.reference_number
-    ? ci.reference_number.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean)
-    : [];
-
-  let aptInfo = null;
-  for (const ref of refs) {
-    const candidate = appointmentsMap.get(ref);
-    if (candidate) {
-      aptInfo = candidate;
-      console.log(`Match found for ref "${ref}":`, aptInfo);
-      break;
-    }
-  }
-
-  if (!aptInfo) {
-    console.log(`No match for reference_number: "${ci.reference_number}" | appointmentsMap keys:`, Array.from(appointmentsMap.keys()));
-  }
-
-  return {
-    ...ci,
-    appointment_time: aptInfo?.time ?? null,
-    appointment_date: aptInfo?.date ?? null,
-    ship_to_city: aptInfo?.ship_to_city ?? ci.ship_to_city ?? null,
-    ship_to_state: aptInfo?.ship_to_state ?? ci.ship_to_state ?? null,
-    carrier: aptInfo?.carrier ?? ci.carrier ?? null,
-    mode: aptInfo?.mode ?? ci.mode ?? null,
-    requested_ship_date: aptInfo?.requested_ship_date ?? ci.requested_ship_date ?? null,
-  };
-}) || [];
-
-console.log('Processed check-ins sample:', processedCheckIns[0]);
-setCheckIns(processedCheckIns);
-
-const fullAppointmentMap = new Map<string, Appointment>();
-appointmentsMap.forEach((value, key) => {
-  fullAppointmentMap.set(key, {
-    id: key,
-    appointment_time: value.time ?? undefined,
-    appointment_date: value.date ?? undefined,
-    ship_to_city: value.ship_to_city ?? undefined,
-    ship_to_state: value.ship_to_state ?? undefined,
-    carrier: value.carrier ?? undefined,
-    mode: value.mode ?? undefined,
-    requested_ship_date: value.requested_ship_date ?? undefined,
-  });
-});
-setAppointments(fullAppointmentMap);
   } catch (err) {
     console.error('Fetch error:', err);
     setError('Failed to load check-ins');
