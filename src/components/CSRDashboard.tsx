@@ -340,43 +340,45 @@ const fetchAllData = async () => {
       requested_ship_date: string | null;
     }>();
 
-    if (referenceNumbers.length > 0) {
-      const { data: appointmentsData, error: appointmentsError } = await supabase
-        .from('appointments')
-        .select(
-          'sales_order, delivery, appointment_time, appointment_date, carrier, mode, ship_to_city, ship_to_state, requested_ship_date, customer'
-        )
-        .or(
-          `sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`
-        )
-        // ✅ Filter to only today's appointments
-        // Uses .or() to handle both date formats (YYYY-MM-DD and MM/DD/YYYY)
-        .or(`appointment_date.eq.${today},appointment_date.eq.${todayMMDDYYYY}`);
+if (referenceNumbers.length > 0) {
+  const { data: appointmentsData, error: appointmentsError } = await supabase
+    .from('appointments')
+    .select(
+      'sales_order, delivery, appointment_time, appointment_date, carrier, mode, ship_to_city, ship_to_state, requested_ship_date, customer'
+    )
+    .or(
+      `sales_order.in.(${referenceNumbers.join(',')}),delivery.in.(${referenceNumbers.join(',')})`
+    );
 
-      if (appointmentsError) {
-        console.error('Error fetching appointments:', appointmentsError);
-      } else if (appointmentsData) {
-        appointmentsData.forEach((apt: any) => {
-          const appointmentInfo = {
-            time: apt.appointment_time ?? null,
-            date: apt.appointment_date ?? today,
-            ship_to_city: apt.ship_to_city ?? null,
-            ship_to_state: apt.ship_to_state ?? null,
-            carrier: apt.carrier ?? null,
-            mode: apt.mode ?? null,
-            customer: apt.customer ?? null,
-            requested_ship_date: apt.requested_ship_date ?? null,
-          };
+  if (appointmentsError) {
+    console.error('Error fetching appointments:', appointmentsError);
+  } else if (appointmentsData) {
+    const todayAppointments = appointmentsData.filter((apt: any) => {
+      if (!apt.appointment_date) return false;
+      const d = apt.appointment_date.trim();
+      return d === today || d === todayMMDDYYYY;
+    });
 
-          if (apt.sales_order) {
-            appointmentsMap.set(String(apt.sales_order), appointmentInfo);
-          }
-          if (apt.delivery) {
-            appointmentsMap.set(String(apt.delivery), appointmentInfo);
-          }
-        });
+    todayAppointments.forEach((apt: any) => {
+      const appointmentInfo = {
+        time: apt.appointment_time ?? null,
+        date: apt.appointment_date ?? today,
+        ship_to_city: apt.ship_to_city ?? null,
+        ship_to_state: apt.ship_to_state ?? null,
+        carrier: apt.carrier ?? null,
+        mode: apt.mode ?? null,
+        customer: apt.customer ?? null,
+        requested_ship_date: apt.requested_ship_date ?? null,
+      };
+      if (apt.sales_order) {
+        appointmentsMap.set(String(apt.sales_order), appointmentInfo);
       }
-    }
+      if (apt.delivery) {
+        appointmentsMap.set(String(apt.delivery), appointmentInfo);
+      }
+    });
+  }
+}
 
     // ✅ Merge appointment fields into each check-in
     // If no appointment found for today, fields will be null (shows red status)
