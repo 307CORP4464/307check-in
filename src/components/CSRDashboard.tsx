@@ -347,7 +347,7 @@ if (referenceNumbers.length > 0) {
     const batch = referenceNumbers.slice(i, i + BATCH_SIZE);
 
     const orFilter = batch
-      .flatMap(ref => [
+      .flatMap((ref: string) => [
         `sales_order.ilike.%${ref}%`,
         `delivery.ilike.%${ref}%`
       ])
@@ -359,7 +359,7 @@ if (referenceNumbers.length > 0) {
         'sales_order, delivery, appointment_time, appointment_date, carrier, mode, ship_to_city, ship_to_state, requested_ship_date, customer'
       )
       .or(orFilter)
-      .eq('appointment_date', today); // today is already YYYY-MM-DD
+      .eq('appointment_date', today);
 
     if (appointmentsError) {
       console.error('Error fetching appointments:', appointmentsError);
@@ -367,86 +367,83 @@ if (referenceNumbers.length > 0) {
     }
 
     if (appointmentsData) {
-  appointmentsData.forEach((apt: any) => {
-    const appointmentInfo = {
-      time: apt.appointment_time ?? null,
-      date: apt.appointment_date ?? today,
-      ship_to_city: apt.ship_to_city ?? null,
-      ship_to_state: apt.ship_to_state ?? null,
-      carrier: apt.carrier ?? null,
-      mode: apt.mode ?? null,
-      customer: apt.customer ?? null,
-      requested_ship_date: apt.requested_ship_date ?? null,
-    };
+      appointmentsData.forEach((apt: any) => {
+        const appointmentInfo = {
+          time: apt.appointment_time ?? null,
+          date: apt.appointment_date ?? today,
+          ship_to_city: apt.ship_to_city ?? null,
+          ship_to_state: apt.ship_to_state ?? null,
+          carrier: apt.carrier ?? null,
+          mode: apt.mode ?? null,
+          customer: apt.customer ?? null,
+          requested_ship_date: apt.requested_ship_date ?? null,
+        };
 
-    // Store under every individual ref found in sales_order
-    if (apt.sales_order) {
-      const salesRefs = apt.sales_order.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean);
-      salesRefs.forEach((ref: string) => appointmentsMap.set(ref, appointmentInfo));
-      appointmentsMap.set(apt.sales_order.trim(), appointmentInfo); // also store full string
-    }
-
-    // Store under every individual ref found in delivery
-    if (apt.delivery) {
-      const deliveryRefs = apt.delivery.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean);
-      deliveryRefs.forEach((ref: string) => appointmentsMap.set(ref, appointmentInfo));
-      appointmentsMap.set(apt.delivery.trim(), appointmentInfo); // also store full string
-    }
-  });
-}
-
-    // ✅ Merge appointment fields into each check-in
-    // If no appointment found for today, fields will be null (shows red status)
-   const processedCheckIns = checkInsData?.map((ci: any) => {
-      const refs = ci.reference_number
-        ? ci.reference_number.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean)
-        : [];
-
-      let aptInfo = null;
-      for (const ref of refs) {
-        const candidate = appointmentsMap.get(ref);
-        if (candidate) {
-          aptInfo = candidate;
-          console.log(`Match found for ref "${ref}":`, aptInfo);
-          break;
+        if (apt.sales_order) {
+          const salesRefs = apt.sales_order.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean);
+          salesRefs.forEach((ref: string) => appointmentsMap.set(ref, appointmentInfo));
+          appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
         }
-      }
 
-      if (!aptInfo) {
-        console.log(`No match for reference_number: "${ci.reference_number}" | appointmentsMap keys:`, Array.from(appointmentsMap.keys()));
-      }
-
-      return {
-        ...ci,
-        appointment_time: aptInfo?.time ?? null,
-        appointment_date: aptInfo?.date ?? null,
-        ship_to_city: aptInfo?.ship_to_city ?? ci.ship_to_city ?? null,
-        ship_to_state: aptInfo?.ship_to_state ?? ci.ship_to_state ?? null,
-        carrier: aptInfo?.carrier ?? ci.carrier ?? null,
-        mode: aptInfo?.mode ?? ci.mode ?? null,
-        requested_ship_date: aptInfo?.requested_ship_date ?? ci.requested_ship_date ?? null,
-      };
-    }) || [];
-
-    console.log('Processed check-ins sample:', processedCheckIns[0]);
-
-    setCheckIns(processedCheckIns);
-
-    const fullAppointmentMap = new Map<string, Appointment>();
-    appointmentsMap.forEach((value, key) => {
-      fullAppointmentMap.set(key, {
-        id: key,
-        appointment_time: value.time ?? undefined,
-        appointment_date: value.date ?? undefined,
-        ship_to_city: value.ship_to_city ?? undefined,
-        ship_to_state: value.ship_to_state ?? undefined,
-        carrier: value.carrier ?? undefined,
-        mode: value.mode ?? undefined,
-        requested_ship_date: value.requested_ship_date ?? undefined,
+        if (apt.delivery) {
+          const deliveryRefs = apt.delivery.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean);
+          deliveryRefs.forEach((ref: string) => appointmentsMap.set(ref, appointmentInfo));
+          appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
+        }
       });
-    });
-    setAppointments(fullAppointmentMap);
+    }
+  } // ← end of for loop
+} // ← end of if (referenceNumbers.length > 0)
 
+// ─── Merge appointment fields into each check-in ───
+const processedCheckIns = checkInsData?.map((ci: any) => {
+  const refs = ci.reference_number
+    ? ci.reference_number.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean)
+    : [];
+
+  let aptInfo = null;
+  for (const ref of refs) {
+    const candidate = appointmentsMap.get(ref);
+    if (candidate) {
+      aptInfo = candidate;
+      console.log(`Match found for ref "${ref}":`, aptInfo);
+      break;
+    }
+  }
+
+  if (!aptInfo) {
+    console.log(`No match for reference_number: "${ci.reference_number}" | appointmentsMap keys:`, Array.from(appointmentsMap.keys()));
+  }
+
+  return {
+    ...ci,
+    appointment_time: aptInfo?.time ?? null,
+    appointment_date: aptInfo?.date ?? null,
+    ship_to_city: aptInfo?.ship_to_city ?? ci.ship_to_city ?? null,
+    ship_to_state: aptInfo?.ship_to_state ?? ci.ship_to_state ?? null,
+    carrier: aptInfo?.carrier ?? ci.carrier ?? null,
+    mode: aptInfo?.mode ?? ci.mode ?? null,
+    requested_ship_date: aptInfo?.requested_ship_date ?? ci.requested_ship_date ?? null,
+  };
+}) || [];
+
+console.log('Processed check-ins sample:', processedCheckIns[0]);
+setCheckIns(processedCheckIns);
+
+const fullAppointmentMap = new Map<string, Appointment>();
+appointmentsMap.forEach((value, key) => {
+  fullAppointmentMap.set(key, {
+    id: key,
+    appointment_time: value.time ?? undefined,
+    appointment_date: value.date ?? undefined,
+    ship_to_city: value.ship_to_city ?? undefined,
+    ship_to_state: value.ship_to_state ?? undefined,
+    carrier: value.carrier ?? undefined,
+    mode: value.mode ?? undefined,
+    requested_ship_date: value.requested_ship_date ?? undefined,
+  });
+});
+setAppointments(fullAppointmentMap);
   } catch (err) {
     console.error('Fetch error:', err);
     setError('Failed to load check-ins');
