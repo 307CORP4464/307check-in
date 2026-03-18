@@ -30,7 +30,6 @@ interface CheckIn {
   check_in_time: string;
   check_out_time?: string | null;
   status: string;
-  driver_name?: string;
   carrier_name?: string;
   trailer_number?: string;
   load_type?: 'inbound' | 'outbound';
@@ -48,7 +47,6 @@ interface DetentionInstance {
   appointment_time: string;
   end_time: string;
   detention_minutes: number;
-  driver_name: string;
   carrier_name: string;
 }
 
