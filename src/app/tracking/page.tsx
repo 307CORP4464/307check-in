@@ -390,7 +390,7 @@ const detentionInstances: DetentionInstance[] = checkIns
     return (
     <div className="min-h-screen bg-gray-50">
        {/* Header */}
-       <Header title="CSR Dashboard" />
+       <Header title="Data Tracking" />
       
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Date range picker */}
