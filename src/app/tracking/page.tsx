@@ -5,6 +5,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import { zonedTimeToUtc } from 'date-fns-tz';
 import Link from 'next/link';
+import Header from './Header';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
@@ -386,64 +387,11 @@ const detentionInstances: DetentionInstance[] = checkIns
     setExpandedDetention(prev => ({ ...prev, [date]: !prev[date] }));
   };
 
-return (
-  <div className="min-h-screen bg-gray-50">
-   {/* Header */}
-<div className="bg-white border-b shadow-sm">
-  <div className="max-w-[1600px] mx-auto px-4 py-4">
-    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Data Tracking</h1>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Link 
-          href="/appointments" 
-          className="bg-orange-500 text-white px-3 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium text-sm"
-        >
-          Appointments
-        </Link>  
-
-        <Link
-          href="/dock-status"
-          className="bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm"
-        >
-          Dock Status
-        </Link>    
-
-        <Link
-          href="/dashboard"
-          className="bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium text-sm"
-        >
-          Dashboard
-        </Link>
-        
-        <Link
-          href="/logs"
-          className="bg-purple-500 text-white px-3 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium text-sm"
-        >
-          Daily Logs
-        </Link>
-        
-        <Link
-          href="/tracking"
-          className="bg-pink-500 text-white px-3 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium text-sm"
-        >
-          Tracking
-        </Link>
-        
-        <Link
-          href="/check-in"
-          className="bg-yellow-500 text-white px-3 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium text-sm"
-        >
-          Check-In Form
-        </Link>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-
+    return (
+    <div className="min-h-screen bg-gray-50">
+       {/* Header */}
+       <Header title="CSR Dashboard" />
+      
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Date range picker */}
         <div className="bg-white rounded-lg shadow p-4 mb-6 flex flex-wrap gap-4 items-end">
