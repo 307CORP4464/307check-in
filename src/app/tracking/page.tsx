@@ -323,20 +323,22 @@ export default function Tracking() {
             : 0;
 
         // --- Detention instances ---
-        const detentionInstances: DetentionInstance[] = checkIns
-          .map(checkIn => {
-            const detention = calculateDetention(checkIn);
-            if (!detention.hasDetention) return null;
-            return {
-              reference_number: checkIn.reference_number || '',
-              check_in_time: checkIn.check_in_time,
-              appointment_time: checkIn.appointment_time || '',
-              end_time: checkIn.end_time || '',
-              detention_minutes: detention.minutes,
-              carrier_name: checkIn.carrier_name || 'N/A'
-            };
-          })
-          .filter((d): d is DetentionInstance => d !== null);
+       const detentionInstances: DetentionInstance[] = checkIns
+  .map(checkIn => {
+    const detention = calculateDetention(checkIn);
+    if (!detention.hasDetention) return null;
+    // ✅ Add this check:
+    if (checkIn.carrier_name?.toLowerCase().includes('vision')) return null;
+    return {
+      reference_number: checkIn.reference_number || '',
+      check_in_time: checkIn.check_in_time,
+      appointment_time: checkIn.appointment_time || '',
+      end_time: checkIn.end_time || '',
+      detention_minutes: detention.minutes,
+      carrier_name: checkIn.carrier_name || 'N/A'
+    };
+  })
+  .filter((d): d is DetentionInstance => d !== null);
 
         // --- Half-hour breakdown ---
         const halfHourBreakdown: { [key: string]: number } = {};
@@ -360,7 +362,8 @@ export default function Tracking() {
           label: s.label,
           count: dockSetCounts[s.label] || 0
         }));
-
+if (checkIn.carrier_name?.toLowerCase().includes('vision')) return null;
+        
         return {
           date,
           totalInbound,
