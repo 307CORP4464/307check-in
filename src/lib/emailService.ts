@@ -372,10 +372,8 @@ private getStatusChangeTemplate(
                           <p style="margin: 0 0 10px; font-size: 14px; color: #666666;">
                             <strong style="color: #333333;">Reference Number:</strong> ${referenceNumber}
                           </p>
-                           <p style="margin: 0 0 10px; font-size: 14px; color: #666666;">
-                            <strong style="color: #333333;">Reference Number:</strong> ${dockDisplay}
-                          </p>
-                          
+                         
+                        
                           <p style="margin: 0 0 10px; font-size: 14px; color: #666666;">
                             <strong style="color: #333333;">Status:</strong> ${formatStatus(newStatus)}
                           </p>
