@@ -367,27 +367,34 @@ if (referenceNumbers.length > 0) {
     }
 
     if (appointmentsData) {
-      appointmentsData.forEach((apt: any) => {
-        const appointmentInfo = {
-          time: apt.appointment_time ?? null,
-          date: apt.appointment_date ?? today,
-          ship_to_city: apt.ship_to_city ?? null,
-          ship_to_state: apt.ship_to_state ?? null,
-          carrier: apt.carrier ?? null,
-          mode: apt.mode ?? null,
-          customer: apt.customer ?? null,
-          requested_ship_date: apt.requested_ship_date ?? null,
-        };
-        if (apt.sales_order) {
-          appointmentsMap.set(String(apt.sales_order).trim(), appointmentInfo);
-        }
-        if (apt.delivery) {
-          appointmentsMap.set(String(apt.delivery).trim(), appointmentInfo);
-        }
-      });
+  appointmentsData.forEach((apt: any) => {
+    const appointmentInfo = {
+      time: apt.appointment_time ?? null,
+      date: apt.appointment_date ?? today,
+      ship_to_city: apt.ship_to_city ?? null,
+      ship_to_state: apt.ship_to_state ?? null,
+      carrier: apt.carrier ?? null,
+      mode: apt.mode ?? null,
+      customer: apt.customer ?? null,
+      requested_ship_date: apt.requested_ship_date ?? null,
+    };
+
+    // Store under every individual ref found in sales_order
+    if (apt.sales_order) {
+      const salesRefs = apt.sales_order.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean);
+      salesRefs.forEach((ref: string) => appointmentsMap.set(ref, appointmentInfo));
+      appointmentsMap.set(apt.sales_order.trim(), appointmentInfo); // also store full string
     }
-  }
+
+    // Store under every individual ref found in delivery
+    if (apt.delivery) {
+      const deliveryRefs = apt.delivery.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean);
+      deliveryRefs.forEach((ref: string) => appointmentsMap.set(ref, appointmentInfo));
+      appointmentsMap.set(apt.delivery.trim(), appointmentInfo); // also store full string
+    }
+  });
 }
+
     // ✅ Merge appointment fields into each check-in
     // If no appointment found for today, fields will be null (shows red status)
    const processedCheckIns = checkInsData?.map((ci: any) => {
