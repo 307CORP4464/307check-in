@@ -113,9 +113,6 @@ export default function Header({ title }: HeaderProps) {
             <Link href="/tracking" className="bg-pink-500 text-white px-3 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium text-sm">
               Tracking
             </Link>
-            <Link href="/check-in" className="bg-yellow-500 text-white px-3 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium text-sm">
-              Check-In Form
-            </Link>
 
             {/* Notification toggle */}
             <button
