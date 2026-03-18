@@ -320,14 +320,11 @@ export default function Tracking() {
             ? Math.round((onTimeCount / checkInsWithAppointments.length) * 100)
             : 0;
 
-        // --- Detention instances ---
-       const detentionInstances: DetentionInstance[] = checkIns
-  .map(checkIn => {
-  const detentionInstances: DetentionInstance[] = checkIns
+     // --- Detention instances ---
+const detentionInstances: DetentionInstance[] = checkIns
   .map(checkIn => {
     const detention = calculateDetention(checkIn);
     if (!detention.hasDetention) return null;
-    // ✅ Add this check:
     if (checkIn.carrier_name?.toLowerCase().includes('vision')) return null;
     return {
       reference_number: checkIn.reference_number || '',
@@ -335,6 +332,7 @@ export default function Tracking() {
       appointment_time: checkIn.appointment_time || '',
       end_time: checkIn.end_time || '',
       detention_minutes: detention.minutes,
+      driver_name: checkIn.driver_name || 'N/A',
       carrier_name: checkIn.carrier_name || 'N/A'
     };
   })
