@@ -427,21 +427,6 @@ const fetchAllData = async () => {
   }
 };
 
-useEffect(() => {
-  if (loading) return;
-  if (checkIns.length > prevCheckInCount) {
-    const newCount = checkIns.length - prevCheckInCount;
-    playDing();
-    if (notificationsEnabled && document.hidden) {
-      new Notification('New Driver Check-In', {
-        body: `${newCount} new driver${newCount > 1 ? 's' : ''} waiting at the dock`,
-        icon: '/favicon.ico',
-      });
-    }
-  }
-  setPrevCheckInCount(checkIns.length);
-}, [checkIns.length, loading]);
-
   // ─── Initial load + real-time subscription ───
   useEffect(() => {
     fetchAllData();
