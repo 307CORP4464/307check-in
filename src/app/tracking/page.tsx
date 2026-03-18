@@ -5,7 +5,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import { zonedTimeToUtc } from 'date-fns-tz';
 import Link from 'next/link';
-import Header from './Header';
+import Header from '@/components/Header';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
