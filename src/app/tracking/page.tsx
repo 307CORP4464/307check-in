@@ -325,6 +325,8 @@ export default function Tracking() {
         // --- Detention instances ---
        const detentionInstances: DetentionInstance[] = checkIns
   .map(checkIn => {
+  const detentionInstances: DetentionInstance[] = checkIns
+  .map(checkIn => {
     const detention = calculateDetention(checkIn);
     if (!detention.hasDetention) return null;
     // ✅ Add this check:
@@ -362,7 +364,6 @@ export default function Tracking() {
           label: s.label,
           count: dockSetCounts[s.label] || 0
         }));
-if (checkIn.carrier_name?.toLowerCase().includes('vision')) return null;
         
         return {
           date,
