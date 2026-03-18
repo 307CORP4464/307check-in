@@ -297,11 +297,11 @@ async sendStatusChange(
 private getStatusChangeTemplate(
   driverName: string,
   referenceNumber: string,
-  dockNumber: string,
   oldStatus: string,
   newStatus: string,
   notes?: string,
-  endTime?: string
+  endTime?: string,
+  dockNumber?: string
 ): EmailTemplate {
   const formatStatus = (status: string): string => {
     switch (status) {
@@ -313,18 +313,22 @@ private getStatusChangeTemplate(
       default: return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     }
   };
-
+ 
   const isCheckedOut = newStatus === 'checked_out';
-
+ 
   // Header color based on status
   const headerColor = isCheckedOut ? '#FF9800' :
     newStatus === 'rejected' || newStatus === 'turned_away' ? '#f44336' :
     newStatus === 'driver_left' ? '#9E9E9E' : '#4CAF50';
-
+ 
   const headerIcon = isCheckedOut ? '🟡' :
     newStatus === 'rejected' || newStatus === 'turned_away' ? '⚠️' :
     newStatus === 'driver_left' ? '🚚' : '✅';
-
+ 
+  const dockDisplay = dockNumber
+    ? (dockNumber === 'Ramp' ? 'RAMP' : `Dock ${dockNumber}`)
+    : null;
+ 
   return {
     subject: isCheckedOut
       ? `Action Required: Almost Finished – Ref #${referenceNumber}`
@@ -341,7 +345,7 @@ private getStatusChangeTemplate(
           <tr>
             <td align="center">
               <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-
+ 
                 <!-- Header -->
                 <tr>
                   <td style="background-color: ${headerColor}; padding: 30px; text-align: center;">
@@ -350,12 +354,12 @@ private getStatusChangeTemplate(
                     </h1>
                   </td>
                 </tr>
-
+ 
                 <!-- Body -->
                 <tr>
                   <td style="padding: 40px 30px;">
                     <p style="font-size: 16px; color: #333333; margin: 0 0 20px;">Hello ${driverName},</p>
-
+ 
                     ${isCheckedOut ? `
                     <p style="font-size: 16px; color: #333333; margin: 0 0 20px;">
                       Your load is <strong>almost finished</strong> and is currently waiting to be sealed.
@@ -365,7 +369,7 @@ private getStatusChangeTemplate(
                       Your load status has been updated.
                     </p>
                     `}
-
+ 
                     <!-- Info Box -->
                     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8f9fa; border-left: 4px solid ${headerColor}; margin: 20px 0;">
                       <tr>
@@ -373,10 +377,11 @@ private getStatusChangeTemplate(
                           <p style="margin: 0 0 10px; font-size: 14px; color: #666666;">
                             <strong style="color: #333333;">Reference Number:</strong> ${referenceNumber}
                           </p>
-                         <p style="margin: 0 0 10px; font-size: 14px; color: #666666;">
-                            <strong style="color: #333333;">Dock Number:</strong> ${dockNumber}
+                          ${dockDisplay ? `
+                          <p style="margin: 0 0 10px; font-size: 14px; color: #666666;">
+                            <strong style="color: #333333;">Dock:</strong> ${dockDisplay}
                           </p>
-                        
+                          ` : ''}
                           <p style="margin: 0 0 10px; font-size: 14px; color: #666666;">
                             <strong style="color: #333333;">Status:</strong> ${formatStatus(newStatus)}
                           </p>
@@ -393,7 +398,7 @@ private getStatusChangeTemplate(
                         </td>
                       </tr>
                     </table>
-
+ 
                     ${isCheckedOut ? `
                     <!-- Next Steps Box -->
                     <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fff8e1; border: 2px solid #FF9800; border-radius: 6px; margin: 24px 0;">
@@ -418,10 +423,10 @@ private getStatusChangeTemplate(
                       </tr>
                     </table>
                     ` : ''}
-
+ 
                   </td>
                 </tr>
-
+ 
                 <!-- Footer -->
                 <tr>
                   <td style="background-color: #333333; padding: 20px; text-align: center;">
@@ -429,7 +434,7 @@ private getStatusChangeTemplate(
                     <p style="color: #999999; margin: 5px 0 0; font-size: 11px;">This is an automated message, please do not reply.</p>
                   </td>
                 </tr>
-
+ 
               </table>
             </td>
           </tr>
@@ -439,6 +444,7 @@ private getStatusChangeTemplate(
     `,
   };
 }
+ 
 
 
   private getDockAssignmentTemplate(
