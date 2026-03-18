@@ -6,6 +6,7 @@ import { zonedTimeToUtc } from 'date-fns-tz';
 import Link from 'next/link';
 import StatusChangeModal from './StatusChangeModal';
 import EditCheckInModal from './EditCheckInModal';
+import Header from './Header';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
