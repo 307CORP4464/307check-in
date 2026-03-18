@@ -432,7 +432,7 @@ const handleUnblockDock = async (dockNumber: string) => {
     return (
     <div className="min-h-screen bg-gray-50">
        {/* Header */}
-       <Header title="CSR Dashboard" />
+       <Header title="Dock Status" />
 
 
       {/* Stats Section */}
