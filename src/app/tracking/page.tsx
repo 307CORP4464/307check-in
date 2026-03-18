@@ -332,7 +332,6 @@ const detentionInstances: DetentionInstance[] = checkIns
       appointment_time: checkIn.appointment_time || '',
       end_time: checkIn.end_time || '',
       detention_minutes: detention.minutes,
-      driver_name: checkIn.driver_name || 'N/A',
       carrier_name: checkIn.carrier_name || 'N/A'
     };
   })
