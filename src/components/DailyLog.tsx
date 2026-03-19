@@ -978,12 +978,16 @@ const handleEditSuccess = () => {
   })()}
 </td>
 
-      {/* End Time */}
-      <td className="px-4 py-3 whitespace-nowrap text-sm">
-        {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time, true) : (
-          <span className="text-yellow-600 font-medium">In Progress</span>
-        )}
-      </td>
+    {/* End Time */}
+<td className="px-4 py-3 whitespace-nowrap text-sm">
+  {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time, true) : (
+    checkIn.status === 'denied' ? (
+      <span className="text-red-500 font-medium">Denied</span>
+    ) : (
+      <span className="text-yellow-600 font-medium">In Progress</span>
+    )
+  )}
+</td>
 
        {/* Detention */}
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
