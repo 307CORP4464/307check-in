@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import { zonedTimeToUtc } from 'date-fns-tz';
@@ -666,39 +666,7 @@ useEffect(() => {
 useEffect(() => {
   fetchCheckInsForDate();
 }, [fetchCheckInsForDate]);
-// Realtime subscription — re-subscribes whenever fetchCheckInsForDate changes (i.e. when selectedDate changes)
-useEffect(() => {
-  const channel = supabase
-    .channel(`daily_log_realtime_${selectedDate}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, () => {
-      fetchCheckInsForDate();
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
-      fetchCheckInsForDate();
-    })
-    .subscribe();
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, [fetchCheckInsForDate]);
-
-// Initial fetch + re-fetch when date changes
-useEffect(() => {
-  fetchCheckInsForDate();
-}, [fetchCheckInsForDate]);
-
-useEffect(() => {
-  const getUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUserEmail(user.email || '');
-    } else {
-      router.push('/login');
-    }
-  };
-  getUser();
-}, [supabase, router]);
 
 const filteredCheckIns = checkIns.filter((checkIn) => {
   if (!searchTerm.trim()) return true;
