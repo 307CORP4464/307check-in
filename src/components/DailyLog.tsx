@@ -8,6 +8,10 @@ import StatusChangeModal from './StatusChangeModal';
 import EditCheckInModal from './EditCheckInModal';
 import Header from './Header';
 
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
@@ -87,8 +91,6 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   
   return appointmentTime;
 };
-
-
 
 const formatAppointmentDateTime = (
   appointmentDate: string | null | undefined,
@@ -441,10 +443,6 @@ const calculateDetention = (
 
 export default function DailyLog() {
   const router = useRouter();
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
 
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [loading, setLoading] = useState(true);
