@@ -783,51 +783,50 @@ const handleEditSuccess = () => {
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
+{/* Counters */}
+<div className="flex gap-4">
+  <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+    <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">
+      Total Checked In
+    </div>
+    <div className="text-2xl font-bold text-blue-900">
+      {filteredCheckIns.length}
+    </div>
+  </div>
+  
+  <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+    <div className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">
+      Total Complete
+    </div>
+    <div className="text-2xl font-bold text-green-900">
+      {filteredCheckIns.filter(checkIn => checkIn.end_time).length}
+    </div>
+  </div>
 
-        {/* Counters */}
-        <div className="flex gap-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
-            <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">
-              Total Checked In
-            </div>
-            <div className="text-2xl font-bold text-blue-900">
-              {filteredCheckIns.length}
-            </div>
-          </div>
-          
-          <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-            <div className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">
-              Total Complete
-            </div>
-            <div className="text-2xl font-bold text-green-900">
-              {filteredCheckIns.filter(checkIn => !checkIn.end_time && checkIn.status !== 'denied').length}
-            </div>
-          </div>
-
-          {/* In Progress Filter Button */}
-          <button
-            onClick={() => setShowInProgressOnly(!showInProgressOnly)}
-            className={`rounded-lg px-4 py-2 transition-colors border text-left ${
-              showInProgressOnly
-                ? 'bg-yellow-400 border-yellow-500 ring-2 ring-yellow-300'
-                : 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
-            }`}
-          >
-            <div className="text-xs font-medium text-yellow-700 uppercase tracking-wider mb-1">
-              In Progress
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-yellow-900">
-                {filteredCheckIns.filter(checkIn => !checkIn.end_time).length}
-              </div>
-              {showInProgressOnly && (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-700" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-                </svg>
-              )}
-            </div>
-          </button>
-        </div>
+  {/* In Progress Filter Button */}
+  <button
+    onClick={() => setShowInProgressOnly(!showInProgressOnly)}
+    className={`rounded-lg px-4 py-2 transition-colors border text-left ${
+      showInProgressOnly
+        ? 'bg-yellow-400 border-yellow-500 ring-2 ring-yellow-300'
+        : 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
+    }`}
+  >
+    <div className="text-xs font-medium text-yellow-700 uppercase tracking-wider mb-1">
+      In Progress
+    </div>
+    <div className="flex items-center gap-2">
+      <div className="text-2xl font-bold text-yellow-900">
+        {filteredCheckIns.filter(checkIn => !checkIn.end_time && checkIn.status !== 'denied').length}
+      </div>
+      {showInProgressOnly && (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-700" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
+        </svg>
+      )}
+    </div>
+  </button>
+</div>
       </div>
 
 
