@@ -676,7 +676,7 @@ const filteredCheckIns = checkIns.filter((checkIn) => {
 });
 
 const displayedCheckIns = showInProgressOnly
-  ? filteredCheckIns.filter(checkIn => !checkIn.end_time)
+  ? filteredCheckIns.filter(checkIn => !checkIn.end_time && checkIn.status !== 'denied')
   : filteredCheckIns;
 
 const handleLogout = async () => {
