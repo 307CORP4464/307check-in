@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import { zonedTimeToUtc } from 'date-fns-tz';
@@ -7,7 +7,7 @@ import Link from 'next/link';
 import StatusChangeModal from './StatusChangeModal';
 import EditCheckInModal from './EditCheckInModal';
 import Header from './Header';
-import { useState, useEffect, useCallback } from 'react';
+
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
