@@ -656,6 +656,22 @@ setCheckIns(enrichedCheckIns);
   }
 };
 
+useEffect(() => {
+  const channel = supabase
+    .channel('daily_log_realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, () => {
+      fetchCheckInsForDate();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
+      fetchCheckInsForDate();
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [selectedDate]);
+  
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
