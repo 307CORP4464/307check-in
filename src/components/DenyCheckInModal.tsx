@@ -83,13 +83,14 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
     setError(null);
 
     try {
-      const { error: updateError } = await supabase
-        .from('check_ins')
-        .update({
-          status: 'denied',
-          notes: `DENIED: ${denialMessage}`,
-        })
-        .eq('id', checkIn.id);
+const { error: updateError } = await supabase
+  .from('check_ins')
+  .update({
+    status: 'denied',
+    notes: `DENIED: ${denialMessage}`,
+    end_time: new Date().toISOString(),  // ← add this
+  })
+  .eq('id', checkIn.id);
 
       if (updateError) throw updateError;
 
