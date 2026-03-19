@@ -800,7 +800,7 @@ const handleEditSuccess = () => {
               Total Complete
             </div>
             <div className="text-2xl font-bold text-green-900">
-              {filteredCheckIns.filter(checkIn => checkIn.end_time).length}
+              {filteredCheckIns.filter(checkIn => !checkIn.end_time && checkIn.status !== 'denied').length}
             </div>
           </div>
 
