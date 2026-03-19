@@ -7,6 +7,7 @@ import Link from 'next/link';
 import StatusChangeModal from './StatusChangeModal';
 import EditCheckInModal from './EditCheckInModal';
 import Header from './Header';
+import { useState, useEffect, useCallback } from 'react';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
@@ -484,15 +485,13 @@ type AppointmentInfo = {
   requested_ship_date: string | null;
 };
 
-  
-const fetchCheckInsForDate = async () => {
+ const fetchCheckInsForDate = useCallback(async () => {
   try {
     setLoading(true);
 
     const startOfDayIndy = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
     const endOfDayIndy = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
 
-    // Step 1: Fetch check-ins for the selected date
     const { data: checkInsData, error: checkInsError } = await supabase
       .from('check_ins')
       .select('*')
@@ -503,7 +502,6 @@ const fetchCheckInsForDate = async () => {
 
     if (checkInsError) throw checkInsError;
 
-    // Step 2: Get ALL individual reference numbers
     const allReferenceNumbers = Array.from(new Set(
       (checkInsData || [])
         .flatMap(ci => parseReferenceNumbers(ci.reference_number))
@@ -512,7 +510,6 @@ const fetchCheckInsForDate = async () => {
 
     console.log('All parsed reference numbers:', allReferenceNumbers);
 
-    // ✅ Updated map type to include all fields we need
     let appointmentsMap = new Map<string, {
       time: string | null;
       date: string | null;
@@ -524,129 +521,118 @@ const fetchCheckInsForDate = async () => {
       requested_ship_date: string | null;
     }>();
 
-    // Step 3: Fetch appointments in batches
-if (allReferenceNumbers.length > 0) {
-  const BATCH_SIZE = 20;
+    if (allReferenceNumbers.length > 0) {
+      const BATCH_SIZE = 20;
 
-  for (let i = 0; i < allReferenceNumbers.length; i += BATCH_SIZE) {
-    const batch = allReferenceNumbers.slice(i, i + BATCH_SIZE);
+      for (let i = 0; i < allReferenceNumbers.length; i += BATCH_SIZE) {
+        const batch = allReferenceNumbers.slice(i, i + BATCH_SIZE);
 
-    const orFilter = batch
-      .flatMap(ref => [
-        `sales_order.ilike.%${ref}%`,
-        `delivery.ilike.%${ref}%`
-      ])
-      .join(',');
+        const orFilter = batch
+          .flatMap(ref => [
+            `sales_order.ilike.%${ref}%`,
+            `delivery.ilike.%${ref}%`
+          ])
+          .join(',');
 
-    console.log('Querying with filter:', orFilter);
+        console.log('Querying with filter:', orFilter);
 
-    const { data: appointmentsData, error: appointmentsError } = await supabase
-      .from('appointments')
-      .select(
-        'sales_order, delivery, appointment_time, appointment_date, customer, requested_ship_date, carrier, mode, ship_to_city, ship_to_state'
-      )
-      .or(orFilter)
-      .eq('appointment_date', selectedDate); // ← ADD THIS: selectedDate is already YYYY-MM-DD
+        const { data: appointmentsData, error: appointmentsError } = await supabase
+          .from('appointments')
+          .select(
+            'sales_order, delivery, appointment_time, appointment_date, customer, requested_ship_date, carrier, mode, ship_to_city, ship_to_state'
+          )
+          .or(orFilter)
+          .eq('appointment_date', selectedDate);
 
-    console.log('Appointments returned for date', selectedDate, ':', appointmentsData);
+        console.log('Appointments returned for date', selectedDate, ':', appointmentsData);
 
-    if (appointmentsError) {
-      console.error('Appointments error:', appointmentsError);
-      continue;
-    }
-
-    if (appointmentsData) {
-      appointmentsData.forEach(apt => {
-        const appointmentInfo = {
-          time: apt.appointment_time ?? null,
-          date: apt.appointment_date ?? null,
-          customer: apt.customer ?? null,
-          ship_to_city: apt.ship_to_city ?? null,
-          ship_to_state: apt.ship_to_state ?? null,
-          carrier: apt.carrier ?? null,
-          mode: apt.mode ?? null,
-          requested_ship_date: apt.requested_ship_date ?? null,
-        };
-
-        if (apt.sales_order) {
-          parseReferenceNumbers(apt.sales_order).forEach(ref => {
-            appointmentsMap.set(ref.trim(), appointmentInfo);
-          });
-          appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
+        if (appointmentsError) {
+          console.error('Appointments error:', appointmentsError);
+          continue;
         }
 
-        if (apt.delivery) {
-          parseReferenceNumbers(apt.delivery).forEach(ref => {
-            appointmentsMap.set(ref.trim(), appointmentInfo);
-          });
-          appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
-        }
-      });
-    }
-  }
-}
+        if (appointmentsData) {
+          appointmentsData.forEach(apt => {
+            const appointmentInfo = {
+              time: apt.appointment_time ?? null,
+              date: apt.appointment_date ?? null,
+              customer: apt.customer ?? null,
+              ship_to_city: apt.ship_to_city ?? null,
+              ship_to_state: apt.ship_to_state ?? null,
+              carrier: apt.carrier ?? null,
+              mode: apt.mode ?? null,
+              requested_ship_date: apt.requested_ship_date ?? null,
+            };
 
+            if (apt.sales_order) {
+              parseReferenceNumbers(apt.sales_order).forEach(ref => {
+                appointmentsMap.set(ref.trim(), appointmentInfo);
+              });
+              appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
+            }
+
+            if (apt.delivery) {
+              parseReferenceNumbers(apt.delivery).forEach(ref => {
+                appointmentsMap.set(ref.trim(), appointmentInfo);
+              });
+              appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
+            }
+          });
+        }
+      }
+    }
 
     console.log('Final appointments map:', Object.fromEntries(appointmentsMap));
 
-    // Step 4: Enrich check-ins with ALL appointment data
-const enrichedCheckIns = (checkInsData || []).map(checkIn => {
-  const refs = parseReferenceNumbers(checkIn.reference_number);
+    const enrichedCheckIns = (checkInsData || []).map(checkIn => {
+      const refs = parseReferenceNumbers(checkIn.reference_number);
 
-  let appointmentInfo: AppointmentInfo | undefined = undefined;
+      let appointmentInfo: AppointmentInfo | undefined = undefined;
 
-  for (const ref of refs) {
-    const trimmedRef = ref.trim();
-    if (appointmentsMap.has(trimmedRef)) {
-      const candidate = appointmentsMap.get(trimmedRef);
-      if (candidate?.date === selectedDate) {
-        appointmentInfo = candidate;
-        console.log(`Match found for ref "${trimmedRef}":`, appointmentInfo);
-        break;
-      } else {
-        console.log(
-          `Skipping appointment for ref "${trimmedRef}" — date mismatch:`,
-          candidate?.date, '!==', selectedDate
-        );
+      for (const ref of refs) {
+        const trimmedRef = ref.trim();
+        if (appointmentsMap.has(trimmedRef)) {
+          const candidate = appointmentsMap.get(trimmedRef);
+          if (candidate?.date === selectedDate) {
+            appointmentInfo = candidate;
+            console.log(`Match found for ref "${trimmedRef}":`, appointmentInfo);
+            break;
+          } else {
+            console.log(
+              `Skipping appointment for ref "${trimmedRef}" — date mismatch:`,
+              candidate?.date, '!==', selectedDate
+            );
+          }
+        }
       }
-    }
-  }
 
-  // ✅ SPECIAL TYPES: If no appointments table match found,
-  // preserve whatever is saved directly on the check_in row
-  const MANUAL_APPOINTMENT_TYPES = [
-    'LTL',
-    'Paid no appointment',
-    'Charge Customer no appointment',
-    'work_in',
-  ];
+      const MANUAL_APPOINTMENT_TYPES = [
+        'LTL',
+        'Paid no appointment',
+        'Charge Customer no appointment',
+        'work_in',
+      ];
 
-  const checkInHasManualType = checkIn.appointment_time &&
-    MANUAL_APPOINTMENT_TYPES.includes(checkIn.appointment_time);
+      const checkInHasManualType = checkIn.appointment_time &&
+        MANUAL_APPOINTMENT_TYPES.includes(checkIn.appointment_time);
 
-  return {
-    ...checkIn,
-    // ✅ If appointments table found a match → use it
-    // ✅ If check_in row has a manual type saved → preserve it
-    // ✅ Otherwise → null
-    appointment_time: appointmentInfo?.time ?? 
-      (checkInHasManualType ? checkIn.appointment_time : null),
-    appointment_date: appointmentInfo?.date ?? 
-      (checkInHasManualType ? checkIn.appointment_date : null),
-    // These fields fall back to check_in values if no appointment match
-    customer: appointmentInfo?.customer ?? checkIn.customer ?? null,
-    ship_to_city: appointmentInfo?.ship_to_city ?? checkIn.ship_to_city ?? null,
-    ship_to_state: appointmentInfo?.ship_to_state ?? checkIn.ship_to_state ?? null,
-    carrier: appointmentInfo?.carrier ?? checkIn.carrier ?? null,
-    mode: appointmentInfo?.mode ?? checkIn.mode ?? null,
-    requested_ship_date: appointmentInfo?.requested_ship_date ?? checkIn.requested_ship_date ?? null,
-  };
-});
+      return {
+        ...checkIn,
+        appointment_time: appointmentInfo?.time ??
+          (checkInHasManualType ? checkIn.appointment_time : null),
+        appointment_date: appointmentInfo?.date ??
+          (checkInHasManualType ? checkIn.appointment_date : null),
+        customer: appointmentInfo?.customer ?? checkIn.customer ?? null,
+        ship_to_city: appointmentInfo?.ship_to_city ?? checkIn.ship_to_city ?? null,
+        ship_to_state: appointmentInfo?.ship_to_state ?? checkIn.ship_to_state ?? null,
+        carrier: appointmentInfo?.carrier ?? checkIn.carrier ?? null,
+        mode: appointmentInfo?.mode ?? checkIn.mode ?? null,
+        requested_ship_date: appointmentInfo?.requested_ship_date ?? checkIn.requested_ship_date ?? null,
+      };
+    });
 
-
-console.log('Enriched check-ins sample:', enrichedCheckIns[0]);
-setCheckIns(enrichedCheckIns);
-
+    console.log('Enriched check-ins sample:', enrichedCheckIns[0]);
+    setCheckIns(enrichedCheckIns);
 
   } catch (err) {
     console.error('fetchCheckInsForDate error:', err);
@@ -654,11 +640,12 @@ setCheckIns(enrichedCheckIns);
   } finally {
     setLoading(false);
   }
-};
+}, [selectedDate, supabase]);
 
+// Realtime subscription — re-subscribes whenever fetchCheckInsForDate changes (i.e. when selectedDate changes)
 useEffect(() => {
   const channel = supabase
-    .channel('daily_log_realtime')
+    .channel(`daily_log_realtime_${selectedDate}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, () => {
       fetchCheckInsForDate();
     })
@@ -670,68 +657,65 @@ useEffect(() => {
   return () => {
     supabase.removeChannel(channel);
   };
-}, [selectedDate]);
-  
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserEmail(user.email || '');
-      } else {
-        router.push('/login');
-      }
-    };
-    getUser();
-  }, [supabase, router]);
+}, [fetchCheckInsForDate]);
 
-  useEffect(() => {
-    fetchCheckInsForDate();
-  }, [selectedDate]);
+// Initial fetch + re-fetch when date changes
+useEffect(() => {
+  fetchCheckInsForDate();
+}, [fetchCheckInsForDate]);
 
-  const filteredCheckIns = checkIns.filter((checkIn) => {
-    if (!searchTerm.trim()) return true;
-    
-    const searchLower = searchTerm.toLowerCase().trim();
-    const refNumber = checkIn.reference_number?.toLowerCase() || '';
-    
-    return refNumber.includes(searchLower);
-  });
+useEffect(() => {
+  const getUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      setUserEmail(user.email || '');
+    } else {
+      router.push('/login');
+    }
+  };
+  getUser();
+}, [supabase, router]);
 
-  const displayedCheckIns = showInProgressOnly
+const filteredCheckIns = checkIns.filter((checkIn) => {
+  if (!searchTerm.trim()) return true;
+  const searchLower = searchTerm.toLowerCase().trim();
+  const refNumber = checkIn.reference_number?.toLowerCase() || '';
+  return refNumber.includes(searchLower);
+});
+
+const displayedCheckIns = showInProgressOnly
   ? filteredCheckIns.filter(checkIn => !checkIn.end_time)
   : filteredCheckIns;
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      router.push('/login');
-      router.refresh();
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
-  };
-
-  const handleStatusChange = (checkIn: CheckIn) => {
-    setSelectedForStatusChange(checkIn);
-  };
-
-  const handleStatusChangeSuccess = () => {
-    fetchCheckInsForDate();
-    setSelectedForStatusChange(null);
-  };
-
-// Handler to OPEN the edit modal
-const handleEdit = (checkIn: CheckIn) => {
-  setSelectedForEdit(checkIn);
-  setEditModalOpen(true);  // ← You were missing this!
+const handleLogout = async () => {
+  try {
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  } catch (error) {
+    console.error('Error logging out:', error);
+  }
 };
 
-// Handler called after successful edit
+const handleStatusChange = (checkIn: CheckIn) => {
+  setSelectedForStatusChange(checkIn);
+};
+
+const handleStatusChangeSuccess = () => {
+  fetchCheckInsForDate();
+  setSelectedForStatusChange(null);
+};
+
+const handleEdit = (checkIn: CheckIn) => {
+  setSelectedForEdit(checkIn);
+  setEditModalOpen(true);
+};
+
 const handleEditSuccess = () => {
   setEditModalOpen(false);
   setSelectedForEdit(null);
-  fetchCheckInsForDate(); // ✅ Correct name
-};
+  fetchCheckInsForDate();
+}; 
 
 
   const getStatusBadgeColor = (status: string): string => {
