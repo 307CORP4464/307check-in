@@ -482,8 +482,7 @@ type AppointmentInfo = {
   mode: string | null;
   requested_ship_date: string | null;
 };
-
- const fetchCheckInsForDate = useCallback(async () => {
+const fetchCheckInsForDate = useCallback(async () => {
   try {
     setLoading(true);
 
@@ -638,8 +637,35 @@ type AppointmentInfo = {
   } finally {
     setLoading(false);
   }
-}, [selectedDate, supabase]);
+}, [selectedDate]); // ← removed supabase since it's now module-level
 
+// Keep a ref to always point at the latest fetch function
+const fetchRef = useRef(fetchCheckInsForDate);
+useEffect(() => {
+  fetchRef.current = fetchCheckInsForDate;
+}, [fetchCheckInsForDate]);
+
+// Set up realtime subscription ONCE — uses ref so it never goes stale
+useEffect(() => {
+  const channel = supabase
+    .channel('daily_log_realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, () => {
+      fetchRef.current();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
+      fetchRef.current();
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []); // ← empty deps, subscribes once and stays open
+
+// Re-fetch when date changes
+useEffect(() => {
+  fetchCheckInsForDate();
+}, [fetchCheckInsForDate]);
 // Realtime subscription — re-subscribes whenever fetchCheckInsForDate changes (i.e. when selectedDate changes)
 useEffect(() => {
   const channel = supabase
