@@ -1,665 +1,1071 @@
 'use client';
-
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { triggerCheckInEmail } from '@/lib/emailTriggers';
-import { Plus, Minus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { zonedTimeToUtc } from 'date-fns-tz';
+import Link from 'next/link';
+import StatusChangeModal from './StatusChangeModal';
+import EditCheckInModal from './EditCheckInModal';
+import Header from './Header';
 
-interface FormData {
-  driverName: string;
-  driverPhone: string;
-  driverEmail: string;
-  carrierName: string;
-  trailerNumber: string;
-  trailerLength: string;
-  loadType: 'inbound' | 'outbound';
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+const TIMEZONE = 'America/Indiana/Indianapolis';
+
+const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
+  try {
+    if (!isoString || isoString === '' || isoString === 'null' || isoString === 'undefined') {
+      console.error('Empty or invalid date string:', isoString);
+      return 'No Check-in Time';
+    }
+
+    const date = new Date(isoString);
+    
+    if (isNaN(date.getTime()) || date.getTime() < 0) {
+      console.error('Invalid date:', isoString);
+      return 'Invalid Date';
+    }
+
+    if (date.getFullYear() < 2000) {
+      console.error('Date too old, likely invalid:', isoString, date);
+      return 'Invalid Date';
+    }
+    
+    const options: Intl.DateTimeFormatOptions = {
+      timeZone: TIMEZONE,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    };
+    
+    if (includeDate) {
+      options.year = 'numeric';
+      options.month = '2-digit';
+      options.day = '2-digit';
+    }
+    
+    const formatter = new Intl.DateTimeFormat('en-US', options);
+    return formatter.format(date);
+  } catch (e) {
+    console.error('Time formatting error:', e, isoString);
+    return 'Error';
+  }
+};
+
+const formatPhoneNumber = (phone: string | undefined): string => {
+  if (!phone) return 'N/A';
+  
+  const cleaned = phone.replace(/\D/g, '');
+  
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+  }
+  
+  return phone;
+};
+
+const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
+  if (!appointmentTime) return 'N/A';
+  
+  if (appointmentTime === 'work_in') return 'Work In';
+
+  // ✅ Map raw DB values to friendly display labels
+  const specialTypeLabels: Record<string, string> = {
+    'LTL': 'LTL',
+    'Paid no appointment': 'Paid',
+    'Charge Customer no appointment': 'Charge',
+  };
+
+  if (specialTypeLabels[appointmentTime] !== undefined) {
+    return specialTypeLabels[appointmentTime];
+  }
+  
+  if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
+    const hours = appointmentTime.substring(0, 2);
+    const minutes = appointmentTime.substring(2, 4);
+    return `${hours}:${minutes}`;
+  }
+  
+  return appointmentTime;
+};
+
+const formatAppointmentDateTime = (
+  appointmentDate: string | null | undefined,
+  appointmentTime: string | null | undefined
+): string => {
+  
+  // Handle Work In cases
+  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
+    if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
+      return 'Work In';
+    }
+    try {
+      let date: Date;
+      if (appointmentDate.includes('/')) {
+        const [month, day, year] = appointmentDate.split('/').map(Number);
+        date = new Date(year, month - 1, day);
+      } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = appointmentDate.split('-').map(Number);
+        date = new Date(year, month - 1, day);
+      } else {
+        date = new Date(appointmentDate);
+      }
+      if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${month}/${day}/${year}, Work In`;
+      }
+    } catch (error) {
+      console.error('Error formatting work in date:', error);
+    }
+    return 'Work In';
+  }
+
+  // Handle special types with friendly labels
+  const specialTypeLabels: Record<string, string> = {
+    'LTL': 'LTL',
+    'Charge Customer no appointment': 'Charge',
+    'Paid no appointment': 'Paid',
+  };
+
+  if (appointmentTime && specialTypeLabels[appointmentTime]) {
+    const label = specialTypeLabels[appointmentTime];
+
+    if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
+      try {
+        let date: Date;
+        if (appointmentDate.includes('/')) {
+          const [month, day, year] = appointmentDate.split('/').map(Number);
+          date = new Date(year, month - 1, day);
+        } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const [year, month, day] = appointmentDate.split('-').map(Number);
+          date = new Date(year, month - 1, day);
+        } else {
+          date = new Date(appointmentDate);
+        }
+        if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const year = date.getFullYear();
+          return `${month}/${day}/${year}, ${label}`;
+        }
+      } catch (error) {
+        console.error('Error formatting special type date:', error);
+      }
+    }
+    // No date, just return the friendly label
+    return label;
+  }
+
+  // If no time at all, return N/A
+  if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
+    return 'N/A';
+  }
+
+  try {
+    let formattedDate = '';
+
+    if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
+      let date: Date;
+      if (appointmentDate.includes('/')) {
+        const [month, day, year] = appointmentDate.split('/').map(Number);
+        date = new Date(year, month - 1, day);
+      } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = appointmentDate.split('-').map(Number);
+        date = new Date(year, month - 1, day);
+      } else {
+        date = new Date(appointmentDate);
+      }
+      if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const year = date.getFullYear();
+        formattedDate = `${month}/${day}/${year}`;
+      }
+    }
+
+    const formattedTime = formatAppointmentTime(appointmentTime);
+
+    if (!formattedDate) {
+      return formattedTime !== 'N/A' ? formattedTime : 'N/A';
+    }
+
+    if (formattedDate && formattedTime && formattedTime !== 'N/A') {
+      return `${formattedDate}, ${formattedTime}`;
+    } else if (formattedDate) {
+      return formattedDate;
+    } else if (formattedTime && formattedTime !== 'N/A') {
+      return formattedTime;
+    }
+
+    return 'N/A';
+  } catch (error) {
+    console.error('Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
+    const formattedTime = formatAppointmentTime(appointmentTime);
+    return formattedTime !== 'N/A' ? formattedTime : 'N/A';
+  }
+};
+
+
+const getDateComponentsInIndianapolis = (isoString: string): { year: number, month: number, day: number, hour: number, minute: number } => {
+  const date = new Date(isoString);
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIMEZONE,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false
+  });
+  
+  const parts = formatter.formatToParts(date);
+  return {
+    year: parseInt(parts.find(p => p.type === 'year')?.value || '0'),
+    month: parseInt(parts.find(p => p.type === 'month')?.value || '0'),
+    day: parseInt(parts.find(p => p.type === 'day')?.value || '0'),
+    hour: parseInt(parts.find(p => p.type === 'hour')?.value || '0'),
+    minute: parseInt(parts.find(p => p.type === 'minute')?.value || '0')
+  };
+};
+
+const getAppointmentStatus = (
+  checkInTime: string,
+  appointmentTime: string | null | undefined,
+  appointmentDate: string | null | undefined
+): { color: 'green' | 'orange' | 'red' | 'yellow' | 'none'; message: string | null } => {
+
+  // No appointment at all → red
+  if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
+    return { color: 'red', message: null };
+  }
+
+  // LTL, Charge, or Paid → orange
+  if (
+    appointmentTime === 'LTL' ||
+    appointmentTime === 'Charge Customer no appointment' ||
+    appointmentTime === 'Paid no appointment'
+  ) {
+    return { color: 'orange', message: null };
+  }
+
+  // Work-in → yellow
+  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
+    return { color: 'yellow', message: null };
+  }
+
+  // Normalize: "08:00" → "0800"
+  const normalizedTime = appointmentTime.replace(/:/g, '').trim();
+  if (!normalizedTime.match(/^\d{4}$/)) {
+    return { color: 'red', message: null }; // Unrecognized format → red
+  }
+
+  try {
+    const checkInComponents = getDateComponentsInIndianapolis(checkInTime);
+    let checkInHour = checkInComponents.hour;
+    if (checkInHour === 24) checkInHour = 0;
+
+    const aptHour = parseInt(normalizedTime.substring(0, 2));
+    const aptMinute = parseInt(normalizedTime.substring(2, 4));
+
+    const checkInTotalMinutes = checkInHour * 60 + checkInComponents.minute;
+    const aptTotalMinutes = aptHour * 60 + aptMinute;
+    const diffMinutes = checkInTotalMinutes - aptTotalMinutes;
+
+    // Checked in before or at appointment time → green
+    if (diffMinutes <= 0) {
+      return { color: 'green', message: null };
+    }
+    // Checked in after appointment time → yellow
+    else {
+      return { color: 'yellow', message: null };
+    }
+
+  } catch (error) {
+    console.error('Error in getAppointmentStatus:', error);
+    return { color: 'red', message: null };
+  }
+};
+
+const parseReferenceNumbers = (referenceNumber: string | undefined): string[] => {
+  if (!referenceNumber) return [];
+  
+  // Split by common delimiters: comma, semicolon, space, pipe
+  return referenceNumber
+    .split(/[,;\s|]+/)
+    .map(ref => ref.trim())
+    .filter(ref => ref.length > 0);
+};
+
+interface CheckIn {
+  id: string;
+  check_in_time: string;
+  check_out_time?: string | null;
+  status: string;
+  driver_name?: string;
+  driver_phone?: string;
+  carrier_name?: string;
+  trailer_number?: string;
+  trailer_length?: string;
+  load_type?: 'inbound' | 'outbound';
+  reference_number?: string;
+  dock_number?: string;
+  appointment_time?: string | null;
+  appointment_date?: string | null;
+  end_time?: string | null;
+  start_time?: string | null;
+  notes?: string;
+  ship_to_city?: string | null;
+  ship_to_state?: string | null;
+  carrier?: string | null;
+  mode?: string | null;
+  requested_ship_date?: string | null;
+  customer?: string;
 }
 
-const INITIAL_FORM_DATA: FormData = {
-  driverName: 'Alex',
-  driverPhone: '(815) 216-3975',
-  driverEmail: 'alexmiller11774@gmail.com',
-  carrierName: 'Vision',
-  trailerNumber: '',
-  trailerLength: '',
-  loadType: 'outbound',
+interface Appointment {
+  id: string;
+  sales_order?: string;
+  delivery?: string;
+  appointment_time?: string;
+  appointment_date?: string;
+  carrier_name?: string;
+  load_type?: string;
+  status?: string;
+  ship_to_city?: string | null;
+  ship_to_state?: string | null;
+  carrier?: string | null;
+  mode?: string | null;
+  requested_ship_date?: string | null;
+}
+
+const calculateDetention = (
+  checkInTime: string,
+  checkOutTime: string | null | undefined,
+  appointmentTime: string | null | undefined,
+  appointmentDate: string | null | undefined
+): { hasDetention: boolean; detentionDuration: string | null } => {
+
+  // Must have a check-out time
+  if (!checkOutTime) return { hasDetention: false, detentionDuration: null };
+
+  // Work-in = no detention
+  if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
+    return { hasDetention: false, detentionDuration: null };
+  }
+
+  // Check-in must be on time (green status)
+  const status = getAppointmentStatus(checkInTime, appointmentTime, appointmentDate);
+  if (status.color !== 'green') {
+    return { hasDetention: false, detentionDuration: null };
+  }
+
+  // Normalize appointment time → "0800"
+  const normalizedTime = appointmentTime.replace(/:/g, '').trim();
+  if (!normalizedTime.match(/^\d{4}$/)) {
+    return { hasDetention: false, detentionDuration: null };
+  }
+
+  if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
+    return { hasDetention: false, detentionDuration: null };
+  }
+
+  try {
+    // Parse appointment date
+    let aptYear: number, aptMonth: number, aptDay: number;
+
+    if (appointmentDate.includes('/')) {
+      [aptMonth, aptDay, aptYear] = appointmentDate.split('/').map(Number);
+    } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}/)) {
+      const datePart = appointmentDate.substring(0, 10);
+      [aptYear, aptMonth, aptDay] = datePart.split('-').map(Number);
+    } else {
+      return { hasDetention: false, detentionDuration: null };
+    }
+
+    const appointmentHour = parseInt(normalizedTime.substring(0, 2));
+    const appointmentMinute = parseInt(normalizedTime.substring(2, 4));
+
+    // Build the appointment time as a JS Date in Indianapolis timezone
+    // We use UTC offset manually to avoid DST issues
+    const aptLocalString = `${aptYear}-${String(aptMonth).padStart(2, '0')}-${String(aptDay).padStart(2, '0')}T${String(appointmentHour).padStart(2, '0')}:${String(appointmentMinute).padStart(2, '0')}:00`;
+    const appointmentUTC = zonedTimeToUtc(aptLocalString, TIMEZONE);
+
+    // Detention starts 2 hours after appointment time
+    const detentionStartUTC = new Date(appointmentUTC.getTime() + 2 * 60 * 60 * 1000);
+
+    // Parse check-out (already UTC ISO string from Supabase)
+    const checkOutUTC = new Date(checkOutTime);
+
+    if (isNaN(detentionStartUTC.getTime()) || isNaN(checkOutUTC.getTime())) {
+      console.error('Invalid dates in calculateDetention', { detentionStartUTC, checkOutUTC });
+      return { hasDetention: false, detentionDuration: null };
+    }
+
+    // How many minutes past the 2-hour mark?
+    const diffMs = checkOutUTC.getTime() - detentionStartUTC.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+    console.log('Detention debug:', {
+      appointmentUTC: appointmentUTC.toISOString(),
+      detentionStartUTC: detentionStartUTC.toISOString(),
+      checkOutUTC: checkOutUTC.toISOString(),
+      diffMinutes
+    });
+
+    // Only show detention if check-out is AFTER the 2-hour mark
+    if (diffMinutes <= 0) {
+      return { hasDetention: false, detentionDuration: null };
+    }
+
+    const hours = Math.floor(diffMinutes / 60);
+    const minutes = diffMinutes % 60;
+
+    const detentionDuration =
+      hours > 0 && minutes > 0
+        ? `${hours}h ${minutes}m`
+        : hours > 0
+        ? `${hours}h`
+        : `${minutes}m`;
+
+    return { hasDetention: true, detentionDuration };
+
+  } catch (error) {
+    console.error('Error calculating detention:', error);
+    return { hasDetention: false, detentionDuration: null };
+  }
 };
 
-const TRAILER_LENGTHS = [
-  { value: '', label: 'Select trailer length' },
-  { value: 'Box/Van', label: 'Box Truck or Van' },
-  { value: '20', label: '20 ft' },
-  { value: '40', label: '40 ft' },
-  { value: '45', label: '45 ft' },
-  { value: '48', label: '48 ft' },
-  { value: '53', label: '53 ft' },
-] as const;
 
-const getSupabaseClient = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error('Missing Supabase environment variables');
-  return createBrowserClient(url, key);
-};
+export default function DailyLog() {
+  const router = useRouter();
 
-const REFERENCE_NUMBER_PATTERNS = [
-  /^2\d{6}$/,
-  /^4\d{6}$/,
-  /^44\d{8}$/,
-  /^48\d{8}$/,
-  /^8\d{7}$/,
-  /^TLNA-SO-0\d{5}$/,
-  /^\d{6}$/,
-  /^[A-Za-z]{4}\d{7}$/,
-  /^T\d{5}$/,
-];
-
-const validateReferenceNumber = (value: string): boolean => {
-  if (!value) return false;
-  const cleaned = value.replace(/\s/g, '').toUpperCase();
-  return REFERENCE_NUMBER_PATTERNS.some(pattern => pattern.test(cleaned));
-};
-
-const validateEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-};
-
-const formatPhoneNumber = (value: string): string => {
-  const cleaned = value.replace(/\D/g, '');
-  const match = cleaned.match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/);
-  if (!match) return value;
-  const [, areaCode, prefix, lineNumber] = match;
-  if (lineNumber) return `(${areaCode}) ${prefix}-${lineNumber}`;
-  if (prefix) return `(${areaCode}) ${prefix}`;
-  if (areaCode) return `(${areaCode}`;
-  return value;
-};
-
-/** Returns a datetime-local string for right now (today button) */
-const getTodayDateTime = (): string => {
-  const now = new Date();
-  const offset = now.getTimezoneOffset() * 60000;
-  return new Date(now.getTime() - offset).toISOString().slice(0, 16);
-};
-
-/** Returns a datetime-local string for next working day at 06:00 local time */
-const getNextWorkingDayAt0600 = (): string => {
-  const now = new Date();
-  const next = new Date(now);
-  next.setDate(now.getDate() + 1);
-  // Skip Saturday (6) → Monday, skip Sunday (0) → Monday
-  if (next.getDay() === 6) next.setDate(next.getDate() + 2);
-  if (next.getDay() === 0) next.setDate(next.getDate() + 1);
-  next.setHours(6, 0, 0, 0);
-  const offset = next.getTimezoneOffset() * 60000;
-  return new Date(next.getTime() - offset).toISOString().slice(0, 16);
-};
-
-export default function CarrierEarlyCheckInForm() {
-  const supabase = useMemo(() => getSupabaseClient(), []);
-
-  const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
-
-  // Scheduled check-in date/time (ISO string from datetime-local input)
-  const [scheduledDateTime, setScheduledDateTime] = useState<string>('');
-  const [scheduledDateTimeError, setScheduledDateTimeError] = useState<string | null>(null);
-
-  // Reference numbers
-  const [referenceNumbers, setReferenceNumbers] = useState<string[]>(['']);
-  const [referenceErrors, setReferenceErrors] = useState<(string | null)[]>([null]);
-
-  const [loading, setLoading] = useState(false);
+  const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [emailError, setEmailError] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [showInProgressOnly, setShowInProgressOnly] = useState(false);
+  const [appointments, setAppointments] = useState<Map<string, Appointment>>(new Map());
 
-  // ── Scheduled date/time handler ────────────────────────────────────────────
-
-  const handleScheduledDateTimeChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      setScheduledDateTime(value);
-      setScheduledDateTimeError(value ? null : 'Please select a scheduled check-in date and time');
-    },
-    []
-  );
-
-  // ── Reference number handlers ──────────────────────────────────────────────
-
-  const handleReferenceChange = useCallback((index: number, value: string) => {
-    setReferenceNumbers(prev => {
-      const updated = [...prev];
-      updated[index] = value;
-      return updated;
+  const getCurrentDateInIndianapolis = () => {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
     });
-    setReferenceErrors(prev => {
-      const updated = [...prev];
-      if (value && !validateReferenceNumber(value)) {
-        updated[index] =
-          'Invalid format. Must match: 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, ' +
-          '8xxxxxxx, TLNA-SO-0xxxxx or xxxxxx';
-      } else {
-        updated[index] = null;
-      }
-      return updated;
-    });
-  }, []);
+    const parts = formatter.formatToParts(now);
+    const year = parts.find(p => p.type === 'year')?.value;
+    const month = parts.find(p => p.type === 'month')?.value;
+    const day = parts.find(p => p.type === 'day')?.value;
+    return `${year}-${month}-${day}`;
+  };
+  
+  const [selectedDate, setSelectedDate] = useState<string>(getCurrentDateInIndianapolis());
+  const [selectedForStatusChange, setSelectedForStatusChange] = useState<CheckIn | null>(null);
+  const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
-  const addReferenceNumber = useCallback(() => {
-    setReferenceNumbers(prev => [...prev, '']);
-    setReferenceErrors(prev => [...prev, null]);
-  }, []);
-
-  const removeReferenceNumber = useCallback((index: number) => {
-    setReferenceNumbers(prev => prev.filter((_, i) => i !== index));
-    setReferenceErrors(prev => prev.filter((_, i) => i !== index));
-  }, []);
-
-  // ── General input handler ──────────────────────────────────────────────────
-
-  const handleInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      const { name, value } = e.target;
-      const processedValue = name === 'driverPhone' ? formatPhoneNumber(value) : value;
-      setFormData(prev => ({ ...prev, [name]: processedValue }));
-
-      if (name === 'driverEmail') {
-        setEmailError(
-          value && !validateEmail(value) ? 'Please enter a valid email address' : null
-        );
-      }
-    },
-    []
-  );
-
-  const resetForm = useCallback(() => {
-    setFormData(INITIAL_FORM_DATA); // restores Alex's prefilled info
-    setReferenceNumbers(['']);
-    setReferenceErrors([null]);
-    setScheduledDateTime('');
-    setScheduledDateTimeError(null);
-    setEmailError(null);
-    setError(null);
-    setSuccess(false);
-  }, []);
-
-  // ── Submit ─────────────────────────────────────────────────────────────────
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+type AppointmentInfo = {
+  time: string | null;
+  date: string | null;
+  customer: string | null;
+  ship_to_city: string | null;
+  ship_to_state: string | null;
+  carrier: string | null;
+  mode: string | null;
+  requested_ship_date: string | null;
+};
+const fetchCheckInsForDate = useCallback(async () => {
+  try {
     setLoading(true);
-    setError(null);
-    setSuccess(false);
 
-    try {
-      // Scheduled date/time validation
-      if (!scheduledDateTime) {
-        setError('Please select a scheduled check-in date and time');
-        setLoading(false);
-        return;
-      }
+    const startOfDayIndy = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
+    const endOfDayIndy = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
 
-      const scheduledDate = new Date(scheduledDateTime);
+    const { data: checkInsData, error: checkInsError } = await supabase
+      .from('check_ins')
+      .select('*')
+      .gte('check_in_time', startOfDayIndy.toISOString())
+      .lte('check_in_time', endOfDayIndy.toISOString())
+      .neq('status', 'pending')
+      .order('check_in_time', { ascending: false });
 
-      // Email validation
-      if (!validateEmail(formData.driverEmail)) {
-        setError('Please enter a valid email address');
-        setLoading(false);
-        return;
-      }
+    if (checkInsError) throw checkInsError;
 
-      // Reference numbers
-      const filledRefs = referenceNumbers.map(r => r.trim()).filter(r => r !== '');
+    const allReferenceNumbers = Array.from(new Set(
+      (checkInsData || [])
+        .flatMap(ci => parseReferenceNumbers(ci.reference_number))
+        .filter(ref => ref.trim() !== '')
+    ));
 
-      if (filledRefs.length === 0) {
-        setError('Please provide at least one reference number');
-        setLoading(false);
-        return;
-      }
+    console.log('All parsed reference numbers:', allReferenceNumbers);
 
-      const invalidRef = filledRefs.find(r => !validateReferenceNumber(r));
-      if (invalidRef) {
-        setError(`Reference number "${invalidRef}" has an invalid format`);
-        setLoading(false);
-        return;
-      }
+    let appointmentsMap = new Map<string, {
+      time: string | null;
+      date: string | null;
+      customer: string | null;
+      ship_to_city: string | null;
+      ship_to_state: string | null;
+      carrier: string | null;
+      mode: string | null;
+      requested_ship_date: string | null;
+    }>();
 
-      const hasBlankEntry = referenceNumbers.some(
-        (r, i) => r.trim() === '' && i < referenceNumbers.length - 1
-      );
-      if (hasBlankEntry) {
-        setError('Please fill in all reference number fields or remove empty ones');
-        setLoading(false);
-        return;
-      }
+    if (allReferenceNumbers.length > 0) {
+      const BATCH_SIZE = 20;
 
-      const referenceNumberValue = filledRefs.join(', ');
+      for (let i = 0; i < allReferenceNumbers.length; i += BATCH_SIZE) {
+        const batch = allReferenceNumbers.slice(i, i + BATCH_SIZE);
 
-      // Insert early check-in record
-      const { data: checkInData, error: insertError } = await supabase
-        .from('check_ins')
-        .insert({
-          driver_name: formData.driverName,
-          driver_phone: formData.driverPhone,
-          driver_email: formData.driverEmail,
-          carrier_name: formData.carrierName,
-          trailer_number: formData.trailerNumber,
-          trailer_length: formData.trailerLength || null,
-          load_type: formData.loadType,
-          reference_number: referenceNumberValue,
-          status: 'pending',
-          check_in_time: scheduledDate.toISOString(),
-        })
-        .select()
-        .single();
+        const orFilter = batch
+          .flatMap(ref => [
+            `sales_order.ilike.%${ref}%`,
+            `delivery.ilike.%${ref}%`
+          ])
+          .join(',');
 
-      if (insertError) throw insertError;
+        console.log('Querying with filter:', orFilter);
 
-      // Trigger confirmation email
-      if (checkInData && formData.driverEmail) {
-        try {
-          await triggerCheckInEmail({
-            driverName: formData.driverName,
-            driverEmail: formData.driverEmail,
-            carrierName: formData.carrierName,
-            trailerNumber: formData.trailerNumber,
-            referenceNumber: referenceNumbers.filter(r => r).join(', '),
-            loadType: formData.loadType,
-            checkInTime: scheduledDate.toISOString(),
+        const { data: appointmentsData, error: appointmentsError } = await supabase
+          .from('appointments')
+          .select(
+            'sales_order, delivery, appointment_time, appointment_date, customer, requested_ship_date, carrier, mode, ship_to_city, ship_to_state'
+          )
+          .or(orFilter)
+          .eq('appointment_date', selectedDate);
+
+        console.log('Appointments returned for date', selectedDate, ':', appointmentsData);
+
+        if (appointmentsError) {
+          console.error('Appointments error:', appointmentsError);
+          continue;
+        }
+
+        if (appointmentsData) {
+          appointmentsData.forEach(apt => {
+            const appointmentInfo = {
+              time: apt.appointment_time ?? null,
+              date: apt.appointment_date ?? null,
+              customer: apt.customer ?? null,
+              ship_to_city: apt.ship_to_city ?? null,
+              ship_to_state: apt.ship_to_state ?? null,
+              carrier: apt.carrier ?? null,
+              mode: apt.mode ?? null,
+              requested_ship_date: apt.requested_ship_date ?? null,
+            };
+
+            if (apt.sales_order) {
+              parseReferenceNumbers(apt.sales_order).forEach(ref => {
+                appointmentsMap.set(ref.trim(), appointmentInfo);
+              });
+              appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
+            }
+
+            if (apt.delivery) {
+              parseReferenceNumbers(apt.delivery).forEach(ref => {
+                appointmentsMap.set(ref.trim(), appointmentInfo);
+              });
+              appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
+            }
           });
-        } catch (emailErr) {
-          console.error('Email trigger failed (non-fatal):', emailErr);
+        }
+      }
+    }
+
+    console.log('Final appointments map:', Object.fromEntries(appointmentsMap));
+
+    const enrichedCheckIns = (checkInsData || []).map(checkIn => {
+      const refs = parseReferenceNumbers(checkIn.reference_number);
+
+      let appointmentInfo: AppointmentInfo | undefined = undefined;
+
+      for (const ref of refs) {
+        const trimmedRef = ref.trim();
+        if (appointmentsMap.has(trimmedRef)) {
+          const candidate = appointmentsMap.get(trimmedRef);
+          if (candidate?.date === selectedDate) {
+            appointmentInfo = candidate;
+            console.log(`Match found for ref "${trimmedRef}":`, appointmentInfo);
+            break;
+          } else {
+            console.log(
+              `Skipping appointment for ref "${trimmedRef}" — date mismatch:`,
+              candidate?.date, '!==', selectedDate
+            );
+          }
         }
       }
 
-      setSuccess(true);
-    } catch (err: any) {
-      console.error('Early check-in error:', err);
-      setError(err.message || 'Failed to submit early check-in. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+      const MANUAL_APPOINTMENT_TYPES = [
+        'LTL',
+        'Paid no appointment',
+        'Charge Customer no appointment',
+        'work_in',
+      ];
+
+      const checkInHasManualType = checkIn.appointment_time &&
+        MANUAL_APPOINTMENT_TYPES.includes(checkIn.appointment_time);
+
+      return {
+        ...checkIn,
+        appointment_time: appointmentInfo?.time ??
+          (checkInHasManualType ? checkIn.appointment_time : null),
+        appointment_date: appointmentInfo?.date ??
+          (checkInHasManualType ? checkIn.appointment_date : null),
+        customer: appointmentInfo?.customer ?? checkIn.customer ?? null,
+        ship_to_city: appointmentInfo?.ship_to_city ?? checkIn.ship_to_city ?? null,
+        ship_to_state: appointmentInfo?.ship_to_state ?? checkIn.ship_to_state ?? null,
+        carrier: appointmentInfo?.carrier ?? checkIn.carrier ?? null,
+        mode: appointmentInfo?.mode ?? checkIn.mode ?? null,
+        requested_ship_date: appointmentInfo?.requested_ship_date ?? checkIn.requested_ship_date ?? null,
+      };
+    });
+
+    console.log('Enriched check-ins sample:', enrichedCheckIns[0]);
+    setCheckIns(enrichedCheckIns);
+
+  } catch (err) {
+    console.error('fetchCheckInsForDate error:', err);
+    setError(err instanceof Error ? err.message : 'An error occurred');
+  } finally {
+    setLoading(false);
+  }
+}, [selectedDate]); // ← removed supabase since it's now module-level
+
+// Keep a ref to always point at the latest fetch function
+const fetchRef = useRef(fetchCheckInsForDate);
+useEffect(() => {
+  fetchRef.current = fetchCheckInsForDate;
+}, [fetchCheckInsForDate]);
+
+// Set up realtime subscription ONCE — uses ref so it never goes stale
+useEffect(() => {
+  const channel = supabase
+    .channel('daily_log_realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, () => {
+      fetchRef.current();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
+      fetchRef.current();
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []); // ← empty deps, subscribes once and stays open
+
+// Re-fetch when date changes
+useEffect(() => {
+  fetchCheckInsForDate();
+}, [fetchCheckInsForDate]);
+
+
+const filteredCheckIns = checkIns.filter((checkIn) => {
+  if (!searchTerm.trim()) return true;
+  const searchLower = searchTerm.toLowerCase().trim();
+  const refNumber = checkIn.reference_number?.toLowerCase() || '';
+  return refNumber.includes(searchLower);
+});
+
+const displayedCheckIns = showInProgressOnly
+  ? filteredCheckIns.filter(checkIn => !checkIn.end_time && checkIn.status !== 'denied')
+  : filteredCheckIns;
+
+const handleLogout = async () => {
+  try {
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  } catch (error) {
+    console.error('Error logging out:', error);
+  }
+};
+
+const handleStatusChange = (checkIn: CheckIn) => {
+  setSelectedForStatusChange(checkIn);
+};
+
+const handleStatusChangeSuccess = () => {
+  fetchCheckInsForDate();
+  setSelectedForStatusChange(null);
+};
+
+const handleEdit = (checkIn: CheckIn) => {
+  setSelectedForEdit(checkIn);
+  setEditModalOpen(true);
+};
+
+const handleEditSuccess = () => {
+  setEditModalOpen(false);
+  setSelectedForEdit(null);
+  fetchCheckInsForDate();
+}; 
+
+
+  const getStatusBadgeColor = (status: string): string => {
+    const statusLower = status.toLowerCase();
+    if (statusLower === 'completed' || statusLower === 'checked_out') return 'bg-gray-500 text-white';
+    if (statusLower === 'unloaded'  || statusLower === 'checked_out') return 'bg-green-500 text-white';
+    if (statusLower === 'rejected') return 'bg-red-500 text-white';
+    if (statusLower === 'turned_away') return 'bg-orange-500 text-white';
+    if (statusLower === 'driver_left') return 'bg-indigo-500 text-white';
+    if (statusLower === 'pending') return 'bg-yellow-500 text-white';
+    if (statusLower === 'checked_in') return 'bg-purple-500 text-white';
+    return 'bg-gray-500 text-white';
   };
 
-  // ── Success screen ─────────────────────────────────────────────────────────
+  const getStatusLabel = (status: string): string => {
+    if (status === 'checked_in') return 'Checked In';
+    if (status === 'checked_out') return 'Checked Out';
+    if (status === 'driver_left') return 'Driver Left';
+    if (status === 'turned_away') return 'Turned Away';
+    if (status === 'unloaded') return 'Unloaded';
+    if (status === 'rejected') return 'Rejected';
+    return status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ');
+  };
 
-  if (success) {
-    const displayDate = scheduledDateTime
-      ? new Date(scheduledDateTime).toLocaleString('en-US', {
-          weekday: 'long',
-          month: 'long',
-          day: 'numeric',
-          year: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-        })
-      : '';
-
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
-          <div className="text-green-500 text-6xl mb-4">✓</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Check-In Submitted!</h2>
-          <p className="text-gray-600 mb-2">
-            Thank you, {formData.driverName}! Your check-in has been recorded.
-          </p>
-          {displayDate && (
-            <p className="text-sm text-blue-700 font-medium bg-blue-50 rounded px-3 py-2 mb-2">
-              Check In: {displayDate}
-            </p>
-          )}
-          {referenceNumbers.filter(r => r.trim()).length > 0 && (
-            <p className="text-sm text-gray-500 mb-2">
-              <span className="font-medium">Reference(s):</span>{' '}
-              {referenceNumbers.filter(r => r.trim()).join(', ')}
-            </p>
-          )}
-          <p className="text-gray-600 mb-6">
-            The shipping team has been notified of your check-in.
-          </p>
-          <button
-            onClick={resetForm}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            New Check-In
-          </button>
-        </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-600">Loading...</div>
       </div>
     );
   }
 
-  // ── Main form ──────────────────────────────────────────────────────────────
-
-  return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-
-          {/* Header */}
-          <div className="bg-indigo-600 text-white p-6">
-            <h1 className="text-2xl font-bold">ALEX Check-In</h1>
-          </div>
-
-          {error && (
-            <div className="mx-6 mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
-
-            {/* ── Scheduled Check-In Date & Time ── */}
-            <div className="border-b pb-5">
-              <h2 className="text-lg font-semibold text-gray-700 mb-4">
-                Time
-              </h2>
-
-              {/* Quick-select buttons */}
-              <div className="flex gap-3 mb-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const val = getTodayDateTime();
-                    setScheduledDateTime(val);
-                    setScheduledDateTimeError(null);
-                  }}
-                  className={`flex-1 py-2 px-4 rounded-lg border-2 font-semibold text-sm transition-all ${
-                    scheduledDateTime && scheduledDateTime.slice(0, 10) === getTodayDateTime().slice(0, 10)
-                      ? 'border-indigo-600 bg-indigo-600 text-white'
-                      : 'border-indigo-300 text-indigo-700 hover:bg-indigo-50'
-                  }`}
-                >
-                  📅 Today
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const val = getNextWorkingDayAt0600();
-                    setScheduledDateTime(val);
-                    setScheduledDateTimeError(null);
-                  }}
-                  className={`flex-1 py-2 px-4 rounded-lg border-2 font-semibold text-sm transition-all ${
-                    scheduledDateTime === getNextWorkingDayAt0600()
-                      ? 'border-indigo-600 bg-indigo-600 text-white'
-                      : 'border-indigo-300 text-indigo-700 hover:bg-indigo-50'
-                  }`}
-                >
-                  🌅 Tomorrow (6:00 AM)
-                </button>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Check-In Date & Time <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="datetime-local"
-                  value={scheduledDateTime}
-                  onChange={handleScheduledDateTimeChange}
-                  required
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                    scheduledDateTimeError ? 'border-red-400' : 'border-gray-300'
-                  }`}
-                />
-                {scheduledDateTimeError && (
-                  <p className="text-red-500 text-xs mt-1">{scheduledDateTimeError}</p>
-                )}
-                <p className="text-gray-400 text-xs mt-1">
-                  Select the date and time you expect to arrive on-site
-                </p>
-              </div>
-            </div>
-
-            {/* ── Driver Information ── */}
-            <div className="border-b pb-5">
-              <h2 className="text-lg font-semibold text-gray-700 mb-4">Driver Information</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="driverName"
-                    value={formData.driverName}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="John"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    name="driverPhone"
-                    value={formData.driverPhone}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="(555) 555-5555"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    name="driverEmail"
-                    value={formData.driverEmail}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="driver@example.com"
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                      emailError ? 'border-red-400' : 'border-gray-300'
-                    }`}
-                  />
-                  {emailError && (
-                    <p className="text-red-500 text-xs mt-1">{emailError}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* ── Load Information ── */}
-            <div className="border-b pb-5">
-              <h2 className="text-lg font-semibold text-gray-700 mb-4">Load Information</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                {/* Load Type */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Load Type <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="loadType"
-                    value={formData.loadType}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="outbound">Outbound Pickup</option>
-                    <option value="inbound">Inbound Delivery</option>
-                  </select>
-                </div>
-
-                {/* Reference Numbers */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Reference Number(s) <span className="text-red-500">*</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={addReferenceNumber}
-                      className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-sm font-medium transition-colors"
-                      title="Add another reference number"
-                    >
-                      <Plus size={16} />
-                      Add
-                    </button>
-                  </div>
-
-                  <div className="space-y-2">
-                    {referenceNumbers.map((ref, index) => (
-                      <div key={index}>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={ref}
-                            onChange={e => handleReferenceChange(index, e.target.value)}
-                            required={index === 0}
-                            placeholder={
-                              index === 0
-                                ? 'e.g., 2xxxxxx or 4xxxxxx or 8xxxxxxx'
-                                : `Reference #${index + 1}`
-                            }
-                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                              referenceErrors[index] ? 'border-red-400' : 'border-gray-300'
-                            }`}
-                          />
-                          {index > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => removeReferenceNumber(index)}
-                              className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors"
-                              title="Remove this reference number"
-                            >
-                              <Minus size={18} />
-                            </button>
-                          )}
-                        </div>
-                        {referenceErrors[index] && (
-                          <p className="text-red-500 text-xs mt-1">{referenceErrors[index]}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            {/* ── Carrier & Trailer ── */}
-            <div className="border-b pb-5">
-              <h2 className="text-lg font-semibold text-gray-700 mb-4">Carrier & Trailer</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Carrier Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="carrierName"
-                    value={formData.carrierName}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="e.g., Vision"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Trailer Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="trailerNumber"
-                    value={formData.trailerNumber}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="ABCD1234567"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Trailer Length <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="trailerLength"
-                    value={formData.trailerLength}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    {TRAILER_LENGTHS.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* ── Submit ── */}
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                disabled={loading || !!scheduledDateTimeError}
-                className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${
-                  loading || scheduledDateTimeError
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95'
-                }`}
-              >
-                {loading ? (
-                  <span className="flex items-center justify-center">
-                    <svg
-                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12" cy="12" r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                    Processing...
-                  </span>
-                ) : (
-                  'Submit'
-                )}
-              </button>
-
-              {(formData.driverName || formData.carrierName) && (
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-all"
-                >
-                  Reset
-                </button>
-              )}
-            </div>
-
-            {/* Additional Info */}
-            <div className="text-center text-xs text-gray-500 pt-4 border-t border-gray-200">
-              <p className="mb-1">
-                <strong>Operating Hours:</strong> Monday - Friday, 7:00 AM - 5:00 PM
-              </p>
-              <p>
-                For assistance, contact the shipping office at{' '}
-                <a href="tel:+17654742512" className="text-indigo-600 hover:underline">
-                  (765) 474-2512
-                </a>
-              </p>
-            </div>
-
-          </form>
-        </div>
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-red-600">Error: {error}</div>
       </div>
+    );
+  }
+
+
+ return (
+    <div className="min-h-screen bg-gray-50">
+       {/* Header */}
+       <Header title="Daily Log" />
+          {/* Main Content */}
+    <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
+      {/* Date Selector, Search & Counters */}
+      <div className="mb-6 flex gap-4 items-end max-w-7xl mx-auto">
+        <div>
+          <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">
+            Select Date
+          </label>
+          <input
+            id="date-select"
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+        
+        <div className="flex-1">
+          <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+            Search by Reference Number
+          </label>
+          <input
+            id="search"
+            type="text"
+            placeholder="Enter reference number..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+{/* Counters */}
+<div className="flex gap-4">
+  <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+    <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">
+      Total Checked In
+    </div>
+    <div className="text-2xl font-bold text-blue-900">
+      {filteredCheckIns.length}
+    </div>
+  </div>
+  
+  <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+    <div className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">
+      Total Complete
+    </div>
+    <div className="text-2xl font-bold text-green-900">
+      {filteredCheckIns.filter(checkIn => checkIn.end_time).length}
+    </div>
+  </div>
+
+  {/* In Progress Filter Button */}
+  <button
+    onClick={() => setShowInProgressOnly(!showInProgressOnly)}
+    className={`rounded-lg px-4 py-2 transition-colors border text-left ${
+      showInProgressOnly
+        ? 'bg-yellow-400 border-yellow-500 ring-2 ring-yellow-300'
+        : 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
+    }`}
+  >
+    <div className="text-xs font-medium text-yellow-700 uppercase tracking-wider mb-1">
+      In Progress
+    </div>
+    <div className="flex items-center gap-2">
+      <div className="text-2xl font-bold text-yellow-900">
+        {filteredCheckIns.filter(checkIn => !checkIn.end_time && checkIn.status !== 'denied').length}
+      </div>
+      {showInProgressOnly && (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-700" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
+        </svg>
+      )}
+    </div>
+  </button>
+</div>
+      </div>
+
+
+      {/* Table - Full Width */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Type
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Driver Info
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Trailer
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Cust. Req. Date and Dest.
+              </th>
+               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                SCAC and Mode
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Reference #
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Dock
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Check-In Time
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Appointment Time
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                End Time
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Detention
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Notes
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          
+<tbody className="bg-white divide-y divide-gray-200">
+  {displayedCheckIns.map((checkIn) => (
+    <tr key={checkIn.id} className="hover:bg-gray-50">
+      {/* Type */}
+      <td className="px-4 py-3 whitespace-nowrap">
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          checkIn.load_type === 'inbound' 
+            ? 'bg-blue-100 text-blue-800' 
+            : 'bg-orange-100 text-orange-800'
+        }`}>
+          {checkIn.load_type === 'inbound' ? 'I' : 'O'}
+        </span>
+      </td>
+
+      {/* Driver Info */}
+      <td className="px-4 py-4 text-sm">
+        <div className="text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
+        <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
+        <div className="text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
+      </td>
+
+      {/* Trailer Info */}
+      <td className="px-4 py-4 text-sm text-gray-900">
+        <div>{checkIn.trailer_number || 'N/A'}</div>
+        <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
+      </td>
+
+      {/* Load Info */}
+<td className="px-4 py-3 text-sm">
+  <div className="flex flex-col">
+    <span className="font-semibold text-gray-900">
+      {checkIn.customer || 'N/A'}
+    </span>
+      <span className="font-semibold text-gray-900">
+      {checkIn.requested_ship_date || 'N/A'}
+    </span>
+    {/* Destination city and state below customer */}
+    <span className="text-gray-500 text-xs mt-0.5">
+      {checkIn.ship_to_city && checkIn.ship_to_state
+        ? `${checkIn.ship_to_city}, ${checkIn.ship_to_state}`
+        : checkIn.ship_to_city || checkIn.ship_to_state || 'N/A'}
+    </span>
+  </div>
+</td>
+
+            {/* Transport */}
+<td className="px-4 py-3 text-sm">
+  <div className="flex flex-col">
+    <span className="font-semibold text-gray-900">
+      {checkIn.carrier || 'N/A'}
+    </span>
+     <span className="font-semibold text-gray-900">
+      {checkIn.mode || 'N/A'}
+    </span>
+  </div>
+</td>
+
+      {/* Reference # */}
+      <td className="font-bold text-gray-900"> {checkIn.reference_number || 'N/A'}</td>
+
+      {/* Dock */}
+      <td className="font-bold text-gray-900">
+        {checkIn.dock_number || 'N/A'}
+      </td>
+
+      {/* ✅ CHECK-IN TIME - When form was submitted */}
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        {formatTimeInIndianapolis(checkIn.check_in_time, true)}
+      </td>
+
+ {/* Appointment Time */}
+<td className="px-4 py-3 whitespace-nowrap text-sm">
+  {(() => {
+    const status = getAppointmentStatus(
+      checkIn.check_in_time,
+      checkIn.appointment_time,
+      checkIn.appointment_date
+    );
+    
+    const bgColor = 
+      status.color === 'green' ? 'bg-green-200' :
+      status.color === 'red' ? 'bg-red-200' :
+      status.color === 'yellow' ? 'bg-yellow-200' :
+      status.color === 'orange' ? 'bg-orange-200' :
+      'bg-gray-300';
+    
+    return (
+      <div className={`inline-block px-2 py-1 rounded ${bgColor}`}>
+        {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
+        {status.message && (
+          <div className="text-xs mt-1">{status.message}</div>
+        )}
+      </div>
+    );
+  })()}
+</td>
+
+    {/* End Time */}
+<td className="px-4 py-3 whitespace-nowrap text-sm">
+  {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time, true) : (
+    checkIn.status === 'denied' ? (
+      <span className="text-red-500 font-medium">Denied</span>
+    ) : (
+      <span className="text-yellow-600 font-medium">In Progress</span>
+    )
+  )}
+</td>
+
+       {/* Detention */}
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {(() => {
+  const { hasDetention, detentionDuration } = calculateDetention(
+    checkIn.check_in_time,
+    checkIn.end_time,
+    checkIn.appointment_time,
+    checkIn.appointment_date
+  );
+
+  return hasDetention ? (
+    <span className="text-red-600 font-semibold">
+      ⚠️ Detention: {detentionDuration}
+    </span>
+  ) : null;
+})()}
+
+                    </td>
+
+
+      {/* Notes */}
+      <td className="px-4 py-3 text-sm max-w-xs">
+        <div className="truncate" title={checkIn.notes || ''}>
+          {checkIn.notes || 'N/A'}
+        </div>
+      </td>
+
+      {/* Status */}
+                    <td className="px-4 py-4 whitespace-nowrap text-sm">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(checkIn.status)}`}>
+                        {getStatusLabel(checkIn.status)}
+                      </span>
+                    </td>
+
+
+      {/* Actions */}
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        <button
+          onClick={() => handleEdit(checkIn)}
+          className="text-blue-600 hover:text-blue-900 font-medium"
+        >
+          Edit
+                        </button>
+        
+                        <button
+                          onClick={() => handleStatusChange(checkIn)}
+                          className="text-green-600 hover:text-green-800 font-medium"
+                        >
+                          
+                          Status
+                        </button>
+
+      </td>
+    </tr>
+  ))}
+</tbody>
+        </table>
+      </div>
+    </main>
+        
+  
+      {/* Modals */}
+      {selectedForStatusChange && (
+        <StatusChangeModal
+          checkIn={selectedForStatusChange}
+          onClose={() => setSelectedForStatusChange(null)}
+          onSuccess={handleStatusChangeSuccess}
+        />
+      )}
+
+      {selectedForEdit && (
+        <EditCheckInModal
+          isOpen={true}
+          checkIn={selectedForEdit}
+          onClose={() => setSelectedForEdit(null)}
+          onSuccess={handleEditSuccess}
+        />
+      )}
     </div>
   );
 }
