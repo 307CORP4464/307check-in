@@ -76,7 +76,6 @@ interface DailyStats {
   onTimeCount: number;
   onTimePercentage: number;
   detentionInstances: DetentionInstance[];
-  onlineCheckIns: number;
   halfHourBreakdown: { [key: string]: number };
   dockSetUsage: { label: string; count: number }[];
 }
