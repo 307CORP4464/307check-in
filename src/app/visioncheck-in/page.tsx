@@ -19,7 +19,7 @@ const INITIAL_FORM_DATA: FormData = {
   driverName: 'Alex',
   driverPhone: '(815) 216-3975',
   driverEmail: 'alexmiller11774@gmail.com',
-  carrierName: '',
+  carrierName: 'VISION',
   trailerNumber: '',
   trailerLength: '',
   loadType: 'outbound',
@@ -27,11 +27,8 @@ const INITIAL_FORM_DATA: FormData = {
 
 const TRAILER_LENGTHS = [
   { value: '', label: 'Select trailer length' },
-  { value: 'Box/Van', label: 'Box Truck or Van' },
   { value: '20', label: '20 ft' },
   { value: '40', label: '40 ft' },
-  { value: '45', label: '45 ft' },
-  { value: '48', label: '48 ft' },
   { value: '53', label: '53 ft' },
 ] as const;
 
