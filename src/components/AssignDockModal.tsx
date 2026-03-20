@@ -329,7 +329,7 @@ const cancelDoubleBook = () => {
   setPendingDockNumber(null);
 };
 
-  const sendEmailNotification = async (dock: string, email: string) => {
+  const sendEmailNotification = async (dock: string, email: string, isDoubleBooked: boolean = false) => {
     try {
       let appointmentStatus = 'No Appointment';
       if (checkIn.appointment_time && checkIn.check_in_time) {
