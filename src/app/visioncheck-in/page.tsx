@@ -322,9 +322,9 @@ export default function CarrierEarlyCheckInForm() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
           <div className="text-green-500 text-6xl mb-4">✓</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Early Check-In Submitted!</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Check-In Submitted!</h2>
           <p className="text-gray-600 mb-2">
-            Thank you, {formData.driverName}! Your early check-in has been recorded.
+            Thank you, {formData.driverName}! Your check-in has been recorded.
           </p>
           {displayDate && (
             <p className="text-sm text-blue-700 font-medium bg-blue-50 rounded px-3 py-2 mb-2">
@@ -338,7 +338,7 @@ export default function CarrierEarlyCheckInForm() {
             </p>
           )}
           <p className="text-gray-600 mb-6">
-            The shipping team has been notified of your scheduled arrival.
+            The shipping team has been notified.
           </p>
           <button
             onClick={resetForm}
@@ -360,10 +360,7 @@ export default function CarrierEarlyCheckInForm() {
 
           {/* Header */}
           <div className="bg-indigo-600 text-white p-6">
-            <h1 className="text-2xl font-bold">Early Check-In</h1>
-            <p className="text-indigo-100 mt-1">
-              Schedule an upcoming arrival before arriving on-site
-            </p>
+            <h1 className="text-2xl font-bold">Alex Check-In</h1>
           </div>
 
           {error && (
@@ -655,7 +652,7 @@ export default function CarrierEarlyCheckInForm() {
                     Processing...
                   </span>
                 ) : (
-                  'Submit Early Check-In'
+                  'Submit'
                 )}
               </button>
 
@@ -673,7 +670,7 @@ export default function CarrierEarlyCheckInForm() {
             {/* Additional Info */}
             <div className="text-center text-xs text-gray-500 pt-4 border-t border-gray-200">
               <p className="mb-1">
-                <strong>Operating Hours:</strong> Monday - Friday, 7:00 AM - 5:00 PM
+                <strong>Operating Hours:</strong> Monday - Friday, 6:00 AM - 5:00 PM
               </p>
               <p>
                 For assistance, contact the shipping office at{' '}
