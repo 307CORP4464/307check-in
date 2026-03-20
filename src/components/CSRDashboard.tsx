@@ -386,17 +386,16 @@ console.log('appointmentsError:', appointmentsError);
               requested_ship_date: apt.requested_ship_date ?? null,
             };
 
-            if (apt.sales_order) {
-              apt.sales_order.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean)
-                .forEach((ref: string) => appointmentsMap.set(ref, appointmentInfo));
-              appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
-            }
-
-            if (apt.delivery) {
-              apt.delivery.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean)
-                .forEach((ref: string) => appointmentsMap.set(ref, appointmentInfo));
-              appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
-            }
+           if (apt.sales_order) {
+  apt.sales_order.split(/[,;\s|]+/).map((r: string) => r.trim().toLowerCase()).filter(Boolean)
+    .forEach((ref: string) => appointmentsMap.set(ref, appointmentInfo));
+  appointmentsMap.set(apt.sales_order.trim().toLowerCase(), appointmentInfo);
+}
+if (apt.delivery) {
+  apt.delivery.split(/[,;\s|]+/).map((r: string) => r.trim().toLowerCase()).filter(Boolean)
+    .forEach((ref: string) => appointmentsMap.set(ref, appointmentInfo));
+  appointmentsMap.set(apt.delivery.trim().toLowerCase(), appointmentInfo);
+}
           });
         }
       } // ← end for loop
@@ -411,7 +410,7 @@ console.log('appointmentsError:', appointmentsError);
 
       let aptInfo = null;
       for (const ref of refs) {
-        const candidate = appointmentsMap.get(ref);
+        const candidate = appointmentsMap.get(ref.toLowerCase());
         if (candidate) {
           aptInfo = candidate;
           console.log(`Match found for ref "${ref}":`, aptInfo);
