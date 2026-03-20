@@ -574,9 +574,6 @@ if (apt.delivery) {
   });
   appointmentsMap.set(apt.delivery.trim().toLowerCase(), appointmentInfo);  // ← add .toLowerCase()
               });
-              appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
-            }
-          });
         }
       }
     }
