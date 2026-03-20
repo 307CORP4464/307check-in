@@ -584,7 +584,7 @@ const fetchCheckInsForDate = useCallback(async () => {
 
       let appointmentInfo: AppointmentInfo | undefined = undefined;
 
-     for (const ref of refs) {
+    for (const ref of refs) {
   const trimmedRef = ref.trim().toLowerCase();  // ← add .toLowerCase()
   if (appointmentsMap.has(trimmedRef)) {
     const candidate = appointmentsMap.get(trimmedRef);
