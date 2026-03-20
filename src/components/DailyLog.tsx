@@ -391,7 +391,6 @@ const calculateDetention = (
     const appointmentMinute = parseInt(normalizedTime.substring(2, 4));
 
     // Build the appointment time as a JS Date in Indianapolis timezone
-    // We use UTC offset manually to avoid DST issues
     const aptLocalString = `${aptYear}-${String(aptMonth).padStart(2, '0')}-${String(aptDay).padStart(2, '0')}T${String(appointmentHour).padStart(2, '0')}:${String(appointmentMinute).padStart(2, '0')}:00`;
     const appointmentUTC = zonedTimeToUtc(aptLocalString, TIMEZONE);
 
@@ -653,11 +652,18 @@ useEffect(() => {
 }, [fetchCheckInsForDate]);
 
 
+// ✅ UPDATED: search now includes reference number, trailer number, and dock number
 const filteredCheckIns = checkIns.filter((checkIn) => {
   if (!searchTerm.trim()) return true;
   const searchLower = searchTerm.toLowerCase().trim();
   const refNumber = checkIn.reference_number?.toLowerCase() || '';
-  return refNumber.includes(searchLower);
+  const trailerNumber = checkIn.trailer_number?.toLowerCase() || '';
+  const dockNumber = checkIn.dock_number?.toLowerCase() || '';
+  return (
+    refNumber.includes(searchLower) ||
+    trailerNumber.includes(searchLower) ||
+    dockNumber.includes(searchLower)
+  );
 });
 
 const displayedCheckIns = showInProgressOnly
@@ -755,19 +761,34 @@ const handleEditSuccess = () => {
           />
         </div>
         
+        {/* ✅ UPDATED: Search now covers reference #, trailer, and dock. Includes clear (✕) button. */}
         <div className="flex-1">
           <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
-            Search by Reference Number
+            Search by Reference #, Trailer, or Door
           </label>
-          <input
-            id="search"
-            type="text"
-            placeholder="Enter reference number..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+          <div className="relative">
+            <input
+              id="search"
+              type="text"
+              placeholder="Reference #, trailer, or door..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 pr-9 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                aria-label="Clear search"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
+
 {/* Counters */}
 <div className="flex gap-4">
   <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
