@@ -32,6 +32,8 @@ interface CheckIn {
   check_out_time?: string | null;
   status: string;
   carrier_name?: string;
+  driver_name?: string | null;
+  driver_phone?: string | null;
   trailer_number?: string;
   load_type?: 'inbound' | 'outbound';
   reference_number?: string;
@@ -70,9 +72,11 @@ interface DailyStats {
   totalInbound: number;
   totalOutbound: number;
   totalCheckedIn: number;
+  onlineCheckIns: number;
   onTimeCount: number;
   onTimePercentage: number;
   detentionInstances: DetentionInstance[];
+  onlineCheckIns: number;
   halfHourBreakdown: { [key: string]: number };
   dockSetUsage: { label: string; count: number }[];
 }
@@ -358,6 +362,11 @@ const detentionInstances: DetentionInstance[] = checkIns
           label: s.label,
           count: dockSetCounts[s.label] || 0
         }));
+
+        const onlineCheckIns = checkIns.filter(c =>
+  c.driver_name && c.driver_name !== 'N/A' &&
+  c.driver_phone && c.driver_phone !== 'N/A'
+).length;
         
         return {
           date,
@@ -463,6 +472,15 @@ const detentionInstances: DetentionInstance[] = checkIns
                 <p className="text-3xl font-bold text-purple-700">{stat.onTimeCount}</p>
                 <p className="text-xs text-gray-400 mt-1">{stat.onTimePercentage}% on time</p>
               </div>
+              <div className="bg-orange-50 rounded-lg p-4 text-center">
+  <p className="text-sm text-gray-500">Online Check-Ins</p>
+  <p className="text-3xl font-bold text-orange-700">{stat.onlineCheckIns}</p>
+  <p className="text-xs text-gray-400 mt-1">
+    {stat.totalCheckedIn > 0
+      ? Math.round((stat.onlineCheckIns / stat.totalCheckedIn) * 100)
+      : 0}% self-served
+  </p>
+</div>
             </div>
 
             {/* Dock Set Usage */}
