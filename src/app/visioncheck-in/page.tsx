@@ -19,7 +19,7 @@ const INITIAL_FORM_DATA: FormData = {
   driverName: 'Alex',
   driverPhone: '(815) 216-3975',
   driverEmail: 'alexmiller11774@gmail.com',
-  carrierName: 'VISION',
+  carrierName: 'Vision',
   trailerNumber: '',
   trailerLength: '',
   loadType: 'outbound',
@@ -27,8 +27,11 @@ const INITIAL_FORM_DATA: FormData = {
 
 const TRAILER_LENGTHS = [
   { value: '', label: 'Select trailer length' },
+  { value: 'Box/Van', label: 'Box Truck or Van' },
   { value: '20', label: '20 ft' },
   { value: '40', label: '40 ft' },
+  { value: '45', label: '45 ft' },
+  { value: '48', label: '48 ft' },
   { value: '53', label: '53 ft' },
 ] as const;
 
@@ -71,13 +74,6 @@ const formatPhoneNumber = (value: string): string => {
   if (prefix) return `(${areaCode}) ${prefix}`;
   if (areaCode) return `(${areaCode}`;
   return value;
-};
-
-/** Returns the local datetime string for <input type="datetime-local"> minimum (now) */
-const getMinDateTime = (): string => {
-  const now = new Date();
-  const offset = now.getTimezoneOffset() * 60000;
-  return new Date(now.getTime() - offset).toISOString().slice(0, 16);
 };
 
 /** Returns a datetime-local string for right now (today button) */
@@ -124,20 +120,7 @@ export default function CarrierEarlyCheckInForm() {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
       setScheduledDateTime(value);
-
-      if (!value) {
-        setScheduledDateTimeError('Please select a scheduled check-in date and time');
-        return;
-      }
-
-      const selected = new Date(value);
-      const now = new Date();
-
-      if (selected <= now) {
-        setScheduledDateTimeError('Scheduled check-in must be in the future');
-      } else {
-        setScheduledDateTimeError(null);
-      }
+      setScheduledDateTimeError(value ? null : 'Please select a scheduled check-in date and time');
     },
     []
   );
@@ -218,11 +201,6 @@ export default function CarrierEarlyCheckInForm() {
       }
 
       const scheduledDate = new Date(scheduledDateTime);
-      if (scheduledDate <= new Date()) {
-        setError('Scheduled check-in must be in the future');
-        setLoading(false);
-        return;
-      }
 
       // Email validation
       if (!validateEmail(formData.driverEmail)) {
@@ -270,7 +248,7 @@ export default function CarrierEarlyCheckInForm() {
           trailer_length: formData.trailerLength || null,
           load_type: formData.loadType,
           reference_number: referenceNumberValue,
-          status: 'early_check_in',
+          status: 'pending',
           check_in_time: scheduledDate.toISOString(),
         })
         .select()
@@ -298,7 +276,7 @@ export default function CarrierEarlyCheckInForm() {
       setSuccess(true);
     } catch (err: any) {
       console.error('Early check-in error:', err);
-      setError(err.message || 'Failed to submit early check-in. Please try again.');
+      setError(err.message || 'Failed to submit check-in. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -322,13 +300,13 @@ export default function CarrierEarlyCheckInForm() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
           <div className="text-green-500 text-6xl mb-4">✓</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Check-In Submitted!</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Early Check-In Submitted!</h2>
           <p className="text-gray-600 mb-2">
             Thank you, {formData.driverName}! Your check-in has been recorded.
           </p>
           {displayDate && (
             <p className="text-sm text-blue-700 font-medium bg-blue-50 rounded px-3 py-2 mb-2">
-              Scheduled Arrival: {displayDate}
+              Check-in: {displayDate}
             </p>
           )}
           {referenceNumbers.filter(r => r.trim()).length > 0 && (
@@ -338,7 +316,7 @@ export default function CarrierEarlyCheckInForm() {
             </p>
           )}
           <p className="text-gray-600 mb-6">
-            The shipping team has been notified.
+            The shipping team has been notified of your check-in.
           </p>
           <button
             onClick={resetForm}
@@ -419,7 +397,6 @@ export default function CarrierEarlyCheckInForm() {
                   type="datetime-local"
                   value={scheduledDateTime}
                   onChange={handleScheduledDateTimeChange}
-                  min={getMinDateTime()}
                   required
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                     scheduledDateTimeError ? 'border-red-400' : 'border-gray-300'
@@ -581,7 +558,7 @@ export default function CarrierEarlyCheckInForm() {
                     value={formData.carrierName}
                     onChange={handleInputChange}
                     required
-                    placeholder="e.g., J.B. Hunt"
+                    placeholder="e.g., Vision"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
@@ -670,7 +647,7 @@ export default function CarrierEarlyCheckInForm() {
             {/* Additional Info */}
             <div className="text-center text-xs text-gray-500 pt-4 border-t border-gray-200">
               <p className="mb-1">
-                <strong>Operating Hours:</strong> Monday - Friday, 6:00 AM - 5:00 PM
+                <strong>Operating Hours:</strong> Monday - Friday, 7:00 AM - 5:00 PM
               </p>
               <p>
                 For assistance, contact the shipping office at{' '}
