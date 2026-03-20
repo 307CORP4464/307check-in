@@ -505,8 +505,6 @@ const fetchCheckInsForDate = useCallback(async () => {
         .filter(ref => ref.trim() !== '')
     ));
 
-    console.log('All parsed reference numbers:', allReferenceNumbers);
-
     let appointmentsMap = new Map<string, {
       time: string | null;
       date: string | null;
@@ -531,8 +529,6 @@ const fetchCheckInsForDate = useCallback(async () => {
           ])
           .join(',');
 
-        console.log('Querying with filter:', orFilter);
-
         const { data: appointmentsData, error: appointmentsError } = await supabase
           .from('appointments')
           .select(
@@ -541,59 +537,58 @@ const fetchCheckInsForDate = useCallback(async () => {
           .or(orFilter)
           .eq('appointment_date', selectedDate);
 
-        console.log('Appointments returned for date', selectedDate, ':', appointmentsData);
-
         if (appointmentsError) {
           console.error('Appointments error:', appointmentsError);
           continue;
         }
 
-       if (appointmentsData) {
-  appointmentsData.forEach(apt => {
-    const appointmentInfo = {
-      time: apt.appointment_time ?? null,
-      date: apt.appointment_date ?? null,
-      customer: apt.customer ?? null,
-      ship_to_city: apt.ship_to_city ?? null,
-      ship_to_state: apt.ship_to_state ?? null,
-      carrier: apt.carrier ?? null,
-      mode: apt.mode ?? null,
-      requested_ship_date: apt.requested_ship_date ?? null,
-    };
+        if (appointmentsData) {
+          appointmentsData.forEach(apt => {
+            const appointmentInfo = {
+              time: apt.appointment_time ?? null,
+              date: apt.appointment_date ?? null,
+              customer: apt.customer ?? null,
+              ship_to_city: apt.ship_to_city ?? null,
+              ship_to_state: apt.ship_to_state ?? null,
+              carrier: apt.carrier ?? null,
+              mode: apt.mode ?? null,
+              requested_ship_date: apt.requested_ship_date ?? null,
+            };
 
-    if (apt.sales_order) {
-      parseReferenceNumbers(apt.sales_order).forEach(ref => {
-        appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);
-      });
-      appointmentsMap.set(apt.sales_order.trim().toLowerCase(), appointmentInfo);
+            if (apt.sales_order) {
+              parseReferenceNumbers(apt.sales_order).forEach(ref => {
+                appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);
+              });
+              appointmentsMap.set(apt.sales_order.trim().toLowerCase(), appointmentInfo);
+            }
+
+            if (apt.delivery) {
+              parseReferenceNumbers(apt.delivery).forEach(ref => {
+                appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);
+              });
+              appointmentsMap.set(apt.delivery.trim().toLowerCase(), appointmentInfo);
+            }
+          });
+        }
+      }
     }
-
-    if (apt.delivery) {
-      parseReferenceNumbers(apt.delivery).forEach(ref => {
-        appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);
-      });
-      appointmentsMap.set(apt.delivery.trim().toLowerCase(), appointmentInfo);
-    }
-  });
-}
-
-    console.log('Final appointments map:', Object.fromEntries(appointmentsMap));
 
     const enrichedCheckIns = (checkInsData || []).map(checkIn => {
       const refs = parseReferenceNumbers(checkIn.reference_number);
 
       let appointmentInfo: AppointmentInfo | undefined = undefined;
 
-    for (const ref of refs) {
-  const trimmedRef = ref.trim().toLowerCase();
-  if (appointmentsMap.has(trimmedRef)) {
-    const candidate = appointmentsMap.get(trimmedRef);
-    if (candidate?.date === selectedDate) {
-      appointmentInfo = candidate;
-      break;
-    }
-  }
-}
+      for (const ref of refs) {
+        const trimmedRef = ref.trim().toLowerCase();
+        if (appointmentsMap.has(trimmedRef)) {
+          const candidate = appointmentsMap.get(trimmedRef);
+          if (candidate?.date === selectedDate) {
+            appointmentInfo = candidate;
+            break;
+          }
+        }
+      }
+
       const MANUAL_APPOINTMENT_TYPES = [
         'LTL',
         'Paid no appointment',
@@ -619,7 +614,6 @@ const fetchCheckInsForDate = useCallback(async () => {
       };
     });
 
-    console.log('Enriched check-ins sample:', enrichedCheckIns[0]);
     setCheckIns(enrichedCheckIns);
 
   } catch (err) {
@@ -628,7 +622,7 @@ const fetchCheckInsForDate = useCallback(async () => {
   } finally {
     setLoading(false);
   }
-}, [selectedDate]); // ← removed supabase since it's now module-level
+}, [selectedDate]);
 
 // Keep a ref to always point at the latest fetch function
 const fetchRef = useRef(fetchCheckInsForDate);
