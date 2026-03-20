@@ -63,21 +63,22 @@ class EmailService {
   loadType: 'inbound' | 'outbound',
   checkInTime: string,
   appointmentTime?: string,
-  appointmentStatus?: string,  // ← ADD COMMA HERE
-  grossWeight?: string         // ← optional since it may not always be provided
+  appointmentStatus?: string, 
+  grossWeight?: string,
+  isDoubleBooked?: boolean
 ): Promise<void> {
   try {
     const template = this.getDockAssignmentTemplate(
-      driverName,
-      dockNumber,
-      referenceNumber,
-      loadType,
-      checkInTime,
-      appointmentTime,
-      appointmentStatus,
-      grossWeight           // ← PASS IT TO THE TEMPLATE
-    );
-
+  driverName,
+  dockNumber,
+  referenceNumber,
+  loadType,
+  checkInTime,
+  appointmentTime,
+  appointmentStatus,
+  grossWeight,
+  isDoubleBooked   
+);
 
       const mailOptions: EmailOptions = {
         to: toEmail,
@@ -447,16 +448,17 @@ private getStatusChangeTemplate(
  
 
 
-  private getDockAssignmentTemplate(
-    driverName: string,
-    dockNumber: string,
-    referenceNumber: string,
-    loadType: 'inbound' | 'outbound',
-    checkInTime: string,
-    appointmentTime?: string,
-    appointmentStatus?: string,
-    grossWeight?: string
-  ): EmailTemplate {
+ private getDockAssignmentTemplate(
+  driverName: string,
+  dockNumber: string,
+  referenceNumber: string,
+  loadType: 'inbound' | 'outbound',
+  checkInTime: string,
+  appointmentTime?: string,
+  appointmentStatus?: string,
+  grossWeight?: string,
+  isDoubleBooked?: boolean
+): EmailTemplate {
     const dockDisplay = dockNumber === 'Ramp' ? 'RAMP' : `DOCK ${dockNumber}`;
     
     // Status badge styling
@@ -515,6 +517,22 @@ private getStatusChangeTemplate(
                           </td>
                         </tr>
                       </table>
+                      ${isDoubleBooked ? `
+<!-- Double-Booked Wait Notice -->
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fff3e0; border: 2px solid #FF9800; border-radius: 6px; margin: 16px 0;">
+  <tr>
+    <td style="padding: 20px;">
+      <p style="margin: 0 0 10px; font-size: 16px; font-weight: bold; color: #e65100;">
+        ⚠️ Important – Please Wait Before Pulling In
+      </p>
+      <p style="margin: 0; font-size: 14px; color: #5d4037; line-height: 1.6;">
+        This dock is currently occupied by another truck. <strong>Do not pull into the dock until the first truck has fully pulled out.</strong>
+        Once the dock is clear, proceed with your normal instructions below.
+      </p>
+    </td>
+  </tr>
+</table>
+` : ''}
     <!-- Weight Information Box -->
   <tr>
       <td style="padding: 12px 16px; background-color: #fff8e1; border-top: 1px solid #ffe082;">
