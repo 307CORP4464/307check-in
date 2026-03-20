@@ -17,9 +17,9 @@ interface FormData {
 }
 
 const INITIAL_FORM_DATA: FormData = {
-  driverName: '',
-  driverPhone: '',
-  driverEmail: '',
+  driverName: 'Alex',
+  driverPhone: '(815) 216-3975',
+  driverEmail: 'alexmiller11774@gmail.com',
   carrierName: '',
   trailerNumber: '',
   trailerLength: '',
@@ -81,9 +81,28 @@ const formatPhoneNumber = (value: string): string => {
 /** Returns the local datetime string for <input type="datetime-local"> minimum (now) */
 const getMinDateTime = (): string => {
   const now = new Date();
-  // Offset to local time
   const offset = now.getTimezoneOffset() * 60000;
   return new Date(now.getTime() - offset).toISOString().slice(0, 16);
+};
+
+/** Returns a datetime-local string for right now (today button) */
+const getTodayDateTime = (): string => {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 16);
+};
+
+/** Returns a datetime-local string for next working day at 06:00 local time */
+const getNextWorkingDayAt0600 = (): string => {
+  const now = new Date();
+  const next = new Date(now);
+  next.setDate(now.getDate() + 1);
+  // Skip Saturday (6) → Monday, skip Sunday (0) → Monday
+  if (next.getDay() === 6) next.setDate(next.getDate() + 2);
+  if (next.getDay() === 0) next.setDate(next.getDate() + 1);
+  next.setHours(6, 0, 0, 0);
+  const offset = next.getTimezoneOffset() * 60000;
+  return new Date(next.getTime() - offset).toISOString().slice(0, 16);
 };
 
 export default function CarrierEarlyCheckInForm() {
@@ -182,7 +201,7 @@ export default function CarrierEarlyCheckInForm() {
   }, []);
 
   const resetForm = useCallback(() => {
-    setFormData(INITIAL_FORM_DATA);
+    setFormData(INITIAL_FORM_DATA); // restores Alex's prefilled info
     setReferenceNumbers(['']);
     setReferenceErrors([null]);
     setScheduledDateTime('');
@@ -321,9 +340,9 @@ export default function CarrierEarlyCheckInForm() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
           <div className="text-green-500 text-6xl mb-4">✓</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Early Check-In Submitted!</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Check-In Submitted!</h2>
           <p className="text-gray-600 mb-2">
-            Thank you, {formData.driverName}! Your early check-in has been recorded.
+            Thank you, {formData.driverName}! Your check-in has been recorded.
           </p>
           {displayDate && (
             <p className="text-sm text-blue-700 font-medium bg-blue-50 rounded px-3 py-2 mb-2">
@@ -344,7 +363,7 @@ export default function CarrierEarlyCheckInForm() {
             onClick={resetForm}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
-            New Early Check-In
+            New Check-In
           </button>
         </div>
       </div>
@@ -360,9 +379,9 @@ export default function CarrierEarlyCheckInForm() {
 
           {/* Header */}
           <div className="bg-indigo-600 text-white p-6">
-            <h1 className="text-2xl font-bold">Early Check-In</h1>
+            <h1 className="text-2xl font-bold">Alex Check-In</h1>
             <p className="text-indigo-100 mt-1">
-              Schedule an upcoming arrival before arriving on-site
+             Same day and early check-in.
             </p>
           </div>
 
@@ -379,6 +398,41 @@ export default function CarrierEarlyCheckInForm() {
               <h2 className="text-lg font-semibold text-gray-700 mb-4">
                 Scheduled Arrival
               </h2>
+
+              {/* Quick-select buttons */}
+              <div className="flex gap-3 mb-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const val = getTodayDateTime();
+                    setScheduledDateTime(val);
+                    setScheduledDateTimeError(null);
+                  }}
+                  className={`flex-1 py-2 px-4 rounded-lg border-2 font-semibold text-sm transition-all ${
+                    scheduledDateTime && scheduledDateTime.slice(0, 10) === getTodayDateTime().slice(0, 10)
+                      ? 'border-indigo-600 bg-indigo-600 text-white'
+                      : 'border-indigo-300 text-indigo-700 hover:bg-indigo-50'
+                  }`}
+                >
+                  📅 Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const val = getNextWorkingDayAt0600();
+                    setScheduledDateTime(val);
+                    setScheduledDateTimeError(null);
+                  }}
+                  className={`flex-1 py-2 px-4 rounded-lg border-2 font-semibold text-sm transition-all ${
+                    scheduledDateTime === getNextWorkingDayAt0600()
+                      ? 'border-indigo-600 bg-indigo-600 text-white'
+                      : 'border-indigo-300 text-indigo-700 hover:bg-indigo-50'
+                  }`}
+                >
+                  🌅 Tomorrow (6:00 AM)
+                </button>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Check-In Date & Time <span className="text-red-500">*</span>
@@ -584,24 +638,6 @@ export default function CarrierEarlyCheckInForm() {
                   </select>
                 </div>
               </div>
-            </div>
-
-            {/* ── Email Consent ── */}
-            <div className="border-b pb-5">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  name="emailConsent"
-                  checked={formData.emailConsent}
-                  onChange={handleCheckboxChange}
-                  className="mt-1 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                />
-                <span className="text-sm text-gray-600">
-                  I consent to receiving email communications regarding my check-in status,
-                  dock assignment, and other relevant updates.{' '}
-                  <span className="text-red-500">*</span>
-                </span>
-              </label>
             </div>
 
             {/* ── Submit ── */}
