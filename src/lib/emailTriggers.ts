@@ -132,6 +132,8 @@ export async function triggerStatusChangeEmail(data: {
   newStatus: string;
   notes?: string;
   endTime?: string;
+  rejectionReasons?: string[];
+  resolutionAction?: 'correct_and_return' | 'new_trailer';
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch('/api/send-email', {
@@ -147,6 +149,8 @@ export async function triggerStatusChangeEmail(data: {
           newStatus: data.newStatus,
           notes: data.notes,
           endTime: data.endTime,
+          rejectionReasons: data.rejectionReasons,
+          resolutionAction: data.resolutionAction,
         },
       }),
     });
@@ -166,4 +170,3 @@ export async function triggerStatusChangeEmail(data: {
     };
   }
 }
-
