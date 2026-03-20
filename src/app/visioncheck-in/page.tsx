@@ -671,7 +671,7 @@ export default function CarrierEarlyCheckInForm() {
                     Processing...
                   </span>
                 ) : (
-                  'Submit Early Check-In'
+                  'Submit'
                 )}
               </button>
 
