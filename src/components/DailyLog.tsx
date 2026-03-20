@@ -548,35 +548,34 @@ const fetchCheckInsForDate = useCallback(async () => {
           continue;
         }
 
-        if (appointmentsData) {
-          appointmentsData.forEach(apt => {
-            const appointmentInfo = {
-              time: apt.appointment_time ?? null,
-              date: apt.appointment_date ?? null,
-              customer: apt.customer ?? null,
-              ship_to_city: apt.ship_to_city ?? null,
-              ship_to_state: apt.ship_to_state ?? null,
-              carrier: apt.carrier ?? null,
-              mode: apt.mode ?? null,
-              requested_ship_date: apt.requested_ship_date ?? null,
-            };
+       if (appointmentsData) {
+  appointmentsData.forEach(apt => {
+    const appointmentInfo = {
+      time: apt.appointment_time ?? null,
+      date: apt.appointment_date ?? null,
+      customer: apt.customer ?? null,
+      ship_to_city: apt.ship_to_city ?? null,
+      ship_to_state: apt.ship_to_state ?? null,
+      carrier: apt.carrier ?? null,
+      mode: apt.mode ?? null,
+      requested_ship_date: apt.requested_ship_date ?? null,
+    };
 
-            if (apt.sales_order) {
-  parseReferenceNumbers(apt.sales_order).forEach(ref => {
-    appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);  // ← add .toLowerCase()
-  });
-  appointmentsMap.set(apt.sales_order.trim().toLowerCase(), appointmentInfo);  // ← add .toLowerCase()
-}
-
-if (apt.delivery) {
-  parseReferenceNumbers(apt.delivery).forEach(ref => {
-    appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);  // ← add .toLowerCase()
-  });
-  appointmentsMap.set(apt.delivery.trim().toLowerCase(), appointmentInfo);  // ← add .toLowerCase()
-              });
-        }
-      }
+    if (apt.sales_order) {
+      parseReferenceNumbers(apt.sales_order).forEach(ref => {
+        appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);
+      });
+      appointmentsMap.set(apt.sales_order.trim().toLowerCase(), appointmentInfo);
     }
+
+    if (apt.delivery) {
+      parseReferenceNumbers(apt.delivery).forEach(ref => {
+        appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);
+      });
+      appointmentsMap.set(apt.delivery.trim().toLowerCase(), appointmentInfo);
+    }
+  });
+}
 
     console.log('Final appointments map:', Object.fromEntries(appointmentsMap));
 
