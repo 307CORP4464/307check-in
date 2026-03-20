@@ -562,15 +562,17 @@ const fetchCheckInsForDate = useCallback(async () => {
             };
 
             if (apt.sales_order) {
-              parseReferenceNumbers(apt.sales_order).forEach(ref => {
-                appointmentsMap.set(ref.trim(), appointmentInfo);
-              });
-              appointmentsMap.set(apt.sales_order.trim(), appointmentInfo);
-            }
+  parseReferenceNumbers(apt.sales_order).forEach(ref => {
+    appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);  // ← add .toLowerCase()
+  });
+  appointmentsMap.set(apt.sales_order.trim().toLowerCase(), appointmentInfo);  // ← add .toLowerCase()
+}
 
-            if (apt.delivery) {
-              parseReferenceNumbers(apt.delivery).forEach(ref => {
-                appointmentsMap.set(ref.trim(), appointmentInfo);
+if (apt.delivery) {
+  parseReferenceNumbers(apt.delivery).forEach(ref => {
+    appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);  // ← add .toLowerCase()
+  });
+  appointmentsMap.set(apt.delivery.trim().toLowerCase(), appointmentInfo);  // ← add .toLowerCase()
               });
               appointmentsMap.set(apt.delivery.trim(), appointmentInfo);
             }
@@ -586,14 +588,16 @@ const fetchCheckInsForDate = useCallback(async () => {
 
       let appointmentInfo: AppointmentInfo | undefined = undefined;
 
-      for (const ref of refs) {
-        const trimmedRef = ref.trim();
-        if (appointmentsMap.has(trimmedRef)) {
-          const candidate = appointmentsMap.get(trimmedRef);
-          if (candidate?.date === selectedDate) {
-            appointmentInfo = candidate;
-            console.log(`Match found for ref "${trimmedRef}":`, appointmentInfo);
-            break;
+     for (const ref of refs) {
+  const trimmedRef = ref.trim().toLowerCase();  // ← add .toLowerCase()
+  if (appointmentsMap.has(trimmedRef)) {
+    const candidate = appointmentsMap.get(trimmedRef);
+    if (candidate?.date === selectedDate) {
+      appointmentInfo = candidate;
+      break;
+    }
+  }
+}
           } else {
             console.log(
               `Skipping appointment for ref "${trimmedRef}" — date mismatch:`,
