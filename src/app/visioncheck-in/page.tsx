@@ -13,24 +13,25 @@ interface FormData {
   trailerNumber: string;
   trailerLength: string;
   loadType: 'inbound' | 'outbound';
-  emailConsent: boolean;
 }
 
 const INITIAL_FORM_DATA: FormData = {
   driverName: 'Alex',
   driverPhone: '(815) 216-3975',
   driverEmail: 'alexmiller11774@gmail.com',
-  carrierName: 'Vision',
+  carrierName: '',
   trailerNumber: '',
   trailerLength: '',
   loadType: 'outbound',
-  emailConsent: false,
 };
 
 const TRAILER_LENGTHS = [
   { value: '', label: 'Select trailer length' },
+  { value: 'Box/Van', label: 'Box Truck or Van' },
   { value: '20', label: '20 ft' },
   { value: '40', label: '40 ft' },
+  { value: '45', label: '45 ft' },
+  { value: '48', label: '48 ft' },
   { value: '53', label: '53 ft' },
 ] as const;
 
@@ -192,11 +193,6 @@ export default function CarrierEarlyCheckInForm() {
     []
   );
 
-  const handleCheckboxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    setFormData(prev => ({ ...prev, [name]: checked }));
-  }, []);
-
   const resetForm = useCallback(() => {
     setFormData(INITIAL_FORM_DATA); // restores Alex's prefilled info
     setReferenceNumbers(['']);
@@ -234,13 +230,6 @@ export default function CarrierEarlyCheckInForm() {
       // Email validation
       if (!validateEmail(formData.driverEmail)) {
         setError('Please enter a valid email address');
-        setLoading(false);
-        return;
-      }
-
-      // Email consent
-      if (!formData.emailConsent) {
-        setError('You must consent to email communications to proceed');
         setLoading(false);
         return;
       }
@@ -286,7 +275,6 @@ export default function CarrierEarlyCheckInForm() {
           reference_number: referenceNumberValue,
           status: 'early_check_in',
           check_in_time: scheduledDate.toISOString(),
-          email_consent: formData.emailConsent,
         })
         .select()
         .single();
@@ -294,7 +282,7 @@ export default function CarrierEarlyCheckInForm() {
       if (insertError) throw insertError;
 
       // Trigger confirmation email
-      if (checkInData && formData.emailConsent && formData.driverEmail) {
+      if (checkInData && formData.driverEmail) {
         try {
           await triggerCheckInEmail({
             driverName: formData.driverName,
@@ -337,9 +325,9 @@ export default function CarrierEarlyCheckInForm() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
           <div className="text-green-500 text-6xl mb-4">✓</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Check-In Submitted!</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Early Check-In Submitted!</h2>
           <p className="text-gray-600 mb-2">
-            Thank you, {formData.driverName}! Your check-in has been recorded.
+            Thank you, {formData.driverName}! Your early check-in has been recorded.
           </p>
           {displayDate && (
             <p className="text-sm text-blue-700 font-medium bg-blue-50 rounded px-3 py-2 mb-2">
@@ -354,13 +342,12 @@ export default function CarrierEarlyCheckInForm() {
           )}
           <p className="text-gray-600 mb-6">
             The shipping team has been notified of your scheduled arrival.
-            {formData.emailConsent && ' A confirmation has been sent to your email.'}
           </p>
           <button
             onClick={resetForm}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
-            New Check-In
+            New Early Check-In
           </button>
         </div>
       </div>
@@ -376,9 +363,9 @@ export default function CarrierEarlyCheckInForm() {
 
           {/* Header */}
           <div className="bg-indigo-600 text-white p-6">
-            <h1 className="text-2xl font-bold">Alex Check-In</h1>
+            <h1 className="text-2xl font-bold">Early Check-In</h1>
             <p className="text-indigo-100 mt-1">
-             Same day and early check-in.
+              Schedule an upcoming arrival before arriving on-site
             </p>
           </div>
 
@@ -671,7 +658,7 @@ export default function CarrierEarlyCheckInForm() {
                     Processing...
                   </span>
                 ) : (
-                  'Submit'
+                  'Submit Early Check-In'
                 )}
               </button>
 
