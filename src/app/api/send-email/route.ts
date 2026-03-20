@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
           data.appointmentTime,
           data.appointmentStatus,
           data.grossWeight
+          data.isDoubleBooked
         );
         break;
 
