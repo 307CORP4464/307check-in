@@ -585,7 +585,7 @@ const fetchCheckInsForDate = useCallback(async () => {
       let appointmentInfo: AppointmentInfo | undefined = undefined;
 
     for (const ref of refs) {
-  const trimmedRef = ref.trim().toLowerCase();  // ← add .toLowerCase()
+  const trimmedRef = ref.trim().toLowerCase();
   if (appointmentsMap.has(trimmedRef)) {
     const candidate = appointmentsMap.get(trimmedRef);
     if (candidate?.date === selectedDate) {
@@ -594,15 +594,6 @@ const fetchCheckInsForDate = useCallback(async () => {
     }
   }
 }
-          } else {
-            console.log(
-              `Skipping appointment for ref "${trimmedRef}" — date mismatch:`,
-              candidate?.date, '!==', selectedDate
-            );
-          }
-        }
-      }
-
       const MANUAL_APPOINTMENT_TYPES = [
         'LTL',
         'Paid no appointment',
