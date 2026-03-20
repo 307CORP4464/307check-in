@@ -367,6 +367,7 @@ const cancelDoubleBook = () => {
               : undefined,
             appointmentStatus,
             grossWeight: grossWeight ? grossWeight.trim() : null,
+            isDoubleBooked,
           },
         }),
       });
