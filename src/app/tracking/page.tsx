@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import { zonedTimeToUtc } from 'date-fns-tz';
-import Link from 'next/link';
 import Header from '@/components/Header';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
@@ -85,9 +84,7 @@ const isOnTime = (checkInTime: string, appointmentTime: string | null | undefine
     appointmentTime === 'work_in' ||
     appointmentTime === 'paid_to_load' ||
     appointmentTime === 'paid_charge_customer'
-  ) {
-    return false;
-  }
+  ) return false;
 
   let appointmentHour: number;
   let appointmentMinute: number;
@@ -114,30 +111,19 @@ const isOnTime = (checkInTime: string, appointmentTime: string | null | undefine
   const timeString = formatter.format(checkInDate);
   const [checkInHour, checkInMinute] = timeString.split(':').map(Number);
 
-  const appointmentTotalMinutes = appointmentHour * 60 + appointmentMinute;
-  const checkInTotalMinutes = checkInHour * 60 + checkInMinute;
-
-  return checkInTotalMinutes - appointmentTotalMinutes <= 0;
+  return (checkInHour * 60 + checkInMinute) - (appointmentHour * 60 + appointmentMinute) <= 0;
 };
 
-const calculateDetention = (
-  checkIn: CheckIn
-): { hasDetention: boolean; minutes: number } => {
-  if (!checkIn.appointment_time || !checkIn.end_time) {
-    return { hasDetention: false, minutes: 0 };
-  }
+const calculateDetention = (checkIn: CheckIn): { hasDetention: boolean; minutes: number } => {
+  if (!checkIn.appointment_time || !checkIn.end_time) return { hasDetention: false, minutes: 0 };
 
   if (
     checkIn.appointment_time === 'work_in' ||
     checkIn.appointment_time === 'paid_to_load' ||
     checkIn.appointment_time === 'paid_charge_customer'
-  ) {
-    return { hasDetention: false, minutes: 0 };
-  }
+  ) return { hasDetention: false, minutes: 0 };
 
-  if (!isOnTime(checkIn.check_in_time, checkIn.appointment_time)) {
-    return { hasDetention: false, minutes: 0 };
-  }
+  if (!isOnTime(checkIn.check_in_time, checkIn.appointment_time)) return { hasDetention: false, minutes: 0 };
 
   let appointmentHour: number;
   let appointmentMinute: number;
@@ -172,8 +158,7 @@ const calculateDetention = (
   appointmentDate.setFullYear(year, month, day);
   appointmentDate.setHours(appointmentHour, appointmentMinute, 0, 0);
 
-  const timeSinceAppointmentMs = endTime.getTime() - appointmentDate.getTime();
-  const minutesSinceAppointment = Math.floor(timeSinceAppointmentMs / (1000 * 60));
+  const minutesSinceAppointment = Math.floor((endTime.getTime() - appointmentDate.getTime()) / (1000 * 60));
   const detentionMinutes = Math.max(0, minutesSinceAppointment - 120);
 
   return { hasDetention: detentionMinutes > 0, minutes: detentionMinutes };
@@ -206,18 +191,40 @@ interface StatCardProps {
   label: string;
   value: number;
   sub?: string;
-  accent: string;       // Tailwind bg class for the left border / icon strip
-  textColor: string;    // Tailwind text class for the big number
+  accent: string;
+  textColor: string;
 }
 
 function StatCard({ label, value, sub, accent, textColor }: StatCardProps) {
   return (
-    <div className={`relative bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden`}>
+    <div className="relative bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
       <div className={`absolute left-0 top-0 bottom-0 w-1 ${accent}`} />
       <div className="px-5 py-4 pl-6">
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">{label}</p>
         <p className={`text-4xl font-bold leading-none ${textColor}`}>{value}</p>
-        {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+        {sub && <p className="text-xs text-gray-400 mt-1.5">{sub}</p>}
+      </div>
+    </div>
+  );
+}
+
+// ─── Range Stat Card (slightly larger, used in the totals banner) ─────────────
+interface RangeCardProps {
+  label: string;
+  value: number;
+  sub?: string;
+  accent: string;
+  textColor: string;
+}
+
+function RangeCard({ label, value, sub, accent, textColor }: RangeCardProps) {
+  return (
+    <div className="relative bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${accent}`} />
+      <div className="px-4 py-4 pl-6">
+        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">{label}</p>
+        <p className={`text-4xl font-bold leading-none ${textColor}`}>{value}</p>
+        {sub && <p className="text-xs text-gray-400 mt-1.5">{sub}</p>}
       </div>
     </div>
   );
@@ -228,7 +235,7 @@ function Section({ title, children, badge }: { title: string; children: React.Re
   return (
     <div className="px-6 py-5 border-t border-gray-100">
       <div className="flex items-center gap-2 mb-4">
-        <h3 className="text-sm font-bold uppercase tracking-widest text-gray-500">{title}</h3>
+        <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">{title}</h3>
         {badge}
       </div>
       {children}
@@ -247,7 +254,8 @@ export default function Tracking() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const getCurrentDateInIndianapolis = () => {
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const getCurrentDateInIndianapolis = (): string => {
     const now = new Date();
     const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: TIMEZONE,
@@ -262,8 +270,50 @@ export default function Tracking() {
     return `${year}-${month}-${day}`;
   };
 
-  const [startDate, setStartDate] = useState<string>(getCurrentDateInIndianapolis());
-  const [endDate, setEndDate] = useState<string>(getCurrentDateInIndianapolis());
+  // Steps back day-by-day until it lands on a weekday (Mon–Fri)
+  const getPreviousWorkingDay = (): string => {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    const candidate = new Date();
+    while (true) {
+      candidate.setDate(candidate.getDate() - 1);
+      const parts = formatter.formatToParts(candidate);
+      const y = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+      const m = parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1;
+      const d = parseInt(parts.find(p => p.type === 'day')?.value || '0');
+      const dow = new Date(y, m, d).getDay(); // 0=Sun, 6=Sat
+      if (dow !== 0 && dow !== 6) {
+        const yStr = parts.find(p => p.type === 'year')?.value;
+        const mStr = parts.find(p => p.type === 'month')?.value;
+        const dStr = parts.find(p => p.type === 'day')?.value;
+        return `${yStr}-${mStr}-${dStr}`;
+      }
+    }
+  };
+
+  const formatDate = (dateStr: string): string => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+  };
+
+  const formatDateShort = (dateStr: string): string => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric'
+    });
+  };
+
+  const today = getCurrentDateInIndianapolis();
+  const yesterday = getPreviousWorkingDay();
+
+  const [startDate, setStartDate] = useState<string>(today);
+  const [endDate, setEndDate] = useState<string>(today);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -277,13 +327,16 @@ export default function Tracking() {
     fetchTrackingData();
   }, [startDate, endDate]);
 
+  const handleToday = () => { setStartDate(today); setEndDate(today); };
+  const handleYesterday = () => { setStartDate(yesterday); setEndDate(yesterday); };
+
   const fetchTrackingData = async () => {
     try {
       setLoading(true);
       setError(null);
 
       const startOfDayIndy = zonedTimeToUtc(`${startDate} 00:00:00`, TIMEZONE);
-      const endOfDayIndy = zonedTimeToUtc(`${endDate} 23:59:59`, TIMEZONE);
+      const endOfDayIndy   = zonedTimeToUtc(`${endDate} 23:59:59`, TIMEZONE);
 
       const { data, error } = await supabase
         .from('check_ins')
@@ -305,17 +358,17 @@ export default function Tracking() {
           day: '2-digit'
         });
         const parts = formatter.formatToParts(date);
-        const year = parts.find(p => p.type === 'year')?.value;
+        const year  = parts.find(p => p.type === 'year')?.value;
         const month = parts.find(p => p.type === 'month')?.value;
-        const day = parts.find(p => p.type === 'day')?.value;
+        const day   = parts.find(p => p.type === 'day')?.value;
         const dateKey = `${year}-${month}-${day}`;
         if (!statsByDate[dateKey]) statsByDate[dateKey] = [];
         statsByDate[dateKey].push(checkIn);
       });
 
       const stats: DailyStats[] = Object.entries(statsByDate).map(([date, checkIns]) => {
-        const totalInbound = checkIns.filter(c => c.load_type === 'inbound').length;
-        const totalOutbound = checkIns.filter(c => c.load_type === 'outbound').length;
+        const totalInbound   = checkIns.filter(c => c.load_type === 'inbound').length;
+        const totalOutbound  = checkIns.filter(c => c.load_type === 'outbound').length;
         const totalCheckedIn = checkIns.length;
 
         const onlineCheckIns = checkIns.filter(c =>
@@ -330,15 +383,13 @@ export default function Tracking() {
           c.appointment_time !== 'paid_charge_customer'
         );
 
-        const onTimeCheckIns = checkInsWithAppointments.filter(c =>
+        const onTimeCount = checkInsWithAppointments.filter(c =>
           isOnTime(c.check_in_time, c.appointment_time)
-        );
+        ).length;
 
-        const onTimeCount = onTimeCheckIns.length;
-        const onTimePercentage =
-          checkInsWithAppointments.length > 0
-            ? Math.round((onTimeCount / checkInsWithAppointments.length) * 100)
-            : 0;
+        const onTimePercentage = checkInsWithAppointments.length > 0
+          ? Math.round((onTimeCount / checkInsWithAppointments.length) * 100)
+          : 0;
 
         const detentionInstances: DetentionInstance[] = checkIns
           .map(checkIn => {
@@ -347,11 +398,11 @@ export default function Tracking() {
             if (checkIn.carrier_name?.toLowerCase().includes('vision')) return null;
             return {
               reference_number: checkIn.reference_number || '',
-              check_in_time: checkIn.check_in_time,
+              check_in_time:    checkIn.check_in_time,
               appointment_time: checkIn.appointment_time || '',
-              end_time: checkIn.end_time || '',
+              end_time:         checkIn.end_time || '',
               detention_minutes: detention.minutes,
-              carrier_name: checkIn.carrier_name || 'N/A'
+              carrier_name:     checkIn.carrier_name || 'N/A'
             };
           })
           .filter((d): d is DetentionInstance => d !== null);
@@ -398,65 +449,170 @@ export default function Tracking() {
     }
   };
 
-  // Format date nicely e.g. "Monday, March 20, 2026"
-  const formatDate = (dateStr: string) => {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    const date = new Date(y, m - 1, d);
-    return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  };
+  // ── Range totals (only computed when > 1 day of data) ─────────────────────
+  const isMultiDay = dailyStats.length > 1;
+
+  const rangeTotals = isMultiDay ? (() => {
+    const totalCheckedIn  = dailyStats.reduce((s, d) => s + d.totalCheckedIn, 0);
+    const totalInbound    = dailyStats.reduce((s, d) => s + d.totalInbound, 0);
+    const totalOutbound   = dailyStats.reduce((s, d) => s + d.totalOutbound, 0);
+    const onlineCheckIns  = dailyStats.reduce((s, d) => s + d.onlineCheckIns, 0);
+    const onTimeCount     = dailyStats.reduce((s, d) => s + d.onTimeCount, 0);
+    const totalDetention  = dailyStats.reduce((s, d) => s + d.detentionInstances.length, 0);
+    const days            = dailyStats.length;
+
+    // Reconstruct the total "with appointment" denominator from each day's data
+    const totalWithAppt = dailyStats.reduce((s, d) =>
+      s + (d.onTimePercentage > 0 ? Math.round(d.onTimeCount / (d.onTimePercentage / 100)) : 0), 0
+    );
+    const onTimePercentage = totalWithAppt > 0
+      ? Math.round((onTimeCount / totalWithAppt) * 100)
+      : 0;
+
+    return { totalCheckedIn, totalInbound, totalOutbound, onlineCheckIns, onTimeCount, onTimePercentage, totalDetention, days };
+  })() : null;
+
+  const isToday     = startDate === today     && endDate === today;
+  const isYesterday = startDate === yesterday && endDate === yesterday;
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header title="Data Tracking" />
 
-      <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+      <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
 
         {/* ── Date Range Picker ── */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex flex-wrap gap-4 items-end">
-          <div className="flex-1 min-w-[140px]">
-            <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5">
-              Start Date
-            </label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={e => setStartDate(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+          <div className="flex flex-wrap gap-4 items-end">
+            <div className="flex-1 min-w-[140px]">
+              <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex-1 min-w-[140px]">
+              <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5">
+                End Date
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={handleToday}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+                  isToday
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                Today
+              </button>
+              <button
+                onClick={handleYesterday}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+                  isYesterday
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                Yesterday
+              </button>
+              <button
+                onClick={fetchTrackingData}
+                className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
-          <div className="flex-1 min-w-[140px]">
-            <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-1.5">
-              End Date
-            </label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={e => setEndDate(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <button
-            onClick={fetchTrackingData}
-            className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
-          >
-            Refresh
-          </button>
         </div>
 
         {/* ── States ── */}
         {loading && (
           <div className="text-center py-16 text-gray-400 text-sm font-medium">Loading…</div>
         )}
-
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
             {error}
           </div>
         )}
-
         {!loading && !error && dailyStats.length === 0 && (
           <div className="text-center py-16 text-gray-400 text-sm font-medium">
             No data found for the selected date range.
+          </div>
+        )}
+
+        {/* ── Range Totals Banner (multi-day only) ── */}
+        {!loading && rangeTotals && (
+          <div className="bg-white rounded-2xl border-2 border-blue-100 shadow-sm overflow-hidden">
+            <div className="bg-blue-700 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-white font-bold text-base tracking-tight">Range Total</h2>
+                <p className="text-blue-200 text-xs mt-0.5">
+                  {formatDateShort(startDate)} — {formatDateShort(endDate)}
+                </p>
+              </div>
+              <span className="bg-blue-600 text-blue-100 text-xs font-bold px-3 py-1 rounded-full">
+                {rangeTotals.days} days
+              </span>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <RangeCard
+                  label="Total Check-Ins"
+                  value={rangeTotals.totalCheckedIn}
+                  sub={`avg ${Math.round(rangeTotals.totalCheckedIn / rangeTotals.days)}/day`}
+                  accent="bg-gray-400"
+                  textColor="text-gray-800"
+                />
+                <RangeCard
+                  label="Inbound"
+                  value={rangeTotals.totalInbound}
+                  sub={`avg ${Math.round(rangeTotals.totalInbound / rangeTotals.days)}/day`}
+                  accent="bg-emerald-500"
+                  textColor="text-emerald-700"
+                />
+                <RangeCard
+                  label="Outbound"
+                  value={rangeTotals.totalOutbound}
+                  sub={`avg ${Math.round(rangeTotals.totalOutbound / rangeTotals.days)}/day`}
+                  accent="bg-blue-500"
+                  textColor="text-blue-700"
+                />
+                <RangeCard
+                  label="On-Time"
+                  value={rangeTotals.onTimeCount}
+                  sub={`${rangeTotals.onTimePercentage}% on time`}
+                  accent="bg-violet-500"
+                  textColor="text-violet-700"
+                />
+                <RangeCard
+                  label="Online Check-Ins"
+                  value={rangeTotals.onlineCheckIns}
+                  sub={`${rangeTotals.totalCheckedIn > 0 ? Math.round((rangeTotals.onlineCheckIns / rangeTotals.totalCheckedIn) * 100) : 0}% self-served`}
+                  accent="bg-orange-400"
+                  textColor="text-orange-600"
+                />
+                <RangeCard
+                  label="Detention"
+                  value={rangeTotals.totalDetention}
+                  sub={`avg ${Math.round(rangeTotals.totalDetention / rangeTotals.days)}/day`}
+                  accent="bg-red-400"
+                  textColor="text-red-600"
+                />
+              </div>
+            </div>
           </div>
         )}
 
@@ -470,28 +626,13 @@ export default function Tracking() {
               <span className="text-blue-200 text-xs font-mono">{stat.date}</span>
             </div>
 
-            {/* ── Summary Cards ── */}
+            {/* Summary Cards */}
             <div className="p-6 border-b border-gray-100">
               <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Summary</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                <StatCard
-                  label="Total Check-Ins"
-                  value={stat.totalCheckedIn}
-                  accent="bg-gray-400"
-                  textColor="text-gray-800"
-                />
-                <StatCard
-                  label="Inbound"
-                  value={stat.totalInbound}
-                  accent="bg-emerald-500"
-                  textColor="text-emerald-700"
-                />
-                <StatCard
-                  label="Outbound"
-                  value={stat.totalOutbound}
-                  accent="bg-blue-500"
-                  textColor="text-blue-700"
-                />
+                <StatCard label="Total Check-Ins" value={stat.totalCheckedIn} accent="bg-gray-400" textColor="text-gray-800" />
+                <StatCard label="Inbound" value={stat.totalInbound} accent="bg-emerald-500" textColor="text-emerald-700" />
+                <StatCard label="Outbound" value={stat.totalOutbound} accent="bg-blue-500" textColor="text-blue-700" />
                 <StatCard
                   label="On-Time"
                   value={stat.onTimeCount}
@@ -509,16 +650,14 @@ export default function Tracking() {
               </div>
             </div>
 
-            {/* ── Dock Set Usage ── */}
+            {/* Dock Set Usage */}
             <Section title="Dock Set Usage">
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                 {stat.dockSetUsage.map(ds => (
                   <div
                     key={ds.label}
                     className={`rounded-lg p-3 text-center border transition-colors ${
-                      ds.count > 0
-                        ? 'bg-indigo-50 border-indigo-200'
-                        : 'bg-gray-50 border-gray-100'
+                      ds.count > 0 ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-100'
                     }`}
                   >
                     <p className="text-xs text-gray-400 font-semibold mb-1">Docks {ds.label}</p>
@@ -530,7 +669,7 @@ export default function Tracking() {
               </div>
             </Section>
 
-            {/* ── Half-Hour Breakdown ── */}
+            {/* Half-Hour Breakdown */}
             {Object.keys(stat.halfHourBreakdown).length > 0 && (
               <Section title="Check-Ins by Half Hour">
                 <div className="flex flex-wrap gap-2">
@@ -549,14 +688,12 @@ export default function Tracking() {
               </Section>
             )}
 
-            {/* ── Detention ── */}
+            {/* Detention */}
             <Section
               title="Detention"
               badge={
                 <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold ${
-                  stat.detentionInstances.length > 0
-                    ? 'bg-red-100 text-red-700'
-                    : 'bg-gray-100 text-gray-400'
+                  stat.detentionInstances.length > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-400'
                 }`}>
                   {stat.detentionInstances.length}
                 </span>
@@ -570,10 +707,7 @@ export default function Tracking() {
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-100">
                         {['Reference #', 'Carrier', 'Appt', 'Check-In', 'End Time', 'Detention'].map(h => (
-                          <th
-                            key={h}
-                            className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-gray-400"
-                          >
+                          <th key={h} className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-gray-400">
                             {h}
                           </th>
                         ))}
@@ -581,10 +715,7 @@ export default function Tracking() {
                     </thead>
                     <tbody>
                       {stat.detentionInstances.map((d, i) => (
-                        <tr
-                          key={i}
-                          className={`border-b border-gray-50 last:border-0 ${i % 2 === 0 ? 'bg-white' : 'bg-red-50/20'}`}
-                        >
+                        <tr key={i} className={`border-b border-gray-50 last:border-0 ${i % 2 === 0 ? 'bg-white' : 'bg-red-50/20'}`}>
                           <td className="px-4 py-2.5 font-mono text-gray-800 text-xs">{d.reference_number}</td>
                           <td className="px-4 py-2.5 text-gray-700">{d.carrier_name}</td>
                           <td className="px-4 py-2.5 text-gray-600 font-mono">{d.appointment_time}</td>
