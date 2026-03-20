@@ -469,7 +469,24 @@ export default function Tracking() {
       ? Math.round((onTimeCount / totalWithAppt) * 100)
       : 0;
 
-    return { totalCheckedIn, totalInbound, totalOutbound, onlineCheckIns, onTimeCount, onTimePercentage, totalDetention, days };
+    // Aggregate dock set usage across all days
+    const dockSetUsage = DOCK_SETS.map(s => ({
+      label: s.label,
+      count: dailyStats.reduce((sum, d) => {
+        const match = d.dockSetUsage.find(ds => ds.label === s.label);
+        return sum + (match ? match.count : 0);
+      }, 0)
+    }));
+
+    // Merge half-hour breakdowns across all days
+    const halfHourBreakdown: { [key: string]: number } = {};
+    dailyStats.forEach(d => {
+      Object.entries(d.halfHourBreakdown).forEach(([slot, count]) => {
+        halfHourBreakdown[slot] = (halfHourBreakdown[slot] || 0) + count;
+      });
+    });
+
+    return { totalCheckedIn, totalInbound, totalOutbound, onlineCheckIns, onTimeCount, onTimePercentage, totalDetention, days, dockSetUsage, halfHourBreakdown };
   })() : null;
 
   const isToday     = startDate === today     && endDate === today;
@@ -613,6 +630,51 @@ export default function Tracking() {
                 />
               </div>
             </div>
+
+            {/* Range — Dock Set Usage */}
+            <div className="px-6 pb-5 border-t border-blue-50">
+              <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mt-4 mb-3">Dock Set Usage</p>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {rangeTotals.dockSetUsage.map(ds => (
+                  <div
+                    key={ds.label}
+                    className={`rounded-lg p-3 text-center border transition-colors ${
+                      ds.count > 0 ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-100'
+                    }`}
+                  >
+                    <p className="text-xs text-gray-400 font-semibold mb-1">Docks {ds.label}</p>
+                    <p className={`text-2xl font-bold leading-none ${ds.count > 0 ? 'text-indigo-700' : 'text-gray-300'}`}>
+                      {ds.count}
+                    </p>
+                    {ds.count > 0 && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        avg {Math.round(ds.count / rangeTotals.days)}/day
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Range — Half-Hour Breakdown */}
+            {Object.keys(rangeTotals.halfHourBreakdown).length > 0 && (
+              <div className="px-6 pb-6 border-t border-blue-50">
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mt-4 mb-3">Check-Ins by Half Hour</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(rangeTotals.halfHourBreakdown)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([slot, count]) => (
+                      <div
+                        key={slot}
+                        className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm flex items-center gap-1.5"
+                      >
+                        <span className="font-semibold text-gray-700 font-mono">{slot}</span>
+                        <span className="text-gray-400 text-xs">({count})</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
