@@ -14,6 +14,7 @@ interface EditCheckInModalProps {
     load_type?: 'inbound' | 'outbound';
     reference_number?: string | null;
     appointment_time?: string | null;
+    end_time?: string | null;
     dock_number?: string | null;
     customer?: string | null;
     requested_ship_date?: string | null;
@@ -53,6 +54,9 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     trailer_length: checkIn.trailer_length || '',
     load_type: checkIn.load_type || 'inbound' as 'inbound' | 'outbound',
     appointment_time: checkIn.appointment_time || '',
+    end_time: checkIn.end_time
+      ? new Date(checkIn.end_time).toISOString().slice(0, 16)
+      : '',
     dock_number: checkIn.dock_number || '',
     customer: checkIn.customer || '',
     requested_ship_date: checkIn.requested_ship_date || '',
@@ -74,6 +78,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
   const MODES = [
     'TL', 'LTL', 'Intermodal', 'Flatbed', 'Reefer', 'Partial', 'Van', 'Other'
   ];
+
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,61 +111,60 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError(null);
-  setSaving(true);
+    e.preventDefault();
+    setError(null);
+    setSaving(true);
 
-  const combinedReferenceNumber = referenceNumbers
-    .map(r => r.trim())
-    .filter(Boolean)
-    .join(', ');
+    const combinedReferenceNumber = referenceNumbers
+      .map(r => r.trim())
+      .filter(Boolean)
+      .join(', ');
 
-  // 👇 ADD THIS - verify what's being sent
-  console.log('Submitting appointment_time:', formData.appointment_time);
-  console.log('Full formData:', formData);
+    console.log('Submitting appointment_time:', formData.appointment_time);
+    console.log('Submitting end_time:', formData.end_time);
+    console.log('Full formData:', formData);
 
-  try {
-    const updatePayload = {
-      driver_name: formData.driver_name,
-      driver_phone: formData.driver_phone,
-      carrier_name: formData.carrier_name,
-      trailer_number: formData.trailer_number,
-      trailer_length: formData.trailer_length,
-      load_type: formData.load_type,
-      reference_number: combinedReferenceNumber,
-      appointment_time: formData.appointment_time || null,
-      dock_number: formData.dock_number || null,
-      customer: formData.customer || null,
-      requested_ship_date: formData.requested_ship_date || null,
-      ship_to_city: formData.ship_to_city || null,
-      ship_to_state: formData.ship_to_state || null,
-      carrier: formData.carrier || null,
-      mode: formData.mode || null,
-      notes: formData.notes,
-    };
+    try {
+      const updatePayload = {
+        driver_name: formData.driver_name,
+        driver_phone: formData.driver_phone,
+        carrier_name: formData.carrier_name,
+        trailer_number: formData.trailer_number,
+        trailer_length: formData.trailer_length,
+        load_type: formData.load_type,
+        reference_number: combinedReferenceNumber,
+        appointment_time: formData.appointment_time || null,
+        end_time: formData.end_time ? new Date(formData.end_time).toISOString() : null,
+        dock_number: formData.dock_number || null,
+        customer: formData.customer || null,
+        requested_ship_date: formData.requested_ship_date || null,
+        ship_to_city: formData.ship_to_city || null,
+        ship_to_state: formData.ship_to_state || null,
+        carrier: formData.carrier || null,
+        mode: formData.mode || null,
+        notes: formData.notes,
+      };
 
-    // 👇 ADD THIS
-    console.log('Update payload:', updatePayload);
+      console.log('Update payload:', updatePayload);
 
-    const { data, error: updateError } = await supabase
-      .from('check_ins')
-      .update(updatePayload)
-      .eq('id', checkIn.id)
-      .select(); // 👈 ADD .select() to see what was actually saved
+      const { data, error: updateError } = await supabase
+        .from('check_ins')
+        .update(updatePayload)
+        .eq('id', checkIn.id)
+        .select();
 
-    // 👇 ADD THIS
-    console.log('Supabase response data:', data);
-    console.log('Supabase response error:', updateError);
+      console.log('Supabase response data:', data);
+      console.log('Supabase response error:', updateError);
 
-    if (updateError) throw updateError;
+      if (updateError) throw updateError;
 
-    onSuccess();
-  } catch (err) {
-    setError(err instanceof Error ? err.message : 'Failed to update check-in');
-  } finally {
-    setSaving(false);
-  }
-};
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update check-in');
+    } finally {
+      setSaving(false);
+    }
+  };
 
 
   if (!isOpen) return null;
@@ -249,24 +253,24 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select...</option>
-                <option value="work_in">Work In</option>
-                <option value="LTL">LTL</option>
-                <option value="Paid no appointment">Paid</option>
-                <option value="Charge Customer no appointment">Charge</option>
-                <option value="0800">08:00</option>
-                <option value="0900">09:00</option>
-                <option value="0930">09:30</option>
-                <option value="1000">10:00</option>
-                <option value="1030">10:30</option>
-                <option value="1100">11:00</option>
-                <option value="1230">12:30</option>
-                <option value="1300">13:00</option>
-                <option value="1330">13:30</option>
-                <option value="1400">14:00</option>
-                <option value="1430">14:30</option>
-                <option value="1500">15:00</option>
-                <option value="1530">15:30</option>
+                {TIME_OPTIONS.map(({ value, label }) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
               </select>
+            </div>
+
+            {/* End Time */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                End Time <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="datetime-local"
+                name="end_time"
+                value={formData.end_time}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+              />
             </div>
 
             {/* Dock Number */}
