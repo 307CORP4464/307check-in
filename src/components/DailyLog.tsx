@@ -308,6 +308,7 @@ interface CheckIn {
   status: string;
   driver_name?: string;
   driver_phone?: string;
+  driver_email?: string;
   carrier_name?: string;
   trailer_number?: string;
   trailer_length?: string;
@@ -437,6 +438,359 @@ const calculateDetention = (
     console.error('Error calculating detention:', error);
     return { hasDetention: false, detentionDuration: null };
   }
+};
+
+// ── Reprint receipt (mirrors AssignDockModal's printReceipt) ──────────────────
+const reprintReceipt = (checkIn: CheckIn) => {
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('Please allow popups to print the receipt');
+    return;
+  }
+
+  const appointmentOptions = [
+    { value: '0800', label: '08:00 AM' },
+    { value: '0900', label: '09:00 AM' },
+    { value: '0930', label: '09:30 AM' },
+    { value: '1000', label: '10:00 AM' },
+    { value: '1030', label: '10:30 AM' },
+    { value: '1100', label: '11:00 AM' },
+    { value: '1230', label: '12:30 PM' },
+    { value: '1300', label: '01:00 PM' },
+    { value: '1330', label: '01:30 PM' },
+    { value: '1400', label: '02:00 PM' },
+    { value: '1430', label: '02:30 PM' },
+    { value: '1500', label: '03:00 PM' },
+    { value: '1550', label: '03:30 PM' },
+    { value: 'work_in', label: 'Work In' },
+    { value: 'paid_to_load', label: 'Paid to Load' },
+    { value: 'paid_charge_customer', label: 'Paid - Charge Customer' },
+    { value: 'LTL', label: 'LTL' },
+  ];
+
+  const formatApptTime = (time: string) => {
+    const option = appointmentOptions.find(opt => opt.value === time);
+    return option ? option.label : time;
+  };
+
+  const formatCheckInTime = (t?: string | null) => {
+    if (!t) return '';
+    try {
+      const d = new Date(t);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return t;
+    }
+  };
+
+  const currentDate = new Date().toLocaleString();
+  const today = new Date().toLocaleDateString();
+  const dockDisplay = checkIn.dock_number === 'Ramp'
+    ? 'Ramp'
+    : checkIn.dock_number
+      ? `Dock ${checkIn.dock_number}`
+      : 'Not Assigned';
+
+  const isInbound = checkIn.load_type === 'inbound';
+
+  const receiptHTML = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Driver Check-in Form</title>
+        <style>
+          @media print {
+            body { margin: 0; padding: 0; }
+            .no-print { display: none; }
+            .page-break { page-break-before: always; }
+            @page { 
+              margin: 0.5in;
+              size: letter;
+            }
+          }
+          body { font-family: Arial, sans-serif; }
+          .receipt-page { padding: 20px; max-width: 420px; margin: 0 auto; }
+          .receipt-header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 12px; margin-bottom: 12px; }
+          .receipt-header h1 { margin: 0; font-size: 20px; }
+          .section { margin: 8px 0; padding: 6px 0; border-bottom: 1px dashed #bbb; }
+          .section:last-child { border-bottom: none; }
+          .row { display: flex; justify-content: space-between; font-size: 14px; margin: 6px 0; }
+          .label { font-weight: bold; text-transform: uppercase; font-size: 12px; color: #333; }
+          .value { text-align: right; }
+          .reference-box { background-color: #ffeb3b; padding: 12px; margin: 10px 0 6px; border: 2px solid #000; text-align: center; }
+          .reference-box .reference-number { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+          .reference-box .dock-number { font-size: 16px; font-weight: bold; }
+          .print-button { display: block; margin: 20px auto; padding: 12px 24px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
+          .print-button:hover { background-color: #45a049; }
+          .inspection-page { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 10pt; }
+          .title { text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 10px; }
+          .info-line { margin: 8px 0; font-weight: bold; font-size: 11pt; }
+          .section-title { font-weight: bold; font-size: 12pt; margin: 15px 0 8px 0; padding: 5px 0; border-bottom: 1px solid black; }
+          table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+          th, td { border: 1px solid black; padding: 4px 6px; text-align: left; font-size: 9pt; }
+          th { background-color: #f0f0f0; font-weight: bold; }
+          .checkbox-cell { text-align: center; width: 40px; }
+          .signature-line { border-bottom: 1px solid black; display: inline-block; width: 250px; }
+          .comment-line { border-bottom: 1px solid black; height: 20px; margin: 3px 0; }
+          .checkbox-group { margin: 8px 0; font-size: 9pt; }
+          .warning-box { font-weight: bold; margin: 10px 0; line-height: 1.4; font-size: 9pt; }
+          .footer { margin-top: 12px; font-size: 9pt; }
+          .footer-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+          .spacer-row { height: 20px; }
+          .spacer-row-double { height: 40px; }
+        </style>
+      </head>
+      <body>
+        <!-- Page 1: Load Receipt -->
+        <div class="receipt-page">
+          <div class="receipt-header">
+            <h1>Driver Check-In Form</h1>
+            <p style="margin: 5px 0; font-size: 12px;">${currentDate}</p>
+          </div>
+
+          <div class="reference-box">
+            <div class="reference-number">Reference #: ${checkIn.reference_number || 'N/A'}</div>
+            <div class="dock-number">ASSIGNED TO: ${dockDisplay}</div>
+          </div>
+
+          <div class="section">
+            <div class="row">
+              <span class="label">Driver:</span>
+              <span class="value">${checkIn.driver_name || 'N/A'}</span>
+            </div>
+            <div class="row">
+              <span class="label">Phone#:</span>
+              <span class="value">${checkIn.driver_phone || 'N/A'}</span>
+            </div>
+            <div class="row">
+              <span class="label">Carrier:</span>
+              <span class="value">${checkIn.carrier_name || 'N/A'}</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="row">
+              <span class="label">Trailer #:</span>
+              <span class="value">${checkIn.trailer_number || 'N/A'}</span>
+            </div>
+            <div class="row">
+              <span class="label">Trailer Length:</span>
+              <span class="value">${checkIn.trailer_length || 'N/A'}</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="row">
+              <span class="label">Destination:</span>
+              <span class="value">${checkIn.ship_to_city || ''} ${checkIn.ship_to_state || ''}</span>
+            </div>
+            <div class="row">
+              <span class="label">Appointment:</span>
+              <span class="value">${checkIn.appointment_time ? formatApptTime(checkIn.appointment_time) : 'N/A'}</span>
+            </div>
+            <div class="row">
+              <span class="label">Check-in Time:</span>
+              <span class="value">${formatCheckInTime(checkIn.check_in_time)}</span>
+            </div>
+          </div>
+
+          <button class="print-button no-print" onclick="window.print()">Print Form</button>
+        </div>
+
+        <!-- Page 2: Inspection Form -->
+        <div class="page-break"></div>
+        
+        ${isInbound ? getInboundInspectionForm() : getOutboundInspectionForm()}
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 250);
+          };
+        </script>
+      </body>
+    </html>
+  `;
+
+  function getInboundInspectionForm() {
+    return `
+      <div class="inspection-page">
+        <div class="title">PRP02A: INBOUND INSPECTION</div>
+        <div class="info-line">
+          Date: <strong>${today}</strong>&nbsp;&nbsp;&nbsp;
+          Delivery#: <strong>${checkIn.reference_number || 'N/A'}</strong>&nbsp;&nbsp;&nbsp;
+          Trailer#: <strong>${checkIn.trailer_number || 'N/A'}</strong>
+        </div>
+        <div class="spacer-row"></div>
+        <table>
+          <thead>
+            <tr>
+              <th>INSPECTION ITEM</th>
+              <th class="checkbox-cell">YES</th>
+              <th class="checkbox-cell">NO</th>
+              <th class="checkbox-cell">N/A</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>IS THE TRAILER PROPERLY SEALED?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>DOES THE SEAL# ON THE TRAILER MATCH THE SEAL# ON THE BOL AND BEEN INITIALED ON THE BOL?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>DOES THE MATERIAL & LOT #'S OF THE PRODUCT ON THE TRAILER MATCH WHAT IS INDICATED ON THE BOL?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>IS THE VISIBLE PRODUCT AND PALLET FREE OF FOREIGN OBJECTS, INSECTS, MOLD & DAMAGE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>WAS THE TRAILER FREE OF METAL/GLASS, RODENT/INSECT INFESTATION, DAMAGE AND ODOR?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>IS ALL OF THE VISIBLE PRINT ON THE BAGS LEGIBLE AND ARE ALL OF THE VISIBLE VALVES FREE OF LEAKAGE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+          </tbody>
+        </table>
+        <div class="warning-box">
+          IF ANY OF THE ABOVE QUESTIONS WERE ANSWERED "NO" PLEASE ENSURE CORRECTIVE ACTION IS TAKEN AND/OR NOTIFY A SUPERVISOR.<br>
+          IF ANY PRODUCT IS QUESTIONABLE TO RECEIVE INTO THE WAREHOUSE, CONTACT A SUPERVISOR FOR APPROVAL.
+        </div>
+        <div style="margin: 10px 0;">
+          <strong>I ACKNOWLEDGE THAT ALL ITEMS LISTED ABOVE HAVE BEEN EXECUTED.</strong><br>
+          <div class="spacer-row"></div>
+          <strong>OPERATOR SIGNATURE:</strong> <span class="signature-line"></span>
+        </div>
+        <div style="margin: 8px 0;">
+          <strong>COMMENTS:</strong>
+          <div class="comment-line"></div>
+          <div class="comment-line"></div>
+        </div>
+        <div class="spacer-row-double"></div>
+        <div class="spacer-row-double"></div>
+        <div class="spacer-row-double"></div>
+        <table style="font-size: 7pt; margin-top: 10px;">
+          <thead>
+            <tr>
+              <th style="width: 10%;">Rev #</th>
+              <th style="width: 40%;">Summary of Changes</th>
+              <th style="width: 17%;">Requested By</th>
+              <th style="width: 18%;">Authorized By</th>
+              <th style="width: 15%;">Date Updated</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Original</td><td></td><td>Quality Manager</td><td>Operations Manager</td><td>10/28/2015</td></tr>
+            <tr><td>2</td><td>Changed question 9.</td><td>Quality Manager</td><td>Operations Manager</td><td>10/30/2017</td></tr>
+            <tr><td>3</td><td>Updated questions</td><td>Quality Manager</td><td>Operations Manager</td><td>09/19/2018</td></tr>
+            <tr><td>4</td><td>Updated question 4 to add pallet inspection.</td><td>Quality Manager</td><td>Operations Manager</td><td>03/10/2026</td></tr>
+          </tbody>
+        </table>
+        <div class="footer">
+          <div class="footer-row">
+            <span><strong>PRP02A</strong> Inbound Inspection</span>
+            <span><strong>Owned By:</strong> Quality Manager</span>
+            <span><strong>Authorized By:</strong> Operations Manager</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function getOutboundInspectionForm() {
+    return `
+      <div class="inspection-page">
+        <div class="title">PRP03A: OUTBOUND INSPECTION</div>
+        <div class="info-line">
+          Date: <strong>${today}</strong>&nbsp;&nbsp;&nbsp;
+          Load#: <strong>${checkIn.reference_number || 'N/A'}</strong>&nbsp;&nbsp;&nbsp;
+          Trailer#: <strong>${checkIn.trailer_number || 'N/A'}</strong>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>GENERAL TRAILER GMP</th>
+              <th class="checkbox-cell">YES</th>
+              <th class="checkbox-cell">NO</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>EVIDENCE OF ODOR?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>DEBRIS ON FLOOR OR IN CORNERS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>EVIDENCE OF INSECT OR RODENT ACTIVITY?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>PREVIOUS PRODUCT RESIDUE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>SPLINTERED SIDEWALLS, CEILING OR FLOOR THAT COULD DAMAGE BAGS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>BROKEN GLASS OR METAL SHAVINGS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>NAILS OR OTHER OBJECTS PROTRUDING FROM THE FLOORS OR SIDEWALLS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>HOLES ON CEILING, SIDEWALLS OR FLOORS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>EVIDENCE OF LEAKS, STANDING WATER, MOISTURE, MOLD, MILDEW, ETC?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+          </tbody>
+        </table>
+        <table>
+          <thead>
+            <tr>
+              <th>PRODUCT SECURITY & LOADER SAFETY</th>
+              <th class="checkbox-cell">YES</th>
+              <th class="checkbox-cell">NO</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>PROBLEMS WITH LATCHES ON DOORS WORKING PROPERLY?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>IS TRAILER UNSEALABLE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>LOAD STRAPS/BARS APPLIED IF REQUIRED?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
+          </tbody>
+        </table>
+        <div style="margin: 8px 0;">
+          <strong>LOADER SIGNATURE:</strong> <span class="signature-line"></span>
+        </div>
+        <div style="margin: 8px 0;">
+          <strong>COMMENTS:</strong>
+          <div class="comment-line"></div>
+          <div class="comment-line"></div>
+        </div>
+        <div class="checkbox-group">
+          <div>Rejected by: <span class="signature-line"></span></div>
+          <div style="margin-top: 5px;">
+            ☐ OK TO LOAD AFTER SWEEPING 
+            ☐ Needs new trailer 
+            ☐ Driver can correct trailer
+          </div>
+        </div>
+        <div class="spacer-row"></div>
+        <table>
+          <thead>
+            <tr>
+              <th>PRE-SEALING CHECKLIST</th>
+              <th class="checkbox-cell">INITIAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>ALL THE INSTRUCTIONS ON THE BILL OF LADING HAVE BEEN FOLLOWED?</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>TRAILER HAS BEEN LATCHED PROPERLY?</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>THE TRAILER HAS BEEN SEALED?</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>CUSTOMER REQUIRED PHOTOS TAKEN AND SENT?</td><td class="checkbox-cell">☐</td></tr>
+            <tr><td>INITIALS OF PERSON THAT SEALED</td><td class="checkbox-cell">__________</td></tr>
+          </tbody>
+        </table>
+        <div class="spacer-row-double"></div>
+        <table style="font-size: 7pt; margin-top: 10px;">
+          <thead>
+            <tr>
+              <th style="width: 10%;">Rev #</th>
+              <th style="width: 40%;">Summary of Changes</th>
+              <th style="width: 17%;">Requested By</th>
+              <th style="width: 18%;">Authorized By</th>
+              <th style="width: 15%;">Date Updated</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Original</td><td>Outbound Inspection - Restructured</td><td>Quality Manager</td><td>Operations Manager</td><td>7/24/2025</td></tr>
+            <tr><td>2</td><td>Added loadbar question</td><td>Quality Manager</td><td>Operations Manager</td><td>7/31/2025</td></tr>
+            <tr><td>3</td><td>updated format and added revisions table.</td><td>Quality Manager</td><td>Operations Manager</td><td>3/10/2026</td></tr>
+          </tbody>
+        </table>
+        <div class="footer">
+          <div class="footer-row">
+            <span><strong>PRP03A</strong> Outbound Inspection</span>
+            <span><strong>Owned By:</strong> Quality Manager</span>
+            <span><strong>Authorized By:</strong> Operations Manager</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  printWindow.document.write(receiptHTML);
+  printWindow.document.close();
 };
 
 
@@ -1031,21 +1385,30 @@ const handleEditSuccess = () => {
 
       {/* Actions */}
       <td className="px-4 py-3 whitespace-nowrap text-sm">
-        <button
-          onClick={() => handleEdit(checkIn)}
-          className="text-blue-600 hover:text-blue-900 font-medium"
-        >
-          Edit
-                        </button>
-        
-                        <button
-                          onClick={() => handleStatusChange(checkIn)}
-                          className="text-green-600 hover:text-green-800 font-medium"
-                        >
-                          
-                          Status
-                        </button>
-
+        <div className="flex flex-col gap-1">
+          <button
+            onClick={() => handleEdit(checkIn)}
+            className="text-blue-600 hover:text-blue-900 font-medium text-left"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => handleStatusChange(checkIn)}
+            className="text-green-600 hover:text-green-800 font-medium text-left"
+          >
+            Status
+          </button>
+          <button
+            onClick={() => reprintReceipt(checkIn)}
+            className="text-gray-500 hover:text-gray-800 font-medium text-left flex items-center gap-1"
+            title="Reprint check-in receipt and inspection form"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a1 1 0 001 1h8a1 1 0 001-1v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a1 1 0 00-1-1H6a1 1 0 00-1 1zm2 0h6v3H7V4zm-1 9h8v3H6v-3zm8-5a1 1 0 110 2 1 1 0 010-2z" clipRule="evenodd" />
+            </svg>
+            Reprint
+          </button>
+        </div>
       </td>
     </tr>
   ))}
