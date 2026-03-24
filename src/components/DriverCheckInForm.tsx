@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { triggerCheckInEmail } from '@/lib/emailTriggers';
-import { Plus, Minus } from 'lucide-react';
+import { Plus, Minus, CheckCircle, Clock, Truck, AlertCircle, Loader2 } from 'lucide-react';
 
 interface FormData {
   driverName: string;
@@ -14,6 +14,21 @@ interface FormData {
   trailerLength: string;
   loadType: 'inbound' | 'outbound';
   emailConsent: boolean;
+}
+
+interface CheckInRecord {
+  id: string;
+  driver_name: string;
+  driver_phone: string;
+  driver_email: string;
+  carrier_name: string;
+  trailer_number: string;
+  reference_number: string;
+  load_type: string;
+  status: string;
+  dock_number: string | null;
+  status_note: string | null;
+  check_in_time: string;
 }
 
 const INITIAL_FORM_DATA: FormData = {
@@ -34,14 +49,6 @@ const SITE_COORDINATES = {
   radiusMeters: 300
 };
 
-const US_STATES = [
-  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'MX', 'CN'
-] as const;
-
 const TRAILER_LENGTHS = [
   { value: '', label: 'Select trailer length' },
   { value: 'Box/Van', label: 'Box Truck or Van' },
@@ -51,6 +58,61 @@ const TRAILER_LENGTHS = [
   { value: '48', label: '48 ft' },
   { value: '53', label: '53 ft' },
 ] as const;
+
+// Status configuration — extend as needed
+const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string; borderColor: string; icon: React.ReactNode }> = {
+  pending: {
+    label: 'Checked In — Awaiting Assignment',
+    color: 'text-amber-700',
+    bgColor: 'bg-amber-50',
+    borderColor: 'border-amber-300',
+    icon: <Clock className="w-5 h-5 text-amber-500" />,
+  },
+  dock_assigned: {
+    label: 'Dock Assigned',
+    color: 'text-blue-700',
+    bgColor: 'bg-blue-50',
+    borderColor: 'border-blue-300',
+    icon: <Truck className="w-5 h-5 text-blue-500" />,
+  },
+  loading: {
+    label: 'Loading in Progress',
+    color: 'text-purple-700',
+    bgColor: 'bg-purple-50',
+    borderColor: 'border-purple-300',
+    icon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />,
+  },
+  unloading: {
+    label: 'Unloading in Progress',
+    color: 'text-purple-700',
+    bgColor: 'bg-purple-50',
+    borderColor: 'border-purple-300',
+    icon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />,
+  },
+  complete: {
+    label: 'Load Complete — Ready to Depart',
+    color: 'text-green-700',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-300',
+    icon: <CheckCircle className="w-5 h-5 text-green-500" />,
+  },
+  on_hold: {
+    label: 'On Hold',
+    color: 'text-red-700',
+    bgColor: 'bg-red-50',
+    borderColor: 'border-red-300',
+    icon: <AlertCircle className="w-5 h-5 text-red-500" />,
+  },
+};
+
+const getStatusConfig = (status: string) =>
+  STATUS_CONFIG[status] ?? {
+    label: status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+    color: 'text-gray-700',
+    bgColor: 'bg-gray-50',
+    borderColor: 'border-gray-300',
+    icon: <Clock className="w-5 h-5 text-gray-500" />,
+  };
 
 const getSupabaseClient = () => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -70,7 +132,6 @@ const REFERENCE_NUMBER_PATTERNS = [
   /^[A-Za-z]{4}\d{7}$/,
   /^T\d{5}$/
 ];
-
 
 const validateReferenceNumber = (value: string): boolean => {
   if (!value) return false;
@@ -117,8 +178,8 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
   const Δφ = (lat2 - lat1) * Math.PI / 180;
   const Δλ = (lon2 - lon1) * Math.PI / 180;
   const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    Math.cos(φ1) * Math.cos(φ2) *
+    Math.sin(Δλ/2) * Math.sin(Δλ/2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c;
 };
@@ -149,7 +210,7 @@ const validateGeofence = (): Promise<{ valid: boolean; message?: string; distanc
       },
       (error) => {
         let message = 'Unable to verify your location. ';
-        switch(error.code) {
+        switch (error.code) {
           case error.PERMISSION_DENIED:
             message += 'Please enable location permissions in your browser.'; break;
           case error.POSITION_UNAVAILABLE:
@@ -166,19 +227,173 @@ const validateGeofence = (): Promise<{ valid: boolean; message?: string; distanc
   });
 };
 
+// ── Real-Time Status Screen ────────────────────────────────────────────────
+
+function StatusScreen({
+  initialRecord,
+  referenceNumbers,
+  supabase,
+  onNewCheckIn,
+}: {
+  initialRecord: CheckInRecord;
+  referenceNumbers: string[];
+  supabase: ReturnType<typeof getSupabaseClient>;
+  onNewCheckIn: () => void;
+}) {
+  const [record, setRecord] = useState<CheckInRecord>(initialRecord);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
+
+  useEffect(() => {
+    // Subscribe to real-time changes for this specific check-in row
+    const channel = supabase
+      .channel(`check_in_status_${initialRecord.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'check_ins',
+          filter: `id=eq.${initialRecord.id}`,
+        },
+        (payload) => {
+          setRecord(payload.new as CheckInRecord);
+          setLastUpdated(new Date());
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') setConnectionStatus('connected');
+        else if (status === 'CHANNEL_ERROR') setConnectionStatus('error');
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [initialRecord.id, supabase]);
+
+  const statusConfig = getStatusConfig(record.status);
+  const checkInTime = new Date(record.check_in_time).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
+
+        {/* Header */}
+        <div className="bg-blue-600 text-white p-6 text-center">
+          <div className="text-green-300 text-5xl mb-3">✓</div>
+          <h2 className="text-2xl font-bold">Checked In</h2>
+          <p className="text-blue-100 text-sm mt-1">
+            Welcome, {record.driver_name}!
+          </p>
+        </div>
+
+        {/* Live Status Banner */}
+        <div className={`mx-4 mt-4 p-4 rounded-lg border-2 ${statusConfig.bgColor} ${statusConfig.borderColor}`}>
+          <div className="flex items-center gap-2 mb-1">
+            {statusConfig.icon}
+            <span className={`font-semibold text-sm ${statusConfig.color}`}>
+              {statusConfig.label}
+            </span>
+          </div>
+
+          {/* Dock Number — prominently shown when assigned */}
+          {record.dock_number && (
+            <div className="mt-3 text-center">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Dock Assignment</p>
+              <p className="text-4xl font-extrabold text-blue-700">{record.dock_number}</p>
+            </div>
+          )}
+
+          {/* Optional note from the team */}
+          {record.status_note && (
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Note from Office</p>
+              <p className="text-sm text-gray-700">{record.status_note}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Check-in Details */}
+        <div className="mx-4 mt-4 p-4 bg-gray-50 rounded-lg text-sm space-y-2">
+          {referenceNumbers.filter(r => r.trim()).length > 0 && (
+            <div className="flex justify-between">
+              <span className="text-gray-500">Reference(s)</span>
+              <span className="font-medium text-gray-800 text-right max-w-[60%]">
+                {referenceNumbers.filter(r => r.trim()).join(', ')}
+              </span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="text-gray-500">Carrier</span>
+            <span className="font-medium text-gray-800">{record.carrier_name}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Trailer</span>
+            <span className="font-medium text-gray-800">{record.trailer_number}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Load Type</span>
+            <span className="font-medium text-gray-800 capitalize">{record.load_type}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Checked In At</span>
+            <span className="font-medium text-gray-800">{checkInTime}</span>
+          </div>
+        </div>
+
+        {/* Parking instructions */}
+        <div className="mx-4 mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+          🅿️ Please park in the <strong>angled parking spaces</strong> in front of the office until your dock is assigned. Keep this screen open for updates.
+        </div>
+
+        {/* Connection status + last updated */}
+        <div className="mx-4 mt-3 mb-4 flex items-center justify-between text-xs text-gray-400">
+          <div className="flex items-center gap-1.5">
+            <span className={`inline-block w-2 h-2 rounded-full ${
+              connectionStatus === 'connected' ? 'bg-green-400 animate-pulse' :
+              connectionStatus === 'error' ? 'bg-red-400' : 'bg-yellow-400 animate-pulse'
+            }`} />
+            <span>
+              {connectionStatus === 'connected' ? 'Live updates active' :
+               connectionStatus === 'error' ? 'Connection error — refresh page' :
+               'Connecting...'}
+            </span>
+          </div>
+          {lastUpdated && (
+            <span>Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          )}
+        </div>
+
+        {/* New check-in button */}
+        <div className="px-4 pb-6">
+          <button
+            onClick={onNewCheckIn}
+            className="w-full py-2.5 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            New Check-In
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+// ── Main Form Component ────────────────────────────────────────────────────
+
 export default function DriverCheckInForm() {
   const supabase = useMemo(() => getSupabaseClient(), []);
 
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
-
-  // Reference numbers as a separate array — starts with one empty field
   const [referenceNumbers, setReferenceNumbers] = useState<string[]>(['']);
-  // Per-field validation errors for reference numbers
   const [referenceErrors, setReferenceErrors] = useState<(string | null)[]>([null]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [checkInRecord, setCheckInRecord] = useState<CheckInRecord | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [locationStatus, setLocationStatus] = useState<'checking' | 'valid' | 'invalid' | null>(null);
   const [timeRestrictionWarning, setTimeRestrictionWarning] = useState<string | null>(null);
@@ -193,16 +408,12 @@ export default function DriverCheckInForm() {
     return () => clearInterval(interval);
   }, []);
 
-  // ── Reference number handlers ──────────────────────────────────────────────
-
   const handleReferenceChange = useCallback((index: number, value: string) => {
     setReferenceNumbers(prev => {
       const updated = [...prev];
       updated[index] = value;
       return updated;
     });
-
-    // Validate the changed field
     setReferenceErrors(prev => {
       const updated = [...prev];
       if (value && !validateReferenceNumber(value)) {
@@ -226,15 +437,12 @@ export default function DriverCheckInForm() {
     setReferenceErrors(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  // ── General input handler ──────────────────────────────────────────────────
-
   const handleInputChange = useCallback((
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     const processedValue = name === 'driverPhone' ? formatPhoneNumber(value) : value;
     setFormData(prev => ({ ...prev, [name]: processedValue }));
-
     if (name === 'driverEmail') {
       setEmailError(value && !validateEmail(value) ? 'Please enter a valid email address' : null);
     }
@@ -252,20 +460,16 @@ export default function DriverCheckInForm() {
     setEmailError(null);
     setError(null);
     setLocationStatus(null);
-    setSuccess(false);
+    setCheckInRecord(null);
   }, []);
-
-  // ── Submit ─────────────────────────────────────────────────────────────────
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setSuccess(false);
     setLocationStatus('checking');
 
     try {
-      // Time restriction check
       const timeCheck = isWithinAllowedTime();
       if (!timeCheck.allowed) {
         setError(timeCheck.message || 'Check-in not available at this time');
@@ -274,7 +478,6 @@ export default function DriverCheckInForm() {
         return;
       }
 
-      // Geofence check
       const geofenceCheck = await validateGeofence();
       if (!geofenceCheck.valid) {
         setError(geofenceCheck.message || 'You must be on-site to check in');
@@ -284,21 +487,18 @@ export default function DriverCheckInForm() {
       }
       setLocationStatus('valid');
 
-      // Email validation
       if (!validateEmail(formData.driverEmail)) {
         setError('Please enter a valid email address');
         setLoading(false);
         return;
       }
 
-      // Email consent
       if (!formData.emailConsent) {
         setError('You must consent to email communications to proceed');
         setLoading(false);
         return;
       }
 
-      // Build and validate reference numbers
       const filledRefs = referenceNumbers.map(r => r.trim()).filter(r => r !== '');
 
       if (filledRefs.length === 0) {
@@ -307,7 +507,6 @@ export default function DriverCheckInForm() {
         return;
       }
 
-      // Check all filled refs pass format validation
       const invalidRef = filledRefs.find(r => !validateReferenceNumber(r));
       if (invalidRef) {
         setError(`Reference number "${invalidRef}" has an invalid format`);
@@ -315,7 +514,6 @@ export default function DriverCheckInForm() {
         return;
       }
 
-      // Check for any blank intermediate fields
       const hasBlankEntry = referenceNumbers.some(
         (r, i) => r.trim() === '' && i < referenceNumbers.length - 1
       );
@@ -325,10 +523,8 @@ export default function DriverCheckInForm() {
         return;
       }
 
-      // Join multiple ref numbers comma-separated for DB storage
       const referenceNumberValue = filledRefs.join(', ');
 
-      // Insert check-in record
       const { data: checkInData, error: insertError } = await supabase
         .from('check_ins')
         .insert({
@@ -343,31 +539,33 @@ export default function DriverCheckInForm() {
           status: 'pending',
           check_in_time: new Date().toISOString(),
           email_consent: formData.emailConsent,
+          dock_number: null,
+          status_note: null,
         })
         .select()
         .single();
 
       if (insertError) throw insertError;
 
-      // Trigger confirmation email
       if (checkInData && formData.emailConsent && formData.driverEmail) {
         try {
-         await triggerCheckInEmail({
-  driverName: formData.driverName,
-  driverEmail: formData.driverEmail,
-  carrierName: formData.carrierName,
-  trailerNumber: formData.trailerNumber,
-  referenceNumber: referenceNumbers.filter(r => r).join(', '), // or however you handle this
-  loadType: formData.loadType,
-  checkInTime: new Date().toISOString(), // or however you get this
-});
-
+          await triggerCheckInEmail({
+            driverName: formData.driverName,
+            driverEmail: formData.driverEmail,
+            carrierName: formData.carrierName,
+            trailerNumber: formData.trailerNumber,
+            referenceNumber: referenceNumberValue,
+            loadType: formData.loadType,
+            checkInTime: new Date().toISOString(),
+          });
         } catch (emailErr) {
           console.error('Email trigger failed (non-fatal):', emailErr);
         }
       }
 
-      setSuccess(true);
+      // Store the full record and switch to status screen
+      setCheckInRecord(checkInData as CheckInRecord);
+
     } catch (err: any) {
       console.error('Driver check-in error:', err);
       setError(err.message || 'Failed to submit check-in. Please try again.');
@@ -377,35 +575,16 @@ export default function DriverCheckInForm() {
     }
   };
 
-  // ── Success screen ─────────────────────────────────────────────────────────
+  // ── Render status screen after successful check-in ─────────────────────
 
-  if (success) {
+  if (checkInRecord) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
-          <div className="text-green-500 text-6xl mb-4">✓</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Check-In Successful!</h2>
-          <p className="text-gray-600 mb-2">
-            Welcome, {formData.driverName}! You have been checked in successfully.
-          </p>
-          {referenceNumbers.filter(r => r.trim()).length > 0 && (
-            <p className="text-sm text-gray-500 mb-2">
-              <span className="font-medium">Reference(s):</span>{' '}
-              {referenceNumbers.filter(r => r.trim()).join(', ')}
-            </p>
-          )}
-          <p className="text-gray-600 mb-6">
-            Please park in the angled parking spaces in front of the office. 
-            {formData.emailConsent && ' A confirmation has been sent to your email.'}
-          </p>
-          <button
-            onClick={resetForm}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            New Check-In
-          </button>
-        </div>
-      </div>
+      <StatusScreen
+        initialRecord={checkInRecord}
+        referenceNumbers={referenceNumbers}
+        supabase={supabase}
+        onNewCheckIn={resetForm}
+      />
     );
   }
 
@@ -421,19 +600,17 @@ export default function DriverCheckInForm() {
             <p className="text-blue-100 mt-1">Please fill out all required fields to check in</p>
           </div>
 
-          {/* Time restriction warning */}
           {timeRestrictionWarning && (
             <div className="mx-6 mt-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded">
               ⚠️ {timeRestrictionWarning}
             </div>
           )}
 
-          {/* Location status indicator */}
           {locationStatus === 'checking' && (
             <div className="mx-6 mt-4 p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded flex items-center gap-2">
               <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
               </svg>
               Verifying your location...
             </div>
@@ -447,7 +624,7 @@ export default function DriverCheckInForm() {
 
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
 
-            {/* ── Driver Information ── */}
+            {/* Driver Information */}
             <div className="border-b pb-5">
               <h2 className="text-lg font-semibold text-gray-700 mb-4">Driver Information</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -490,23 +667,17 @@ export default function DriverCheckInForm() {
                     onChange={handleInputChange}
                     required
                     placeholder="driver@example.com"
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      emailError ? 'border-red-400' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${emailError ? 'border-red-400' : 'border-gray-300'}`}
                   />
-                  {emailError && (
-                    <p className="text-red-500 text-xs mt-1">{emailError}</p>
-                  )}
+                  {emailError && <p className="text-red-500 text-xs mt-1">{emailError}</p>}
                 </div>
               </div>
             </div>
 
-            {/* ── Load Information ── */}
+            {/* Load Information */}
             <div className="border-b pb-5">
               <h2 className="text-lg font-semibold text-gray-700 mb-4">Load Information</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                {/* Load Type */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Load Type <span className="text-red-500">*</span>
@@ -523,13 +694,11 @@ export default function DriverCheckInForm() {
                   </select>
                 </div>
 
-                {/* Reference Numbers */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-sm font-medium text-gray-700">
                       Reference Number(s) <span className="text-red-500">*</span>
                     </label>
-                    {/* Plus button to add another ref number field */}
                     <button
                       type="button"
                       onClick={addReferenceNumber}
@@ -540,7 +709,6 @@ export default function DriverCheckInForm() {
                       Add
                     </button>
                   </div>
-
                   <div className="space-y-2">
                     {referenceNumbers.map((ref, index) => (
                       <div key={index}>
@@ -550,16 +718,9 @@ export default function DriverCheckInForm() {
                             value={ref}
                             onChange={e => handleReferenceChange(index, e.target.value)}
                             required={index === 0}
-                            placeholder={
-                              index === 0
-                                ? 'e.g., 2xxxxxx or 4xxxxxx or 8xxxxxxx'
-                                : `Reference #${index + 1}`
-                            }
-                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              referenceErrors[index] ? 'border-red-400' : 'border-gray-300'
-                            }`}
+                            placeholder={index === 0 ? 'e.g., 2xxxxxx or 4xxxxxx or 8xxxxxxx' : `Reference #${index + 1}`}
+                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${referenceErrors[index] ? 'border-red-400' : 'border-gray-300'}`}
                           />
-                          {/* Remove button — only on additional fields */}
                           {index > 0 && (
                             <button
                               type="button"
@@ -571,7 +732,6 @@ export default function DriverCheckInForm() {
                             </button>
                           )}
                         </div>
-                        {/* Per-field format error */}
                         {referenceErrors[index] && (
                           <p className="text-red-500 text-xs mt-1">{referenceErrors[index]}</p>
                         )}
@@ -579,11 +739,10 @@ export default function DriverCheckInForm() {
                     ))}
                   </div>
                 </div>
-
               </div>
             </div>
 
-            {/* ── Carrier & Trailer ── */}
+            {/* Carrier & Trailer */}
             <div className="border-b pb-5">
               <h2 className="text-lg font-semibold text-gray-700 mb-4">Carrier & Trailer</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -634,7 +793,7 @@ export default function DriverCheckInForm() {
               </div>
             </div>
 
-            {/* ── Email Consent ── */}
+            {/* Email Consent */}
             <div className="border-b pb-5">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
@@ -651,13 +810,13 @@ export default function DriverCheckInForm() {
               </label>
             </div>
 
-            {/* ── Submit ── */}
-            <div className="flex justify-end">
+            {/* Submit */}
+            <div className="flex justify-end gap-3">
               <button
                 type="submit"
                 disabled={loading || !!timeRestrictionWarning}
                 className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${
-                  loading || timeRestrictionWarning || referenceErrors || emailError
+                  loading || timeRestrictionWarning
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
                 }`}
@@ -665,14 +824,12 @@ export default function DriverCheckInForm() {
                 {loading ? (
                   <span className="flex items-center justify-center">
                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
                     Processing...
                   </span>
-                ) : (
-                  'Check In'
-                )}
+                ) : 'Check In'}
               </button>
 
               {(formData.driverName || formData.carrierName) && (
@@ -686,7 +843,7 @@ export default function DriverCheckInForm() {
               )}
             </div>
 
-            {/* Additional Info */}
+            {/* Footer */}
             <div className="text-center text-xs text-gray-500 pt-4 border-t border-gray-200">
               <p className="mb-1">
                 <strong>Operating Hours:</strong> Monday - Friday, 7:00 AM - 5:00 PM
@@ -695,7 +852,7 @@ export default function DriverCheckInForm() {
                 <strong>Location Verification:</strong> You must be on-site to complete check-in
               </p>
               <p>
-                For assistance, contact the shipping office at{''}
+                For assistance, contact the shipping office at{' '}
                 <a href="tel:+17654742512" className="text-blue-600 hover:underline">
                   (765) 474-2512
                 </a>
