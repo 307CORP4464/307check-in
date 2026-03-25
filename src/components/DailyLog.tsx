@@ -461,11 +461,11 @@ function StatusDetailPopover({ checkIn, onClose }: StatusDetailPopoverProps) {
           <p className="text-sm text-gray-500 italic">No additional details recorded for this status.</p>
         )}
 
-        {/* Denial Reason (turned_away or denied) */}
-        {(status === 'turned_away' || status === 'denied') && checkIn.denial_reason && (
+        {/* Denial Reason (turned_away or check_in_denial) */}
+        {(status === 'turned_away' || status === 'check_in_denial') && checkIn.denial_reason && (
           <div className="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
             <p className="text-xs font-bold text-orange-700 uppercase tracking-wide mb-1">
-              {status === 'denied' ? 'Reason Denied' : 'Reason Turned Away'}
+              {status === 'check_in_denial' ? 'Reason Denied' : 'Reason Turned Away'}
             </p>
             <p className="text-sm text-orange-900">{checkIn.denial_reason}</p>
           </div>
@@ -1139,12 +1139,13 @@ const statusHasDetails = (checkIn: CheckIn): boolean => {
   const getStatusBadgeColor = (status: string): string => {
     const statusLower = status.toLowerCase();
     if (statusLower === 'completed' || statusLower === 'checked_out') return 'bg-gray-500 text-white';
-    if (statusLower === 'unloaded'  || statusLower === 'checked_out') return 'bg-green-500 text-white';
+    if (statusLower === 'unloaded') return 'bg-green-500 text-white';
     if (statusLower === 'rejected') return 'bg-red-500 text-white';
     if (statusLower === 'turned_away') return 'bg-orange-500 text-white';
     if (statusLower === 'driver_left') return 'bg-indigo-500 text-white';
     if (statusLower === 'pending') return 'bg-yellow-500 text-white';
     if (statusLower === 'checked_in') return 'bg-purple-500 text-white';
+    if (statusLower === 'check_in_denial') return 'bg-red-700 text-white';
     return 'bg-gray-500 text-white';
   };
 
@@ -1155,6 +1156,7 @@ const statusHasDetails = (checkIn: CheckIn): boolean => {
     if (status === 'turned_away') return 'Turned Away';
     if (status === 'unloaded') return 'Unloaded';
     if (status === 'rejected') return 'Rejected';
+    if (status === 'check_in_denial') return 'Denied';
     return status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ');
   };
 
@@ -1283,7 +1285,6 @@ const statusHasDetails = (checkIn: CheckIn): boolean => {
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment Time</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Detention</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
@@ -1401,12 +1402,6 @@ const statusHasDetails = (checkIn: CheckIn): boolean => {
                   })()}
                 </td>
 
-                {/* Notes */}
-                <td className="px-4 py-3 text-sm max-w-xs">
-                  <div className="truncate" title={checkIn.notes || ''}>
-                    {checkIn.notes || 'N/A'}
-                  </div>
-                </td>
 
                 {/* Status — clickable if there are details */}
                 <td className="px-4 py-4 whitespace-nowrap text-sm">
