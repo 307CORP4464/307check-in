@@ -923,7 +923,15 @@ export default function DriverCheckInForm() {
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
 
+          <a
+                  href="/status"
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                >
+                  🔍 Already checked in? Look up your load status
+                </a>
+
           <div className="bg-blue-600 text-white p-6">
+            
             <h1 className="text-2xl font-bold">Driver Check-In</h1>
             <p className="text-blue-100 mt-1">Please fill out all required fields to check in</p>
           </div>
