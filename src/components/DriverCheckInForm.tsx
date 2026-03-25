@@ -420,8 +420,9 @@ function StatusScreen({
   const isDenied = record.status === 'check_in_denial' || record.status === 'turned_away';
   const isCheckedOut = record.status === 'checked_out';
   const isComplete = record.status === 'complete';
-  const isDockAssigned = record.status === 'dock_assigned';
-  const showInstructions = isDockAssigned || record.status === 'loading' || record.status === 'unloading' || !!record.dock_number;
+  const isDockAssigned = record.status === 'dock_assigned' || (!!record.dock_number && record.status === 'pending');
+  const hasDock = !!record.dock_number;
+  const showInstructions = isDockAssigned && !['loading', 'unloading', 'checked_out', 'complete', 'rejected', 'check_in_denial', 'turned_away', 'driver_left', 'on_hold'].includes(record.status);
 
   const dockDisplay = record.dock_number
     ? (record.dock_number === 'Ramp' ? 'RAMP' : record.dock_number)
@@ -537,7 +538,7 @@ function StatusScreen({
           {instructionBox}
 
           {/* Double booked warning */}
-          {record.is_double_booked && isDockAssigned && (
+          {record.is_double_booked && hasDock && (
             <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
               <p className="text-sm font-bold text-orange-700 mb-1">⚠️ Important — Please Wait Before Pulling In</p>
               <p className="text-sm text-orange-800">This dock is currently occupied by another truck. <strong>Do not pull into the dock until the first truck has fully pulled out.</strong> Once the dock is clear, proceed with your normal instructions below.</p>
@@ -545,7 +546,7 @@ function StatusScreen({
           )}
 
           {/* Gross weight */}
-          {record.gross_weight && isDockAssigned && (
+          {record.gross_weight && hasDock && (
             <div className="p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
               <p className="text-sm font-bold text-orange-700">⚖️ Gross Weight: {Number(record.gross_weight).toLocaleString()} lbs</p>
               <p className="text-xs text-yellow-800 mt-1">If you have any concerns or disputes regarding this weight, please see us in the office before proceeding to your assigned dock. By continuing to the dock you are accepting this weight.</p>
@@ -591,48 +592,55 @@ function StatusScreen({
           )}
 
           {/* ── TRAILER REJECTED content ── */}
-          {isRejected && (
-            <>
-              <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
-                <p className="text-sm font-bold text-red-700 mb-2">⚠️ Your trailer has been rejected for the following reason(s):</p>
-                {record.rejection_reasons && record.rejection_reasons.length > 0 ? (
-                  <ol className="space-y-1.5">
-                    {record.rejection_reasons.map((reason, i) => (
-                      <li key={i} className="flex gap-2 text-sm text-red-800">
-                        <span className="font-bold text-red-500 shrink-0">{i + 1}.</span>
-                        {reason}
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="text-sm text-red-700">Please see the office for details.</p>
+          {isRejected && (() => {
+            // Parse rejection_reasons safely — handles Postgres array, JSON string, or plain array
+            let reasons: string[] = [];
+            if (record.rejection_reasons) {
+              if (Array.isArray(record.rejection_reasons)) {
+                reasons = record.rejection_reasons.filter(Boolean);
+              } else if (typeof record.rejection_reasons === 'string') {
+                try { reasons = JSON.parse(record.rejection_reasons as string); } catch { reasons = [record.rejection_reasons as string]; }
+              }
+            }
+            return (
+              <>
+                {reasons.length > 0 && (
+                  <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
+                    <p className="text-sm font-bold text-red-700 mb-3">⚠️ Your trailer has been rejected for the following reason(s):</p>
+                    <ol className="space-y-2">
+                      {reasons.map((reason, i) => (
+                        <li key={i} className="flex gap-2 text-sm text-red-800">
+                          <span className="font-bold text-red-500 shrink-0">{i + 1}.</span>
+                          <span>{reason}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
                 )}
-              </div>
 
-              {record.resolution_action && (
                 <div className={`p-4 rounded-lg border-2 ${
-                  record.resolution_action === 'correct_and_return'
-                    ? 'bg-yellow-50 border-orange-400'
-                    : 'bg-red-50 border-red-500'
+                  record.resolution_action === 'new_trailer'
+                    ? 'bg-red-50 border-red-500'
+                    : 'bg-yellow-50 border-orange-400'
                 }`}>
-                  <p className={`text-sm font-bold mb-1 ${
-                    record.resolution_action === 'correct_and_return' ? 'text-orange-700' : 'text-red-700'
+                  <p className={`text-sm font-bold mb-2 ${
+                    record.resolution_action === 'new_trailer' ? 'text-red-700' : 'text-orange-700'
                   }`}>
-                    {record.resolution_action === 'correct_and_return' ? '🔧 What You Need to Do:' : '🚫 Important Notice:'}
+                    {record.resolution_action === 'new_trailer' ? '🚫 Important Notice:' : '🔧 What You Need to Do:'}
                   </p>
-                  <p className={`text-sm ${
-                    record.resolution_action === 'correct_and_return' ? 'text-orange-800' : 'text-red-800'
+                  <p className={`text-sm leading-relaxed ${
+                    record.resolution_action === 'new_trailer' ? 'text-red-800' : 'text-orange-800'
                   }`}>
-                    {record.resolution_action === 'correct_and_return'
-                      ? 'The trailer issues listed above must be corrected before re-entry. Once the trailer has been cleaned and/or repaired to meet our requirements, you may check back in.'
-                      : 'This trailer will not be loaded under any circumstances. A new, clean trailer that meets our requirements must be provided in order to proceed with this load.'}
+                    {record.resolution_action === 'new_trailer'
+                      ? 'This trailer will not be loaded under any circumstances. A new, clean trailer that meets our requirements must be provided in order to proceed with this load.'
+                      : 'The trailer issues listed above must be corrected before re-entry. Once the trailer has been cleaned and/or repaired to meet our requirements, you may check back in.'}
                   </p>
                 </div>
-              )}
 
-              <p className="text-xs text-center text-gray-500">If you have questions, please see us in the office.</p>
-            </>
-          )}
+                <p className="text-xs text-center text-gray-500">If you have questions, please see us in the office.</p>
+              </>
+            );
+          })()}
 
           {/* ── CHECK-IN DENIED content ── */}
           {isDenied && (
