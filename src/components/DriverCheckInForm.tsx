@@ -221,7 +221,7 @@ const getStatusMeta = (status: string): StatusMeta => {
 
 function OutboundInstructions() {
   return (
-    <div className="mt-4 pt-4 border-t border-blue-200">
+    <div>
       <p className="text-sm font-bold text-blue-700 mb-3">🚚 Loading Instructions:</p>
       <ol className="space-y-2">
         {[
@@ -245,7 +245,7 @@ function OutboundInstructions() {
 
 function InboundInstructions() {
   return (
-    <div className="mt-4 pt-4 border-t border-blue-200">
+    <div>
       <p className="text-sm font-bold text-blue-700 mb-3">📦 Unloading Instructions:</p>
       <ol className="space-y-2">
         {[
@@ -517,7 +517,7 @@ function StatusScreen({
         {/* Dynamic instruction box — above the status banner */}
         {instructionBox}
 
-        {/* Live Status Banner */}
+        {/* Live Status Banner — status label + dock number only */}
         <div className={`mx-4 mt-4 p-4 rounded-lg border-2 ${meta.bannerBg} ${meta.bannerBorder} transition-all duration-500`}>
           <div className="flex items-center gap-2 mb-1">
             {meta.bannerIcon}
@@ -531,10 +531,14 @@ function StatusScreen({
               <p className="text-5xl font-extrabold text-blue-700">{dockDisplay}</p>
             </div>
           )}
+        </div>
+
+        {/* ── Detail content — all email info, above load info box ── */}
+        <div className="mx-4 mt-3 space-y-3">
 
           {/* Double booked warning */}
           {record.is_double_booked && isDockAssigned && (
-            <div className="mt-3 p-3 bg-orange-50 border-2 border-orange-400 rounded-lg">
+            <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
               <p className="text-sm font-bold text-orange-700 mb-1">⚠️ Important — Please Wait Before Pulling In</p>
               <p className="text-sm text-orange-800">This dock is currently occupied by another truck. <strong>Do not pull into the dock until the first truck has fully pulled out.</strong> Once the dock is clear, proceed with your normal instructions below.</p>
             </div>
@@ -542,7 +546,7 @@ function StatusScreen({
 
           {/* Gross weight */}
           {record.gross_weight && isDockAssigned && (
-            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 rounded-lg">
+            <div className="p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
               <p className="text-sm font-bold text-orange-700">⚖️ Gross Weight: {Number(record.gross_weight).toLocaleString()} lbs</p>
               <p className="text-xs text-yellow-800 mt-1">If you have any concerns or disputes regarding this weight, please see us in the office before proceeding to your assigned dock. By continuing to the dock you are accepting this weight.</p>
             </div>
@@ -550,8 +554,8 @@ function StatusScreen({
 
           {/* Appointment time */}
           {record.appointment_time && (
-            <div className="mt-3 pt-3 border-t border-gray-200">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Appointment Time</p>
+            <div className="p-4 bg-white border border-gray-200 rounded-lg">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Appointment Time</p>
               <div className="flex items-center gap-2">
                 <p className="text-sm font-medium text-gray-800">{formatDateTime(record.appointment_time)}</p>
                 {record.appointment_status && (
@@ -568,26 +572,28 @@ function StatusScreen({
             </div>
           )}
 
-          {/* Completion time */}
-          {isComplete && record.end_time && (
-            <div className="mt-3 pt-3 border-t border-gray-200">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Completed At</p>
-              <p className="text-sm font-medium text-gray-800">{formatDateTime(record.end_time)}</p>
-            </div>
-          )}
-
-          {/* Load instructions — shown when dock is assigned or loading/unloading */}
+          {/* Load instructions — outbound or inbound, shown from dock_assigned onwards */}
           {showInstructions && (
-            record.load_type === 'inbound' ? <InboundInstructions /> : <OutboundInstructions />
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              {record.load_type === 'inbound' ? <InboundInstructions /> : <OutboundInstructions />}
+            </div>
           )}
 
           {/* Checked out next steps */}
           {isCheckedOut && <CheckedOutNextSteps />}
 
+          {/* Completion time */}
+          {isComplete && record.end_time && (
+            <div className="p-4 bg-white border border-gray-200 rounded-lg">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Completed At</p>
+              <p className="text-sm font-medium text-gray-800">{formatDateTime(record.end_time)}</p>
+            </div>
+          )}
+
           {/* ── TRAILER REJECTED content ── */}
           {isRejected && (
             <>
-              <div className="mt-3 pt-3 border-t border-red-200">
+              <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
                 <p className="text-sm font-bold text-red-700 mb-2">⚠️ Your trailer has been rejected for the following reason(s):</p>
                 {record.rejection_reasons && record.rejection_reasons.length > 0 ? (
                   <ol className="space-y-1.5">
@@ -604,7 +610,7 @@ function StatusScreen({
               </div>
 
               {record.resolution_action && (
-                <div className={`mt-3 p-3 rounded-lg border-2 ${
+                <div className={`p-4 rounded-lg border-2 ${
                   record.resolution_action === 'correct_and_return'
                     ? 'bg-yellow-50 border-orange-400'
                     : 'bg-red-50 border-red-500'
@@ -624,7 +630,7 @@ function StatusScreen({
                 </div>
               )}
 
-              <p className="mt-3 text-xs text-center text-gray-500">If you have questions, please see us in the office.</p>
+              <p className="text-xs text-center text-gray-500">If you have questions, please see us in the office.</p>
             </>
           )}
 
@@ -632,22 +638,23 @@ function StatusScreen({
           {isDenied && (
             <>
               {record.denial_reason && (
-                <div className="mt-3 pt-3 border-t border-red-200">
+                <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
                   <p className="text-xs text-red-600 uppercase tracking-wide mb-1 font-semibold">Reason for Denial</p>
                   <p className="text-sm text-red-800">{record.denial_reason}</p>
                 </div>
               )}
-              <p className="mt-3 text-sm text-red-700">Please contact the facility for further assistance or clarification.</p>
+              <p className="text-sm text-red-700 text-center">Please contact the facility for further assistance or clarification.</p>
             </>
           )}
 
           {/* Notes from office */}
           {record.status_note && (
-            <div className="mt-3 pt-3 border-t border-gray-200">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Note from Office</p>
+            <div className="p-4 bg-white border border-gray-200 rounded-lg">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Note from Office</p>
               <p className="text-sm text-gray-700">{record.status_note}</p>
             </div>
           )}
+
         </div>
 
         {/* Check-in details */}
