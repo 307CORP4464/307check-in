@@ -192,7 +192,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
       const { data: checkIns } = await supabase
         .from('check_ins')
         .select('id, reference_number, status, check_in_time, appointment_time, dock_number')
-        .in('status', ['checked_in', 'pending'])
+        .in('status', ['checked_in', 'dock_assigned', 'pending'])
         .not('dock_number', 'is', null)
         .neq('id', checkIn.id);
 
@@ -334,7 +334,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
         .from('check_ins')
         .update({
           dock_number: dockNumber,
-          status: 'dock_assigned',
+          status: 'checked_in',
           appointment_time: checkIn.appointment_time,
           gross_weight: grossWeight ? grossWeight.trim() : null,
           is_double_booked: isDoubleBooked,
@@ -348,7 +348,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
           .from('check_ins')
           .update({
             dock_number: dockNumber,
-            status: 'dock_assigned',
+            status: 'checked_in',
             appointment_time: checkIn.appointment_time,
           })
           .eq('id', checkIn.id);
