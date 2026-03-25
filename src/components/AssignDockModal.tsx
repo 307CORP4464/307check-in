@@ -327,7 +327,10 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
       const assignedDock = dockStatuses.find(d => d.dock_number === dockNumber);
       const isDoubleBooked = assignedDock?.status === 'in-use';
 
-      const { error: updateError } = await supabase
+      // Try update with new columns first; fall back without them if columns don't exist yet
+      let updateError: any = null;
+
+      const fullUpdate = await supabase
         .from('check_ins')
         .update({
           dock_number: dockNumber,
@@ -337,6 +340,23 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
           is_double_booked: isDoubleBooked,
         })
         .eq('id', checkIn.id);
+
+      if (fullUpdate.error) {
+        console.warn('Full update failed, trying without new columns:', fullUpdate.error.message);
+        // Columns may not exist yet — fall back to base update
+        const baseUpdate = await supabase
+          .from('check_ins')
+          .update({
+            dock_number: dockNumber,
+            status: 'dock_assigned',
+            appointment_time: checkIn.appointment_time,
+          })
+          .eq('id', checkIn.id);
+        updateError = baseUpdate.error;
+        if (!updateError) {
+          console.warn('Base update succeeded. Add these columns to check_ins:\n  ALTER TABLE check_ins ADD COLUMN IF NOT EXISTS gross_weight TEXT;\n  ALTER TABLE check_ins ADD COLUMN IF NOT EXISTS is_double_booked BOOLEAN DEFAULT false;');
+        }
+      }
 
       if (updateError) throw updateError;
 
@@ -351,8 +371,9 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
       printReceipt();
       onSuccess();
       onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to assign dock');
+    } catch (err: any) {
+      console.error('Assign dock error:', err);
+      setError(err?.message || err?.details || JSON.stringify(err) || 'Failed to assign dock');
     } finally {
       setLoading(false);
     }
