@@ -28,8 +28,12 @@ interface CheckInRecord {
   dock_number: string | null;
   status_note: string | null;
   appointment_time: string | null;
+  appointment_status: string | null;
+  gross_weight: string | null;
+  is_double_booked: boolean | null;
   rejection_reasons: string[] | null;
   resolution_action: 'correct_and_return' | 'new_trailer' | null;
+  denial_reason: string | null;
   check_in_time: string;
   end_time: string | null;
 }
@@ -45,12 +49,6 @@ const INITIAL_FORM_DATA: FormData = {
   trailerNumber: '',
   trailerLength: '',
   loadType: 'outbound',
-};
-
-const SITE_COORDINATES = {
-  latitude: 40.37260025266849,
-  longitude: -86.82089938420066,
-  radiusMeters: 300,
 };
 
 const TRAILER_LENGTHS = [
@@ -75,116 +73,163 @@ const REFERENCE_NUMBER_PATTERNS = [
   /^T\d{5}$/,
 ];
 
-// ── Status configuration ───────────────────────────────────────────────────
+// ── Status helpers ─────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<string, {
-  label: string;
-  color: string;
-  bgColor: string;
-  borderColor: string;
+type StatusMeta = {
   headerBg: string;
+  headerTitle: string;
+  headerIcon: string;
+  bannerBg: string;
+  bannerBorder: string;
+  bannerText: string;
+  bannerIcon: React.ReactNode;
+  bannerLabel: string;
   badgeBg: string;
   badgeText: string;
-  icon: React.ReactNode;
-}> = {
-  pending: {
-    label: 'Awaiting Assignment',
-    color: 'text-amber-700',
-    bgColor: 'bg-amber-50',
-    borderColor: 'border-amber-300',
-    headerBg: 'bg-amber-500',
-    badgeBg: 'bg-amber-100',
-    badgeText: 'text-amber-700',
-    icon: <Clock className="w-5 h-5 text-amber-500" />,
-  },
-  dock_assigned: {
-    label: 'Dock Assigned',
-    color: 'text-blue-700',
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-300',
-    headerBg: 'bg-blue-600',
-    badgeBg: 'bg-blue-100',
-    badgeText: 'text-blue-700',
-    icon: <Truck className="w-5 h-5 text-blue-500" />,
-  },
-  loading: {
-    label: 'Loading',
-    color: 'text-purple-700',
-    bgColor: 'bg-purple-50',
-    borderColor: 'border-purple-300',
-    headerBg: 'bg-purple-600',
-    badgeBg: 'bg-purple-100',
-    badgeText: 'text-purple-700',
-    icon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />,
-  },
-  unloading: {
-    label: 'Unloading',
-    color: 'text-purple-700',
-    bgColor: 'bg-purple-50',
-    borderColor: 'border-purple-300',
-    headerBg: 'bg-purple-600',
-    badgeBg: 'bg-purple-100',
-    badgeText: 'text-purple-700',
-    icon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />,
-  },
-  complete: {
-    label: 'Complete',
-    color: 'text-green-700',
-    bgColor: 'bg-green-50',
-    borderColor: 'border-green-300',
-    headerBg: 'bg-green-600',
-    badgeBg: 'bg-green-100',
-    badgeText: 'text-green-700',
-    icon: <CheckCircle className="w-5 h-5 text-green-500" />,
-  },
-  on_hold: {
-    label: 'On Hold',
-    color: 'text-red-700',
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-300',
-    headerBg: 'bg-red-600',
-    badgeBg: 'bg-red-100',
-    badgeText: 'text-red-700',
-    icon: <AlertCircle className="w-5 h-5 text-red-500" />,
-  },
-  rejected: {
-    label: 'Denied',
-    color: 'text-red-700',
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-300',
-    headerBg: 'bg-red-700',
-    badgeBg: 'bg-red-100',
-    badgeText: 'text-red-700',
-    icon: <XCircle className="w-5 h-5 text-red-500" />,
-  },
-  check_in_denial: {
-    label: 'Denied',
-    color: 'text-red-700',
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-300',
-    headerBg: 'bg-red-700',
-    badgeBg: 'bg-red-100',
-    badgeText: 'text-red-700',
-    icon: <XCircle className="w-5 h-5 text-red-500" />,
-  },
 };
 
-const getStatusConfig = (status: string) =>
-  STATUS_CONFIG[status] ?? {
-    label: status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-    color: 'text-gray-700',
-    bgColor: 'bg-gray-50',
-    borderColor: 'border-gray-300',
-    headerBg: 'bg-gray-600',
-    badgeBg: 'bg-gray-100',
-    badgeText: 'text-gray-700',
-    icon: <Package className="w-5 h-5 text-gray-500" />,
-  };
-
-const RESOLUTION_LABELS: Record<string, string> = {
-  correct_and_return: 'Correct the issue and return for re-inspection',
-  new_trailer: 'Return with a new trailer',
+const getStatusMeta = (status: string): StatusMeta => {
+  switch (status) {
+    case 'pending':
+      return {
+        headerBg: 'bg-amber-500', headerTitle: 'Checked In', headerIcon: '✓',
+        bannerBg: 'bg-amber-50', bannerBorder: 'border-amber-300', bannerText: 'text-amber-700',
+        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'Awaiting Dock Assignment',
+        badgeBg: 'bg-amber-100', badgeText: 'text-amber-700',
+      };
+    case 'dock_assigned':
+      return {
+        headerBg: 'bg-blue-600', headerTitle: 'Dock Assigned', headerIcon: '✓',
+        bannerBg: 'bg-blue-50', bannerBorder: 'border-blue-300', bannerText: 'text-blue-700',
+        bannerIcon: <Truck className="w-5 h-5 text-blue-500" />, bannerLabel: 'Dock Assigned — Please Proceed',
+        badgeBg: 'bg-blue-100', badgeText: 'text-blue-700',
+      };
+    case 'loading':
+      return {
+        headerBg: 'bg-purple-600', headerTitle: 'Loading in Progress', headerIcon: '🚛',
+        bannerBg: 'bg-purple-50', bannerBorder: 'border-purple-300', bannerText: 'text-purple-700',
+        bannerIcon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />, bannerLabel: 'Loading in Progress',
+        badgeBg: 'bg-purple-100', badgeText: 'text-purple-700',
+      };
+    case 'unloading':
+      return {
+        headerBg: 'bg-purple-600', headerTitle: 'Unloading in Progress', headerIcon: '📦',
+        bannerBg: 'bg-purple-50', bannerBorder: 'border-purple-300', bannerText: 'text-purple-700',
+        bannerIcon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />, bannerLabel: 'Unloading in Progress',
+        badgeBg: 'bg-purple-100', badgeText: 'text-purple-700',
+      };
+    case 'checked_out':
+      return {
+        headerBg: 'bg-orange-500', headerTitle: 'Almost Finished — Waiting to Be Sealed', headerIcon: '🟡',
+        bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
+        bannerIcon: <AlertCircle className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed',
+        badgeBg: 'bg-orange-100', badgeText: 'text-orange-700',
+      };
+    case 'complete':
+      return {
+        headerBg: 'bg-green-600', headerTitle: 'Load Complete — Ready to Depart', headerIcon: '✓',
+        bannerBg: 'bg-green-50', bannerBorder: 'border-green-300', bannerText: 'text-green-700',
+        bannerIcon: <CheckCircle className="w-5 h-5 text-green-500" />, bannerLabel: 'Load Complete — Ready to Depart',
+        badgeBg: 'bg-green-100', badgeText: 'text-green-700',
+      };
+    case 'on_hold':
+      return {
+        headerBg: 'bg-red-600', headerTitle: 'On Hold', headerIcon: '⚠️',
+        bannerBg: 'bg-red-50', bannerBorder: 'border-red-300', bannerText: 'text-red-700',
+        bannerIcon: <AlertCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'On Hold',
+        badgeBg: 'bg-red-100', badgeText: 'text-red-700',
+      };
+    case 'rejected':
+      return {
+        headerBg: 'bg-red-700', headerTitle: 'Trailer Rejected', headerIcon: '⚠️',
+        bannerBg: 'bg-red-50', bannerBorder: 'border-red-400', bannerText: 'text-red-700',
+        bannerIcon: <XCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'Trailer Rejected',
+        badgeBg: 'bg-red-100', badgeText: 'text-red-700',
+      };
+    case 'check_in_denial':
+    case 'turned_away':
+      return {
+        headerBg: 'bg-red-700', headerTitle: 'Check-In Denied', headerIcon: '✕',
+        bannerBg: 'bg-red-50', bannerBorder: 'border-red-400', bannerText: 'text-red-700',
+        bannerIcon: <XCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'Check-In Denied',
+        badgeBg: 'bg-red-100', badgeText: 'text-red-700',
+      };
+    default:
+      return {
+        headerBg: 'bg-gray-600', headerTitle: status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), headerIcon: '✓',
+        bannerBg: 'bg-gray-50', bannerBorder: 'border-gray-300', bannerText: 'text-gray-700',
+        bannerIcon: <Package className="w-5 h-5 text-gray-500" />, bannerLabel: status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        badgeBg: 'bg-gray-100', badgeText: 'text-gray-700',
+      };
+  }
 };
+
+// ── Load Instructions ──────────────────────────────────────────────────────
+
+function OutboundInstructions() {
+  return (
+    <div className="mt-4 pt-4 border-t border-blue-200">
+      <p className="text-sm font-bold text-blue-700 mb-3">🚚 Loading Instructions:</p>
+      <ol className="space-y-2">
+        {[
+          'Place 2 load bars or straps in your trailer.',
+          'Leave your doors closed. We will open inside the building.',
+          'Slide your tandems to the back.',
+          'Back into the assigned dock once open.',
+          'The light will change to red when you are being loaded.',
+          'You will receive an update here when your status changes.',
+          'When you are done the light will go back to green. You will also receive an update here.',
+        ].map((step, i) => (
+          <li key={i} className="flex gap-2 text-sm text-gray-700">
+            <span className="font-bold text-blue-600 shrink-0">{i + 1}.</span>
+            {step}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function InboundInstructions() {
+  return (
+    <div className="mt-4 pt-4 border-t border-blue-200">
+      <p className="text-sm font-bold text-blue-700 mb-3">📦 Unloading Instructions:</p>
+      <ol className="space-y-2">
+        {[
+          'Do NOT cut your seal.',
+          'Slide your tandems to the back.',
+          'Back into the assigned dock.',
+          'The light will turn red when you are being unloaded.',
+          'When you are done the light will turn green.',
+          'If you need your paperwork signed please bring a copy to the office when you are unloaded.',
+        ].map((step, i) => (
+          <li key={i} className="flex gap-2 text-sm text-gray-700">
+            <span className="font-bold text-blue-600 shrink-0">{i + 1}.</span>
+            {step}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function CheckedOutNextSteps() {
+  return (
+    <div className="mt-3 p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
+      <p className="text-sm font-bold text-orange-700 mb-3">📋 Next Steps — Please Read Carefully:</p>
+      <ol className="space-y-2">
+        <li className="flex gap-2 text-sm text-gray-700">
+          <span className="shrink-0">🟢</span>
+          <span><strong>Step 1:</strong> Watch for the <strong>dock light to change to GREEN</strong>.</span>
+        </li>
+        <li className="flex gap-2 text-sm text-gray-700">
+          <span className="shrink-0">🏢</span>
+          <span><strong>Step 2:</strong> Once the light turns green, <strong>come to the office for your paperwork</strong>.</span>
+        </li>
+      </ol>
+    </div>
+  );
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -214,8 +259,7 @@ const formatPhoneNumber = (value: string): string => {
 
 const getTodayDateTime = (): string => {
   const now = new Date();
-  const offset = now.getTimezoneOffset() * 60000;
-  return new Date(now.getTime() - offset).toISOString().slice(0, 16);
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
 
 const getNextWorkingDayAt0600 = (): string => {
@@ -225,11 +269,9 @@ const getNextWorkingDayAt0600 = (): string => {
   if (next.getDay() === 6) next.setDate(next.getDate() + 2);
   if (next.getDay() === 0) next.setDate(next.getDate() + 1);
   next.setHours(6, 0, 0, 0);
-  const offset = next.getTimezoneOffset() * 60000;
-  return new Date(next.getTime() - offset).toISOString().slice(0, 16);
+  return new Date(next.getTime() - next.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
 
-/** Returns today's date boundaries in UTC for Supabase range query */
 const getTodayUTCRange = () => {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
@@ -264,24 +306,16 @@ function CarrierCheckInList({
       .gte('check_in_time', start)
       .lte('check_in_time', end)
       .order('check_in_time', { ascending: true });
-
     if (!error && data) setRecords(data as CheckInRecord[]);
     setLoading(false);
   }, [supabase]);
 
   useEffect(() => {
     fetchRecords();
-
-    // Subscribe to any changes for Vision check-ins today
     const channel = supabase
       .channel('vision_checkins_today')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'check_ins' },
-        () => { fetchRecords(); }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, () => fetchRecords())
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [fetchRecords, supabase]);
 
@@ -308,53 +342,44 @@ function CarrierCheckInList({
       </h3>
       <div className="space-y-3">
         {records.map((r) => {
-          const cfg = getStatusConfig(r.status);
+          const meta = getStatusMeta(r.status);
           const isCurrentRecord = r.id === currentRecordId;
+          const dockDisplay = r.dock_number === 'Ramp' ? 'RAMP' : r.dock_number;
           return (
-            <div
-              key={r.id}
-              className={`bg-white rounded-lg border-2 p-4 transition-all ${
-                isCurrentRecord ? 'border-indigo-400 shadow-md' : 'border-gray-200'
-              }`}
-            >
+            <div key={r.id} className={`bg-white rounded-lg border-2 p-4 transition-all ${isCurrentRecord ? 'border-indigo-400 shadow-md' : 'border-gray-200'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-semibold text-gray-800 truncate">{r.driver_name}</span>
                     {isCurrentRecord && (
-                      <span className="text-xs bg-indigo-100 text-indigo-700 font-medium px-1.5 py-0.5 rounded">
-                        You
-                      </span>
+                      <span className="text-xs bg-indigo-100 text-indigo-700 font-medium px-1.5 py-0.5 rounded">You</span>
                     )}
                   </div>
                   <div className="text-xs text-gray-500 space-y-0.5">
-                    <div>
-                      <span className="font-medium">Ref:</span> {r.reference_number}
-                    </div>
+                    <div><span className="font-medium">Ref:</span> {r.reference_number}</div>
                     <div>
                       <span className="font-medium">Trailer:</span> {r.trailer_number}
-                      {r.trailer_length ? ` (${r.trailer_length})` : ''}
-                      {' · '}
-                      <span className="capitalize">{r.load_type}</span>
+                      {r.trailer_length ? ` (${r.trailer_length})` : ''} · <span className="capitalize">{r.load_type}</span>
                     </div>
-                    <div>
-                      <span className="font-medium">Checked in:</span> {formatTime(r.check_in_time)}
-                    </div>
-                    {r.dock_number && (
-                      <div className="text-blue-700 font-semibold">
-                        Dock: {r.dock_number}
+                    <div><span className="font-medium">Checked in:</span> {formatTime(r.check_in_time)}</div>
+                    {dockDisplay && <div className="text-blue-700 font-semibold">Dock: {dockDisplay}</div>}
+                    {/* Show rejection summary in list */}
+                    {r.status === 'rejected' && r.rejection_reasons && r.rejection_reasons.length > 0 && (
+                      <div className="text-red-600 mt-1">
+                        <span className="font-semibold">Rejected:</span> {r.rejection_reasons.join(', ')}
                       </div>
                     )}
-                    {r.status_note && (
-                      <div className="text-gray-600 italic">"{r.status_note}"</div>
+                    {(r.status === 'check_in_denial' || r.status === 'turned_away') && r.denial_reason && (
+                      <div className="text-red-600 mt-1">
+                        <span className="font-semibold">Denied:</span> {r.denial_reason}
+                      </div>
                     )}
+                    {r.status_note && <div className="text-gray-600 italic">"{r.status_note}"</div>}
                   </div>
                 </div>
-
-                {/* Status badge */}
-                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${cfg.badgeBg} ${cfg.badgeText}`}>
-                  {cfg.icon}
-                  {cfg.label}
+                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${meta.badgeBg} ${meta.badgeText}`}>
+                  {meta.bannerIcon}
+                  {meta.bannerLabel}
                 </div>
               </div>
             </div>
@@ -387,66 +412,88 @@ function StatusScreen({
       .channel(`check_in_${initialRecord.id}`)
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'check_ins',
-          filter: `id=eq.${initialRecord.id}`,
-        },
-        (payload) => {
-          setRecord(payload.new as CheckInRecord);
-          setLastUpdated(new Date());
-        }
+        { event: 'UPDATE', schema: 'public', table: 'check_ins', filter: `id=eq.${initialRecord.id}` },
+        (payload) => { setRecord(payload.new as CheckInRecord); setLastUpdated(new Date()); }
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') setConnectionStatus('connected');
         else if (status === 'CHANNEL_ERROR') setConnectionStatus('error');
       });
-
     return () => { supabase.removeChannel(channel); };
   }, [initialRecord.id, supabase]);
 
-  const cfg = getStatusConfig(record.status);
-  const isDenied = record.status === 'rejected' || record.status === 'check_in_denial';
-  const isComplete = record.status === 'complete';
-  const isDockAssigned = record.status === 'dock_assigned';
+  const meta = getStatusMeta(record.status);
   const filledRefs = referenceNumbers.filter((r) => r.trim());
+  const isRejected = record.status === 'rejected';
+  const isDenied = record.status === 'check_in_denial' || record.status === 'turned_away';
+  const isCheckedOut = record.status === 'checked_out';
+  const isComplete = record.status === 'complete';
+  const showInstructions = record.status === 'dock_assigned' || record.status === 'loading' || record.status === 'unloading';
+  const dockDisplay = record.dock_number === 'Ramp' ? 'RAMP' : record.dock_number;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-md mx-auto space-y-0">
+      <div className="max-w-md mx-auto">
 
-        {/* Status card */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
 
           {/* Header */}
-          <div className={`${cfg.headerBg} text-white p-6 text-center transition-colors duration-500`}>
-            <div className="text-5xl mb-3">{isDenied ? '✕' : '✓'}</div>
-            <h2 className="text-2xl font-bold">{isDenied ? 'Check-In Denied' : 'Checked In'}</h2>
+          <div className={`${meta.headerBg} text-white p-6 text-center transition-colors duration-500`}>
+            <div className="text-5xl mb-3">{meta.headerIcon}</div>
+            <h2 className="text-2xl font-bold">{meta.headerTitle}</h2>
             <p className="text-white/80 text-sm mt-1">Welcome, {record.driver_name}!</p>
           </div>
 
           {/* Live Status Banner */}
-          <div className={`mx-4 mt-4 p-4 rounded-lg border-2 ${cfg.bgColor} ${cfg.borderColor} transition-all duration-500`}>
-            <div className="flex items-center gap-2">
-              {cfg.icon}
-              <span className={`font-semibold text-sm ${cfg.color}`}>{cfg.label}</span>
+          <div className={`mx-4 mt-4 p-4 rounded-lg border-2 ${meta.bannerBg} ${meta.bannerBorder} transition-all duration-500`}>
+            <div className="flex items-center gap-2 mb-1">
+              {meta.bannerIcon}
+              <span className={`font-semibold text-sm ${meta.bannerText}`}>{meta.bannerLabel}</span>
             </div>
 
-            {record.dock_number && (
+            {/* Dock number */}
+            {dockDisplay && (
               <div className="mt-3 text-center py-2">
                 <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Dock Assignment</p>
-                <p className="text-5xl font-extrabold text-blue-700">{record.dock_number}</p>
+                <p className="text-5xl font-extrabold text-blue-700">{dockDisplay}</p>
               </div>
             )}
 
+            {/* Double booked warning */}
+            {record.is_double_booked && record.status === 'dock_assigned' && (
+              <div className="mt-3 p-3 bg-orange-50 border-2 border-orange-400 rounded-lg">
+                <p className="text-sm font-bold text-orange-700 mb-1">⚠️ Important — Please Wait Before Pulling In</p>
+                <p className="text-sm text-orange-800">This dock is currently occupied by another truck. <strong>Do not pull into the dock until the first truck has fully pulled out.</strong> Once the dock is clear, proceed with your normal instructions below.</p>
+              </div>
+            )}
+
+            {/* Gross weight */}
+            {record.gross_weight && record.status === 'dock_assigned' && (
+              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-300 rounded-lg">
+                <p className="text-sm font-bold text-orange-700">⚖️ Gross Weight: {Number(record.gross_weight).toLocaleString()} lbs</p>
+                <p className="text-xs text-yellow-800 mt-1">If you have any concerns or disputes regarding this weight, please see us in the office before proceeding to your assigned dock. By continuing to the dock you are accepting this weight.</p>
+              </div>
+            )}
+
+            {/* Appointment time */}
             {record.appointment_time && (
               <div className="mt-3 pt-3 border-t border-gray-200">
                 <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Appointment Time</p>
-                <p className="text-sm font-medium text-gray-800">{formatDateTime(record.appointment_time)}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-gray-800">{formatDateTime(record.appointment_time)}</p>
+                  {record.appointment_status && (
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                      record.appointment_status === 'On Time' ? 'bg-green-100 text-green-700' :
+                      record.appointment_status === 'Early' ? 'bg-blue-100 text-blue-700' :
+                      record.appointment_status === 'Late' ? 'bg-orange-100 text-orange-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>{record.appointment_status}</span>
+                  )}
+                </div>
               </div>
             )}
 
+            {/* Completion time */}
             {isComplete && record.end_time && (
               <div className="mt-3 pt-3 border-t border-gray-200">
                 <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Completed At</p>
@@ -454,29 +501,62 @@ function StatusScreen({
               </div>
             )}
 
-            {isDenied && record.rejection_reasons && record.rejection_reasons.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-red-200">
-                <p className="text-xs text-red-600 uppercase tracking-wide mb-1 font-semibold">Reason(s) for Denial</p>
-                <ul className="space-y-1">
-                  {record.rejection_reasons.map((reason, i) => (
-                    <li key={i} className="text-sm text-red-700 flex items-start gap-1.5">
-                      <span className="mt-0.5 text-red-400">•</span>
-                      {reason}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            {/* Load instructions */}
+            {showInstructions && (
+              record.load_type === 'inbound' ? <InboundInstructions /> : <OutboundInstructions />
             )}
 
-            {isDenied && record.resolution_action && (
-              <div className="mt-3 pt-3 border-t border-red-200">
-                <p className="text-xs text-red-600 uppercase tracking-wide mb-0.5 font-semibold">Required Action</p>
-                <p className="text-sm font-medium text-red-800">
-                  {RESOLUTION_LABELS[record.resolution_action] ?? record.resolution_action}
-                </p>
-              </div>
+            {/* Checked out next steps */}
+            {isCheckedOut && <CheckedOutNextSteps />}
+
+            {/* ── TRAILER REJECTED content ── */}
+            {isRejected && (
+              <>
+                <div className="mt-3 pt-3 border-t border-red-200">
+                  <p className="text-sm font-bold text-red-700 mb-2">⚠️ Your trailer has been rejected for the following reason(s):</p>
+                  {record.rejection_reasons && record.rejection_reasons.length > 0 ? (
+                    <ol className="space-y-1.5">
+                      {record.rejection_reasons.map((reason, i) => (
+                        <li key={i} className="flex gap-2 text-sm text-red-800">
+                          <span className="font-bold text-red-500 shrink-0">{i + 1}.</span>
+                          {reason}
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="text-sm text-red-700">Please see the office for details.</p>
+                  )}
+                </div>
+                {record.resolution_action && (
+                  <div className={`mt-3 p-3 rounded-lg border-2 ${record.resolution_action === 'correct_and_return' ? 'bg-yellow-50 border-orange-400' : 'bg-red-50 border-red-500'}`}>
+                    <p className={`text-sm font-bold mb-1 ${record.resolution_action === 'correct_and_return' ? 'text-orange-700' : 'text-red-700'}`}>
+                      {record.resolution_action === 'correct_and_return' ? '🔧 What You Need to Do:' : '🚫 Important Notice:'}
+                    </p>
+                    <p className={`text-sm ${record.resolution_action === 'correct_and_return' ? 'text-orange-800' : 'text-red-800'}`}>
+                      {record.resolution_action === 'correct_and_return'
+                        ? 'The trailer issues listed above must be corrected before re-entry. Once the trailer has been cleaned and/or repaired to meet our requirements, you may check back in.'
+                        : 'This trailer will not be loaded under any circumstances. A new, clean trailer that meets our requirements must be provided in order to proceed with this load.'}
+                    </p>
+                  </div>
+                )}
+                <p className="mt-3 text-xs text-center text-gray-500">If you have questions, please see us in the office.</p>
+              </>
             )}
 
+            {/* ── CHECK-IN DENIED content ── */}
+            {isDenied && (
+              <>
+                {record.denial_reason && (
+                  <div className="mt-3 pt-3 border-t border-red-200">
+                    <p className="text-xs text-red-600 uppercase tracking-wide mb-1 font-semibold">Reason for Denial</p>
+                    <p className="text-sm text-red-800">{record.denial_reason}</p>
+                  </div>
+                )}
+                <p className="mt-3 text-sm text-red-700">Please contact the facility for further assistance or clarification.</p>
+              </>
+            )}
+
+            {/* Notes from office */}
             {record.status_note && (
               <div className="mt-3 pt-3 border-t border-gray-200">
                 <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Note from Office</p>
@@ -512,12 +592,12 @@ function StatusScreen({
               </div>
             )}
             <div className="flex justify-between">
-              <span className="text-gray-500">Checked In At</span>
-              <span className="font-medium text-gray-800">{formatTime(record.check_in_time)}</span>
+              <span className="text-gray-500">Scheduled For</span>
+              <span className="font-medium text-gray-800">{formatDateTime(record.check_in_time)}</span>
             </div>
           </div>
 
-          {!isDockAssigned && !isComplete && !isDenied && (
+          {record.status === 'pending' && (
             <div className="mx-4 mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
               🅿️ Park in the <strong>angled spaces</strong> in front of the office. Keep this screen open — your dock will appear here.
             </div>
@@ -526,24 +606,14 @@ function StatusScreen({
           {/* Connection indicator */}
           <div className="mx-4 mt-3 mb-4 flex items-center justify-between text-xs text-gray-400">
             <div className="flex items-center gap-1.5">
-              <span className={`inline-block w-2 h-2 rounded-full ${
-                connectionStatus === 'connected' ? 'bg-green-400 animate-pulse' :
-                connectionStatus === 'error' ? 'bg-red-400' : 'bg-yellow-400 animate-pulse'
-              }`} />
-              <span>
-                {connectionStatus === 'connected' ? 'Live updates active' :
-                 connectionStatus === 'error' ? 'Connection error — refresh page' :
-                 'Connecting...'}
-              </span>
+              <span className={`inline-block w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-400 animate-pulse' : connectionStatus === 'error' ? 'bg-red-400' : 'bg-yellow-400 animate-pulse'}`} />
+              <span>{connectionStatus === 'connected' ? 'Live updates active' : connectionStatus === 'error' ? 'Connection error — refresh page' : 'Connecting...'}</span>
             </div>
             {lastUpdated && <span>Updated {formatTime(lastUpdated.toISOString())}</span>}
           </div>
 
           <div className="px-4 pb-6">
-            <button
-              onClick={onNewCheckIn}
-              className="w-full py-2.5 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-            >
+            <button onClick={onNewCheckIn} className="w-full py-2.5 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
               New Check-In
             </button>
           </div>
@@ -551,7 +621,6 @@ function StatusScreen({
 
         {/* Today's Vision check-ins below the status card */}
         <CarrierCheckInList supabase={supabase} currentRecordId={record.id} />
-
       </div>
     </div>
   );
@@ -567,19 +636,15 @@ export default function CarrierEarlyCheckInForm() {
   const [scheduledDateTimeError, setScheduledDateTimeError] = useState<string | null>(null);
   const [referenceNumbers, setReferenceNumbers] = useState<string[]>(['']);
   const [referenceErrors, setReferenceErrors] = useState<(string | null)[]>([null]);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkInRecord, setCheckInRecord] = useState<CheckInRecord | null>(null);
 
-  const handleScheduledDateTimeChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      setScheduledDateTime(value);
-      setScheduledDateTimeError(value ? null : 'Please select a scheduled check-in date and time');
-    },
-    []
-  );
+  const handleScheduledDateTimeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setScheduledDateTime(value);
+    setScheduledDateTimeError(value ? null : 'Please select a scheduled check-in date and time');
+  }, []);
 
   const handleReferenceChange = useCallback((index: number, value: string) => {
     setReferenceNumbers((prev) => { const u = [...prev]; u[index] = value; return u; });
@@ -604,10 +669,7 @@ export default function CarrierEarlyCheckInForm() {
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === 'driverPhone' ? formatPhoneNumber(value) : value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: name === 'driverPhone' ? formatPhoneNumber(value) : value }));
   }, []);
 
   const resetForm = useCallback(() => {
@@ -626,10 +688,7 @@ export default function CarrierEarlyCheckInForm() {
     setError(null);
 
     try {
-      if (!scheduledDateTime) {
-        setError('Please select a scheduled check-in date and time');
-        return;
-      }
+      if (!scheduledDateTime) { setError('Please select a scheduled check-in date and time'); return; }
 
       const filledRefs = referenceNumbers.map((r) => r.trim()).filter(Boolean);
       if (filledRefs.length === 0) { setError('Please provide at least one reference number'); return; }
@@ -639,8 +698,6 @@ export default function CarrierEarlyCheckInForm() {
 
       const hasBlankEntry = referenceNumbers.some((r, i) => r.trim() === '' && i < referenceNumbers.length - 1);
       if (hasBlankEntry) { setError('Please fill in all reference number fields or remove empty ones'); return; }
-
-      const scheduledDate = new Date(scheduledDateTime);
 
       const { data: checkInData, error: insertError } = await supabase
         .from('check_ins')
@@ -653,19 +710,22 @@ export default function CarrierEarlyCheckInForm() {
           load_type: formData.loadType,
           reference_number: filledRefs.join(', '),
           status: 'pending',
-          check_in_time: scheduledDate.toISOString(),
+          check_in_time: new Date(scheduledDateTime).toISOString(),
           dock_number: null,
           status_note: null,
           appointment_time: null,
+          appointment_status: null,
+          gross_weight: null,
+          is_double_booked: null,
           rejection_reasons: null,
           resolution_action: null,
+          denial_reason: null,
           end_time: null,
         })
         .select()
         .single();
 
       if (insertError) throw insertError;
-
       setCheckInRecord(checkInData as CheckInRecord);
     } catch (err: any) {
       console.error('Early check-in error:', err);
@@ -674,8 +734,6 @@ export default function CarrierEarlyCheckInForm() {
       setLoading(false);
     }
   };
-
-  // ── Render status screen after check-in ───────────────────────────────────
 
   if (checkInRecord) {
     return (
@@ -688,8 +746,6 @@ export default function CarrierEarlyCheckInForm() {
     );
   }
 
-  // ── Main form ──────────────────────────────────────────────────────────────
-
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
@@ -701,9 +757,7 @@ export default function CarrierEarlyCheckInForm() {
           </div>
 
           {error && (
-            <div className="mx-6 mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-              {error}
-            </div>
+            <div className="mx-6 mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">{error}</div>
           )}
 
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -711,51 +765,24 @@ export default function CarrierEarlyCheckInForm() {
             {/* Scheduled Arrival */}
             <div className="border-b pb-5">
               <h2 className="text-lg font-semibold text-gray-700 mb-4">Scheduled Arrival</h2>
-
               <div className="flex gap-3 mb-3">
-                <button
-                  type="button"
+                <button type="button"
                   onClick={() => { setScheduledDateTime(getTodayDateTime()); setScheduledDateTimeError(null); }}
-                  className={`flex-1 py-2 px-4 rounded-lg border-2 font-semibold text-sm transition-all ${
-                    scheduledDateTime && scheduledDateTime.slice(0, 10) === getTodayDateTime().slice(0, 10)
-                      ? 'border-indigo-600 bg-indigo-600 text-white'
-                      : 'border-indigo-300 text-indigo-700 hover:bg-indigo-50'
-                  }`}
-                >
+                  className={`flex-1 py-2 px-4 rounded-lg border-2 font-semibold text-sm transition-all ${scheduledDateTime && scheduledDateTime.slice(0, 10) === getTodayDateTime().slice(0, 10) ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-indigo-300 text-indigo-700 hover:bg-indigo-50'}`}>
                   📅 Today
                 </button>
-                <button
-                  type="button"
+                <button type="button"
                   onClick={() => { setScheduledDateTime(getNextWorkingDayAt0600()); setScheduledDateTimeError(null); }}
-                  className={`flex-1 py-2 px-4 rounded-lg border-2 font-semibold text-sm transition-all ${
-                    scheduledDateTime === getNextWorkingDayAt0600()
-                      ? 'border-indigo-600 bg-indigo-600 text-white'
-                      : 'border-indigo-300 text-indigo-700 hover:bg-indigo-50'
-                  }`}
-                >
+                  className={`flex-1 py-2 px-4 rounded-lg border-2 font-semibold text-sm transition-all ${scheduledDateTime === getNextWorkingDayAt0600() ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-indigo-300 text-indigo-700 hover:bg-indigo-50'}`}>
                   🌅 Tomorrow (6:00 AM)
                 </button>
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Check-In Date & Time <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="datetime-local"
-                  value={scheduledDateTime}
-                  onChange={handleScheduledDateTimeChange}
-                  required
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                    scheduledDateTimeError ? 'border-red-400' : 'border-gray-300'
-                  }`}
-                />
-                {scheduledDateTimeError && (
-                  <p className="text-red-500 text-xs mt-1">{scheduledDateTimeError}</p>
-                )}
-                <p className="text-gray-400 text-xs mt-1">
-                  Select the date and time you expect to arrive on-site
-                </p>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Check-In Date & Time <span className="text-red-500">*</span></label>
+                <input type="datetime-local" value={scheduledDateTime} onChange={handleScheduledDateTimeChange} required
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${scheduledDateTimeError ? 'border-red-400' : 'border-gray-300'}`} />
+                {scheduledDateTimeError && <p className="text-red-500 text-xs mt-1">{scheduledDateTimeError}</p>}
+                <p className="text-gray-400 text-xs mt-1">Select the date and time you expect to arrive on-site</p>
               </div>
             </div>
 
@@ -764,32 +791,14 @@ export default function CarrierEarlyCheckInForm() {
               <h2 className="text-lg font-semibold text-gray-700 mb-4">Driver Information</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="driverName"
-                    value={formData.driverName}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="John"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
+                  <input type="text" name="driverName" value={formData.driverName} onChange={handleInputChange} required placeholder="John"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    name="driverPhone"
-                    value={formData.driverPhone}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="(555) 555-5555"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number <span className="text-red-500">*</span></label>
+                  <input type="tel" name="driverPhone" value={formData.driverPhone} onChange={handleInputChange} required placeholder="(555) 555-5555"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
               </div>
             </div>
@@ -799,31 +808,17 @@ export default function CarrierEarlyCheckInForm() {
               <h2 className="text-lg font-semibold text-gray-700 mb-4">Load Information</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Load Type <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="loadType"
-                    value={formData.loadType}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Load Type <span className="text-red-500">*</span></label>
+                  <select name="loadType" value={formData.loadType} onChange={handleInputChange} required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <option value="outbound">Outbound Pickup</option>
                     <option value="inbound">Inbound Delivery</option>
                   </select>
                 </div>
-
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Reference Number(s) <span className="text-red-500">*</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={addReferenceNumber}
-                      className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-sm font-medium transition-colors"
-                    >
+                    <label className="block text-sm font-medium text-gray-700">Reference Number(s) <span className="text-red-500">*</span></label>
+                    <button type="button" onClick={addReferenceNumber} className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-sm font-medium transition-colors">
                       <Plus size={16} /> Add
                     </button>
                   </div>
@@ -831,27 +826,16 @@ export default function CarrierEarlyCheckInForm() {
                     {referenceNumbers.map((ref, index) => (
                       <div key={index}>
                         <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={ref}
-                            onChange={(e) => handleReferenceChange(index, e.target.value)}
-                            required={index === 0}
+                          <input type="text" value={ref} onChange={(e) => handleReferenceChange(index, e.target.value)} required={index === 0}
                             placeholder={index === 0 ? 'e.g., 2xxxxxx or 4xxxxxx' : `Reference #${index + 1}`}
-                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${referenceErrors[index] ? 'border-red-400' : 'border-gray-300'}`}
-                          />
+                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${referenceErrors[index] ? 'border-red-400' : 'border-gray-300'}`} />
                           {index > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => removeReferenceNumber(index)}
-                              className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors"
-                            >
+                            <button type="button" onClick={() => removeReferenceNumber(index)} className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors">
                               <Minus size={18} />
                             </button>
                           )}
                         </div>
-                        {referenceErrors[index] && (
-                          <p className="text-red-500 text-xs mt-1">{referenceErrors[index]}</p>
-                        )}
+                        {referenceErrors[index] && <p className="text-red-500 text-xs mt-1">{referenceErrors[index]}</p>}
                       </div>
                     ))}
                   </div>
@@ -864,47 +848,20 @@ export default function CarrierEarlyCheckInForm() {
               <h2 className="text-lg font-semibold text-gray-700 mb-4">Carrier & Trailer</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Carrier Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="carrierName"
-                    value={formData.carrierName}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="e.g., Vision"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Carrier Name <span className="text-red-500">*</span></label>
+                  <input type="text" name="carrierName" value={formData.carrierName} onChange={handleInputChange} required placeholder="e.g., Vision"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Trailer Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="trailerNumber"
-                    value={formData.trailerNumber}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="e.g., TRL-12345"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Trailer Number <span className="text-red-500">*</span></label>
+                  <input type="text" name="trailerNumber" value={formData.trailerNumber} onChange={handleInputChange} required placeholder="e.g., TRL-12345"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Trailer Length <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="trailerLength"
-                    value={formData.trailerLength}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    {TRAILER_LENGTHS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Trailer Length <span className="text-red-500">*</span></label>
+                  <select name="trailerLength" value={formData.trailerLength} onChange={handleInputChange} required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    {TRAILER_LENGTHS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -912,15 +869,8 @@ export default function CarrierEarlyCheckInForm() {
 
             {/* Submit */}
             <div className="flex gap-3">
-              <button
-                type="submit"
-                disabled={loading || !!scheduledDateTimeError}
-                className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${
-                  loading || scheduledDateTimeError
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95'
-                }`}
-              >
+              <button type="submit" disabled={loading || !!scheduledDateTimeError}
+                className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${loading || scheduledDateTimeError ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95'}`}>
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
                     <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -931,13 +881,8 @@ export default function CarrierEarlyCheckInForm() {
                   </span>
                 ) : 'Submit Check-In'}
               </button>
-
               {(formData.trailerNumber || referenceNumbers[0]) && (
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-all"
-                >
+                <button type="button" onClick={resetForm} className="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-all">
                   Reset
                 </button>
               )}
@@ -945,17 +890,14 @@ export default function CarrierEarlyCheckInForm() {
 
             <div className="text-center text-xs text-gray-500 pt-4 border-t border-gray-200">
               <p className="mb-1"><strong>Operating Hours:</strong> Monday – Friday, 7:00 AM – 5:00 PM</p>
-              <p>
-                For assistance, contact the shipping office at{' '}
-                <a href="tel:+17654742512" className="text-indigo-600 hover:underline">(765) 474-2512</a>
-              </p>
+              <p>For assistance, contact the shipping office at{' '}
+                <a href="tel:+17654742512" className="text-indigo-600 hover:underline">(765) 474-2512</a></p>
             </div>
           </form>
         </div>
 
-        {/* Show today's Vision check-ins below the form too */}
+        {/* Today's Vision check-ins visible on the form page too */}
         <CarrierCheckInList supabase={supabase} />
-
       </div>
     </div>
   );
