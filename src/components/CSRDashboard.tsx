@@ -359,8 +359,8 @@ const fetchAllData = async () => {
   .select(
     'sales_order, delivery, appointment_time, appointment_date, carrier, mode, ship_to_city, ship_to_state, requested_ship_date, customer'
   )
+  .eq('appointment_date', today)
   .or(orFilter);
-  // date filter removed temporarily for debugging
 
 console.log('today value:', today);
 console.log('orFilter:', orFilter);
