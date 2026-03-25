@@ -183,6 +183,7 @@ const getStatusMeta = (status: string): StatusMeta => {
       };
     case 'check_in_denial':
     case 'turned_away':
+    case 'denied':
       return {
         headerBg: 'bg-red-700',
         headerTitle: 'Check-In Denied',
@@ -462,7 +463,7 @@ function StatusScreen({
   const isCheckedOut = status === 'checked_out';
   const isComplete  = status === 'complete';
   const isRejected  = status === 'rejected';
-  const isDenied    = status === 'check_in_denial' || status === 'turned_away';
+  const isDenied    = status === 'check_in_denial' || status === 'turned_away' || status === 'denied';
 
   // Parse rejection_reasons safely — Supabase may return TEXT[], JSON string, or plain array
   const rejectionReasons: string[] = (() => {
