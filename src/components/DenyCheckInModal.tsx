@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { triggerCheckInDenialEmail } from '@/lib/emailTriggers';
 
 interface DenyCheckInModalProps {
   checkIn: {
@@ -55,7 +54,7 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
     const messages: Record<DenialOption, string> = {
       invalid_number:
         'The number you have provided is the correct format however it does not match any orders in the system. Please contact your dispatch for another number and reattempt check in.',
-      too_early: `You have attempted to check in to early for your scheduled appointment time, ${appointmentTime}. We do not have docks available currently. Please resubmit the check in form 1 hour before your appointment time.`,
+      too_early: `You have attempted to check in too early for your scheduled appointment time, ${appointmentTime}. We do not have docks available currently. Please resubmit the check in form 1 hour before your appointment time.`,
       not_from_1403:
         'The number you have provided is a valid number however it does not ship from this location. Please contact your dispatch.',
       no_appointment:
@@ -83,28 +82,20 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
     setError(null);
 
     try {
-const { error: updateError } = await supabase
-  .from('check_ins')
-  .update({
-    status: 'denied',
-    notes: `DENIED: ${denialMessage}`,
-    end_time: new Date().toISOString(),  // ← add this
-  })
-  .eq('id', checkIn.id);
+      const { error: updateError } = await supabase
+        .from('check_ins')
+        .update({
+          status: 'check_in_denial',   // matches getStatusMeta in driver screen
+          denial_reason: denialMessage, // field the driver screen reads
+          end_time: new Date().toISOString(),
+          // clear any rejection fields so old data doesn't bleed through
+          rejection_reasons: null,
+          resolution_action: null,
+          status_note: null,
+        })
+        .eq('id', checkIn.id);
 
       if (updateError) throw updateError;
-
-      const emailResult = await triggerCheckInDenialEmail({
-        driverEmail: checkIn.driver_email || '',
-        driverName: checkIn.driver_name || 'Driver',
-        carrierName: checkIn.carrier_name || 'N/A',
-        referenceNumber: checkIn.reference_number || 'N/A',
-        denialReason: denialMessage,
-      });
-
-      if (!emailResult.success) {
-        console.error('Failed to send denial email:', emailResult.error);
-      }
 
       onDeny();
       onClose();
@@ -173,11 +164,11 @@ const { error: updateError } = await supabase
           </div>
         </div>
 
-        {/* Message Preview - shown for all preset options */}
+        {/* Message Preview — shown for all preset options */}
         {selectedOption && selectedOption !== 'other' && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
             <p className="text-xs font-semibold text-blue-700 mb-1 uppercase tracking-wide">
-              Message that will be sent to driver:
+              Message shown to driver:
             </p>
             <p className="text-sm text-blue-800 italic leading-relaxed">
               {getPrewrittenMessage(selectedOption)}
@@ -185,7 +176,7 @@ const { error: updateError } = await supabase
           </div>
         )}
 
-        {/* Custom Message Box - shown only for "Other" */}
+        {/* Custom Message Box — shown only for "Other" */}
         {selectedOption === 'other' && (
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -197,7 +188,7 @@ const { error: updateError } = await supabase
                 setCustomMessage(e.target.value);
                 setError(null);
               }}
-              placeholder="Type your custom denial message here. This will be sent directly to the driver..."
+              placeholder="Type your custom denial message here. This will be shown directly to the driver..."
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 resize-none text-sm"
               disabled={isSubmitting}
