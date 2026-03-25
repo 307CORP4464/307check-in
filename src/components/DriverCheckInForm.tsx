@@ -104,6 +104,7 @@ const getStatusMeta = (status: string): StatusMeta => {
         bannerLabel: 'Awaiting Dock Assignment',
       };
     case 'dock_assigned':
+    case 'checked_in':
       return {
         headerBg: 'bg-blue-600',
         headerTitle: 'Dock Assigned',
@@ -436,7 +437,8 @@ function StatusScreen({
 
   // A dock has been assigned when status says so, OR when dock_number is present
   // (admin may set dock_number without updating status)
-  const dockIsAssigned = status === 'dock_assigned' || hasDock;
+  // Dock is assigned whenever dock_number is present (status may be 'checked_in' or 'dock_assigned')
+  const dockIsAssigned = hasDock || status === 'dock_assigned' || status === 'checked_in';
 
   // Show load instructions only while driver still needs to pull into dock.
   // Once loading/unloading has started (or anything terminal), hide them.
