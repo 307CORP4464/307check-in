@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { triggerStatusChangeEmail } from '@/lib/emailTriggers';
 
 interface StatusChangeModalProps {
   checkIn: {
@@ -82,28 +81,6 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
     );
   };
 
-  const buildRejectionNotes = (): string => {
-    const parts: string[] = [];
-
-    if (selectedReasons.length > 0) {
-      parts.push(`Rejection Reason(s):\n${selectedReasons.map((r, i) => `  ${i + 1}. ${r}`).join('\n')}`);
-    }
-
-    if (resolutionAction) {
-      const resolution =
-        resolutionAction === 'correct_and_return'
-          ? 'Driver may correct the issue(s) and check back in.'
-          : 'This trailer will not be loaded. A new trailer must be provided.';
-      parts.push(`Action Required: ${resolution}`);
-    }
-
-    if (notes.trim()) {
-      parts.push(`Additional Notes: ${notes.trim()}`);
-    }
-
-    return parts.join('\n\n');
-  };
-
   const isRejectionValid =
     statusAction !== 'rejected' ||
     (selectedReasons.length > 0 && resolutionAction !== null);
@@ -133,11 +110,32 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
       else if (statusAction === 'turned_away') status = 'turned_away';
       else if (statusAction === 'driver_left') status = 'driver_left';
 
-      const combinedNotes = statusAction === 'rejected' ? buildRejectionNotes() : notes;
+      // Build the update payload
+      const updateData: Record<string, any> = { status };
 
-      const updateData: any = { status };
       if (endTimeISO) updateData.end_time = endTimeISO;
-      if (combinedNotes) updateData.notes = combinedNotes;
+
+      if (statusAction === 'rejected') {
+        // Save structured rejection data so the driver status screen can display them
+        updateData.rejection_reasons = selectedReasons;
+        updateData.resolution_action = resolutionAction;
+        updateData.status_note = notes.trim() || null;
+        // Clear denial_reason in case it was previously set
+        updateData.denial_reason = null;
+      } else if (statusAction === 'turned_away') {
+        // Save the reason as denial_reason for the check_in_denial display
+        updateData.denial_reason = notes.trim() || null;
+        updateData.status_note = null;
+        // Clear rejection fields
+        updateData.rejection_reasons = null;
+        updateData.resolution_action = null;
+      } else {
+        // complete / driver_left — just save notes and clear rejection fields
+        updateData.status_note = notes.trim() || null;
+        updateData.rejection_reasons = null;
+        updateData.resolution_action = null;
+        updateData.denial_reason = null;
+      }
 
       const { data, error: updateError } = await supabase
         .from('check_ins')
@@ -147,27 +145,6 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
 
       if (updateError) throw new Error(`Database error: ${updateError.message}`);
       if (!data || data.length === 0) throw new Error('No rows were updated. Check if the record exists.');
-
-      if (checkIn.driver_email) {
-        const emailResult = await triggerStatusChangeEmail({
-          driverEmail: checkIn.driver_email,
-          driverName: checkIn.driver_name || 'Driver',
-          referenceNumber: checkIn.reference_number || 'N/A',
-          oldStatus: checkIn.status || 'at_dock',
-          newStatus: status,
-          notes: combinedNotes || undefined,
-          endTime: endTimeISO
-            ? new Date(endTimeISO).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
-            : undefined,
-          // Pass structured rejection data for richer email templates
-          rejectionReasons: statusAction === 'rejected' ? selectedReasons : undefined,
-          resolutionAction: statusAction === 'rejected' ? resolutionAction ?? undefined : undefined,
-        });
-
-        if (!emailResult.success) {
-          console.error('Failed to send status change email:', emailResult.error);
-        }
-      }
 
       onSuccess();
       onClose();
@@ -201,7 +178,7 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
         )}
 
         {/* Check-in Info */}
-        <div className="mb-4 p-3 bg-gray-50 rounded flex gap-6">
+        <div className="mb-4 p-3 bg-gray-50 rounded flex gap-6 flex-wrap">
           <div>
             <p className="text-sm text-gray-600">Reference Number:</p>
             <p className="font-semibold">{checkIn.reference_number || 'N/A'}</p>
@@ -267,6 +244,7 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
                         setStatusAction(e.target.value as StatusAction);
                         setSelectedReasons([]);
                         setResolutionAction(null);
+                        setNotes('');
                       }}
                       className="sr-only"
                     />
@@ -286,7 +264,7 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
                 </svg>
                 Reason(s) for Rejection <span className="text-red-500">*</span>
               </h3>
-              <p className="text-xs text-red-600 mb-3">Select all that apply — these will be included in the email to the driver.</p>
+              <p className="text-xs text-red-600 mb-3">Select all that apply — these will be shown to the driver on their status screen.</p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5">
                 {REJECTION_REASONS.map((reason) => {
@@ -312,7 +290,7 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
                 })}
               </div>
 
-              {/* Resolution / What to do now */}
+              {/* Resolution */}
               <h3 className="text-red-800 font-bold text-sm mb-3 flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -356,7 +334,7 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
           {/* Notes */}
           <div className="mb-4">
             <label className="block text-gray-700 text-sm font-bold mb-2">
-              {statusAction === 'rejected' ? 'Additional Notes' : 'Notes'}
+              {statusAction === 'rejected' ? 'Additional Notes (Optional)' : 'Notes'}
               {isNotesRequired && <span className="text-red-500 ml-1">*</span>}
             </label>
             <textarea
@@ -378,22 +356,27 @@ export default function StatusChangeModal({ checkIn, onClose, onSuccess }: Statu
           {/* Rejection Preview */}
           {statusAction === 'rejected' && (selectedReasons.length > 0 || resolutionAction) && (
             <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Email Preview</p>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Driver Will See</p>
               {selectedReasons.length > 0 && (
                 <div className="mb-2">
-                  <p className="text-sm font-semibold text-gray-700">You have been rejected for the following reason(s):</p>
-                  <ul className="mt-1 list-disc list-inside text-sm text-gray-600 space-y-0.5">
-                    {selectedReasons.map((r) => <li key={r}>{r}</li>)}
-                  </ul>
+                  <p className="text-sm font-semibold text-gray-700">Rejection reason(s):</p>
+                  <ol className="mt-1 space-y-0.5">
+                    {selectedReasons.map((r, i) => (
+                      <li key={r} className="text-sm text-gray-600 flex gap-2">
+                        <span className="font-bold text-red-500 shrink-0">{i + 1}.</span>
+                        {r}
+                      </li>
+                    ))}
+                  </ol>
                 </div>
               )}
               {resolutionAction && (
-                <div>
-                  <p className="text-sm font-semibold text-gray-700">This is what needs to be done:</p>
+                <div className="mt-2">
+                  <p className="text-sm font-semibold text-gray-700">Required action:</p>
                   <p className="text-sm text-gray-600 mt-0.5">
                     {resolutionAction === 'correct_and_return'
-                      ? 'The trailer can be corrected and you may check back in after the issue(s) have been resolved.'
-                      : 'This trailer will not be loaded. A new, clean trailer must be provided.'}
+                      ? 'Correct the issue and return for re-inspection.'
+                      : 'Return with a new trailer.'}
                   </p>
                 </div>
               )}
