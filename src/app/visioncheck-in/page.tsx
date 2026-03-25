@@ -351,7 +351,6 @@ function CarrierCheckInList({
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-gray-800 truncate">{r.driver_name}</span>
                     {isCurrentRecord && (
                       <span className="text-xs bg-indigo-100 text-indigo-700 font-medium px-1.5 py-0.5 rounded">You</span>
                     )}
@@ -363,6 +362,7 @@ function CarrierCheckInList({
                       {r.trailer_length ? ` (${r.trailer_length})` : ''} · <span className="capitalize">{r.load_type}</span>
                     </div>
                     <div><span className="font-medium">Checked in:</span> {formatTime(r.check_in_time)}</div>
+                    <div><span className="font-medium">Appt Time:</span> {formatTime(r.appointment_time)}</div>
                     {dockDisplay && <div className="text-blue-700 font-semibold">Dock: {dockDisplay}</div>}
                     {/* Show rejection summary in list */}
                     {r.status === 'rejected' && r.rejection_reasons && r.rejection_reasons.length > 0 && (
