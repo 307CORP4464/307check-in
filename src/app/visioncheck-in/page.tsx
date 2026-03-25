@@ -362,7 +362,6 @@ function CarrierCheckInList({
                       {r.trailer_length ? ` (${r.trailer_length})` : ''} · <span className="capitalize">{r.load_type}</span>
                     </div>
                     <div><span className="font-medium">Checked in:</span> {formatTime(r.check_in_time)}</div>
-                    <div><span className="font-medium">Appt Time:</span> {formatTime(r.appointment_time)}</div>
                     {dockDisplay && <div className="text-blue-700 font-semibold">Dock: {dockDisplay}</div>}
                     {/* Show rejection summary in list */}
                     {r.status === 'rejected' && r.rejection_reasons && r.rejection_reasons.length > 0 && (
@@ -903,7 +902,7 @@ export default function CarrierEarlyCheckInForm() {
                 <button type="button"
                   onClick={() => { setScheduledDateTime(getNextWorkingDayAt0600()); setScheduledDateTimeError(null); }}
                   className={`flex-1 py-2 px-4 rounded-lg border-2 font-semibold text-sm transition-all ${scheduledDateTime === getNextWorkingDayAt0600() ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-indigo-300 text-indigo-700 hover:bg-indigo-50'}`}>
-                  🌅 Tomorrow (6:00 AM)
+                  🌅 Tomorrow (7:00 AM)
                 </button>
               </div>
               <div>
