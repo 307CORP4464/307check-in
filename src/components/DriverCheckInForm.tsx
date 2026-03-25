@@ -978,7 +978,7 @@ export default function DriverCheckInForm() {
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-sm font-medium text-gray-700">Reference Number(s): Must match one of these formats: 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, 86xxxxxx, TLNA-SO-0xxxxx <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-gray-700">Reference Number(s): Must match one of these formats: 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, 8xxxxxxx, TLNA-SO-0xxxxx <span className="text-red-500">*</span></label>
                     <button type="button" onClick={addReferenceNumber} className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors">
                       <Plus size={16} /> Add
                     </button>
