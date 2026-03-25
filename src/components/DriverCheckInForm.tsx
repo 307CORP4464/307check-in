@@ -421,7 +421,7 @@ function StatusScreen({
   const isCheckedOut = record.status === 'checked_out';
   const isComplete = record.status === 'complete';
   const isDockAssigned = record.status === 'dock_assigned';
-  const showInstructions = isDockAssigned || record.status === 'loading' || record.status === 'unloading';
+  const showInstructions = isDockAssigned || record.status === 'loading' || record.status === 'unloading' || !!record.dock_number;
 
   const dockDisplay = record.dock_number
     ? (record.dock_number === 'Ramp' ? 'RAMP' : record.dock_number)
@@ -436,7 +436,7 @@ function StatusScreen({
         </div>
       );
     }
-    if (record.status === 'dock_assigned') {
+    if (record.status === 'dock_assigned' || (record.dock_number && record.status === 'pending')) {
       return (
         <div className="p-4 bg-blue-50 border-2 border-blue-400 rounded-lg text-sm text-blue-800">
           🚛 <strong>Proceed to Dock {dockDisplay}</strong> now. Follow the {record.load_type === 'inbound' ? 'unloading' : 'loading'} instructions below.
@@ -572,7 +572,7 @@ function StatusScreen({
             </div>
           )}
 
-          {/* Load instructions — outbound or inbound, shown from dock_assigned onwards */}
+          {/* Load instructions — shown whenever a dock is assigned or status is loading/unloading */}
           {showInstructions && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               {record.load_type === 'inbound' ? <InboundInstructions /> : <OutboundInstructions />}
