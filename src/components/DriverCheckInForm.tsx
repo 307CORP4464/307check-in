@@ -1055,6 +1055,14 @@ export default function DriverCheckInForm() {
               <p className="mb-1"><strong>Location Verification:</strong> You must be on-site to complete check-in</p>
               <p>For assistance, contact the shipping office at{' '}
                 <a href="tel:+17654742512" className="text-blue-600 hover:underline">(765) 474-2512</a></p>
+              <div className="mt-4 pt-3 border-t border-gray-100">
+                <a
+                  href="/status"
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                >
+                  🔍 Already checked in? Look up your load status
+                </a>
+              </div>
             </div>
           </form>
         </div>
