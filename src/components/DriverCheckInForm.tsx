@@ -77,6 +77,16 @@ const REFERENCE_NUMBER_PATTERNS = [
   /^T\d{5}$/,
 ];
 
+// Statuses that should NOT redirect — driver needs to be able to re-check in
+const NON_REDIRECT_STATUSES = [
+  'rejected',
+  'check_in_denial',
+  'turned_away',
+  'denied',
+  'driver_left',
+  'complete',
+];
+
 // ── Status helpers ─────────────────────────────────────────────────────────
 
 type StatusMeta = {
@@ -380,6 +390,42 @@ const formatTime = (iso: string) =>
 const formatDateTime = (iso: string) =>
   new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
+// ── localStorage helpers ───────────────────────────────────────────────────
+
+const STORAGE_KEY = 'activeCheckIn';
+
+const saveActiveCheckIn = (id: string) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    id,
+    checkedInAt: new Date().toISOString(),
+  }));
+};
+
+const clearActiveCheckIn = () => {
+  localStorage.removeItem(STORAGE_KEY);
+};
+
+/**
+ * Returns the stored check-in ID only if:
+ * - It exists in localStorage
+ * - It is less than 24 hours old
+ * If stale or malformed, clears the entry and returns null.
+ */
+const getStoredCheckInId = (): string | null => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return null;
+    const { id, checkedInAt } = JSON.parse(stored);
+    const ageHours = (Date.now() - new Date(checkedInAt).getTime()) / 36e5;
+    if (id && ageHours < 24) return id;
+    clearActiveCheckIn();
+    return null;
+  } catch {
+    clearActiveCheckIn();
+    return null;
+  }
+};
+
 // ── Status Screen ──────────────────────────────────────────────────────────
 
 function StatusScreen({
@@ -408,6 +454,11 @@ function StatusScreen({
         console.log('[CheckIn Update] Full record from DB:', JSON.stringify(data, null, 2));
         setRecord(data as CheckInRecord);
         setLastUpdated(new Date());
+
+        // Clear localStorage if the status is one that allows re-check-in
+        if (NON_REDIRECT_STATUSES.includes(data.status)) {
+          clearActiveCheckIn();
+        }
       }
     };
 
@@ -756,7 +807,10 @@ function StatusScreen({
 
         <div className="px-4 pb-6">
           <button
-            onClick={onNewCheckIn}
+            onClick={() => {
+              clearActiveCheckIn();
+              onNewCheckIn();
+            }}
             className="w-full py-2.5 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
           >
             New Check-In
@@ -781,6 +835,38 @@ export default function DriverCheckInForm() {
   const [checkInRecord, setCheckInRecord] = useState<CheckInRecord | null>(null);
   const [locationStatus, setLocationStatus] = useState<'checking' | 'valid' | 'invalid' | null>(null);
   const [timeRestrictionWarning, setTimeRestrictionWarning] = useState<string | null>(null);
+
+  // ── On mount: check localStorage for an active pending check-in ──────────
+  useEffect(() => {
+    const storedId = getStoredCheckInId();
+    if (!storedId) return;
+
+    // Verify the record still exists AND is still in a pending-like state
+    // before redirecting. This prevents a redirect loop for rejected/denied loads.
+    const verify = async () => {
+      try {
+        const supabaseClient = getSupabaseClient();
+        const { data } = await supabaseClient
+          .from('check_ins')
+          .select('id, status')
+          .eq('id', storedId)
+          .single();
+
+        if (data && !NON_REDIRECT_STATUSES.includes(data.status)) {
+          // Still active — redirect to status page
+          window.location.href = `/status?id=${storedId}`;
+        } else {
+          // Load is in a terminal/re-check-in state — clear and show form
+          clearActiveCheckIn();
+        }
+      } catch {
+        clearActiveCheckIn();
+      }
+    };
+
+    verify();
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const check = () => {
@@ -884,7 +970,10 @@ export default function DriverCheckInForm() {
         .single();
 
       if (insertError) throw insertError;
-      setCheckInRecord(checkInData as CheckInRecord);
+
+      // Save to localStorage and redirect to status page
+      saveActiveCheckIn(checkInData.id);
+      window.location.href = `/status?id=${checkInData.id}`;
     } catch (err: any) {
       console.error('Driver check-in error:', err);
       setError(err.message || 'Failed to submit check-in. Please try again.');
