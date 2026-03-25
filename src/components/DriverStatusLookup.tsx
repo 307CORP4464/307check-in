@@ -29,6 +29,16 @@ interface CheckInRecord {
   end_time: string | null;
 }
 
+// Statuses where the driver needs to be able to re-check in
+const NON_REDIRECT_STATUSES = [
+  'rejected',
+  'check_in_denial',
+  'turned_away',
+  'denied',
+  'driver_left',
+  'complete',
+];
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 const getSupabaseClient = () => {
@@ -43,6 +53,8 @@ const formatTime = (iso: string) =>
 
 const formatDateTime = (iso: string) =>
   new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+
+const clearActiveCheckIn = () => localStorage.removeItem('activeCheckIn');
 
 // ── Status helpers ─────────────────────────────────────────────────────────
 
@@ -220,6 +232,11 @@ function StatusScreen({
       if (data) {
         setRecord(data as CheckInRecord);
         setLastUpdated(new Date());
+
+        // Clear localStorage if status moved to one that allows re-check-in
+        if (NON_REDIRECT_STATUSES.includes(data.status)) {
+          clearActiveCheckIn();
+        }
       }
     };
 
@@ -351,10 +368,8 @@ function StatusScreen({
         {/* Detail section */}
         <div className="mx-4 mt-3 space-y-3">
 
-          {/* 1. Action box */}
           {actionBox}
 
-          {/* 2. Double booked warning */}
           {hasDock && record.is_double_booked && (
             <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
               <p className="text-sm font-bold text-orange-800 mb-1">⚠️ Important — Please Wait Before Pulling In</p>
@@ -366,7 +381,6 @@ function StatusScreen({
             </div>
           )}
 
-          {/* 3. Gross weight */}
           {hasDock && record.gross_weight && (
             <div className="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
               <p className="text-sm font-bold text-orange-700 mb-1">
@@ -379,7 +393,6 @@ function StatusScreen({
             </div>
           )}
 
-          {/* 4. Appointment time */}
           {record.appointment_time && (
             <div className="p-4 bg-white border border-gray-200 rounded-lg">
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Appointment Time</p>
@@ -399,17 +412,14 @@ function StatusScreen({
             </div>
           )}
 
-          {/* 5. Load instructions */}
           {showInstructions && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               {record.load_type === 'inbound' ? <InboundInstructions /> : <OutboundInstructions />}
             </div>
           )}
 
-          {/* 6. Checked-out next steps */}
           {isCheckedOut && <CheckedOutNextSteps />}
 
-          {/* 7. Completion time */}
           {isComplete && record.end_time && (
             <div className="p-4 bg-white border border-gray-200 rounded-lg">
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Completed At</p>
@@ -417,7 +427,6 @@ function StatusScreen({
             </div>
           )}
 
-          {/* 8. Trailer rejected */}
           {isRejected && (
             <>
               {rejectionReasons.length > 0 && (
@@ -455,7 +464,6 @@ function StatusScreen({
             </>
           )}
 
-          {/* 9. Check-in denied */}
           {isDenied && (
             <>
               {record.denial_reason && (
@@ -470,7 +478,6 @@ function StatusScreen({
             </>
           )}
 
-          {/* 10. Note from office */}
           {record.status_note && (
             <div className="p-4 bg-white border border-gray-200 rounded-lg">
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Note from Office</p>
@@ -529,7 +536,10 @@ function StatusScreen({
 
         <div className="px-4 pb-6 pt-2">
           <button
-            onClick={onBack}
+            onClick={() => {
+              clearActiveCheckIn();
+              onBack();
+            }}
             className="w-full py-2.5 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
           >
             Look Up a Different Reference Number
@@ -549,9 +559,50 @@ export default function DriverStatusLookup() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [record, setRecord] = useState<CheckInRecord | null>(null);
-
-  // If multiple results found (same ref on different days), show selector
   const [multipleResults, setMultipleResults] = useState<CheckInRecord[]>([]);
+
+  // ── On mount: auto-load from ?id= query param (set by check-in form) ─────
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    if (!id) return;
+
+    const load = async () => {
+      setSearching(true);
+      try {
+        const { data, error: queryError } = await supabase
+          .from('check_ins')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (queryError || !data) {
+          setError('Could not load your check-in. Please search by reference number below.');
+          return;
+        }
+
+        const rec = data as CheckInRecord;
+
+        // If the status means they need to re-check in, clear localStorage
+        // and drop them on the search form rather than showing a stale status
+        if (NON_REDIRECT_STATUSES.includes(rec.status)) {
+          clearActiveCheckIn();
+          setError('Your previous check-in has ended. Please check in again if needed.');
+          return;
+        }
+
+        setRecord(rec);
+      } catch (err) {
+        console.error('Auto-load error:', err);
+        setError('Something went wrong. Please search by reference number below.');
+      } finally {
+        setSearching(false);
+      }
+    };
+
+    load();
+  }, [supabase]);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -564,8 +615,6 @@ export default function DriverStatusLookup() {
     setMultipleResults([]);
 
     try {
-      // Search for check-ins where reference_number contains the query
-      // Ordered by most recent first so today's record comes up first
       const { data, error: queryError } = await supabase
         .from('check_ins')
         .select('*')
@@ -580,10 +629,8 @@ export default function DriverStatusLookup() {
         return;
       }
 
-      // Filter out very old records (> 7 days) to avoid confusion
       const recent = data.filter(r => {
-        const checkInDate = new Date(r.check_in_time);
-        const daysDiff = (Date.now() - checkInDate.getTime()) / (1000 * 60 * 60 * 24);
+        const daysDiff = (Date.now() - new Date(r.check_in_time).getTime()) / (1000 * 60 * 60 * 24);
         return daysDiff <= 7;
       });
 
@@ -597,7 +644,6 @@ export default function DriverStatusLookup() {
         return;
       }
 
-      // Multiple results — let the driver pick
       setMultipleResults(recent as CheckInRecord[]);
     } catch (err: any) {
       console.error('Lookup error:', err);
@@ -607,18 +653,36 @@ export default function DriverStatusLookup() {
     }
   };
 
-  // Show status screen if a record is selected
+  // Show loading spinner while auto-loading from ?id=
+  if (searching && !refInput) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-10 text-center">
+          <svg className="animate-spin h-10 w-10 text-blue-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <p className="text-gray-500 text-sm">Loading your check-in status...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (record) {
     return (
       <StatusScreen
         initialRecord={record}
         supabase={supabase}
-        onBack={() => { setRecord(null); setMultipleResults([]); }}
+        onBack={() => {
+          setRecord(null);
+          setMultipleResults([]);
+          // Remove ?id= from URL so a refresh doesn't re-trigger the auto-load
+          window.history.replaceState({}, '', window.location.pathname);
+        }}
       />
     );
   }
 
-  // Multiple results picker
   if (multipleResults.length > 1) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -666,12 +730,10 @@ export default function DriverStatusLookup() {
     );
   }
 
-  // Main lookup form
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
 
-        {/* Header */}
         <div className="bg-blue-600 text-white p-8 text-center">
           <div className="text-5xl mb-3">🔍</div>
           <h1 className="text-2xl font-bold">Check Your Load Status</h1>
@@ -681,7 +743,6 @@ export default function DriverStatusLookup() {
         </div>
 
         <form onSubmit={handleSearch} className="p-6 space-y-4">
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Reference Number
@@ -689,10 +750,7 @@ export default function DriverStatusLookup() {
             <input
               type="text"
               value={refInput}
-              onChange={(e) => {
-                setRefInput(e.target.value);
-                setError(null);
-              }}
+              onChange={(e) => { setRefInput(e.target.value); setError(null); }}
               placeholder="e.g., 2xxxxxx or 4xxxxxx"
               autoFocus
               className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center tracking-wider"
