@@ -431,63 +431,63 @@ function StatusScreen({
   const instructionBox = (() => {
     if (record.status === 'pending') {
       return (
-        <div className="mx-4 mt-4 p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg text-sm text-yellow-800">
+        <div className="p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg text-sm text-yellow-800">
           🅿️ <strong>Park in the angled spaces</strong> in front of the office and <strong>stay with your truck.</strong> Your dock assignment will appear below — do not leave this page.
         </div>
       );
     }
     if (record.status === 'dock_assigned') {
       return (
-        <div className="mx-4 mt-4 p-4 bg-blue-50 border-2 border-blue-400 rounded-lg text-sm text-blue-800">
+        <div className="p-4 bg-blue-50 border-2 border-blue-400 rounded-lg text-sm text-blue-800">
           🚛 <strong>Proceed to Dock {dockDisplay}</strong> now. Follow the {record.load_type === 'inbound' ? 'unloading' : 'loading'} instructions below.
         </div>
       );
     }
     if (record.status === 'loading') {
       return (
-        <div className="mx-4 mt-4 p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-800">
+        <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-800">
           🔴 <strong>Stay at your dock.</strong> The dock light is red — your trailer is being loaded. The light will turn green when complete.
         </div>
       );
     }
     if (record.status === 'unloading') {
       return (
-        <div className="mx-4 mt-4 p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-800">
+        <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-800">
           🔴 <strong>Stay at your dock.</strong> The dock light is red — your trailer is being unloaded. The light will turn green when complete.
         </div>
       );
     }
     if (record.status === 'checked_out') {
       return (
-        <div className="mx-4 mt-4 p-4 bg-orange-50 border-2 border-orange-400 rounded-lg text-sm text-orange-800">
+        <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg text-sm text-orange-800">
           🟢 <strong>Watch for the dock light to turn GREEN,</strong> then come to the office for your paperwork.
         </div>
       );
     }
     if (record.status === 'complete') {
       return (
-        <div className="mx-4 mt-4 p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-800">
+        <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-800">
           ✅ <strong>You are clear to depart.</strong> Come to the office if you need paperwork signed. Safe travels!
         </div>
       );
     }
     if (isRejected) {
       return (
-        <div className="mx-4 mt-4 p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-800">
+        <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-800">
           ⚠️ <strong>Your trailer has been rejected.</strong> Review the reason(s) below and see us in the office if you have questions.
         </div>
       );
     }
     if (isDenied) {
       return (
-        <div className="mx-4 mt-4 p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-800">
+        <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-800">
           🚫 <strong>Your check-in has been denied.</strong> Please contact the facility for further assistance.
         </div>
       );
     }
     if (record.status === 'on_hold') {
       return (
-        <div className="mx-4 mt-4 p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-800">
+        <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-800">
           ⏸️ <strong>Your load is on hold.</strong> Please come to the office for more information.
         </div>
       );
@@ -514,9 +514,6 @@ function StatusScreen({
           <p className="text-white/80 text-sm mt-1">Welcome, {record.driver_name}!</p>
         </div>
 
-        {/* Dynamic instruction box — above the status banner */}
-        {instructionBox}
-
         {/* Live Status Banner — status label + dock number only */}
         <div className={`mx-4 mt-4 p-4 rounded-lg border-2 ${meta.bannerBg} ${meta.bannerBorder} transition-all duration-500`}>
           <div className="flex items-center gap-2 mb-1">
@@ -533,8 +530,11 @@ function StatusScreen({
           )}
         </div>
 
-        {/* ── Detail content — all email info, above load info box ── */}
+        {/* ── All detail content — below banner, above load info box ── */}
         <div className="mx-4 mt-3 space-y-3">
+
+          {/* Dynamic action box — replaces the old static parking notice */}
+          {instructionBox}
 
           {/* Double booked warning */}
           {record.is_double_booked && isDockAssigned && (
