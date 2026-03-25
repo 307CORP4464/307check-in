@@ -396,15 +396,27 @@ function StatusScreen({
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
   useEffect(() => {
+    // Re-fetch the full row on every update so we always get every column
+    // regardless of which columns Supabase realtime includes in the payload.
+    const fetchFull = async () => {
+      const { data } = await supabase
+        .from('check_ins')
+        .select('*')
+        .eq('id', initialRecord.id)
+        .single();
+      if (data) {
+        console.log('[CheckIn Update] Full record from DB:', JSON.stringify(data, null, 2));
+        setRecord(data as CheckInRecord);
+        setLastUpdated(new Date());
+      }
+    };
+
     const channel = supabase
       .channel(`check_in_${initialRecord.id}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'check_ins', filter: `id=eq.${initialRecord.id}` },
-        (payload) => {
-          setRecord(payload.new as CheckInRecord);
-          setLastUpdated(new Date());
-        }
+        () => { fetchFull(); }
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') setConnectionStatus('connected');
@@ -430,6 +442,18 @@ function StatusScreen({
   // Once loading/unloading has started (or anything terminal), hide them.
   const STATUSES_WITHOUT_INSTRUCTIONS = ['loading', 'unloading', 'checked_out', 'complete', 'rejected', 'check_in_denial', 'turned_away', 'driver_left', 'on_hold'];
   const showInstructions = dockIsAssigned && !STATUSES_WITHOUT_INSTRUCTIONS.includes(status);
+
+  // DEBUG — remove once confirmed working
+  console.log('[CheckIn Render]', {
+    status,
+    dock_number: record.dock_number,
+    hasDock,
+    dockIsAssigned,
+    showInstructions,
+    gross_weight: record.gross_weight,
+    is_double_booked: record.is_double_booked,
+    load_type: record.load_type,
+  });
 
   const isLoading   = status === 'loading';
   const isUnloading = status === 'unloading';
