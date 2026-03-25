@@ -398,8 +398,6 @@ function StatusScreen({
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
   useEffect(() => {
-    // Re-fetch the full row on every update so we always get every column
-    // regardless of which columns Supabase realtime includes in the payload.
     const fetchFull = async () => {
       const { data } = await supabase
         .from('check_ins')
@@ -436,17 +434,11 @@ function StatusScreen({
   const hasDock = !!record.dock_number;
   const dockDisplay = record.dock_number === 'Ramp' ? 'RAMP' : record.dock_number;
 
-  // A dock has been assigned when status says so, OR when dock_number is present
-  // (admin may set dock_number without updating status)
-  // Dock is assigned whenever dock_number is present (status may be 'checked_in' or 'dock_assigned')
   const dockIsAssigned = hasDock || status === 'dock_assigned' || status === 'checked_in';
 
-  // Show load instructions only while driver still needs to pull into dock.
-  // Once loading/unloading has started (or anything terminal), hide them.
   const STATUSES_WITHOUT_INSTRUCTIONS = ['loading', 'unloading', 'checked_out', 'complete', 'rejected', 'check_in_denial', 'turned_away', 'driver_left', 'on_hold'];
   const showInstructions = dockIsAssigned && !STATUSES_WITHOUT_INSTRUCTIONS.includes(status);
 
-  // DEBUG — remove once confirmed working
   console.log('[CheckIn Render]', {
     status,
     dock_number: record.dock_number,
@@ -465,7 +457,6 @@ function StatusScreen({
   const isRejected  = status === 'rejected';
   const isDenied    = status === 'check_in_denial' || status === 'turned_away' || status === 'denied';
 
-  // Parse rejection_reasons safely — Supabase may return TEXT[], JSON string, or plain array
   const rejectionReasons: string[] = (() => {
     const raw = record.rejection_reasons;
     if (!raw) return [];
@@ -476,10 +467,7 @@ function StatusScreen({
     return [];
   })();
 
-  // ── Action box message — shown directly below the status banner ────────────
-
   const actionBox = (() => {
-    // Pending with NO dock yet
     if (status === 'pending' && !hasDock) {
       return (
         <div className="p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg text-sm text-yellow-900">
@@ -487,7 +475,6 @@ function StatusScreen({
         </div>
       );
     }
-    // Dock assigned (either via status or dock_number being set)
     if (dockIsAssigned && !STATUSES_WITHOUT_INSTRUCTIONS.includes(status)) {
       return (
         <div className="p-4 bg-blue-50 border-2 border-blue-400 rounded-lg text-sm text-blue-900">
@@ -586,7 +573,7 @@ function StatusScreen({
           {/* 1. Action box */}
           {actionBox}
 
-          {/* 2. Double booked warning — show as soon as dock is set */}
+          {/* 2. Double booked warning */}
           {hasDock && record.is_double_booked && (
             <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
               <p className="text-sm font-bold text-orange-800 mb-1">⚠️ Important — Please Wait Before Pulling In</p>
@@ -598,7 +585,7 @@ function StatusScreen({
             </div>
           )}
 
-          {/* 3. Gross weight — show as soon as dock is set */}
+          {/* 3. Gross weight */}
           {hasDock && record.gross_weight && (
             <div className="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
               <p className="text-sm font-bold text-orange-700 mb-1">
@@ -631,7 +618,7 @@ function StatusScreen({
             </div>
           )}
 
-          {/* 5. Load instructions — only while driver needs to pull into dock */}
+          {/* 5. Load instructions */}
           {showInstructions && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               {record.load_type === 'inbound' ? <InboundInstructions /> : <OutboundInstructions />}
@@ -649,7 +636,7 @@ function StatusScreen({
             </div>
           )}
 
-          {/* 8. Trailer rejected — reasons list + resolution action */}
+          {/* 8. Trailer rejected */}
           {isRejected && (
             <>
               {rejectionReasons.length > 0 && (
@@ -923,17 +910,19 @@ export default function DriverCheckInForm() {
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
 
-          <a
-                  href="/status"
-                  className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
-                >
-                  🔍 Already checked in? Look up your load status
-                </a>
-
           <div className="bg-blue-600 text-white p-6">
-            
             <h1 className="text-2xl font-bold">Driver Check-In</h1>
             <p className="text-blue-100 mt-1">Please fill out all required fields to check in</p>
+          </div>
+
+          {/* ── Status lookup link — prominent, top of page ── */}
+          <div className="mx-6 mt-5">
+            <a
+              href="/status"
+              className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-blue-50 border-2 border-blue-300 rounded-lg text-blue-700 font-semibold text-base hover:bg-blue-100 hover:border-blue-400 transition-colors"
+            >
+              🔍 Already checked in? Look up your load status
+            </a>
           </div>
 
           {timeRestrictionWarning && (
@@ -1064,14 +1053,6 @@ export default function DriverCheckInForm() {
               <p className="mb-1"><strong>Location Verification:</strong> You must be on-site to complete check-in</p>
               <p>For assistance, contact the shipping office at{' '}
                 <a href="tel:+17654742512" className="text-blue-600 hover:underline">(765) 474-2512</a></p>
-              <div className="mt-4 pt-3 border-t border-gray-100">
-                <a
-                  href="/status"
-                  className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
-                >
-                  🔍 Already checked in? Look up your load status
-                </a>
-              </div>
             </div>
           </form>
         </div>
