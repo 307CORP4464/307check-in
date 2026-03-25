@@ -276,7 +276,7 @@ const getNextWorkingDayAt0600 = (): string => {
 const getTodayUTCRange = () => {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 23, 59, 59, 999);
   return { start: start.toISOString(), end: end.toISOString() };
 };
 
@@ -339,7 +339,7 @@ function CarrierCheckInList({
   return (
     <div className="mt-6">
       <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-        Today's Vision Check-Ins ({records.length})
+        Vision Check-Ins ({records.length})
       </h3>
       <div className="space-y-3">
         {records.map((r) => {
