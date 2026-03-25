@@ -413,82 +413,106 @@ function StatusScreen({
     return () => { supabase.removeChannel(channel); };
   }, [initialRecord.id, supabase]);
 
-  const meta = getStatusMeta(record.status);
+  // ── Derived state ──────────────────────────────────────────────────────────
+
+  const status = record.status;
+  const meta = getStatusMeta(status);
   const filledRefs = referenceNumbers.filter((r) => r.trim());
 
-  const isRejected = record.status === 'rejected';
-  const isDenied = record.status === 'check_in_denial' || record.status === 'turned_away';
-  const isCheckedOut = record.status === 'checked_out';
-  const isComplete = record.status === 'complete';
-  const isDockAssigned = record.status === 'dock_assigned' || (!!record.dock_number && record.status === 'pending');
   const hasDock = !!record.dock_number;
-  const showInstructions = isDockAssigned && !['loading', 'unloading', 'checked_out', 'complete', 'rejected', 'check_in_denial', 'turned_away', 'driver_left', 'on_hold'].includes(record.status);
+  const dockDisplay = record.dock_number === 'Ramp' ? 'RAMP' : record.dock_number;
 
-  const dockDisplay = record.dock_number
-    ? (record.dock_number === 'Ramp' ? 'RAMP' : record.dock_number)
-    : null;
+  // A dock has been assigned when status says so, OR when dock_number is present
+  // (admin may set dock_number without updating status)
+  const dockIsAssigned = status === 'dock_assigned' || hasDock;
 
-  // Dynamic instruction box — changes per status
-  const instructionBox = (() => {
-    if (record.status === 'pending') {
+  // Show load instructions only while driver still needs to pull into dock.
+  // Once loading/unloading has started (or anything terminal), hide them.
+  const STATUSES_WITHOUT_INSTRUCTIONS = ['loading', 'unloading', 'checked_out', 'complete', 'rejected', 'check_in_denial', 'turned_away', 'driver_left', 'on_hold'];
+  const showInstructions = dockIsAssigned && !STATUSES_WITHOUT_INSTRUCTIONS.includes(status);
+
+  const isLoading   = status === 'loading';
+  const isUnloading = status === 'unloading';
+  const isCheckedOut = status === 'checked_out';
+  const isComplete  = status === 'complete';
+  const isRejected  = status === 'rejected';
+  const isDenied    = status === 'check_in_denial' || status === 'turned_away';
+
+  // Parse rejection_reasons safely — Supabase may return TEXT[], JSON string, or plain array
+  const rejectionReasons: string[] = (() => {
+    const raw = record.rejection_reasons;
+    if (!raw) return [];
+    if (Array.isArray(raw)) return (raw as string[]).filter(Boolean);
+    if (typeof raw === 'string') {
+      try { return JSON.parse(raw as string); } catch { return [raw as string]; }
+    }
+    return [];
+  })();
+
+  // ── Action box message — shown directly below the status banner ────────────
+
+  const actionBox = (() => {
+    // Pending with NO dock yet
+    if (status === 'pending' && !hasDock) {
       return (
-        <div className="p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg text-sm text-yellow-800">
+        <div className="p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg text-sm text-yellow-900">
           🅿️ <strong>Park in the angled spaces</strong> in front of the office and <strong>stay with your truck.</strong> Your dock assignment will appear below — do not leave this page.
         </div>
       );
     }
-    if (record.status === 'dock_assigned' || (record.dock_number && record.status === 'pending')) {
+    // Dock assigned (either via status or dock_number being set)
+    if (dockIsAssigned && !STATUSES_WITHOUT_INSTRUCTIONS.includes(status)) {
       return (
-        <div className="p-4 bg-blue-50 border-2 border-blue-400 rounded-lg text-sm text-blue-800">
+        <div className="p-4 bg-blue-50 border-2 border-blue-400 rounded-lg text-sm text-blue-900">
           🚛 <strong>Proceed to Dock {dockDisplay}</strong> now. Follow the {record.load_type === 'inbound' ? 'unloading' : 'loading'} instructions below.
         </div>
       );
     }
-    if (record.status === 'loading') {
+    if (isLoading) {
       return (
-        <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-800">
+        <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-900">
           🔴 <strong>Stay at your dock.</strong> The dock light is red — your trailer is being loaded. The light will turn green when complete.
         </div>
       );
     }
-    if (record.status === 'unloading') {
+    if (isUnloading) {
       return (
-        <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-800">
+        <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-900">
           🔴 <strong>Stay at your dock.</strong> The dock light is red — your trailer is being unloaded. The light will turn green when complete.
         </div>
       );
     }
-    if (record.status === 'checked_out') {
+    if (isCheckedOut) {
       return (
-        <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg text-sm text-orange-800">
+        <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg text-sm text-orange-900">
           🟢 <strong>Watch for the dock light to turn GREEN,</strong> then come to the office for your paperwork.
         </div>
       );
     }
-    if (record.status === 'complete') {
+    if (isComplete) {
       return (
-        <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-800">
+        <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900">
           ✅ <strong>You are clear to depart.</strong> Come to the office if you need paperwork signed. Safe travels!
         </div>
       );
     }
     if (isRejected) {
       return (
-        <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-800">
-          ⚠️ <strong>Your trailer has been rejected.</strong> Review the reason(s) below and see us in the office if you have questions.
+        <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
+          ⚠️ <strong>Your trailer has been rejected.</strong> Review the details below and see us in the office if you have questions.
         </div>
       );
     }
     if (isDenied) {
       return (
-        <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-800">
+        <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
           🚫 <strong>Your check-in has been denied.</strong> Please contact the facility for further assistance.
         </div>
       );
     }
-    if (record.status === 'on_hold') {
+    if (status === 'on_hold') {
       return (
-        <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-800">
+        <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
           ⏸️ <strong>Your load is on hold.</strong> Please come to the office for more information.
         </div>
       );
@@ -496,33 +520,31 @@ function StatusScreen({
     return null;
   })();
 
+  // ── Render ─────────────────────────────────────────────────────────────────
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
 
-        {/* Large top banner */}
+        {/* Top banner */}
         <div className="bg-gray-900 text-white px-5 py-4 text-center">
-          <p className="text-xl font-extrabold tracking-tight leading-snug">
-            📱 Leave this page open
-          </p>
+          <p className="text-xl font-extrabold tracking-tight leading-snug">📱 Leave this page open</p>
           <p className="text-sm text-gray-300 mt-1">Load updates will appear below</p>
         </div>
 
-        {/* Header */}
+        {/* Status header */}
         <div className={`${meta.headerBg} text-white p-6 text-center transition-colors duration-500`}>
           <div className="text-5xl mb-3">{meta.headerIcon}</div>
           <h2 className="text-2xl font-bold">{meta.headerTitle}</h2>
           <p className="text-white/80 text-sm mt-1">Welcome, {record.driver_name}!</p>
         </div>
 
-        {/* Live Status Banner — status label + dock number only */}
+        {/* Status banner — label + dock number */}
         <div className={`mx-4 mt-4 p-4 rounded-lg border-2 ${meta.bannerBg} ${meta.bannerBorder} transition-all duration-500`}>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2">
             {meta.bannerIcon}
             <span className={`font-semibold text-sm ${meta.bannerText}`}>{meta.bannerLabel}</span>
           </div>
-
-          {/* Dock number */}
           {dockDisplay && (
             <div className="mt-3 text-center py-2">
               <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Dock Assignment</p>
@@ -531,29 +553,38 @@ function StatusScreen({
           )}
         </div>
 
-        {/* ── All detail content — below banner, above load info box ── */}
+        {/* ── Detail section ── */}
         <div className="mx-4 mt-3 space-y-3">
 
-          {/* Dynamic action box — replaces the old static parking notice */}
-          {instructionBox}
+          {/* 1. Action box */}
+          {actionBox}
 
-          {/* Double booked warning */}
-          {record.is_double_booked && hasDock && (
+          {/* 2. Double booked warning — show as soon as dock is set */}
+          {hasDock && record.is_double_booked && (
             <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
-              <p className="text-sm font-bold text-orange-700 mb-1">⚠️ Important — Please Wait Before Pulling In</p>
-              <p className="text-sm text-orange-800">This dock is currently occupied by another truck. <strong>Do not pull into the dock until the first truck has fully pulled out.</strong> Once the dock is clear, proceed with your normal instructions below.</p>
+              <p className="text-sm font-bold text-orange-800 mb-1">⚠️ Important — Please Wait Before Pulling In</p>
+              <p className="text-sm text-orange-800">
+                This dock is currently occupied by another truck.{' '}
+                <strong>Do not pull into the dock until the first truck has fully pulled out.</strong>{' '}
+                Once the dock is clear, proceed with your normal instructions below.
+              </p>
             </div>
           )}
 
-          {/* Gross weight */}
-          {record.gross_weight && hasDock && (
-            <div className="p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
-              <p className="text-sm font-bold text-orange-700">⚖️ Gross Weight: {Number(record.gross_weight).toLocaleString()} lbs</p>
-              <p className="text-xs text-yellow-800 mt-1">If you have any concerns or disputes regarding this weight, please see us in the office before proceeding to your assigned dock. By continuing to the dock you are accepting this weight.</p>
+          {/* 3. Gross weight — show as soon as dock is set */}
+          {hasDock && record.gross_weight && (
+            <div className="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+              <p className="text-sm font-bold text-orange-700 mb-1">
+                ⚖️ Gross Weight: {Number(record.gross_weight).toLocaleString()} lbs
+              </p>
+              <p className="text-xs text-yellow-900">
+                If you have any concerns or disputes regarding this weight, please see us in the office
+                before proceeding to your assigned dock. By continuing to the dock you are accepting this weight.
+              </p>
             </div>
           )}
 
-          {/* Appointment time */}
+          {/* 4. Appointment time */}
           {record.appointment_time && (
             <div className="p-4 bg-white border border-gray-200 rounded-lg">
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Appointment Time</p>
@@ -562,8 +593,8 @@ function StatusScreen({
                 {record.appointment_status && (
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                     record.appointment_status === 'On Time' ? 'bg-green-100 text-green-700' :
-                    record.appointment_status === 'Early' ? 'bg-blue-100 text-blue-700' :
-                    record.appointment_status === 'Late' ? 'bg-orange-100 text-orange-700' :
+                    record.appointment_status === 'Early'   ? 'bg-blue-100 text-blue-700' :
+                    record.appointment_status === 'Late'    ? 'bg-orange-100 text-orange-700' :
                     'bg-gray-100 text-gray-600'
                   }`}>
                     {record.appointment_status}
@@ -573,17 +604,17 @@ function StatusScreen({
             </div>
           )}
 
-          {/* Load instructions — shown whenever a dock is assigned or status is loading/unloading */}
+          {/* 5. Load instructions — only while driver needs to pull into dock */}
           {showInstructions && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               {record.load_type === 'inbound' ? <InboundInstructions /> : <OutboundInstructions />}
             </div>
           )}
 
-          {/* Checked out next steps */}
+          {/* 6. Checked-out next steps */}
           {isCheckedOut && <CheckedOutNextSteps />}
 
-          {/* Completion time */}
+          {/* 7. Completion time */}
           {isComplete && record.end_time && (
             <div className="p-4 bg-white border border-gray-200 rounded-lg">
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Completed At</p>
@@ -591,58 +622,51 @@ function StatusScreen({
             </div>
           )}
 
-          {/* ── TRAILER REJECTED content ── */}
-          {isRejected && (() => {
-            // Parse rejection_reasons safely — handles Postgres array, JSON string, or plain array
-            let reasons: string[] = [];
-            if (record.rejection_reasons) {
-              if (Array.isArray(record.rejection_reasons)) {
-                reasons = record.rejection_reasons.filter(Boolean);
-              } else if (typeof record.rejection_reasons === 'string') {
-                try { reasons = JSON.parse(record.rejection_reasons as string); } catch { reasons = [record.rejection_reasons as string]; }
-              }
-            }
-            return (
-              <>
-                {reasons.length > 0 && (
-                  <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
-                    <p className="text-sm font-bold text-red-700 mb-3">⚠️ Your trailer has been rejected for the following reason(s):</p>
-                    <ol className="space-y-2">
-                      {reasons.map((reason, i) => (
-                        <li key={i} className="flex gap-2 text-sm text-red-800">
-                          <span className="font-bold text-red-500 shrink-0">{i + 1}.</span>
-                          <span>{reason}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
-
-                <div className={`p-4 rounded-lg border-2 ${
-                  record.resolution_action === 'new_trailer'
-                    ? 'bg-red-50 border-red-500'
-                    : 'bg-yellow-50 border-orange-400'
-                }`}>
-                  <p className={`text-sm font-bold mb-2 ${
-                    record.resolution_action === 'new_trailer' ? 'text-red-700' : 'text-orange-700'
-                  }`}>
-                    {record.resolution_action === 'new_trailer' ? '🚫 Important Notice:' : '🔧 What You Need to Do:'}
+          {/* 8. Trailer rejected — reasons list + resolution action */}
+          {isRejected && (
+            <>
+              {rejectionReasons.length > 0 && (
+                <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
+                  <p className="text-sm font-bold text-red-700 mb-3">
+                    ⚠️ Your trailer has been rejected for the following reason(s):
                   </p>
-                  <p className={`text-sm leading-relaxed ${
-                    record.resolution_action === 'new_trailer' ? 'text-red-800' : 'text-orange-800'
-                  }`}>
-                    {record.resolution_action === 'new_trailer'
-                      ? 'This trailer will not be loaded under any circumstances. A new, clean trailer that meets our requirements must be provided in order to proceed with this load.'
-                      : 'The trailer issues listed above must be corrected before re-entry. Once the trailer has been cleaned and/or repaired to meet our requirements, you may check back in.'}
-                  </p>
+                  <ol className="space-y-2">
+                    {rejectionReasons.map((reason, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-red-800">
+                        <span className="font-bold text-red-500 shrink-0">{i + 1}.</span>
+                        <span>{reason}</span>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
+              )}
 
-                <p className="text-xs text-center text-gray-500">If you have questions, please see us in the office.</p>
-              </>
-            );
-          })()}
+              <div className={`p-4 rounded-lg border-2 ${
+                record.resolution_action === 'new_trailer'
+                  ? 'bg-red-50 border-red-500'
+                  : 'bg-yellow-50 border-orange-400'
+              }`}>
+                <p className={`text-sm font-bold mb-2 ${
+                  record.resolution_action === 'new_trailer' ? 'text-red-700' : 'text-orange-700'
+                }`}>
+                  {record.resolution_action === 'new_trailer' ? '🚫 Important Notice:' : '🔧 What You Need to Do:'}
+                </p>
+                <p className={`text-sm leading-relaxed ${
+                  record.resolution_action === 'new_trailer' ? 'text-red-800' : 'text-orange-800'
+                }`}>
+                  {record.resolution_action === 'new_trailer'
+                    ? 'This trailer will not be loaded under any circumstances. A new, clean trailer that meets our requirements must be provided in order to proceed with this load.'
+                    : 'The trailer issues listed above must be corrected before re-entry. Once the trailer has been cleaned and/or repaired to meet our requirements, you may check back in.'}
+                </p>
+              </div>
 
-          {/* ── CHECK-IN DENIED content ── */}
+              <p className="text-xs text-center text-gray-500 pb-1">
+                If you have questions, please see us in the office.
+              </p>
+            </>
+          )}
+
+          {/* 9. Check-in denied */}
           {isDenied && (
             <>
               {record.denial_reason && (
@@ -651,11 +675,13 @@ function StatusScreen({
                   <p className="text-sm text-red-800">{record.denial_reason}</p>
                 </div>
               )}
-              <p className="text-sm text-red-700 text-center">Please contact the facility for further assistance or clarification.</p>
+              <p className="text-sm text-red-700 text-center pb-1">
+                Please contact the facility for further assistance or clarification.
+              </p>
             </>
           )}
 
-          {/* Notes from office */}
+          {/* 10. Note from office */}
           {record.status_note && (
             <div className="p-4 bg-white border border-gray-200 rounded-lg">
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Note from Office</p>
@@ -665,7 +691,7 @@ function StatusScreen({
 
         </div>
 
-        {/* Check-in details */}
+        {/* Load info summary */}
         <div className="mx-4 mt-4 p-4 bg-gray-50 rounded-lg text-sm space-y-2">
           {filledRefs.length > 0 && (
             <div className="flex justify-between">
@@ -702,11 +728,12 @@ function StatusScreen({
           <div className="flex items-center gap-1.5">
             <span className={`inline-block w-2 h-2 rounded-full ${
               connectionStatus === 'connected' ? 'bg-green-400 animate-pulse' :
-              connectionStatus === 'error' ? 'bg-red-400' : 'bg-yellow-400 animate-pulse'
+              connectionStatus === 'error'     ? 'bg-red-400' :
+              'bg-yellow-400 animate-pulse'
             }`} />
             <span>
               {connectionStatus === 'connected' ? 'Live updates active' :
-               connectionStatus === 'error' ? 'Connection error — refresh page' :
+               connectionStatus === 'error'     ? 'Connection error — refresh page' :
                'Connecting...'}
             </span>
           </div>
