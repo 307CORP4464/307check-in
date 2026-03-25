@@ -72,7 +72,6 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   
   if (appointmentTime === 'work_in') return 'Work In';
 
-  // ✅ Map raw DB values to friendly display labels
   const specialTypeLabels: Record<string, string> = {
     'LTL': 'LTL',
     'Paid no appointment': 'Paid',
@@ -97,7 +96,6 @@ const formatAppointmentDateTime = (
   appointmentTime: string | null | undefined
 ): string => {
   
-  // Handle Work In cases
   if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
     if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
       return 'Work In';
@@ -125,7 +123,6 @@ const formatAppointmentDateTime = (
     return 'Work In';
   }
 
-  // Handle special types with friendly labels
   const specialTypeLabels: Record<string, string> = {
     'LTL': 'LTL',
     'Charge Customer no appointment': 'Charge',
@@ -157,11 +154,9 @@ const formatAppointmentDateTime = (
         console.error('Error formatting special type date:', error);
       }
     }
-    // No date, just return the friendly label
     return label;
   }
 
-  // If no time at all, return N/A
   if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
     return 'N/A';
   }
@@ -239,12 +234,10 @@ const getAppointmentStatus = (
   appointmentDate: string | null | undefined
 ): { color: 'green' | 'orange' | 'red' | 'yellow' | 'none'; message: string | null } => {
 
-  // No appointment at all → red
   if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
     return { color: 'red', message: null };
   }
 
-  // LTL, Charge, or Paid → orange
   if (
     appointmentTime === 'LTL' ||
     appointmentTime === 'Charge Customer no appointment' ||
@@ -253,15 +246,13 @@ const getAppointmentStatus = (
     return { color: 'orange', message: null };
   }
 
-  // Work-in → yellow
   if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
     return { color: 'yellow', message: null };
   }
 
-  // Normalize: "08:00" → "0800"
   const normalizedTime = appointmentTime.replace(/:/g, '').trim();
   if (!normalizedTime.match(/^\d{4}$/)) {
-    return { color: 'red', message: null }; // Unrecognized format → red
+    return { color: 'red', message: null };
   }
 
   try {
@@ -276,12 +267,9 @@ const getAppointmentStatus = (
     const aptTotalMinutes = aptHour * 60 + aptMinute;
     const diffMinutes = checkInTotalMinutes - aptTotalMinutes;
 
-    // Checked in before or at appointment time → green
     if (diffMinutes <= 0) {
       return { color: 'green', message: null };
-    }
-    // Checked in after appointment time → yellow
-    else {
+    } else {
       return { color: 'yellow', message: null };
     }
 
@@ -294,7 +282,6 @@ const getAppointmentStatus = (
 const parseReferenceNumbers = (referenceNumber: string | undefined): string[] => {
   if (!referenceNumber) return [];
   
-  // Split by common delimiters: comma, semicolon, space, pipe
   return referenceNumber
     .split(/[,;\s|]+/)
     .map(ref => ref.trim())
@@ -326,6 +313,11 @@ interface CheckIn {
   mode?: string | null;
   requested_ship_date?: string | null;
   customer?: string;
+  // Status detail fields
+  status_note?: string | null;
+  denial_reason?: string | null;
+  rejection_reasons?: string[] | null;
+  resolution_action?: string | null;
 }
 
 interface Appointment {
@@ -351,21 +343,17 @@ const calculateDetention = (
   appointmentDate: string | null | undefined
 ): { hasDetention: boolean; detentionDuration: string | null } => {
 
-  // Must have a check-out time
   if (!checkOutTime) return { hasDetention: false, detentionDuration: null };
 
-  // Work-in = no detention
   if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
     return { hasDetention: false, detentionDuration: null };
   }
 
-  // Check-in must be on time (green status)
   const status = getAppointmentStatus(checkInTime, appointmentTime, appointmentDate);
   if (status.color !== 'green') {
     return { hasDetention: false, detentionDuration: null };
   }
 
-  // Normalize appointment time → "0800"
   const normalizedTime = appointmentTime.replace(/:/g, '').trim();
   if (!normalizedTime.match(/^\d{4}$/)) {
     return { hasDetention: false, detentionDuration: null };
@@ -376,7 +364,6 @@ const calculateDetention = (
   }
 
   try {
-    // Parse appointment date
     let aptYear: number, aptMonth: number, aptDay: number;
 
     if (appointmentDate.includes('/')) {
@@ -391,14 +378,11 @@ const calculateDetention = (
     const appointmentHour = parseInt(normalizedTime.substring(0, 2));
     const appointmentMinute = parseInt(normalizedTime.substring(2, 4));
 
-    // Build the appointment time as a JS Date in Indianapolis timezone
     const aptLocalString = `${aptYear}-${String(aptMonth).padStart(2, '0')}-${String(aptDay).padStart(2, '0')}T${String(appointmentHour).padStart(2, '0')}:${String(appointmentMinute).padStart(2, '0')}:00`;
     const appointmentUTC = zonedTimeToUtc(aptLocalString, TIMEZONE);
 
-    // Detention starts 2 hours after appointment time
     const detentionStartUTC = new Date(appointmentUTC.getTime() + 2 * 60 * 60 * 1000);
 
-    // Parse check-out (already UTC ISO string from Supabase)
     const checkOutUTC = new Date(checkOutTime);
 
     if (isNaN(detentionStartUTC.getTime()) || isNaN(checkOutUTC.getTime())) {
@@ -406,18 +390,9 @@ const calculateDetention = (
       return { hasDetention: false, detentionDuration: null };
     }
 
-    // How many minutes past the 2-hour mark?
     const diffMs = checkOutUTC.getTime() - detentionStartUTC.getTime();
     const diffMinutes = Math.floor(diffMs / (1000 * 60));
 
-    console.log('Detention debug:', {
-      appointmentUTC: appointmentUTC.toISOString(),
-      detentionStartUTC: detentionStartUTC.toISOString(),
-      checkOutUTC: checkOutUTC.toISOString(),
-      diffMinutes
-    });
-
-    // Only show detention if check-out is AFTER the 2-hour mark
     if (diffMinutes <= 0) {
       return { hasDetention: false, detentionDuration: null };
     }
@@ -440,7 +415,105 @@ const calculateDetention = (
   }
 };
 
-// ── Reprint receipt (mirrors AssignDockModal's printReceipt) ──────────────────
+// ── Status Detail Popover ────────────────────────────────────────────────────
+interface StatusDetailPopoverProps {
+  checkIn: CheckIn;
+  onClose: () => void;
+}
+
+function StatusDetailPopover({ checkIn, onClose }: StatusDetailPopoverProps) {
+  const status = checkIn.status;
+  const hasDetails =
+    checkIn.status_note ||
+    checkIn.denial_reason ||
+    (checkIn.rejection_reasons && checkIn.rejection_reasons.length > 0) ||
+    checkIn.resolution_action;
+
+  const resolutionLabel =
+    checkIn.resolution_action === 'correct_and_return'
+      ? 'Correct the issue and return for re-inspection.'
+      : checkIn.resolution_action === 'new_trailer'
+      ? 'Return with a new trailer.'
+      : null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-xl shadow-2xl max-w-md w-full p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h3 className="text-base font-bold text-gray-900">Status Details</h3>
+            {checkIn.reference_number && (
+              <p className="text-xs text-gray-500 mt-0.5">Ref: {checkIn.reference_number}</p>
+            )}
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-4">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {!hasDetails && (
+          <p className="text-sm text-gray-500 italic">No additional details recorded for this status.</p>
+        )}
+
+        {/* Denial Reason (turned_away) */}
+        {status === 'turned_away' && checkIn.denial_reason && (
+          <div className="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+            <p className="text-xs font-bold text-orange-700 uppercase tracking-wide mb-1">Reason Turned Away</p>
+            <p className="text-sm text-orange-900">{checkIn.denial_reason}</p>
+          </div>
+        )}
+
+        {/* Rejection Reasons */}
+        {status === 'rejected' && checkIn.rejection_reasons && checkIn.rejection_reasons.length > 0 && (
+          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-xs font-bold text-red-700 uppercase tracking-wide mb-2">Rejection Reason(s)</p>
+            <ol className="space-y-1">
+              {checkIn.rejection_reasons.map((reason, i) => (
+                <li key={i} className="flex gap-2 text-sm text-red-900">
+                  <span className="font-bold text-red-500 shrink-0">{i + 1}.</span>
+                  {reason}
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        {/* Resolution Action */}
+        {status === 'rejected' && resolutionLabel && (
+          <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-xs font-bold text-amber-700 uppercase tracking-wide mb-1">Required Action</p>
+            <p className="text-sm text-amber-900">{resolutionLabel}</p>
+          </div>
+        )}
+
+        {/* General Notes */}
+        {checkIn.status_note && (
+          <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Notes</p>
+            <p className="text-sm text-gray-800">{checkIn.status_note}</p>
+          </div>
+        )}
+
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Reprint receipt ──────────────────────────────────────────────────────────
 const reprintReceipt = (checkIn: CheckIn) => {
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
@@ -541,7 +614,6 @@ const reprintReceipt = (checkIn: CheckIn) => {
         </style>
       </head>
       <body>
-        <!-- Page 1: Load Receipt -->
         <div class="receipt-page">
           <div class="receipt-header">
             <h1>Driver Check-In Form</h1>
@@ -597,7 +669,6 @@ const reprintReceipt = (checkIn: CheckIn) => {
           <button class="print-button no-print" onclick="window.print()">Print Form</button>
         </div>
 
-        <!-- Page 2: Inspection Form -->
         <div class="page-break"></div>
         
         ${isInbound ? getInboundInspectionForm() : getOutboundInspectionForm()}
@@ -805,6 +876,9 @@ export default function DailyLog() {
   const [showInProgressOnly, setShowInProgressOnly] = useState(false);
   const [appointments, setAppointments] = useState<Map<string, Appointment>>(new Map());
 
+  // Status detail popover state
+  const [statusDetailCheckIn, setStatusDetailCheckIn] = useState<CheckIn | null>(null);
+
   const getCurrentDateInIndianapolis = () => {
     const now = new Date();
     const formatter = new Intl.DateTimeFormat('en-US', {
@@ -977,13 +1051,11 @@ const fetchCheckInsForDate = useCallback(async () => {
   }
 }, [selectedDate]);
 
-// Keep a ref to always point at the latest fetch function
 const fetchRef = useRef(fetchCheckInsForDate);
 useEffect(() => {
   fetchRef.current = fetchCheckInsForDate;
 }, [fetchCheckInsForDate]);
 
-// Set up realtime subscription ONCE — uses ref so it never goes stale
 useEffect(() => {
   const channel = supabase
     .channel('daily_log_realtime')
@@ -998,15 +1070,13 @@ useEffect(() => {
   return () => {
     supabase.removeChannel(channel);
   };
-}, []); // ← empty deps, subscribes once and stays open
+}, []);
 
-// Re-fetch when date changes
 useEffect(() => {
   fetchCheckInsForDate();
 }, [fetchCheckInsForDate]);
 
 
-// ✅ UPDATED: search now includes reference number, trailer number, and dock number
 const filteredCheckIns = checkIns.filter((checkIn) => {
   if (!searchTerm.trim()) return true;
   const searchLower = searchTerm.toLowerCase().trim();
@@ -1054,6 +1124,15 @@ const handleEditSuccess = () => {
   fetchCheckInsForDate();
 }; 
 
+// Determine if a status badge has clickable details
+const statusHasDetails = (checkIn: CheckIn): boolean => {
+  return !!(
+    checkIn.status_note ||
+    checkIn.denial_reason ||
+    (checkIn.rejection_reasons && checkIn.rejection_reasons.length > 0) ||
+    checkIn.resolution_action
+  );
+};
 
   const getStatusBadgeColor = (status: string): string => {
     const statusLower = status.toLowerCase();
@@ -1096,9 +1175,7 @@ const handleEditSuccess = () => {
 
  return (
     <div className="min-h-screen bg-gray-50">
-       {/* Header */}
        <Header title="Daily Log" />
-          {/* Main Content */}
     <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
       {/* Date Selector, Search & Counters */}
       <div className="mb-6 flex gap-4 items-end max-w-7xl mx-auto">
@@ -1115,7 +1192,6 @@ const handleEditSuccess = () => {
           />
         </div>
         
-        {/* ✅ UPDATED: Search now covers reference #, trailer, and dock. Includes clear (✕) button. */}
         <div className="flex-1">
           <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
             Search by Reference #, Trailer, or Door
@@ -1143,281 +1219,247 @@ const handleEditSuccess = () => {
           </div>
         </div>
 
-{/* Counters */}
-<div className="flex gap-4">
-  <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
-    <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">
-      Total Checked In
-    </div>
-    <div className="text-2xl font-bold text-blue-900">
-      {filteredCheckIns.length}
-    </div>
-  </div>
-  
-  <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-    <div className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">
-      Total Complete
-    </div>
-    <div className="text-2xl font-bold text-green-900">
-      {filteredCheckIns.filter(checkIn => checkIn.end_time).length}
-    </div>
-  </div>
+        {/* Counters */}
+        <div className="flex gap-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+            <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">
+              Total Checked In
+            </div>
+            <div className="text-2xl font-bold text-blue-900">
+              {filteredCheckIns.length}
+            </div>
+          </div>
+          
+          <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+            <div className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">
+              Total Complete
+            </div>
+            <div className="text-2xl font-bold text-green-900">
+              {filteredCheckIns.filter(checkIn => checkIn.end_time).length}
+            </div>
+          </div>
 
-  {/* In Progress Filter Button */}
-  <button
-    onClick={() => setShowInProgressOnly(!showInProgressOnly)}
-    className={`rounded-lg px-4 py-2 transition-colors border text-left ${
-      showInProgressOnly
-        ? 'bg-yellow-400 border-yellow-500 ring-2 ring-yellow-300'
-        : 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
-    }`}
-  >
-    <div className="text-xs font-medium text-yellow-700 uppercase tracking-wider mb-1">
-      In Progress
-    </div>
-    <div className="flex items-center gap-2">
-      <div className="text-2xl font-bold text-yellow-900">
-        {filteredCheckIns.filter(checkIn => !checkIn.end_time && checkIn.status !== 'denied').length}
+          <button
+            onClick={() => setShowInProgressOnly(!showInProgressOnly)}
+            className={`rounded-lg px-4 py-2 transition-colors border text-left ${
+              showInProgressOnly
+                ? 'bg-yellow-400 border-yellow-500 ring-2 ring-yellow-300'
+                : 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
+            }`}
+          >
+            <div className="text-xs font-medium text-yellow-700 uppercase tracking-wider mb-1">
+              In Progress
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="text-2xl font-bold text-yellow-900">
+                {filteredCheckIns.filter(checkIn => !checkIn.end_time && checkIn.status !== 'denied').length}
+              </div>
+              {showInProgressOnly && (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-700" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
+                </svg>
+              )}
+            </div>
+          </button>
+        </div>
       </div>
-      {showInProgressOnly && (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-700" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-        </svg>
-      )}
-    </div>
-  </button>
-</div>
-      </div>
 
 
-      {/* Table - Full Width */}
+      {/* Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Type
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Driver Info
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Trailer
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Cust. Req. Date and Dest.
-              </th>
-               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                SCAC and Mode
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Reference #
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Dock
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Check-In Time
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Appointment Time
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                End Time
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Detention
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Notes
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver Info</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cust. Req. Date and Dest.</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SCAC and Mode</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference #</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dock</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-In Time</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment Time</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Detention</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           
-<tbody className="bg-white divide-y divide-gray-200">
-  {displayedCheckIns.map((checkIn) => (
-    <tr key={checkIn.id} className="hover:bg-gray-50">
-      {/* Type */}
-      <td className="px-4 py-3 whitespace-nowrap">
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          checkIn.load_type === 'inbound' 
-            ? 'bg-blue-100 text-blue-800' 
-            : 'bg-orange-100 text-orange-800'
-        }`}>
-          {checkIn.load_type === 'inbound' ? 'I' : 'O'}
-        </span>
-      </td>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {displayedCheckIns.map((checkIn) => (
+              <tr key={checkIn.id} className="hover:bg-gray-50">
+                {/* Type */}
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    checkIn.load_type === 'inbound' 
+                      ? 'bg-blue-100 text-blue-800' 
+                      : 'bg-orange-100 text-orange-800'
+                  }`}>
+                    {checkIn.load_type === 'inbound' ? 'I' : 'O'}
+                  </span>
+                </td>
 
-      {/* Driver Info */}
-      <td className="px-4 py-4 text-sm">
-        <div className="text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
-        <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
-        <div className="text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
-      </td>
+                {/* Driver Info */}
+                <td className="px-4 py-4 text-sm">
+                  <div className="text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
+                  <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
+                  <div className="text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
+                </td>
 
-      {/* Trailer Info */}
-      <td className="px-4 py-4 text-sm text-gray-900">
-        <div>{checkIn.trailer_number || 'N/A'}</div>
-        <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
-      </td>
+                {/* Trailer Info */}
+                <td className="px-4 py-4 text-sm text-gray-900">
+                  <div>{checkIn.trailer_number || 'N/A'}</div>
+                  <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
+                </td>
 
-      {/* Load Info */}
-<td className="px-4 py-3 text-sm">
-  <div className="flex flex-col">
-    <span className="font-semibold text-gray-900">
-      {checkIn.customer || 'N/A'}
-    </span>
-      <span className="font-semibold text-gray-900">
-      {checkIn.requested_ship_date || 'N/A'}
-    </span>
-    {/* Destination city and state below customer */}
-    <span className="text-gray-500 text-xs mt-0.5">
-      {checkIn.ship_to_city && checkIn.ship_to_state
-        ? `${checkIn.ship_to_city}, ${checkIn.ship_to_state}`
-        : checkIn.ship_to_city || checkIn.ship_to_state || 'N/A'}
-    </span>
-  </div>
-</td>
+                {/* Load Info */}
+                <td className="px-4 py-3 text-sm">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-gray-900">{checkIn.customer || 'N/A'}</span>
+                    <span className="font-semibold text-gray-900">{checkIn.requested_ship_date || 'N/A'}</span>
+                    <span className="text-gray-500 text-xs mt-0.5">
+                      {checkIn.ship_to_city && checkIn.ship_to_state
+                        ? `${checkIn.ship_to_city}, ${checkIn.ship_to_state}`
+                        : checkIn.ship_to_city || checkIn.ship_to_state || 'N/A'}
+                    </span>
+                  </div>
+                </td>
 
-            {/* Transport */}
-<td className="px-4 py-3 text-sm">
-  <div className="flex flex-col">
-    <span className="font-semibold text-gray-900">
-      {checkIn.carrier || 'N/A'}
-    </span>
-     <span className="font-semibold text-gray-900">
-      {checkIn.mode || 'N/A'}
-    </span>
-  </div>
-</td>
+                {/* Transport */}
+                <td className="px-4 py-3 text-sm">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-gray-900">{checkIn.carrier || 'N/A'}</span>
+                    <span className="font-semibold text-gray-900">{checkIn.mode || 'N/A'}</span>
+                  </div>
+                </td>
 
-      {/* Reference # */}
-      <td className="font-bold text-gray-900"> {checkIn.reference_number || 'N/A'}</td>
+                {/* Reference # */}
+                <td className="font-bold text-gray-900">{checkIn.reference_number || 'N/A'}</td>
 
-      {/* Dock */}
-      <td className="font-bold text-gray-900">
-        {checkIn.dock_number || 'N/A'}
-      </td>
+                {/* Dock */}
+                <td className="font-bold text-gray-900">{checkIn.dock_number || 'N/A'}</td>
 
-      {/* ✅ CHECK-IN TIME - When form was submitted */}
-      <td className="px-4 py-3 whitespace-nowrap text-sm">
-        {formatTimeInIndianapolis(checkIn.check_in_time, true)}
-      </td>
+                {/* Check-In Time */}
+                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                  {formatTimeInIndianapolis(checkIn.check_in_time, true)}
+                </td>
 
- {/* Appointment Time */}
-<td className="px-4 py-3 whitespace-nowrap text-sm">
-  {(() => {
-    const status = getAppointmentStatus(
-      checkIn.check_in_time,
-      checkIn.appointment_time,
-      checkIn.appointment_date
-    );
-    
-    const bgColor = 
-      status.color === 'green' ? 'bg-green-200' :
-      status.color === 'red' ? 'bg-red-200' :
-      status.color === 'yellow' ? 'bg-yellow-200' :
-      status.color === 'orange' ? 'bg-orange-200' :
-      'bg-gray-300';
-    
-    return (
-      <div className={`inline-block px-2 py-1 rounded ${bgColor}`}>
-        {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
-        {status.message && (
-          <div className="text-xs mt-1">{status.message}</div>
-        )}
-      </div>
-    );
-  })()}
-</td>
+                {/* Appointment Time */}
+                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                  {(() => {
+                    const status = getAppointmentStatus(
+                      checkIn.check_in_time,
+                      checkIn.appointment_time,
+                      checkIn.appointment_date
+                    );
+                    
+                    const bgColor = 
+                      status.color === 'green' ? 'bg-green-200' :
+                      status.color === 'red' ? 'bg-red-200' :
+                      status.color === 'yellow' ? 'bg-yellow-200' :
+                      status.color === 'orange' ? 'bg-orange-200' :
+                      'bg-gray-300';
+                    
+                    return (
+                      <div className={`inline-block px-2 py-1 rounded ${bgColor}`}>
+                        {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
+                        {status.message && (
+                          <div className="text-xs mt-1">{status.message}</div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </td>
 
-    {/* End Time */}
-<td className="px-4 py-3 whitespace-nowrap text-sm">
-  {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time, true) : (
-    checkIn.status === 'denied' ? (
-      <span className="text-red-500 font-medium">Denied</span>
-    ) : (
-      <span className="text-yellow-600 font-medium">In Progress</span>
-    )
-  )}
-</td>
+                {/* End Time */}
+                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                  {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time, true) : (
+                    checkIn.status === 'denied' ? (
+                      <span className="text-red-500 font-medium">Denied</span>
+                    ) : (
+                      <span className="text-yellow-600 font-medium">In Progress</span>
+                    )
+                  )}
+                </td>
 
-       {/* Detention */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {(() => {
-  const { hasDetention, detentionDuration } = calculateDetention(
-    checkIn.check_in_time,
-    checkIn.end_time,
-    checkIn.appointment_time,
-    checkIn.appointment_date
-  );
+                {/* Detention */}
+                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {(() => {
+                    const { hasDetention, detentionDuration } = calculateDetention(
+                      checkIn.check_in_time,
+                      checkIn.end_time,
+                      checkIn.appointment_time,
+                      checkIn.appointment_date
+                    );
+                    return hasDetention ? (
+                      <span className="text-red-600 font-semibold">⚠️ Detention: {detentionDuration}</span>
+                    ) : null;
+                  })()}
+                </td>
 
-  return hasDetention ? (
-    <span className="text-red-600 font-semibold">
-      ⚠️ Detention: {detentionDuration}
-    </span>
-  ) : null;
-})()}
+                {/* Notes */}
+                <td className="px-4 py-3 text-sm max-w-xs">
+                  <div className="truncate" title={checkIn.notes || ''}>
+                    {checkIn.notes || 'N/A'}
+                  </div>
+                </td>
 
-                    </td>
+                {/* Status — clickable if there are details */}
+                <td className="px-4 py-4 whitespace-nowrap text-sm">
+                  {statusHasDetails(checkIn) ? (
+                    <button
+                      onClick={() => setStatusDetailCheckIn(checkIn)}
+                      className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(checkIn.status)} underline decoration-dotted underline-offset-2 cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1`}
+                      title="Click to view details"
+                    >
+                      {getStatusLabel(checkIn.status)}
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 opacity-75" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(checkIn.status)}`}>
+                      {getStatusLabel(checkIn.status)}
+                    </span>
+                  )}
+                </td>
 
-
-      {/* Notes */}
-      <td className="px-4 py-3 text-sm max-w-xs">
-        <div className="truncate" title={checkIn.notes || ''}>
-          {checkIn.notes || 'N/A'}
-        </div>
-      </td>
-
-      {/* Status */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(checkIn.status)}`}>
-                        {getStatusLabel(checkIn.status)}
-                      </span>
-                    </td>
-
-
-      {/* Actions */}
-      <td className="px-4 py-3 whitespace-nowrap text-sm">
-        <div className="flex flex-col gap-1">
-          <button
-            onClick={() => handleEdit(checkIn)}
-            className="text-blue-600 hover:text-blue-900 font-medium text-left"
-          >
-            Edit
-          </button>
-          <button
-            onClick={() => handleStatusChange(checkIn)}
-            className="text-green-600 hover:text-green-800 font-medium text-left"
-          >
-            Status
-          </button>
-          <button
-            onClick={() => reprintReceipt(checkIn)}
-            className="text-gray-500 hover:text-gray-800 font-medium text-left flex items-center gap-1"
-            title="Reprint check-in receipt and inspection form"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a1 1 0 001 1h8a1 1 0 001-1v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a1 1 0 00-1-1H6a1 1 0 00-1 1zm2 0h6v3H7V4zm-1 9h8v3H6v-3zm8-5a1 1 0 110 2 1 1 0 010-2z" clipRule="evenodd" />
-            </svg>
-            Reprint
-          </button>
-        </div>
-      </td>
-    </tr>
-  ))}
-</tbody>
+                {/* Actions */}
+                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                  <div className="flex flex-col gap-1">
+                    <button
+                      onClick={() => handleEdit(checkIn)}
+                      className="text-blue-600 hover:text-blue-900 font-medium text-left"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleStatusChange(checkIn)}
+                      className="text-green-600 hover:text-green-800 font-medium text-left"
+                    >
+                      Status
+                    </button>
+                    <button
+                      onClick={() => reprintReceipt(checkIn)}
+                      className="text-gray-500 hover:text-gray-800 font-medium text-left flex items-center gap-1"
+                      title="Reprint check-in receipt and inspection form"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a1 1 0 001 1h8a1 1 0 001-1v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a1 1 0 00-1-1H6a1 1 0 00-1 1zm2 0h6v3H7V4zm-1 9h8v3H6v-3zm8-5a1 1 0 110 2 1 1 0 010-2z" clipRule="evenodd" />
+                      </svg>
+                      Reprint
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
         </table>
       </div>
     </main>
         
-  
       {/* Modals */}
       {selectedForStatusChange && (
         <StatusChangeModal
@@ -1433,6 +1475,14 @@ const handleEditSuccess = () => {
           checkIn={selectedForEdit}
           onClose={() => setSelectedForEdit(null)}
           onSuccess={handleEditSuccess}
+        />
+      )}
+
+      {/* Status Detail Popover */}
+      {statusDetailCheckIn && (
+        <StatusDetailPopover
+          checkIn={statusDetailCheckIn}
+          onClose={() => setStatusDetailCheckIn(null)}
         />
       )}
     </div>
