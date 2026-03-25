@@ -110,6 +110,7 @@ const getStatusMeta = (status: string): StatusMeta => {
       };
     case 'check_in_denial':
     case 'turned_away':
+    case 'denied':
       return {
         headerBg: 'bg-red-700', headerTitle: 'Check-In Denied', headerIcon: '✕',
         bannerBg: 'bg-red-50', bannerBorder: 'border-red-400', bannerText: 'text-red-700',
@@ -251,7 +252,7 @@ function StatusScreen({
   const isCheckedOut = status === 'checked_out';
   const isComplete   = status === 'complete';
   const isRejected   = status === 'rejected';
-  const isDenied     = status === 'check_in_denial' || status === 'turned_away';
+  const isDenied     = status === 'check_in_denial' || status === 'turned_away' || status === 'denied';
 
   const rejectionReasons: string[] = (() => {
     const raw = record.rejection_reasons;
