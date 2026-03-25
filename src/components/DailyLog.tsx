@@ -461,10 +461,12 @@ function StatusDetailPopover({ checkIn, onClose }: StatusDetailPopoverProps) {
           <p className="text-sm text-gray-500 italic">No additional details recorded for this status.</p>
         )}
 
-        {/* Denial Reason (turned_away) */}
-        {status === 'turned_away' && checkIn.denial_reason && (
+        {/* Denial Reason (turned_away or denied) */}
+        {(status === 'turned_away' || status === 'denied') && checkIn.denial_reason && (
           <div className="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-            <p className="text-xs font-bold text-orange-700 uppercase tracking-wide mb-1">Reason Turned Away</p>
+            <p className="text-xs font-bold text-orange-700 uppercase tracking-wide mb-1">
+              {status === 'denied' ? 'Reason Denied' : 'Reason Turned Away'}
+            </p>
             <p className="text-sm text-orange-900">{checkIn.denial_reason}</p>
           </div>
         )}
