@@ -878,16 +878,22 @@ export default function DriverCheckInForm() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleReferenceChange = useCallback((index: number, value: string) => {
-    setReferenceNumbers((prev) => { const u = [...prev]; u[index] = value; return u; });
-    setReferenceErrors((prev) => {
-      const u = [...prev];
-      u[index] = value && !validateReferenceNumber(value)
-        ? 'Invalid format. Must match: 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, 8xxxxxxx, TLNA-SO-0xxxxx or xxxxxx'
-        : null;
-      return u;
-    });
-  }, []);
+ const handleReferenceChange = useCallback((index: number, value: string) => {
+  setReferenceNumbers((prev) => { const u = [...prev]; u[index] = value; return u; });
+  // Clear error while typing so it doesn't persist after they correct it
+  setReferenceErrors((prev) => { const u = [...prev]; u[index] = null; return u; });
+}, []);
+
+  const handleReferenceBlur = useCallback((index: number, value: string) => {
+  if (!value.trim()) return; // Don't show an error on an empty field
+  setReferenceErrors((prev) => {
+    const u = [...prev];
+    u[index] = !validateReferenceNumber(value)
+      ? 'Invalid format. Must match: 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, 8xxxxxxx, or TLNA-SO-0xxxxx'
+      : null;
+    return u;
+  });
+}, []);
 
   const addReferenceNumber = useCallback(() => {
     setReferenceNumbers((p) => [...p, '']);
@@ -1061,21 +1067,23 @@ export default function DriverCheckInForm() {
                       <Plus size={16} /> Add
                     </button>
                   </div>
-                  <div className="space-y-2">
-                    {referenceNumbers.map((ref, index) => (
-                      <div key={index}>
-                        <div className="flex items-center gap-2">
-                          <input type="text" value={ref} onChange={(e) => handleReferenceChange(index, e.target.value)} required={index === 0}
-                            placeholder={index === 0 ? 'e.g., 2xxxxxx or 4xxxxxx' : `Reference #${index + 1}`}
-                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${referenceErrors[index] ? 'border-red-400' : 'border-gray-300'}`} />
-                          {index > 0 && (
-                            <button type="button" onClick={() => removeReferenceNumber(index)} className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors">
-                              <Minus size={18} />
-                            </button>
-                          )}
-                        </div>
-                        {referenceErrors[index] && <p className="text-red-500 text-xs mt-1">{referenceErrors[index]}</p>}
-                      </div>
+                 <div className="space-y-2">
+  {referenceNumbers.map((ref, index) => (
+    <div key={index}>
+      <div className="flex items-center gap-2">
+        <input type="text" value={ref} onChange={(e) => handleReferenceChange(index, e.target.value)} onBlur={(e) => handleReferenceBlur(index, e.target.value)} required={index === 0}
+          placeholder={index === 0 ? 'e.g., 2xxxxxx or 4xxxxxx' : `Reference #${index + 1}`}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${referenceErrors[index] ? 'border-red-400' : 'border-gray-300'}`} />
+        {index > 0 && (
+          <button type="button" onClick={() => removeReferenceNumber(index)} className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors">
+            <Minus size={18} />
+          </button>
+        )}
+      </div>
+      {referenceErrors[index] && <p className="text-red-500 text-xs mt-1">{referenceErrors[index]}</p>}
+    </div>
+  ))}
+</div>
                     ))}
                   </div>
                 </div>
