@@ -241,37 +241,23 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
               </div>
             </div>
 
-            {/* Appointment Time */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Appointment Time
-              </label>
-              <select
-                name="appointment_time"
-                value={formData.appointment_time}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select...</option>
-                <option value="work_in">Work In</option>
-                <option value="LTL">LTL</option>
-                <option value="Paid no appointment">Paid</option>
-                <option value="Charge Customer no appointment">Charge</option>
-                <option value="0800">08:00</option>
-                <option value="0900">09:00</option>
-                <option value="0930">09:30</option>
-                <option value="1000">10:00</option>
-                <option value="1030">10:30</option>
-                <option value="1100">11:00</option>
-                <option value="1230">12:30</option>
-                <option value="1300">13:00</option>
-                <option value="1330">13:30</option>
-                <option value="1400">14:00</option>
-                <option value="1430">14:30</option>
-                <option value="1500">15:00</option>
-                <option value="1530">15:30</option>
-              </select>
-            </div>
+           {/* Appointment Type Override */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Appointment Type Override
+  </label>
+  <select
+    name="appointment_time"
+    value={formData.appointment_time}
+    onChange={handleChange}
+    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+  >
+    <option value="">-- No Override --</option>
+    <option value="LTL">LTL</option>
+    <option value="Paid">Paid</option>
+    <option value="Charge">Charge</option>
+  </select>
+</div>
 
             {/* End Time */}
             <div>
