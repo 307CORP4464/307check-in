@@ -72,11 +72,11 @@ const formatAppointmentTime = (appointmentTime: string | null | undefined): stri
   
   if (appointmentTime === 'work_in') return 'Work In';
 
-  const specialTypeLabels: Record<string, string> = {
-    'LTL': 'LTL',
-    'Paid no appointment': 'Paid',
-    'Charge Customer no appointment': 'Charge',
-  };
+ const specialTypeLabels: Record<string, string> = {
+  'LTL': 'LTL',
+  'Paid': 'Paid',
+  'Charge': 'Charge',
+};
 
   if (specialTypeLabels[appointmentTime] !== undefined) {
     return specialTypeLabels[appointmentTime];
@@ -123,11 +123,11 @@ const formatAppointmentDateTime = (
     return 'Work In';
   }
 
-  const specialTypeLabels: Record<string, string> = {
-    'LTL': 'LTL',
-    'Charge Customer no appointment': 'Charge',
-    'Paid no appointment': 'Paid',
-  };
+ const specialTypeLabels: Record<string, string> = {
+  'LTL': 'LTL',
+  'Paid': 'Paid',
+  'Charge': 'Charge',
+};
 
   if (appointmentTime && specialTypeLabels[appointmentTime]) {
     const label = specialTypeLabels[appointmentTime];
@@ -238,11 +238,11 @@ const getAppointmentStatus = (
     return { color: 'red', message: null };
   }
 
-  if (
-    appointmentTime === 'LTL' ||
-    appointmentTime === 'Charge Customer no appointment' ||
-    appointmentTime === 'Paid no appointment'
-  ) {
+ if (
+  appointmentTime === 'LTL' ||
+  appointmentTime === 'Charge' ||
+  appointmentTime === 'Paid'
+) {
     return { color: 'orange', message: null };
   }
 
@@ -313,7 +313,6 @@ interface CheckIn {
   mode?: string | null;
   requested_ship_date?: string | null;
   customer?: string;
-  // Status detail fields
   status_note?: string | null;
   denial_reason?: string | null;
   rejection_reasons?: string[] | null;
