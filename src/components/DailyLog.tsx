@@ -1018,11 +1018,11 @@ const fetchCheckInsForDate = useCallback(async () => {
       }
 
       const MANUAL_APPOINTMENT_TYPES = [
-        'LTL',
-        'Paid no appointment',
-        'Charge Customer no appointment',
-        'work_in',
-      ];
+  'LTL',
+  'Paid',
+  'Charge',
+  'work_in',
+];
 
       const checkInHasManualType = checkIn.appointment_time &&
         MANUAL_APPOINTMENT_TYPES.includes(checkIn.appointment_time);
