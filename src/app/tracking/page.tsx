@@ -208,7 +208,7 @@ function StatCard({ label, value, sub, accent, textColor }: StatCardProps) {
   );
 }
 
-// ─── Range Stat Card (slightly larger, used in the totals banner) ─────────────
+// ─── Range Stat Card ──────────────────────────────────────────────────────────
 interface RangeCardProps {
   label: string;
   value: number;
@@ -270,7 +270,6 @@ export default function Tracking() {
     return `${year}-${month}-${day}`;
   };
 
-  // Steps back day-by-day until it lands on a weekday (Mon–Fri)
   const getPreviousWorkingDay = (): string => {
     const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: TIMEZONE,
@@ -285,7 +284,7 @@ export default function Tracking() {
       const y = parseInt(parts.find(p => p.type === 'year')?.value || '0');
       const m = parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1;
       const d = parseInt(parts.find(p => p.type === 'day')?.value || '0');
-      const dow = new Date(y, m, d).getDay(); // 0=Sun, 6=Sat
+      const dow = new Date(y, m, d).getDay();
       if (dow !== 0 && dow !== 6) {
         const yStr = parts.find(p => p.type === 'year')?.value;
         const mStr = parts.find(p => p.type === 'month')?.value;
@@ -338,30 +337,32 @@ export default function Tracking() {
       const startOfDayIndy = zonedTimeToUtc(`${startDate} 00:00:00`, TIMEZONE);
       const endOfDayIndy   = zonedTimeToUtc(`${endDate} 23:59:59`, TIMEZONE);
 
-     // AFTER — fetches all rows in 1000-row pages
-const PAGE_SIZE = 1000;
-let allData: CheckIn[] = [];
-let page = 0;
+      // ── Paginated fetch to bypass Supabase's 1000-row default limit ──────
+      const PAGE_SIZE = 1000;
+      let allData: CheckIn[] = [];
+      let page = 0;
 
-while (true) {
-  const { data, error } = await supabase
-    .from('check_ins')
-    .select('*')
-    .gte('check_in_time', startOfDayIndy.toISOString())
-    .lte('check_in_time', endOfDayIndy.toISOString())
-    .order('check_in_time', { ascending: true })
-    .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      while (true) {
+        const { data, error } = await supabase
+          .from('check_ins')
+          .select('*')
+          .gte('check_in_time', startOfDayIndy.toISOString())
+          .lte('check_in_time', endOfDayIndy.toISOString())
+          .order('check_in_time', { ascending: true })
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
-  if (error) throw error;
-  if (!data || data.length === 0) break;
+        if (error) throw error;
+        if (!data || data.length === 0) break;
 
-  allData = [...allData, ...data];
-  if (data.length < PAGE_SIZE) break; // last page
-  page++;
-}
+        allData = [...allData, ...data];
+        if (data.length < PAGE_SIZE) break; // reached the last page
+        page++;
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
       const statsByDate: { [key: string]: CheckIn[] } = {};
 
-      (data || []).forEach((checkIn: CheckIn) => {
+      allData.forEach((checkIn: CheckIn) => {
         const date = new Date(checkIn.check_in_time);
         const formatter = new Intl.DateTimeFormat('en-US', {
           timeZone: TIMEZONE,
@@ -473,7 +474,6 @@ while (true) {
     const totalDetention  = dailyStats.reduce((s, d) => s + d.detentionInstances.length, 0);
     const days            = dailyStats.length;
 
-    // Reconstruct the total "with appointment" denominator from each day's data
     const totalWithAppt = dailyStats.reduce((s, d) =>
       s + (d.onTimePercentage > 0 ? Math.round(d.onTimeCount / (d.onTimePercentage / 100)) : 0), 0
     );
@@ -481,7 +481,6 @@ while (true) {
       ? Math.round((onTimeCount / totalWithAppt) * 100)
       : 0;
 
-    // Aggregate dock set usage across all days
     const dockSetUsage = DOCK_SETS.map(s => ({
       label: s.label,
       count: dailyStats.reduce((sum, d) => {
@@ -490,7 +489,6 @@ while (true) {
       }, 0)
     }));
 
-    // Merge half-hour breakdowns across all days
     const halfHourBreakdown: { [key: string]: number } = {};
     dailyStats.forEach(d => {
       Object.entries(d.halfHourBreakdown).forEach(([slot, count]) => {
