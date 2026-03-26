@@ -615,6 +615,7 @@ if (apt.delivery) {
                        );
                         return status.color === 'green' ? 'bg-green-100' :
                                status.color === 'yellow' ? 'bg-yellow-100' :
+                               status.color === 'orange' ? 'bg-orange-100' :
                                status.color === 'red' ? 'bg-red-200' : '';
                         })()
                        }`}>
