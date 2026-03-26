@@ -1084,8 +1084,6 @@ export default function DriverCheckInForm() {
     </div>
   ))}
 </div>
-                    ))}
-                  </div>
                 </div>
               </div>
             </div>
