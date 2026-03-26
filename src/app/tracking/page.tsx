@@ -338,15 +338,27 @@ export default function Tracking() {
       const startOfDayIndy = zonedTimeToUtc(`${startDate} 00:00:00`, TIMEZONE);
       const endOfDayIndy   = zonedTimeToUtc(`${endDate} 23:59:59`, TIMEZONE);
 
-      const { data, error } = await supabase
-        .from('check_ins')
-        .select('*')
-        .gte('check_in_time', startOfDayIndy.toISOString())
-        .lte('check_in_time', endOfDayIndy.toISOString())
-        .order('check_in_time', { ascending: true });
+     // AFTER — fetches all rows in 1000-row pages
+const PAGE_SIZE = 1000;
+let allData: CheckIn[] = [];
+let page = 0;
 
-      if (error) throw error;
+while (true) {
+  const { data, error } = await supabase
+    .from('check_ins')
+    .select('*')
+    .gte('check_in_time', startOfDayIndy.toISOString())
+    .lte('check_in_time', endOfDayIndy.toISOString())
+    .order('check_in_time', { ascending: true })
+    .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
+  if (error) throw error;
+  if (!data || data.length === 0) break;
+
+  allData = [...allData, ...data];
+  if (data.length < PAGE_SIZE) break; // last page
+  page++;
+}
       const statsByDate: { [key: string]: CheckIn[] } = {};
 
       (data || []).forEach((checkIn: CheckIn) => {
