@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import { zonedTimeToUtc } from 'date-fns-tz';
@@ -900,237 +900,234 @@ export default function DailyLog() {
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
-type AppointmentInfo = {
-  time: string | null;
-  date: string | null;
-  customer: string | null;
-  ship_to_city: string | null;
-  ship_to_state: string | null;
-  carrier: string | null;
-  mode: string | null;
-  requested_ship_date: string | null;
-};
-const fetchCheckInsForDate = useCallback(async () => {
-  try {
-    setLoading(true);
+  type AppointmentInfo = {
+    time: string | null;
+    date: string | null;
+    customer: string | null;
+    ship_to_city: string | null;
+    ship_to_state: string | null;
+    carrier: string | null;
+    mode: string | null;
+    requested_ship_date: string | null;
+  };
 
-    const startOfDayIndy = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
-    const endOfDayIndy = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
+  const fetchCheckInsForDate = useCallback(async () => {
+    try {
+      setLoading(true);
 
-    const { data: checkInsData, error: checkInsError } = await supabase
-      .from('check_ins')
-      .select('*')
-      .gte('check_in_time', startOfDayIndy.toISOString())
-      .lte('check_in_time', endOfDayIndy.toISOString())
-      .neq('status', 'pending')
-      .order('check_in_time', { ascending: false });
+      const startOfDayIndy = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
+      const endOfDayIndy = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
 
-    if (checkInsError) throw checkInsError;
+      const { data: checkInsData, error: checkInsError } = await supabase
+        .from('check_ins')
+        .select('*')
+        .gte('check_in_time', startOfDayIndy.toISOString())
+        .lte('check_in_time', endOfDayIndy.toISOString())
+        .neq('status', 'pending')
+        .order('check_in_time', { ascending: false });
 
-    const allReferenceNumbers = Array.from(new Set(
-      (checkInsData || [])
-        .flatMap(ci => parseReferenceNumbers(ci.reference_number))
-        .filter(ref => ref.trim() !== '')
-    ));
+      if (checkInsError) throw checkInsError;
 
-    let appointmentsMap = new Map<string, {
-      time: string | null;
-      date: string | null;
-      customer: string | null;
-      ship_to_city: string | null;
-      ship_to_state: string | null;
-      carrier: string | null;
-      mode: string | null;
-      requested_ship_date: string | null;
-    }>();
+      const allReferenceNumbers = Array.from(new Set(
+        (checkInsData || [])
+          .flatMap(ci => parseReferenceNumbers(ci.reference_number))
+          .filter(ref => ref.trim() !== '')
+      ));
 
-    if (allReferenceNumbers.length > 0) {
-      const BATCH_SIZE = 20;
+      let appointmentsMap = new Map<string, {
+        time: string | null;
+        date: string | null;
+        customer: string | null;
+        ship_to_city: string | null;
+        ship_to_state: string | null;
+        carrier: string | null;
+        mode: string | null;
+        requested_ship_date: string | null;
+      }>();
 
-      for (let i = 0; i < allReferenceNumbers.length; i += BATCH_SIZE) {
-        const batch = allReferenceNumbers.slice(i, i + BATCH_SIZE);
+      if (allReferenceNumbers.length > 0) {
+        const BATCH_SIZE = 20;
 
-        const orFilter = batch
-          .flatMap(ref => [
-            `sales_order.ilike.%${ref}%`,
-            `delivery.ilike.%${ref}%`
-          ])
-          .join(',');
+        for (let i = 0; i < allReferenceNumbers.length; i += BATCH_SIZE) {
+          const batch = allReferenceNumbers.slice(i, i + BATCH_SIZE);
 
-        const { data: appointmentsData, error: appointmentsError } = await supabase
-          .from('appointments')
-          .select(
-            'sales_order, delivery, appointment_time, appointment_date, customer, requested_ship_date, carrier, mode, ship_to_city, ship_to_state'
-          )
-          .or(orFilter)
-          .eq('appointment_date', selectedDate);
+          const orFilter = batch
+            .flatMap(ref => [
+              `sales_order.ilike.%${ref}%`,
+              `delivery.ilike.%${ref}%`
+            ])
+            .join(',');
 
-        if (appointmentsError) {
-          console.error('Appointments error:', appointmentsError);
-          continue;
-        }
+          const { data: appointmentsData, error: appointmentsError } = await supabase
+            .from('appointments')
+            .select(
+              'sales_order, delivery, appointment_time, appointment_date, customer, requested_ship_date, carrier, mode, ship_to_city, ship_to_state'
+            )
+            .or(orFilter)
+            .eq('appointment_date', selectedDate);
 
-        if (appointmentsData) {
-          appointmentsData.forEach(apt => {
-            const appointmentInfo = {
-              time: apt.appointment_time ?? null,
-              date: apt.appointment_date ?? null,
-              customer: apt.customer ?? null,
-              ship_to_city: apt.ship_to_city ?? null,
-              ship_to_state: apt.ship_to_state ?? null,
-              carrier: apt.carrier ?? null,
-              mode: apt.mode ?? null,
-              requested_ship_date: apt.requested_ship_date ?? null,
-            };
+          if (appointmentsError) {
+            console.error('Appointments error:', appointmentsError);
+            continue;
+          }
 
-            if (apt.sales_order) {
-              parseReferenceNumbers(apt.sales_order).forEach(ref => {
-                appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);
-              });
-              appointmentsMap.set(apt.sales_order.trim().toLowerCase(), appointmentInfo);
-            }
+          if (appointmentsData) {
+            appointmentsData.forEach(apt => {
+              const appointmentInfo = {
+                time: apt.appointment_time ?? null,
+                date: apt.appointment_date ?? null,
+                customer: apt.customer ?? null,
+                ship_to_city: apt.ship_to_city ?? null,
+                ship_to_state: apt.ship_to_state ?? null,
+                carrier: apt.carrier ?? null,
+                mode: apt.mode ?? null,
+                requested_ship_date: apt.requested_ship_date ?? null,
+              };
 
-            if (apt.delivery) {
-              parseReferenceNumbers(apt.delivery).forEach(ref => {
-                appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);
-              });
-              appointmentsMap.set(apt.delivery.trim().toLowerCase(), appointmentInfo);
-            }
-          });
-        }
-      }
-    }
+              if (apt.sales_order) {
+                parseReferenceNumbers(apt.sales_order).forEach(ref => {
+                  appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);
+                });
+                appointmentsMap.set(apt.sales_order.trim().toLowerCase(), appointmentInfo);
+              }
 
-    const enrichedCheckIns = (checkInsData || []).map(checkIn => {
-      const refs = parseReferenceNumbers(checkIn.reference_number);
-
-      let appointmentInfo: AppointmentInfo | undefined = undefined;
-
-      for (const ref of refs) {
-        const trimmedRef = ref.trim().toLowerCase();
-        if (appointmentsMap.has(trimmedRef)) {
-          const candidate = appointmentsMap.get(trimmedRef);
-          if (candidate?.date === selectedDate) {
-            appointmentInfo = candidate;
-            break;
+              if (apt.delivery) {
+                parseReferenceNumbers(apt.delivery).forEach(ref => {
+                  appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);
+                });
+                appointmentsMap.set(apt.delivery.trim().toLowerCase(), appointmentInfo);
+              }
+            });
           }
         }
       }
 
-      const MANUAL_APPOINTMENT_TYPES = [
-  'LTL',
-  'Paid',
-  'Charge',
-  'work_in',
-];
+      const enrichedCheckIns = (checkInsData || []).map(checkIn => {
+        const refs = parseReferenceNumbers(checkIn.reference_number);
 
-      const checkInHasManualType = checkIn.appointment_time &&
-        MANUAL_APPOINTMENT_TYPES.includes(checkIn.appointment_time);
+        let appointmentInfo: AppointmentInfo | undefined = undefined;
 
-      return {
-        ...checkIn,
-        appointment_time: appointmentInfo?.time ??
-          (checkInHasManualType ? checkIn.appointment_time : null),
-        appointment_date: appointmentInfo?.date ??
-          (checkInHasManualType ? checkIn.appointment_date : null),
-        customer: appointmentInfo?.customer ?? checkIn.customer ?? null,
-        ship_to_city: appointmentInfo?.ship_to_city ?? checkIn.ship_to_city ?? null,
-        ship_to_state: appointmentInfo?.ship_to_state ?? checkIn.ship_to_state ?? null,
-        carrier: appointmentInfo?.carrier ?? checkIn.carrier ?? null,
-        mode: appointmentInfo?.mode ?? checkIn.mode ?? null,
-        requested_ship_date: appointmentInfo?.requested_ship_date ?? checkIn.requested_ship_date ?? null,
-      };
-    });
+        for (const ref of refs) {
+          const trimmedRef = ref.trim().toLowerCase();
+          if (appointmentsMap.has(trimmedRef)) {
+            const candidate = appointmentsMap.get(trimmedRef);
+            if (candidate?.date === selectedDate) {
+              appointmentInfo = candidate;
+              break;
+            }
+          }
+        }
 
-    setCheckIns(enrichedCheckIns);
+        const MANUAL_APPOINTMENT_TYPES = [
+          'LTL',
+          'Paid',
+          'Charge',
+          'work_in',
+        ];
 
-  } catch (err) {
-    console.error('fetchCheckInsForDate error:', err);
-    setError(err instanceof Error ? err.message : 'An error occurred');
-  } finally {
-    setLoading(false);
-  }
-}, [selectedDate]);
+        const checkInHasManualType = checkIn.appointment_time &&
+          MANUAL_APPOINTMENT_TYPES.includes(checkIn.appointment_time);
 
-const fetchRef = useRef(fetchCheckInsForDate);
-useEffect(() => {
-  fetchRef.current = fetchCheckInsForDate;
-}, [fetchCheckInsForDate]);
+        return {
+          ...checkIn,
+          appointment_time: appointmentInfo?.time ??
+            (checkInHasManualType ? checkIn.appointment_time : null),
+          appointment_date: appointmentInfo?.date ??
+            (checkInHasManualType ? checkIn.appointment_date : null),
+          customer: appointmentInfo?.customer ?? checkIn.customer ?? null,
+          ship_to_city: appointmentInfo?.ship_to_city ?? checkIn.ship_to_city ?? null,
+          ship_to_state: appointmentInfo?.ship_to_state ?? checkIn.ship_to_state ?? null,
+          carrier: appointmentInfo?.carrier ?? checkIn.carrier ?? null,
+          mode: appointmentInfo?.mode ?? checkIn.mode ?? null,
+          requested_ship_date: appointmentInfo?.requested_ship_date ?? checkIn.requested_ship_date ?? null,
+        };
+      });
 
-useEffect(() => {
-  fetchCheckInsForDate();
+      setCheckIns(enrichedCheckIns);
 
-  const channel = supabase
-    .channel(`daily_log_realtime_${selectedDate}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, () => {
-      fetchRef.current();
-    })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
-      fetchRef.current();
-    })
-    .subscribe();
+    } catch (err) {
+      console.error('fetchCheckInsForDate error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedDate]);
 
-  return () => {
-    supabase.removeChannel(channel);
+  // ── Single useEffect: fetch on mount/date change + real-time subscription ──
+  useEffect(() => {
+    fetchCheckInsForDate();
+
+    const channel = supabase
+      .channel(`daily_log_realtime_${selectedDate}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, () => {
+        fetchCheckInsForDate();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
+        fetchCheckInsForDate();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedDate, fetchCheckInsForDate]);
+
+  const filteredCheckIns = checkIns.filter((checkIn) => {
+    if (!searchTerm.trim()) return true;
+    const searchLower = searchTerm.toLowerCase().trim();
+    const refNumber = checkIn.reference_number?.toLowerCase() || '';
+    const trailerNumber = checkIn.trailer_number?.toLowerCase() || '';
+    const dockNumber = checkIn.dock_number?.toLowerCase() || '';
+    return (
+      refNumber.includes(searchLower) ||
+      trailerNumber.includes(searchLower) ||
+      dockNumber.includes(searchLower)
+    );
+  });
+
+  const displayedCheckIns = showInProgressOnly
+    ? filteredCheckIns.filter(checkIn => !checkIn.end_time && checkIn.status !== 'denied')
+    : filteredCheckIns;
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.push('/login');
+      router.refresh();
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
   };
-}, [selectedDate]);
 
-const filteredCheckIns = checkIns.filter((checkIn) => {
-  if (!searchTerm.trim()) return true;
-  const searchLower = searchTerm.toLowerCase().trim();
-  const refNumber = checkIn.reference_number?.toLowerCase() || '';
-  const trailerNumber = checkIn.trailer_number?.toLowerCase() || '';
-  const dockNumber = checkIn.dock_number?.toLowerCase() || '';
-  return (
-    refNumber.includes(searchLower) ||
-    trailerNumber.includes(searchLower) ||
-    dockNumber.includes(searchLower)
-  );
-});
+  const handleStatusChange = (checkIn: CheckIn) => {
+    setSelectedForStatusChange(checkIn);
+  };
 
-const displayedCheckIns = showInProgressOnly
-  ? filteredCheckIns.filter(checkIn => !checkIn.end_time && checkIn.status !== 'denied')
-  : filteredCheckIns;
+  const handleStatusChangeSuccess = () => {
+    fetchCheckInsForDate();
+    setSelectedForStatusChange(null);
+  };
 
-const handleLogout = async () => {
-  try {
-    await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
-  } catch (error) {
-    console.error('Error logging out:', error);
-  }
-};
+  const handleEdit = (checkIn: CheckIn) => {
+    setSelectedForEdit(checkIn);
+    setEditModalOpen(true);
+  };
 
-const handleStatusChange = (checkIn: CheckIn) => {
-  setSelectedForStatusChange(checkIn);
-};
+  const handleEditSuccess = () => {
+    setEditModalOpen(false);
+    setSelectedForEdit(null);
+    fetchCheckInsForDate();
+  };
 
-const handleStatusChangeSuccess = () => {
-  fetchCheckInsForDate();
-  setSelectedForStatusChange(null);
-};
-
-const handleEdit = (checkIn: CheckIn) => {
-  setSelectedForEdit(checkIn);
-  setEditModalOpen(true);
-};
-
-const handleEditSuccess = () => {
-  setEditModalOpen(false);
-  setSelectedForEdit(null);
-  fetchCheckInsForDate();
-}; 
-
-// Determine if a status badge has clickable details
-const statusHasDetails = (checkIn: CheckIn): boolean => {
-  return !!(
-    checkIn.status_note ||
-    checkIn.denial_reason ||
-    (checkIn.rejection_reasons && checkIn.rejection_reasons.length > 0) ||
-    checkIn.resolution_action
-  );
-};
+  // Determine if a status badge has clickable details
+  const statusHasDetails = (checkIn: CheckIn): boolean => {
+    return !!(
+      checkIn.status_note ||
+      checkIn.denial_reason ||
+      (checkIn.rejection_reasons && checkIn.rejection_reasons.length > 0) ||
+      checkIn.resolution_action
+    );
+  };
 
   const getStatusBadgeColor = (status: string): string => {
     const statusLower = status.toLowerCase();
@@ -1172,286 +1169,283 @@ const statusHasDetails = (checkIn: CheckIn): boolean => {
     );
   }
 
-
- return (
+  return (
     <div className="min-h-screen bg-gray-50">
-       <Header title="Daily Log" />
-    <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
-      {/* Date Selector, Search & Counters */}
-      <div className="mb-6 flex gap-4 items-end max-w-7xl mx-auto">
-        <div>
-          <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">
-            Select Date
-          </label>
-          <input
-            id="date-select"
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-        
-        <div className="flex-1">
-          <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
-            Search by Reference #, Trailer, or Door
-          </label>
-          <div className="relative">
+      <Header title="Daily Log" />
+      <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
+        {/* Date Selector, Search & Counters */}
+        <div className="mb-6 flex gap-4 items-end max-w-7xl mx-auto">
+          <div>
+            <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">
+              Select Date
+            </label>
             <input
-              id="search"
-              type="text"
-              placeholder="Reference #, trailer, or door..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 pr-9 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              id="date-select"
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
-                aria-label="Clear search"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Counters */}
-        <div className="flex gap-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
-            <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">
-              Total Checked In
-            </div>
-            <div className="text-2xl font-bold text-blue-900">
-              {filteredCheckIns.length}
-            </div>
           </div>
           
-          <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-            <div className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">
-              Total Complete
-            </div>
-            <div className="text-2xl font-bold text-green-900">
-              {filteredCheckIns.filter(checkIn => checkIn.end_time).length}
-            </div>
-          </div>
-
-          <button
-            onClick={() => setShowInProgressOnly(!showInProgressOnly)}
-            className={`rounded-lg px-4 py-2 transition-colors border text-left ${
-              showInProgressOnly
-                ? 'bg-yellow-400 border-yellow-500 ring-2 ring-yellow-300'
-                : 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
-            }`}
-          >
-            <div className="text-xs font-medium text-yellow-700 uppercase tracking-wider mb-1">
-              In Progress
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-yellow-900">
-                {filteredCheckIns.filter(checkIn => !checkIn.end_time && checkIn.status !== 'denied').length}
-              </div>
-              {showInProgressOnly && (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-700" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-                </svg>
+          <div className="flex-1">
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+              Search by Reference #, Trailer, or Door
+            </label>
+            <div className="relative">
+              <input
+                id="search"
+                type="text"
+                placeholder="Reference #, trailer, or door..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-2 pr-9 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  aria-label="Clear search"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
               )}
             </div>
-          </button>
+          </div>
+
+          {/* Counters */}
+          <div className="flex gap-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+              <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">
+                Total Checked In
+              </div>
+              <div className="text-2xl font-bold text-blue-900">
+                {filteredCheckIns.length}
+              </div>
+            </div>
+            
+            <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+              <div className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">
+                Total Complete
+              </div>
+              <div className="text-2xl font-bold text-green-900">
+                {filteredCheckIns.filter(checkIn => checkIn.end_time).length}
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowInProgressOnly(!showInProgressOnly)}
+              className={`rounded-lg px-4 py-2 transition-colors border text-left ${
+                showInProgressOnly
+                  ? 'bg-yellow-400 border-yellow-500 ring-2 ring-yellow-300'
+                  : 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
+              }`}
+            >
+              <div className="text-xs font-medium text-yellow-700 uppercase tracking-wider mb-1">
+                In Progress
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-2xl font-bold text-yellow-900">
+                  {filteredCheckIns.filter(checkIn => !checkIn.end_time && checkIn.status !== 'denied').length}
+                </div>
+                {showInProgressOnly && (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-700" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+            </button>
+          </div>
         </div>
-      </div>
 
-
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver Info</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cust. Req. Date and Dest.</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SCAC and Mode</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference #</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dock</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-In Time</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment Time</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Detention</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          
-          <tbody className="bg-white divide-y divide-gray-200">
-            {displayedCheckIns.map((checkIn) => (
-              <tr key={checkIn.id} className="hover:bg-gray-50">
-                {/* Type */}
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    checkIn.load_type === 'inbound' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-orange-100 text-orange-800'
-                  }`}>
-                    {checkIn.load_type === 'inbound' ? 'I' : 'O'}
-                  </span>
-                </td>
-
-                {/* Driver Info */}
-                <td className="px-4 py-4 text-sm">
-                  <div className="text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
-                  <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
-                  <div className="text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
-                </td>
-
-                {/* Trailer Info */}
-                <td className="px-4 py-4 text-sm text-gray-900">
-                  <div>{checkIn.trailer_number || 'N/A'}</div>
-                  <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
-                </td>
-
-                {/* Load Info */}
-                <td className="px-4 py-3 text-sm">
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-gray-900">{checkIn.customer || 'N/A'}</span>
-                    <span className="font-semibold text-gray-900">{checkIn.requested_ship_date || 'N/A'}</span>
-                    <span className="text-gray-500 text-xs mt-0.5">
-                      {checkIn.ship_to_city && checkIn.ship_to_state
-                        ? `${checkIn.ship_to_city}, ${checkIn.ship_to_state}`
-                        : checkIn.ship_to_city || checkIn.ship_to_state || 'N/A'}
-                    </span>
-                  </div>
-                </td>
-
-                {/* Transport */}
-                <td className="px-4 py-3 text-sm">
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-gray-900">{checkIn.carrier || 'N/A'}</span>
-                    <span className="font-semibold text-gray-900">{checkIn.mode || 'N/A'}</span>
-                  </div>
-                </td>
-
-                {/* Reference # */}
-                <td className="font-bold text-gray-900">{checkIn.reference_number || 'N/A'}</td>
-
-                {/* Dock */}
-                <td className="font-bold text-gray-900">{checkIn.dock_number || 'N/A'}</td>
-
-                {/* Check-In Time */}
-                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                  {formatTimeInIndianapolis(checkIn.check_in_time, true)}
-                </td>
-
-                {/* Appointment Time */}
-                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                  {(() => {
-                    const status = getAppointmentStatus(
-                      checkIn.check_in_time,
-                      checkIn.appointment_time,
-                      checkIn.appointment_date
-                    );
-                    
-                    const bgColor = 
-                      status.color === 'green' ? 'bg-green-200' :
-                      status.color === 'red' ? 'bg-red-200' :
-                      status.color === 'yellow' ? 'bg-yellow-200' :
-                      status.color === 'orange' ? 'bg-orange-200' :
-                      'bg-gray-300';
-                    
-                    return (
-                      <div className={`inline-block px-2 py-1 rounded ${bgColor}`}>
-                        {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
-                        {status.message && (
-                          <div className="text-xs mt-1">{status.message}</div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </td>
-
-                {/* End Time */}
-                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                  {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time, true) : (
-                    checkIn.status === 'denied' ? (
-                      <span className="text-red-500 font-medium">Denied</span>
-                    ) : (
-                      <span className="text-yellow-600 font-medium">In Progress</span>
-                    )
-                  )}
-                </td>
-
-                {/* Detention */}
-                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {(() => {
-                    const { hasDetention, detentionDuration } = calculateDetention(
-                      checkIn.check_in_time,
-                      checkIn.end_time,
-                      checkIn.appointment_time,
-                      checkIn.appointment_date
-                    );
-                    return hasDetention ? (
-                      <span className="text-red-600 font-semibold">⚠️ Detention: {detentionDuration}</span>
-                    ) : null;
-                  })()}
-                </td>
-
-
-                {/* Status — clickable if there are details */}
-                <td className="px-4 py-4 whitespace-nowrap text-sm">
-                  {statusHasDetails(checkIn) ? (
-                    <button
-                      onClick={() => setStatusDetailCheckIn(checkIn)}
-                      className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(checkIn.status)} underline decoration-dotted underline-offset-2 cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1`}
-                      title="Click to view details"
-                    >
-                      {getStatusLabel(checkIn.status)}
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 opacity-75" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  ) : (
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(checkIn.status)}`}>
-                      {getStatusLabel(checkIn.status)}
-                    </span>
-                  )}
-                </td>
-
-                {/* Actions */}
-                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                  <div className="flex flex-col gap-1">
-                    <button
-                      onClick={() => handleEdit(checkIn)}
-                      className="text-blue-600 hover:text-blue-900 font-medium text-left"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleStatusChange(checkIn)}
-                      className="text-green-600 hover:text-green-800 font-medium text-left"
-                    >
-                      Status
-                    </button>
-                    <button
-                      onClick={() => reprintReceipt(checkIn)}
-                      className="text-gray-500 hover:text-gray-800 font-medium text-left flex items-center gap-1"
-                      title="Reprint check-in receipt and inspection form"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a1 1 0 001 1h8a1 1 0 001-1v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a1 1 0 00-1-1H6a1 1 0 00-1 1zm2 0h6v3H7V4zm-1 9h8v3H6v-3zm8-5a1 1 0 110 2 1 1 0 010-2z" clipRule="evenodd" />
-                      </svg>
-                      Reprint
-                    </button>
-                  </div>
-                </td>
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver Info</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cust. Req. Date and Dest.</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SCAC and Mode</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference #</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dock</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-In Time</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment Time</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Detention</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </main>
+            </thead>
+            
+            <tbody className="bg-white divide-y divide-gray-200">
+              {displayedCheckIns.map((checkIn) => (
+                <tr key={checkIn.id} className="hover:bg-gray-50">
+                  {/* Type */}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      checkIn.load_type === 'inbound' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-orange-100 text-orange-800'
+                    }`}>
+                      {checkIn.load_type === 'inbound' ? 'I' : 'O'}
+                    </span>
+                  </td>
+
+                  {/* Driver Info */}
+                  <td className="px-4 py-4 text-sm">
+                    <div className="text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
+                    <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
+                    <div className="text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
+                  </td>
+
+                  {/* Trailer Info */}
+                  <td className="px-4 py-4 text-sm text-gray-900">
+                    <div>{checkIn.trailer_number || 'N/A'}</div>
+                    <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
+                  </td>
+
+                  {/* Load Info */}
+                  <td className="px-4 py-3 text-sm">
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-gray-900">{checkIn.customer || 'N/A'}</span>
+                      <span className="font-semibold text-gray-900">{checkIn.requested_ship_date || 'N/A'}</span>
+                      <span className="text-gray-500 text-xs mt-0.5">
+                        {checkIn.ship_to_city && checkIn.ship_to_state
+                          ? `${checkIn.ship_to_city}, ${checkIn.ship_to_state}`
+                          : checkIn.ship_to_city || checkIn.ship_to_state || 'N/A'}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* Transport */}
+                  <td className="px-4 py-3 text-sm">
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-gray-900">{checkIn.carrier || 'N/A'}</span>
+                      <span className="font-semibold text-gray-900">{checkIn.mode || 'N/A'}</span>
+                    </div>
+                  </td>
+
+                  {/* Reference # */}
+                  <td className="font-bold text-gray-900">{checkIn.reference_number || 'N/A'}</td>
+
+                  {/* Dock */}
+                  <td className="font-bold text-gray-900">{checkIn.dock_number || 'N/A'}</td>
+
+                  {/* Check-In Time */}
+                  <td className="px-4 py-3 whitespace-nowrap text-sm">
+                    {formatTimeInIndianapolis(checkIn.check_in_time, true)}
+                  </td>
+
+                  {/* Appointment Time */}
+                  <td className="px-4 py-3 whitespace-nowrap text-sm">
+                    {(() => {
+                      const status = getAppointmentStatus(
+                        checkIn.check_in_time,
+                        checkIn.appointment_time,
+                        checkIn.appointment_date
+                      );
+                      
+                      const bgColor = 
+                        status.color === 'green' ? 'bg-green-200' :
+                        status.color === 'red' ? 'bg-red-200' :
+                        status.color === 'yellow' ? 'bg-yellow-200' :
+                        status.color === 'orange' ? 'bg-orange-200' :
+                        'bg-gray-300';
+                      
+                      return (
+                        <div className={`inline-block px-2 py-1 rounded ${bgColor}`}>
+                          {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
+                          {status.message && (
+                            <div className="text-xs mt-1">{status.message}</div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </td>
+
+                  {/* End Time */}
+                  <td className="px-4 py-3 whitespace-nowrap text-sm">
+                    {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time, true) : (
+                      checkIn.status === 'denied' ? (
+                        <span className="text-red-500 font-medium">Denied</span>
+                      ) : (
+                        <span className="text-yellow-600 font-medium">In Progress</span>
+                      )
+                    )}
+                  </td>
+
+                  {/* Detention */}
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {(() => {
+                      const { hasDetention, detentionDuration } = calculateDetention(
+                        checkIn.check_in_time,
+                        checkIn.end_time,
+                        checkIn.appointment_time,
+                        checkIn.appointment_date
+                      );
+                      return hasDetention ? (
+                        <span className="text-red-600 font-semibold">⚠️ Detention: {detentionDuration}</span>
+                      ) : null;
+                    })()}
+                  </td>
+
+                  {/* Status — clickable if there are details */}
+                  <td className="px-4 py-4 whitespace-nowrap text-sm">
+                    {statusHasDetails(checkIn) ? (
+                      <button
+                        onClick={() => setStatusDetailCheckIn(checkIn)}
+                        className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(checkIn.status)} underline decoration-dotted underline-offset-2 cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1`}
+                        title="Click to view details"
+                      >
+                        {getStatusLabel(checkIn.status)}
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 opacity-75" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    ) : (
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(checkIn.status)}`}>
+                        {getStatusLabel(checkIn.status)}
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Actions */}
+                  <td className="px-4 py-3 whitespace-nowrap text-sm">
+                    <div className="flex flex-col gap-1">
+                      <button
+                        onClick={() => handleEdit(checkIn)}
+                        className="text-blue-600 hover:text-blue-900 font-medium text-left"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleStatusChange(checkIn)}
+                        className="text-green-600 hover:text-green-800 font-medium text-left"
+                      >
+                        Status
+                      </button>
+                      <button
+                        onClick={() => reprintReceipt(checkIn)}
+                        className="text-gray-500 hover:text-gray-800 font-medium text-left flex items-center gap-1"
+                        title="Reprint check-in receipt and inspection form"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a1 1 0 001 1h8a1 1 0 001-1v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a1 1 0 00-1-1H6a1 1 0 00-1 1zm2 0h6v3H7V4zm-1 9h8v3H6v-3zm8-5a1 1 0 110 2 1 1 0 010-2z" clipRule="evenodd" />
+                        </svg>
+                        Reprint
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </main>
         
       {/* Modals */}
       {selectedForStatusChange && (
