@@ -49,12 +49,6 @@ const INITIAL_FORM_DATA: FormData = {
   loadType: 'outbound',
 };
 
-const SITE_COORDINATES = {
-  latitude: 40.37260025266849,
-  longitude: -86.82089938420066,
-  radiusMeters: 300,
-};
-
 const TRAILER_LENGTHS = [
   { value: '', label: 'Select trailer length' },
   { value: 'Box/Van', label: 'Box Truck or Van' },
@@ -334,55 +328,6 @@ const isWithinAllowedTime = (): { allowed: boolean; message?: string } => {
     return { allowed: false, message: 'Check-in is not available after 5:00 PM' };
   return { allowed: true };
 };
-
-const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const R = 6371e3;
-  const φ1 = (lat1 * Math.PI) / 180;
-  const φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-};
-
-const validateGeofence = (): Promise<{ valid: boolean; message?: string }> =>
-  new Promise((resolve) => {
-    if (!navigator.geolocation) {
-      resolve({ valid: false, message: 'Geolocation is not supported by your device' });
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const distance = calculateDistance(
-          position.coords.latitude,
-          position.coords.longitude,
-          SITE_COORDINATES.latitude,
-          SITE_COORDINATES.longitude
-        );
-        if (distance <= SITE_COORDINATES.radiusMeters) {
-          resolve({ valid: true });
-        } else {
-          resolve({
-            valid: false,
-            message: `You must be on-site to check in. You are ${Math.round(distance)}m (${Math.round(distance * 3.28084)} ft) away.`,
-          });
-        }
-      },
-      (error) => {
-        let message = 'Unable to verify your location. ';
-        switch (error.code) {
-          case error.PERMISSION_DENIED: message += 'Please enable location permissions in your browser.'; break;
-          case error.POSITION_UNAVAILABLE: message += 'Location information is unavailable.'; break;
-          case error.TIMEOUT: message += 'Location request timed out.'; break;
-          default: message += 'An unknown error occurred.';
-        }
-        resolve({ valid: false, message });
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  });
 
 const formatTime = (iso: string) =>
   new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -833,7 +778,6 @@ export default function DriverCheckInForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkInRecord, setCheckInRecord] = useState<CheckInRecord | null>(null);
-  const [locationStatus, setLocationStatus] = useState<'checking' | 'valid' | 'invalid' | null>(null);
   const [timeRestrictionWarning, setTimeRestrictionWarning] = useState<string | null>(null);
 
   // ── On mount: check localStorage for an active pending check-in ──────────
@@ -841,8 +785,6 @@ export default function DriverCheckInForm() {
     const storedId = getStoredCheckInId();
     if (!storedId) return;
 
-    // Verify the record still exists AND is still in a pending-like state
-    // before redirecting. This prevents a redirect loop for rejected/denied loads.
     const verify = async () => {
       try {
         const supabaseClient = getSupabaseClient();
@@ -853,10 +795,8 @@ export default function DriverCheckInForm() {
           .single();
 
         if (data && !NON_REDIRECT_STATUSES.includes(data.status)) {
-          // Still active — redirect to status page
           window.location.href = `/status?id=${storedId}`;
         } else {
-          // Load is in a terminal/re-check-in state — clear and show form
           clearActiveCheckIn();
         }
       } catch {
@@ -878,22 +818,21 @@ export default function DriverCheckInForm() {
     return () => clearInterval(interval);
   }, []);
 
- const handleReferenceChange = useCallback((index: number, value: string) => {
-  setReferenceNumbers((prev) => { const u = [...prev]; u[index] = value; return u; });
-  // Clear error while typing so it doesn't persist after they correct it
-  setReferenceErrors((prev) => { const u = [...prev]; u[index] = null; return u; });
-}, []);
+  const handleReferenceChange = useCallback((index: number, value: string) => {
+    setReferenceNumbers((prev) => { const u = [...prev]; u[index] = value; return u; });
+    setReferenceErrors((prev) => { const u = [...prev]; u[index] = null; return u; });
+  }, []);
 
   const handleReferenceBlur = useCallback((index: number, value: string) => {
-  if (!value.trim()) return; // Don't show an error on an empty field
-  setReferenceErrors((prev) => {
-    const u = [...prev];
-    u[index] = !validateReferenceNumber(value)
-      ? 'Invalid format. Must match: 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, 8xxxxxxx, or TLNA-SO-0xxxxx'
-      : null;
-    return u;
-  });
-}, []);
+    if (!value.trim()) return;
+    setReferenceErrors((prev) => {
+      const u = [...prev];
+      u[index] = !validateReferenceNumber(value)
+        ? 'Invalid format. Must match: 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, 8xxxxxxx, or TLNA-SO-0xxxxx'
+        : null;
+      return u;
+    });
+  }, []);
 
   const addReferenceNumber = useCallback(() => {
     setReferenceNumbers((p) => [...p, '']);
@@ -918,7 +857,6 @@ export default function DriverCheckInForm() {
     setReferenceNumbers(['']);
     setReferenceErrors([null]);
     setError(null);
-    setLocationStatus(null);
     setCheckInRecord(null);
   }, []);
 
@@ -926,19 +864,10 @@ export default function DriverCheckInForm() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setLocationStatus('checking');
 
     try {
       const timeCheck = isWithinAllowedTime();
       if (!timeCheck.allowed) { setError(timeCheck.message ?? 'Check-in not available at this time'); return; }
-
-      const geofenceCheck = await validateGeofence();
-      if (!geofenceCheck.valid) {
-        setError(geofenceCheck.message ?? 'You must be on-site to check in');
-        setLocationStatus('invalid');
-        return;
-      }
-      setLocationStatus('valid');
 
       const filledRefs = referenceNumbers.map((r) => r.trim()).filter(Boolean);
       if (filledRefs.length === 0) { setError('Please provide at least one reference number'); return; }
@@ -977,13 +906,11 @@ export default function DriverCheckInForm() {
 
       if (insertError) throw insertError;
 
-      // Save to localStorage and redirect to status page
       saveActiveCheckIn(checkInData.id);
       window.location.href = `/status?id=${checkInData.id}`;
     } catch (err: any) {
       console.error('Driver check-in error:', err);
       setError(err.message || 'Failed to submit check-in. Please try again.');
-      setLocationStatus(null);
     } finally {
       setLoading(false);
     }
@@ -1012,16 +939,6 @@ export default function DriverCheckInForm() {
           {timeRestrictionWarning && (
             <div className="mx-6 mt-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded">
               ⚠️ {timeRestrictionWarning}
-            </div>
-          )}
-
-          {locationStatus === 'checking' && (
-            <div className="mx-6 mt-4 p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
-              Verifying your location...
             </div>
           )}
 
@@ -1067,23 +984,23 @@ export default function DriverCheckInForm() {
                       <Plus size={16} /> Add
                     </button>
                   </div>
-                 <div className="space-y-2">
-  {referenceNumbers.map((ref, index) => (
-    <div key={index}>
-      <div className="flex items-center gap-2">
-        <input type="text" value={ref} onChange={(e) => handleReferenceChange(index, e.target.value)} onBlur={(e) => handleReferenceBlur(index, e.target.value)} required={index === 0}
-          placeholder={index === 0 ? 'e.g., 2xxxxxx or 4xxxxxx' : `Reference #${index + 1}`}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${referenceErrors[index] ? 'border-red-400' : 'border-gray-300'}`} />
-        {index > 0 && (
-          <button type="button" onClick={() => removeReferenceNumber(index)} className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors">
-            <Minus size={18} />
-          </button>
-        )}
-      </div>
-      {referenceErrors[index] && <p className="text-red-500 text-xs mt-1">{referenceErrors[index]}</p>}
-    </div>
-  ))}
-</div>
+                  <div className="space-y-2">
+                    {referenceNumbers.map((ref, index) => (
+                      <div key={index}>
+                        <div className="flex items-center gap-2">
+                          <input type="text" value={ref} onChange={(e) => handleReferenceChange(index, e.target.value)} onBlur={(e) => handleReferenceBlur(index, e.target.value)} required={index === 0}
+                            placeholder={index === 0 ? 'e.g., 2xxxxxx or 4xxxxxx' : `Reference #${index + 1}`}
+                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${referenceErrors[index] ? 'border-red-400' : 'border-gray-300'}`} />
+                          {index > 0 && (
+                            <button type="button" onClick={() => removeReferenceNumber(index)} className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors">
+                              <Minus size={18} />
+                            </button>
+                          )}
+                        </div>
+                        {referenceErrors[index] && <p className="text-red-500 text-xs mt-1">{referenceErrors[index]}</p>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1134,7 +1051,6 @@ export default function DriverCheckInForm() {
 
             <div className="text-center text-xs text-gray-500 pt-4 border-t border-gray-200">
               <p className="mb-1"><strong>Operating Hours:</strong> Monday – Friday, 7:00 AM – 5:00 PM</p>
-              <p className="mb-1"><strong>Location Verification:</strong> You must be on-site to complete check-in</p>
               <p>For assistance, contact the shipping office at{' '}
                 <a href="tel:+17654742512" className="text-blue-600 hover:underline">(765) 474-2512</a></p>
             </div>
