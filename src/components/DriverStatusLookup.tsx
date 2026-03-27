@@ -757,7 +757,7 @@ export default function DriverStatusLookup() {
               type="text"
               value={refInput}
               onChange={(e) => { setRefInput(e.target.value); setError(null); }}
-              placeholder="e.g., 2xxxxxx or 4xxxxxx"
+              placeholder="e.g., 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, 8xxxxxxx, TLNA-SO-0xxxxx"
               autoFocus
               className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center tracking-wider"
             />
