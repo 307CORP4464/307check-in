@@ -1058,8 +1058,10 @@ useEffect(() => {
 }, [fetchCheckInsForDate]);
 
 useEffect(() => {
+  fetchCheckInsForDate();
+
   const channel = supabase
-    .channel('daily_log_realtime')
+    .channel(`daily_log_realtime_${selectedDate}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, () => {
       fetchRef.current();
     })
@@ -1071,12 +1073,7 @@ useEffect(() => {
   return () => {
     supabase.removeChannel(channel);
   };
-}, []);
-
-useEffect(() => {
-  fetchCheckInsForDate();
-}, [fetchCheckInsForDate]);
-
+}, [selectedDate]);
 
 const filteredCheckIns = checkIns.filter((checkIn) => {
   if (!searchTerm.trim()) return true;
