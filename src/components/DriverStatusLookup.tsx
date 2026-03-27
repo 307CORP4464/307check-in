@@ -243,10 +243,16 @@ function StatusScreen({
     const channel = supabase
       .channel(`lookup_${initialRecord.id}`)
       .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'check_ins', filter: `id=eq.${initialRecord.id}` },
-        () => { fetchFull(); }
-      )
+  'postgres_changes',
+  { event: 'UPDATE', schema: 'public', table: 'check_ins', filter: `id=eq.${initialRecord.id}` },
+  (payload) => {
+    if (payload.new) {
+      setRecord(payload.new as CheckInRecord);
+      setLastUpdated(new Date());
+    }
+    fetchFull();
+  }
+)
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') setConnectionStatus('connected');
         else if (status === 'CHANNEL_ERROR') setConnectionStatus('error');
