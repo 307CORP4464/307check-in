@@ -263,20 +263,28 @@ const getTodayDateTime = (): string => {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
 
+const getNextWorkingDay = (from: Date): Date => {
+  const next = new Date(from);
+  next.setDate(from.getDate() + 1);
+  if (next.getDay() === 6) next.setDate(next.getDate() + 2); // Sat → Mon
+  if (next.getDay() === 0) next.setDate(next.getDate() + 1); // Sun → Mon
+  return next;
+};
+
 const getNextWorkingDayAt0600 = (): string => {
   const now = new Date();
-  const next = new Date(now);
-  next.setDate(now.getDate() + 1);
-  if (next.getDay() === 6) next.setDate(next.getDate() + 2);
-  if (next.getDay() === 0) next.setDate(next.getDate() + 1);
+  const next = getNextWorkingDay(now);
   next.setHours(6, 0, 0, 0);
   return new Date(next.getTime() - next.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
 
-const getTodayUTCRange = () => {
+const getTodayAndNextWorkingDayRange = () => {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 23, 59, 59, 999);
+  const nextWorking = getNextWorkingDay(now);
+  const end = new Date(
+    nextWorking.getFullYear(), nextWorking.getMonth(), nextWorking.getDate(), 23, 59, 59, 999
+  );
   return { start: start.toISOString(), end: end.toISOString() };
 };
 
@@ -285,6 +293,12 @@ const formatTime = (iso: string) =>
 
 const formatDateTime = (iso: string) =>
   new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+
+const getLocalDateLabel = (iso: string): string =>
+  new Date(iso).toLocaleDateString('en-US', { dateStyle: 'long' });
+
+const getTodayLabel = (): string =>
+  new Date().toLocaleDateString('en-US', { dateStyle: 'long' });
 
 // ── Carrier Daily Check-In List ────────────────────────────────────────────
 
@@ -299,7 +313,7 @@ function CarrierCheckInList({
   const [loading, setLoading] = useState(true);
 
   const fetchRecords = useCallback(async () => {
-    const { start, end } = getTodayUTCRange();
+    const { start, end } = getTodayAndNextWorkingDayRange();
     const { data, error } = await supabase
       .from('check_ins')
       .select('*')
@@ -314,7 +328,7 @@ function CarrierCheckInList({
   useEffect(() => {
     fetchRecords();
     const channel = supabase
-      .channel('vision_checkins_today')
+      .channel('vision_checkins_range')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, () => fetchRecords())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -323,7 +337,7 @@ function CarrierCheckInList({
   if (loading) {
     return (
       <div className="mt-6 p-4 bg-white rounded-lg border border-gray-200 text-center text-sm text-gray-400">
-        Loading today's check-ins...
+        Loading check-ins...
       </div>
     );
   }
@@ -331,61 +345,86 @@ function CarrierCheckInList({
   if (records.length === 0) {
     return (
       <div className="mt-6 p-4 bg-white rounded-lg border border-gray-200 text-center text-sm text-gray-400">
-        No Vision check-ins recorded today yet.
+        No Vision check-ins recorded for today or the next working day.
       </div>
     );
   }
+
+  // Group records by local date label
+  const todayLabel = getTodayLabel();
+  const nextWorkingLabel = getLocalDateLabel(
+    getNextWorkingDay(new Date()).toISOString()
+  );
+
+  const grouped: Record<string, CheckInRecord[]> = {};
+  for (const r of records) {
+    const label = getLocalDateLabel(r.check_in_time);
+    if (!grouped[label]) grouped[label] = [];
+    grouped[label].push(r);
+  }
+
+  const dayHeading = (dateLabel: string): string => {
+    if (dateLabel === todayLabel) return `Today — ${dateLabel}`;
+    if (dateLabel === nextWorkingLabel) return `Next Working Day — ${dateLabel}`;
+    return dateLabel;
+  };
 
   return (
     <div className="mt-6">
       <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
         Vision Check-Ins ({records.length})
       </h3>
-      <div className="space-y-3">
-        {records.map((r) => {
-          const meta = getStatusMeta(r.status);
-          const isCurrentRecord = r.id === currentRecordId;
-          const dockDisplay = r.dock_number === 'Ramp' ? 'RAMP' : r.dock_number;
-          return (
-            <div key={r.id} className={`bg-white rounded-lg border-2 p-4 transition-all ${isCurrentRecord ? 'border-indigo-400 shadow-md' : 'border-gray-200'}`}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    {isCurrentRecord && (
-                      <span className="text-xs bg-indigo-100 text-indigo-700 font-medium px-1.5 py-0.5 rounded">You</span>
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-500 space-y-0.5">
-                    <div><span className="font-medium">Ref:</span> {r.reference_number}</div>
-                    <div>
-                      <span className="font-medium">Trailer:</span> {r.trailer_number}
-                      {r.trailer_length ? ` (${r.trailer_length})` : ''} · <span className="capitalize">{r.load_type}</span>
+      {Object.entries(grouped).map(([dateLabel, dayRecords]) => (
+        <div key={dateLabel} className="mb-6">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
+            {dayHeading(dateLabel)}
+          </p>
+          <div className="space-y-3">
+            {dayRecords.map((r) => {
+              const meta = getStatusMeta(r.status);
+              const isCurrentRecord = r.id === currentRecordId;
+              const dockDisplay = r.dock_number === 'Ramp' ? 'RAMP' : r.dock_number;
+              return (
+                <div key={r.id} className={`bg-white rounded-lg border-2 p-4 transition-all ${isCurrentRecord ? 'border-indigo-400 shadow-md' : 'border-gray-200'}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        {isCurrentRecord && (
+                          <span className="text-xs bg-indigo-100 text-indigo-700 font-medium px-1.5 py-0.5 rounded">You</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500 space-y-0.5">
+                        <div><span className="font-medium">Ref:</span> {r.reference_number}</div>
+                        <div>
+                          <span className="font-medium">Trailer:</span> {r.trailer_number}
+                          {r.trailer_length ? ` (${r.trailer_length})` : ''} · <span className="capitalize">{r.load_type}</span>
+                        </div>
+                        <div><span className="font-medium">Scheduled:</span> {formatDateTime(r.check_in_time)}</div>
+                        {dockDisplay && <div className="text-blue-700 font-semibold">Dock: {dockDisplay}</div>}
+                        {r.status === 'rejected' && r.rejection_reasons && r.rejection_reasons.length > 0 && (
+                          <div className="text-red-600 mt-1">
+                            <span className="font-semibold">Rejected:</span> {r.rejection_reasons.join(', ')}
+                          </div>
+                        )}
+                        {(r.status === 'check_in_denial' || r.status === 'turned_away') && r.denial_reason && (
+                          <div className="text-red-600 mt-1">
+                            <span className="font-semibold">Denied:</span> {r.denial_reason}
+                          </div>
+                        )}
+                        {r.status_note && <div className="text-gray-600 italic">"{r.status_note}"</div>}
+                      </div>
                     </div>
-                    <div><span className="font-medium">Checked in:</span> {formatTime(r.check_in_time)}</div>
-                    {dockDisplay && <div className="text-blue-700 font-semibold">Dock: {dockDisplay}</div>}
-                    {/* Show rejection summary in list */}
-                    {r.status === 'rejected' && r.rejection_reasons && r.rejection_reasons.length > 0 && (
-                      <div className="text-red-600 mt-1">
-                        <span className="font-semibold">Rejected:</span> {r.rejection_reasons.join(', ')}
-                      </div>
-                    )}
-                    {(r.status === 'check_in_denial' || r.status === 'turned_away') && r.denial_reason && (
-                      <div className="text-red-600 mt-1">
-                        <span className="font-semibold">Denied:</span> {r.denial_reason}
-                      </div>
-                    )}
-                    {r.status_note && <div className="text-gray-600 italic">"{r.status_note}"</div>}
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${meta.badgeBg} ${meta.badgeText}`}>
+                      {meta.bannerIcon}
+                      {meta.bannerLabel}
+                    </div>
                   </div>
                 </div>
-                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${meta.badgeBg} ${meta.badgeText}`}>
-                  {meta.bannerIcon}
-                  {meta.bannerLabel}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -408,7 +447,6 @@ function StatusScreen({
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
   useEffect(() => {
-    // Re-fetch the full row on every update so we always get every column
     const fetchFull = async () => {
       const { data } = await supabase
         .from('check_ins')
@@ -435,16 +473,12 @@ function StatusScreen({
     return () => { supabase.removeChannel(channel); };
   }, [initialRecord.id, supabase]);
 
-  // ── Derived state ──────────────────────────────────────────────────────────
-
   const status = record.status;
   const meta = getStatusMeta(status);
   const filledRefs = referenceNumbers.filter((r) => r.trim());
 
   const hasDock = !!record.dock_number;
   const dockDisplay = record.dock_number === 'Ramp' ? 'RAMP' : record.dock_number;
-
-  // Dock is assigned whenever dock_number is present (status may be 'checked_in' or 'dock_assigned')
   const dockIsAssigned = hasDock || status === 'dock_assigned' || status === 'checked_in';
 
   const STATUSES_WITHOUT_INSTRUCTIONS = ['loading', 'unloading', 'checked_out', 'complete', 'rejected', 'check_in_denial', 'turned_away', 'driver_left', 'on_hold'];
@@ -457,7 +491,6 @@ function StatusScreen({
   const isRejected   = status === 'rejected';
   const isDenied     = status === 'check_in_denial' || status === 'turned_away' || status === 'denied';
 
-  // Parse rejection_reasons safely — Supabase may return TEXT[], JSON string, or plain array
   const rejectionReasons: string[] = (() => {
     const raw = record.rejection_reasons;
     if (!raw) return [];
@@ -467,8 +500,6 @@ function StatusScreen({
     }
     return [];
   })();
-
-  // ── Action box ────────────────────────────────────────────────────────────
 
   const actionBox = (() => {
     if (status === 'pending' && !hasDock) {
@@ -528,20 +559,17 @@ function StatusScreen({
       <div className="max-w-md mx-auto">
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
 
-          {/* Top banner */}
           <div className="bg-gray-900 text-white px-5 py-4 text-center">
             <p className="text-xl font-extrabold tracking-tight leading-snug">📱 Leave this page open</p>
             <p className="text-sm text-gray-300 mt-1">Load updates will appear below</p>
           </div>
 
-          {/* Status header */}
           <div className={`${meta.headerBg} text-white p-6 text-center transition-colors duration-500`}>
             <div className="text-5xl mb-3">{meta.headerIcon}</div>
             <h2 className="text-2xl font-bold">{meta.headerTitle}</h2>
             <p className="text-white/80 text-sm mt-1">Welcome, {record.driver_name}!</p>
           </div>
 
-          {/* Status banner — label + dock number */}
           <div className={`mx-4 mt-4 p-4 rounded-lg border-2 ${meta.bannerBg} ${meta.bannerBorder} transition-all duration-500`}>
             <div className="flex items-center gap-2">
               {meta.bannerIcon}
@@ -555,13 +583,10 @@ function StatusScreen({
             )}
           </div>
 
-          {/* ── Detail section ── */}
           <div className="mx-4 mt-3 space-y-3">
 
-            {/* 1. Action box */}
             {actionBox}
 
-            {/* 2. Double booked warning */}
             {hasDock && record.is_double_booked && (
               <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
                 <p className="text-sm font-bold text-orange-800 mb-1">⚠️ Important — Please Wait Before Pulling In</p>
@@ -573,7 +598,6 @@ function StatusScreen({
               </div>
             )}
 
-            {/* 3. Gross weight */}
             {hasDock && record.gross_weight && (
               <div className="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
                 <p className="text-sm font-bold text-orange-700 mb-1">
@@ -586,7 +610,6 @@ function StatusScreen({
               </div>
             )}
 
-            {/* 4. Appointment time */}
             {record.appointment_time && (
               <div className="p-4 bg-white border border-gray-200 rounded-lg">
                 <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Appointment Time</p>
@@ -606,17 +629,14 @@ function StatusScreen({
               </div>
             )}
 
-            {/* 5. Load instructions */}
             {showInstructions && (
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 {record.load_type === 'inbound' ? <InboundInstructions /> : <OutboundInstructions />}
               </div>
             )}
 
-            {/* 6. Checked-out next steps */}
             {isCheckedOut && <CheckedOutNextSteps />}
 
-            {/* 7. Completion time */}
             {isComplete && record.end_time && (
               <div className="p-4 bg-white border border-gray-200 rounded-lg">
                 <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Completed At</p>
@@ -624,7 +644,6 @@ function StatusScreen({
               </div>
             )}
 
-            {/* 8. Trailer rejected */}
             {isRejected && (
               <>
                 {rejectionReasons.length > 0 && (
@@ -662,7 +681,6 @@ function StatusScreen({
               </>
             )}
 
-            {/* 9. Check-in denied */}
             {isDenied && (
               <>
                 {record.denial_reason && (
@@ -677,7 +695,6 @@ function StatusScreen({
               </>
             )}
 
-            {/* 10. Note from office */}
             {record.status_note && (
               <div className="p-4 bg-white border border-gray-200 rounded-lg">
                 <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Note from Office</p>
@@ -687,7 +704,6 @@ function StatusScreen({
 
           </div>
 
-          {/* Load info summary */}
           <div className="mx-4 mt-4 p-4 bg-gray-50 rounded-lg text-sm space-y-2">
             {filledRefs.length > 0 && (
               <div className="flex justify-between">
@@ -719,7 +735,6 @@ function StatusScreen({
             </div>
           </div>
 
-          {/* Connection indicator */}
           <div className="mx-4 mt-3 mb-4 flex items-center justify-between text-xs text-gray-400">
             <div className="flex items-center gap-1.5">
               <span className={`inline-block w-2 h-2 rounded-full ${
@@ -746,7 +761,6 @@ function StatusScreen({
           </div>
         </div>
 
-        {/* Today's Vision check-ins below the status card */}
         <CarrierCheckInList supabase={supabase} currentRecordId={record.id} />
       </div>
     </div>
@@ -902,7 +916,7 @@ export default function CarrierEarlyCheckInForm() {
                 <button type="button"
                   onClick={() => { setScheduledDateTime(getNextWorkingDayAt0600()); setScheduledDateTimeError(null); }}
                   className={`flex-1 py-2 px-4 rounded-lg border-2 font-semibold text-sm transition-all ${scheduledDateTime === getNextWorkingDayAt0600() ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-indigo-300 text-indigo-700 hover:bg-indigo-50'}`}>
-                  🌅 Tomorrow (7:00 AM)
+                  🌅 Next Working Day (6:00 AM)
                 </button>
               </div>
               <div>
@@ -1024,7 +1038,6 @@ export default function CarrierEarlyCheckInForm() {
           </form>
         </div>
 
-        {/* Today's Vision check-ins visible on the form page too */}
         <CarrierCheckInList supabase={supabase} />
       </div>
     </div>
