@@ -1,5 +1,4 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
@@ -9,40 +8,36 @@ export default function DockStatusWidget() {
     available: 0,
     inUse: 0,
     doubleBooked: 0,
-    total: 20
+    total: 71,
   });
 
   useEffect(() => {
     fetchStats();
-    
     const channel = supabase
       .channel('dock-widget')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_log' }, fetchStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, fetchStats)
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const fetchStats = async () => {
     const { data } = await supabase
-      .from('daily_log')
+      .from('check_ins')
       .select('dock_number')
-      .neq('status', 'complete');
+      .in('status', ['checked_in', 'dock_assigned', 'loading', 'unloading', 'checked_out', 'on_hold'])
+      .not('dock_number', 'is', null);
 
     const dockMap = new Map<string, number>();
-    data?.forEach(log => {
-      if (log.dock_number) {
-        dockMap.set(log.dock_number, (dockMap.get(log.dock_number) || 0) + 1);
+    data?.forEach(ci => {
+      if (ci.dock_number) {
+        dockMap.set(ci.dock_number, (dockMap.get(ci.dock_number) || 0) + 1);
       }
     });
 
     const inUse = Array.from(dockMap.values()).filter(count => count === 1).length;
     const doubleBooked = Array.from(dockMap.values()).filter(count => count > 1).length;
-    const total = 20; // Adjust based on your dock count
+    const total = 71;
     const available = total - inUse - doubleBooked;
-
     setStats({ available, inUse, doubleBooked, total });
   };
 
@@ -54,7 +49,6 @@ export default function DockStatusWidget() {
           View All →
         </Link>
       </div>
-      
       <div className="grid grid-cols-3 gap-4">
         <div className="text-center">
           <div className="text-2xl font-bold text-green-600">{stats.available}</div>
