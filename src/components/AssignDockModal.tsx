@@ -69,6 +69,11 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
   const [grossWeight, setGrossWeight] = useState('');
   const [grossWeightTouched, setGrossWeightTouched] = useState(false);
 
+  // Reference number verification state
+  const [paperRefNumber, setPaperRefNumber] = useState('');
+  const [paperRefTouched, setPaperRefTouched] = useState(false);
+  const [refMismatch, setRefMismatch] = useState(false);
+
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -134,6 +139,13 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     }
   };
 
+  // Normalize reference numbers for comparison: strip whitespace and compare case-insensitively
+  const normalizeRef = (val: string) => val.trim().toLowerCase().replace(/\s+/g, '');
+
+  const refNumberMatches =
+    paperRefNumber.trim() === '' ||
+    normalizeRef(paperRefNumber) === normalizeRef(checkIn.reference_number || '');
+
   // Sync state when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -142,9 +154,21 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
       setShowWarning(false);
       setGrossWeight('');
       setGrossWeightTouched(false);
+      setPaperRefNumber('');
+      setPaperRefTouched(false);
+      setRefMismatch(false);
       fetchAllDockStatuses();
     }
   }, [isOpen, checkIn]);
+
+  // Update mismatch state live as CSR types
+  useEffect(() => {
+    if (paperRefTouched && paperRefNumber.trim() !== '') {
+      setRefMismatch(!refNumberMatches);
+    } else {
+      setRefMismatch(false);
+    }
+  }, [paperRefNumber, paperRefTouched]);
 
   // Update warning when dock selection changes
   useEffect(() => {
@@ -296,12 +320,28 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
   };
 
   const handleAssign = async () => {
+    // Mark all fields as touched so validation messages show
+    setGrossWeightTouched(true);
+    setPaperRefTouched(true);
+
     if (!dockNumber) {
       setError('Please select a dock');
       return;
     }
     if (!grossWeight || grossWeight.trim() === '') {
       setError('Gross weight is required.');
+      return;
+    }
+    if (!paperRefNumber || paperRefNumber.trim() === '') {
+      setError('Please enter the reference number from the paper bill.');
+      return;
+    }
+
+    // Reference number match check — hard block
+    if (normalizeRef(paperRefNumber) !== normalizeRef(checkIn.reference_number || '')) {
+      setError(
+        `❌ Reference number mismatch. The paper bill shows "${paperRefNumber.trim()}" but this check-in is for "${checkIn.reference_number}". Please verify you have the correct paperwork.`
+      );
       return;
     }
 
@@ -327,9 +367,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
       const assignedDock = dockStatuses.find(d => d.dock_number === dockNumber);
       const isDoubleBooked = assignedDock?.status === 'in-use';
 
-      // Try update with new columns first; fall back without them if columns don't exist yet
-      let updateError: any = null;
-
       const fullUpdate = await supabase
         .from('check_ins')
         .update({
@@ -341,9 +378,10 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
         })
         .eq('id', checkIn.id);
 
+      let updateError: any = fullUpdate.error;
+
       if (fullUpdate.error) {
         console.warn('Full update failed, trying without new columns:', fullUpdate.error.message);
-        // Columns may not exist yet — fall back to base update
         const baseUpdate = await supabase
           .from('check_ins')
           .update({
@@ -784,26 +822,88 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             </div>
           )}
 
-          {/* Gross Weight */}
-          <div>
-            <label htmlFor="grossWeight" className="block text-sm font-medium text-gray-700">
-              Gross Weight <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="grossWeight"
-              type="number"
-              value={grossWeight}
-              onChange={(e) => setGrossWeight(e.target.value)}
-              onBlur={() => setGrossWeightTouched(true)}
-              required
-              placeholder="Enter gross weight (lbs)"
-              className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
-                grossWeightTouched && !grossWeight ? 'border-red-300' : 'border-gray-300'
-              }`}
-            />
-            {grossWeightTouched && !grossWeight && (
-              <p className="mt-1 text-xs text-red-500">Gross weight is required.</p>
-            )}
+          {/* ── Verification & Weight Fields ── */}
+          <div className="grid grid-cols-2 gap-4">
+
+            {/* Paper Bill Reference Number Verification */}
+            <div>
+              <label htmlFor="paperRefNumber" className="block text-sm font-medium text-gray-700">
+                Reference # from Paper Bill <span className="text-red-500">*</span>
+              </label>
+              <p className="text-xs text-gray-400 mb-1">
+                Type the ref # exactly as shown on the physical bill — must match{' '}
+                <span className="font-semibold text-gray-600">{checkIn.reference_number || '—'}</span>
+              </p>
+              <div className="relative">
+                <input
+                  id="paperRefNumber"
+                  type="text"
+                  value={paperRefNumber}
+                  onChange={(e) => setPaperRefNumber(e.target.value)}
+                  onBlur={() => setPaperRefTouched(true)}
+                  placeholder="e.g. 1234567"
+                  autoComplete="off"
+                  className={`block w-full rounded-md border px-3 py-2 pr-9 shadow-sm focus:outline-none focus:ring-2 sm:text-sm ${
+                    paperRefTouched && paperRefNumber.trim() !== ''
+                      ? refMismatch
+                        ? 'border-red-400 focus:ring-red-400 bg-red-50'
+                        : 'border-green-400 focus:ring-green-400 bg-green-50'
+                      : paperRefTouched && paperRefNumber.trim() === ''
+                      ? 'border-red-300 focus:ring-red-300'
+                      : 'border-gray-300 focus:ring-blue-500'
+                  }`}
+                />
+                {/* Inline match indicator */}
+                {paperRefTouched && paperRefNumber.trim() !== '' && (
+                  <div className="absolute inset-y-0 right-2.5 flex items-center pointer-events-none">
+                    {refMismatch ? (
+                      <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                )}
+              </div>
+              {/* Feedback messages */}
+              {paperRefTouched && paperRefNumber.trim() === '' && (
+                <p className="mt-1 text-xs text-red-500">Reference number is required.</p>
+              )}
+              {paperRefTouched && paperRefNumber.trim() !== '' && refMismatch && (
+                <p className="mt-1 text-xs text-red-600 font-medium">
+                  ❌ Does not match. Expected: <span className="font-bold">{checkIn.reference_number}</span>. Check your paperwork.
+                </p>
+              )}
+              {paperRefTouched && paperRefNumber.trim() !== '' && !refMismatch && (
+                <p className="mt-1 text-xs text-green-600 font-medium">✅ Reference number verified.</p>
+              )}
+            </div>
+
+            {/* Gross Weight */}
+            <div>
+              <label htmlFor="grossWeight" className="block text-sm font-medium text-gray-700">
+                Gross Weight <span className="text-red-500">*</span>
+              </label>
+              <p className="text-xs text-gray-400 mb-1">Enter weight in lbs from the scale ticket</p>
+              <input
+                id="grossWeight"
+                type="number"
+                value={grossWeight}
+                onChange={(e) => setGrossWeight(e.target.value)}
+                onBlur={() => setGrossWeightTouched(true)}
+                required
+                placeholder="e.g. 42500"
+                className={`block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm ${
+                  grossWeightTouched && !grossWeight ? 'border-red-300' : 'border-gray-300'
+                }`}
+              />
+              {grossWeightTouched && !grossWeight && (
+                <p className="mt-1 text-xs text-red-500">Gross weight is required.</p>
+              )}
+            </div>
           </div>
 
           {/* Error message */}
@@ -827,7 +927,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
           <button
             type="button"
             onClick={handleAssign}
-            disabled={loading || !dockNumber || !grossWeight}
+            disabled={loading || !dockNumber || !grossWeight || !paperRefNumber || refMismatch}
             className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
           >
             {loading ? (
