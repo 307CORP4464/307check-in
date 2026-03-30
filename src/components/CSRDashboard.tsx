@@ -352,11 +352,11 @@ const fetchAllData = async () => {
         const batch = referenceNumbers.slice(i, i + BATCH_SIZE);
 
         const orFilter = batch
-          .flatMap((ref: string) => [
-            `sales_order.ilike.%${ref}%`,
-            `delivery.ilike.%${ref}%`
-          ])
-          .join(',');
+  .flatMap(ref => [
+    `sales_order.ilike.${ref}`,
+    `delivery.ilike.${ref}`
+  ])
+  .join(',');
 
        const { data: appointmentsData, error: appointmentsError } = await supabase
   .from('appointments')
