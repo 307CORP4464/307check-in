@@ -333,15 +333,17 @@ const fetchAllData = async () => {
     ));
 
     const appointmentsMap = new Map<string, {
-      time: string | null;
-      date: string | null;
-      ship_to_city: string | null;
-      ship_to_state: string | null;
-      carrier: string | null;
-      mode: string | null;
-      customer: string | null;
-      requested_ship_date: string | null;
-    }>();
+  time: string | null;
+  date: string | null;
+  ship_to_city: string | null;
+  ship_to_state: string | null;
+  carrier: string | null;
+  mode: string | null;
+  customer: string | null;
+  requested_ship_date: string | null;
+  sales_order: string | null;   // ← ADD THIS
+  delivery: string | null;      // ← ADD THIS
+}>();
 
     if (referenceNumbers.length > 0) {
       const BATCH_SIZE = 20;
