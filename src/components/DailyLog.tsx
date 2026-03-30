@@ -1030,9 +1030,10 @@ export default function DailyLog() {
 
         return {
           ...checkIn,
-          appointment_time: appointmentInfo?.time ??
+
+          appointment_time: appointmentInfo?.time ?? 
             (checkInHasManualType ? checkIn.appointment_time : null),
-          appointment_date: appointmentInfo?.date ??
+          appointment_date: appointmentInfo?.date ?? 
             (checkInHasManualType ? checkIn.appointment_date : null),
           customer: appointmentInfo?.customer ?? checkIn.customer ?? null,
           ship_to_city: appointmentInfo?.ship_to_city ?? checkIn.ship_to_city ?? null,
