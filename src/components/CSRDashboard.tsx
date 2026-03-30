@@ -264,7 +264,6 @@ interface CheckIn {
   appointment_sales_order?: string | null;   // ← ADD THIS
   appointment_delivery?: string | null;       // ← ADD THIS
 }
-}
 
 
 interface Appointment {
