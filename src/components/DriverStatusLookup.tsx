@@ -568,46 +568,36 @@ export default function DriverStatusLookup() {
   const [multipleResults, setMultipleResults] = useState<CheckInRecord[]>([]);
 
   // ── On mount: auto-load from ?id= query param (set by check-in form) ─────
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get('id');
-    if (!id) return;
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (!id) return;
 
-    const load = async () => {
-      setSearching(true);
-      try {
-        const { data, error: queryError } = await supabase
-          .from('check_ins')
-          .select('*')
-          .eq('id', id)
-          .single();
+  const load = async () => {
+    setSearching(true);
+    try {
+      const { data, error: queryError } = await supabase
+        .from('check_ins')
+        .select('*')
+        .eq('id', id)
+        .single();
 
-        if (queryError || !data) {
-          setError('Could not load your check-in. Please search by reference number below.');
-          return;
-        }
-
-        const rec = data as CheckInRecord;
-
-        // If the status means they need to re-check in, clear localStorage
-        // and drop them on the search form rather than showing a stale status
-        if (NON_REDIRECT_STATUSES.includes(rec.status)) {
-          clearActiveCheckIn();
-          setError('Your previous check-in has ended. Please check in again if needed.');
-          return;
-        }
-
-        setRecord(rec);
-      } catch (err) {
-        console.error('Auto-load error:', err);
-        setError('Something went wrong. Please search by reference number below.');
-      } finally {
-        setSearching(false);
+      if (queryError || !data) {
+        setError('Could not load your check-in. Please search by reference number below.');
+        return;
       }
-    };
 
-    load();
-  }, [supabase]);
+      setRecord(data as CheckInRecord);  // ← always show, no status check
+    } catch (err) {
+      console.error('Auto-load error:', err);
+      setError('Something went wrong. Please search by reference number below.');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  load();
+}, [supabase]);
   // ─────────────────────────────────────────────────────────────────────────
 
   const handleSearch = async (e: React.FormEvent) => {
