@@ -831,8 +831,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
                 Reference # from Paper Bill <span className="text-red-500">*</span>
               </label>
               <p className="text-xs text-gray-400 mb-1">
-                Type the ref # exactly as shown on the physical bill — must match{' '}
-                <span className="font-semibold text-gray-600">{checkIn.reference_number || '—'}</span>
+                Type the ref # exactly as shown on the physical bill — must match
               </p>
               <div className="relative">
                 <input
@@ -874,7 +873,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
               )}
               {paperRefTouched && paperRefNumber.trim() !== '' && refMismatch && (
                 <p className="mt-1 text-xs text-red-600 font-medium">
-                  ❌ Does not match. Expected: <span className="font-bold">{checkIn.reference_number}</span>. Check your paperwork.
+                  ❌ Does not match. Check your paperwork.
                 </p>
               )}
               {paperRefTouched && paperRefNumber.trim() !== '' && !refMismatch && (
