@@ -961,8 +961,8 @@ export default function DailyLog() {
 
           const orFilter = batch
   .flatMap(ref => [
-    `sales_order.ilike.${ref}`,
-    `delivery.ilike.${ref}`
+    `sales_order.ilike.%${ref}%`,
+    `delivery.ilike.%${ref}%`
   ])
   .join(',');
 
