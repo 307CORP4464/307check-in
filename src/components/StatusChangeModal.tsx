@@ -8,7 +8,6 @@ interface StatusChangeModalProps {
     id: string;
     reference_number?: string;
     driver_name?: string;
-    driver_email?: string;
     end_time?: string | null;
     status?: string;
     carrier_name?: string;
