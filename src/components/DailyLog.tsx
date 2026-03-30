@@ -18,76 +18,45 @@ const TIMEZONE = 'America/Indiana/Indianapolis';
 const formatTimeInIndianapolis = (isoString: string, includeDate: boolean = false): string => {
   try {
     if (!isoString || isoString === '' || isoString === 'null' || isoString === 'undefined') {
-      console.error('Empty or invalid date string:', isoString);
       return 'No Check-in Time';
     }
-
     const date = new Date(isoString);
-    
-    if (isNaN(date.getTime()) || date.getTime() < 0) {
-      console.error('Invalid date:', isoString);
-      return 'Invalid Date';
-    }
-
-    if (date.getFullYear() < 2000) {
-      console.error('Date too old, likely invalid:', isoString, date);
-      return 'Invalid Date';
-    }
-    
+    if (isNaN(date.getTime()) || date.getTime() < 0) return 'Invalid Date';
+    if (date.getFullYear() < 2000) return 'Invalid Date';
     const options: Intl.DateTimeFormatOptions = {
       timeZone: TIMEZONE,
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false
+      hour12: false,
     };
-    
     if (includeDate) {
       options.year = 'numeric';
       options.month = '2-digit';
       options.day = '2-digit';
     }
-    
-    const formatter = new Intl.DateTimeFormat('en-US', options);
-    return formatter.format(date);
-  } catch (e) {
-    console.error('Time formatting error:', e, isoString);
+    return new Intl.DateTimeFormat('en-US', options).format(date);
+  } catch {
     return 'Error';
   }
 };
 
 const formatPhoneNumber = (phone: string | undefined): string => {
   if (!phone) return 'N/A';
-  
   const cleaned = phone.replace(/\D/g, '');
-  
   if (cleaned.length === 10) {
     return `(${cleaned.slice(0, 3)})-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
   }
-  
   return phone;
 };
 
 const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
   if (!appointmentTime) return 'N/A';
-  
   if (appointmentTime === 'work_in') return 'Work In';
-
- const specialTypeLabels: Record<string, string> = {
-  'LTL': 'LTL',
-  'Paid': 'Paid',
-  'Charge': 'Charge',
-};
-
-  if (specialTypeLabels[appointmentTime] !== undefined) {
-    return specialTypeLabels[appointmentTime];
-  }
-  
+  const specialTypeLabels: Record<string, string> = { LTL: 'LTL', Paid: 'Paid', Charge: 'Charge' };
+  if (specialTypeLabels[appointmentTime] !== undefined) return specialTypeLabels[appointmentTime];
   if (appointmentTime.length === 4 && /^\d{4}$/.test(appointmentTime)) {
-    const hours = appointmentTime.substring(0, 2);
-    const minutes = appointmentTime.substring(2, 4);
-    return `${hours}:${minutes}`;
+    return `${appointmentTime.substring(0, 2)}:${appointmentTime.substring(2, 4)}`;
   }
-  
   return appointmentTime;
 };
 
@@ -95,11 +64,8 @@ const formatAppointmentDateTime = (
   appointmentDate: string | null | undefined,
   appointmentTime: string | null | undefined
 ): string => {
-  
   if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
-    if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
-      return 'Work In';
-    }
+    if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') return 'Work In';
     try {
       let date: Date;
       if (appointmentDate.includes('/')) {
@@ -112,26 +78,17 @@ const formatAppointmentDateTime = (
         date = new Date(appointmentDate);
       }
       if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const year = date.getFullYear();
-        return `${month}/${day}/${year}, Work In`;
+        return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}, Work In`;
       }
-    } catch (error) {
-      console.error('Error formatting work in date:', error);
+    } catch {
+      // fall through
     }
     return 'Work In';
   }
 
- const specialTypeLabels: Record<string, string> = {
-  'LTL': 'LTL',
-  'Paid': 'Paid',
-  'Charge': 'Charge',
-};
-
+  const specialTypeLabels: Record<string, string> = { LTL: 'LTL', Paid: 'Paid', Charge: 'Charge' };
   if (appointmentTime && specialTypeLabels[appointmentTime]) {
     const label = specialTypeLabels[appointmentTime];
-
     if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
       try {
         let date: Date;
@@ -145,25 +102,19 @@ const formatAppointmentDateTime = (
           date = new Date(appointmentDate);
         }
         if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const day = String(date.getDate()).padStart(2, '0');
-          const year = date.getFullYear();
-          return `${month}/${day}/${year}, ${label}`;
+          return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}, ${label}`;
         }
-      } catch (error) {
-        console.error('Error formatting special type date:', error);
+      } catch {
+        // fall through
       }
     }
     return label;
   }
 
-  if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
-    return 'N/A';
-  }
+  if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') return 'N/A';
 
   try {
     let formattedDate = '';
-
     if (appointmentDate && appointmentDate !== 'null' && appointmentDate !== 'undefined') {
       let date: Date;
       if (appointmentDate.includes('/')) {
@@ -176,55 +127,37 @@ const formatAppointmentDateTime = (
         date = new Date(appointmentDate);
       }
       if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const year = date.getFullYear();
-        formattedDate = `${month}/${day}/${year}`;
+        formattedDate = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}`;
       }
     }
-
     const formattedTime = formatAppointmentTime(appointmentTime);
-
-    if (!formattedDate) {
-      return formattedTime !== 'N/A' ? formattedTime : 'N/A';
-    }
-
-    if (formattedDate && formattedTime && formattedTime !== 'N/A') {
-      return `${formattedDate}, ${formattedTime}`;
-    } else if (formattedDate) {
-      return formattedDate;
-    } else if (formattedTime && formattedTime !== 'N/A') {
-      return formattedTime;
-    }
-
+    if (!formattedDate) return formattedTime !== 'N/A' ? formattedTime : 'N/A';
+    if (formattedDate && formattedTime && formattedTime !== 'N/A') return `${formattedDate}, ${formattedTime}`;
+    if (formattedDate) return formattedDate;
     return 'N/A';
-  } catch (error) {
-    console.error('Error formatting appointment date/time:', error, { appointmentDate, appointmentTime });
+  } catch {
     const formattedTime = formatAppointmentTime(appointmentTime);
     return formattedTime !== 'N/A' ? formattedTime : 'N/A';
   }
 };
 
-
-const getDateComponentsInIndianapolis = (isoString: string): { year: number, month: number, day: number, hour: number, minute: number } => {
+const getDateComponentsInIndianapolis = (isoString: string): { year: number; month: number; day: number; hour: number; minute: number } => {
   const date = new Date(isoString);
-  const formatter = new Intl.DateTimeFormat('en-US', {
+  const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: TIMEZONE,
     year: 'numeric',
     month: 'numeric',
     day: 'numeric',
     hour: 'numeric',
     minute: 'numeric',
-    hour12: false
-  });
-  
-  const parts = formatter.formatToParts(date);
+    hour12: false,
+  }).formatToParts(date);
   return {
     year: parseInt(parts.find(p => p.type === 'year')?.value || '0'),
     month: parseInt(parts.find(p => p.type === 'month')?.value || '0'),
     day: parseInt(parts.find(p => p.type === 'day')?.value || '0'),
     hour: parseInt(parts.find(p => p.type === 'hour')?.value || '0'),
-    minute: parseInt(parts.find(p => p.type === 'minute')?.value || '0')
+    minute: parseInt(parts.find(p => p.type === 'minute')?.value || '0'),
   };
 };
 
@@ -233,59 +166,34 @@ const getAppointmentStatus = (
   appointmentTime: string | null | undefined,
   appointmentDate: string | null | undefined
 ): { color: 'green' | 'orange' | 'red' | 'yellow' | 'none'; message: string | null } => {
-
   if (!appointmentTime || appointmentTime === 'null' || appointmentTime === 'undefined') {
     return { color: 'red', message: null };
   }
-
- if (
-  appointmentTime === 'LTL' ||
-  appointmentTime === 'Charge' ||
-  appointmentTime === 'Paid'
-) {
+  if (appointmentTime === 'LTL' || appointmentTime === 'Charge' || appointmentTime === 'Paid') {
     return { color: 'orange', message: null };
   }
-
   if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
     return { color: 'yellow', message: null };
   }
-
   const normalizedTime = appointmentTime.replace(/:/g, '').trim();
-  if (!normalizedTime.match(/^\d{4}$/)) {
-    return { color: 'red', message: null };
-  }
+  if (!normalizedTime.match(/^\d{4}$/)) return { color: 'red', message: null };
 
   try {
     const checkInComponents = getDateComponentsInIndianapolis(checkInTime);
     let checkInHour = checkInComponents.hour;
     if (checkInHour === 24) checkInHour = 0;
-
     const aptHour = parseInt(normalizedTime.substring(0, 2));
     const aptMinute = parseInt(normalizedTime.substring(2, 4));
-
-    const checkInTotalMinutes = checkInHour * 60 + checkInComponents.minute;
-    const aptTotalMinutes = aptHour * 60 + aptMinute;
-    const diffMinutes = checkInTotalMinutes - aptTotalMinutes;
-
-    if (diffMinutes <= 0) {
-      return { color: 'green', message: null };
-    } else {
-      return { color: 'yellow', message: null };
-    }
-
-  } catch (error) {
-    console.error('Error in getAppointmentStatus:', error);
+    const diffMinutes = (checkInHour * 60 + checkInComponents.minute) - (aptHour * 60 + aptMinute);
+    return diffMinutes <= 0 ? { color: 'green', message: null } : { color: 'yellow', message: null };
+  } catch {
     return { color: 'red', message: null };
   }
 };
 
 const parseReferenceNumbers = (referenceNumber: string | undefined): string[] => {
   if (!referenceNumber) return [];
-  
-  return referenceNumber
-    .split(/[,;\s|]+/)
-    .map(ref => ref.trim())
-    .filter(ref => ref.length > 0);
+  return referenceNumber.split(/[,;\s|]+/).map(ref => ref.trim()).filter(ref => ref.length > 0);
 };
 
 interface CheckIn {
@@ -295,7 +203,6 @@ interface CheckIn {
   status: string;
   driver_name?: string;
   driver_phone?: string;
-  driver_email?: string;
   carrier_name?: string;
   trailer_number?: string;
   trailer_length?: string;
@@ -319,102 +226,62 @@ interface CheckIn {
   resolution_action?: string | null;
 }
 
-interface Appointment {
-  id: string;
-  sales_order?: string;
-  delivery?: string;
-  appointment_time?: string;
-  appointment_date?: string;
-  carrier_name?: string;
-  load_type?: string;
-  status?: string;
-  ship_to_city?: string | null;
-  ship_to_state?: string | null;
-  carrier?: string | null;
-  mode?: string | null;
-  requested_ship_date?: string | null;
-}
-
 const calculateDetention = (
   checkInTime: string,
   checkOutTime: string | null | undefined,
   appointmentTime: string | null | undefined,
   appointmentDate: string | null | undefined
 ): { hasDetention: boolean; detentionDuration: string | null } => {
-
   if (!checkOutTime) return { hasDetention: false, detentionDuration: null };
-
   if (!appointmentTime || appointmentTime === 'work_in' || appointmentTime === 'Work In') {
     return { hasDetention: false, detentionDuration: null };
   }
-
   const status = getAppointmentStatus(checkInTime, appointmentTime, appointmentDate);
-  if (status.color !== 'green') {
-    return { hasDetention: false, detentionDuration: null };
-  }
+  if (status.color !== 'green') return { hasDetention: false, detentionDuration: null };
 
   const normalizedTime = appointmentTime.replace(/:/g, '').trim();
-  if (!normalizedTime.match(/^\d{4}$/)) {
-    return { hasDetention: false, detentionDuration: null };
-  }
-
+  if (!normalizedTime.match(/^\d{4}$/)) return { hasDetention: false, detentionDuration: null };
   if (!appointmentDate || appointmentDate === 'null' || appointmentDate === 'undefined') {
     return { hasDetention: false, detentionDuration: null };
   }
 
   try {
     let aptYear: number, aptMonth: number, aptDay: number;
-
     if (appointmentDate.includes('/')) {
       [aptMonth, aptDay, aptYear] = appointmentDate.split('/').map(Number);
     } else if (appointmentDate.match(/^\d{4}-\d{2}-\d{2}/)) {
-      const datePart = appointmentDate.substring(0, 10);
-      [aptYear, aptMonth, aptDay] = datePart.split('-').map(Number);
+      [aptYear, aptMonth, aptDay] = appointmentDate.substring(0, 10).split('-').map(Number);
     } else {
       return { hasDetention: false, detentionDuration: null };
     }
 
     const appointmentHour = parseInt(normalizedTime.substring(0, 2));
     const appointmentMinute = parseInt(normalizedTime.substring(2, 4));
-
     const aptLocalString = `${aptYear}-${String(aptMonth).padStart(2, '0')}-${String(aptDay).padStart(2, '0')}T${String(appointmentHour).padStart(2, '0')}:${String(appointmentMinute).padStart(2, '0')}:00`;
     const appointmentUTC = zonedTimeToUtc(aptLocalString, TIMEZONE);
-
     const detentionStartUTC = new Date(appointmentUTC.getTime() + 2 * 60 * 60 * 1000);
-
     const checkOutUTC = new Date(checkOutTime);
 
     if (isNaN(detentionStartUTC.getTime()) || isNaN(checkOutUTC.getTime())) {
-      console.error('Invalid dates in calculateDetention', { detentionStartUTC, checkOutUTC });
       return { hasDetention: false, detentionDuration: null };
     }
 
-    const diffMs = checkOutUTC.getTime() - detentionStartUTC.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-
-    if (diffMinutes <= 0) {
-      return { hasDetention: false, detentionDuration: null };
-    }
+    const diffMinutes = Math.floor((checkOutUTC.getTime() - detentionStartUTC.getTime()) / (1000 * 60));
+    if (diffMinutes <= 0) return { hasDetention: false, detentionDuration: null };
 
     const hours = Math.floor(diffMinutes / 60);
     const minutes = diffMinutes % 60;
-
     const detentionDuration =
-      hours > 0 && minutes > 0
-        ? `${hours}h ${minutes}m`
-        : hours > 0
-        ? `${hours}h`
-        : `${minutes}m`;
+      hours > 0 && minutes > 0 ? `${hours}h ${minutes}m` :
+      hours > 0 ? `${hours}h` : `${minutes}m`;
 
     return { hasDetention: true, detentionDuration };
-
-  } catch (error) {
-    console.error('Error calculating detention:', error);
+  } catch {
     return { hasDetention: false, detentionDuration: null };
   }
 };
 
-// ── Status Detail Popover ────────────────────────────────────────────────────
+// ── Status Detail Popover ──────────────────────────────────────────────────────
 interface StatusDetailPopoverProps {
   checkIn: CheckIn;
   onClose: () => void;
@@ -437,11 +304,7 @@ function StatusDetailPopover({ checkIn, onClose }: StatusDetailPopoverProps) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div
-        className="bg-white rounded-xl shadow-2xl max-w-md w-full p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-4">
           <div>
             <h3 className="text-base font-bold text-gray-900">Status Details</h3>
@@ -460,7 +323,6 @@ function StatusDetailPopover({ checkIn, onClose }: StatusDetailPopoverProps) {
           <p className="text-sm text-gray-500 italic">No additional details recorded for this status.</p>
         )}
 
-        {/* Denial Reason (turned_away or check_in_denial) */}
         {(status === 'turned_away' || status === 'check_in_denial') && checkIn.denial_reason && (
           <div className="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
             <p className="text-xs font-bold text-orange-700 uppercase tracking-wide mb-1">
@@ -470,7 +332,6 @@ function StatusDetailPopover({ checkIn, onClose }: StatusDetailPopoverProps) {
           </div>
         )}
 
-        {/* Rejection Reasons */}
         {status === 'rejected' && checkIn.rejection_reasons && checkIn.rejection_reasons.length > 0 && (
           <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-xs font-bold text-red-700 uppercase tracking-wide mb-2">Rejection Reason(s)</p>
@@ -485,7 +346,6 @@ function StatusDetailPopover({ checkIn, onClose }: StatusDetailPopoverProps) {
           </div>
         )}
 
-        {/* Resolution Action */}
         {status === 'rejected' && resolutionLabel && (
           <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-xs font-bold text-amber-700 uppercase tracking-wide mb-1">Required Action</p>
@@ -493,7 +353,6 @@ function StatusDetailPopover({ checkIn, onClose }: StatusDetailPopoverProps) {
           </div>
         )}
 
-        {/* General Notes */}
         {checkIn.status_note && (
           <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
             <p className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Notes</p>
@@ -514,7 +373,7 @@ function StatusDetailPopover({ checkIn, onClose }: StatusDetailPopoverProps) {
   );
 }
 
-// ── Reprint receipt ──────────────────────────────────────────────────────────
+// ── Reprint receipt ────────────────────────────────────────────────────────────
 const reprintReceipt = (checkIn: CheckIn) => {
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
@@ -523,20 +382,13 @@ const reprintReceipt = (checkIn: CheckIn) => {
   }
 
   const appointmentOptions = [
-    { value: '0800', label: '08:00 AM' },
-    { value: '0900', label: '09:00 AM' },
-    { value: '0930', label: '09:30 AM' },
-    { value: '1000', label: '10:00 AM' },
-    { value: '1030', label: '10:30 AM' },
-    { value: '1100', label: '11:00 AM' },
-    { value: '1230', label: '12:30 PM' },
-    { value: '1300', label: '01:00 PM' },
-    { value: '1330', label: '01:30 PM' },
-    { value: '1400', label: '02:00 PM' },
-    { value: '1430', label: '02:30 PM' },
-    { value: '1500', label: '03:00 PM' },
-    { value: '1550', label: '03:30 PM' },
-    { value: 'work_in', label: 'Work In' },
+    { value: '0800', label: '08:00 AM' }, { value: '0900', label: '09:00 AM' },
+    { value: '0930', label: '09:30 AM' }, { value: '1000', label: '10:00 AM' },
+    { value: '1030', label: '10:30 AM' }, { value: '1100', label: '11:00 AM' },
+    { value: '1230', label: '12:30 PM' }, { value: '1300', label: '01:00 PM' },
+    { value: '1330', label: '01:30 PM' }, { value: '1400', label: '02:00 PM' },
+    { value: '1430', label: '02:30 PM' }, { value: '1500', label: '03:00 PM' },
+    { value: '1550', label: '03:30 PM' }, { value: 'work_in', label: 'Work In' },
     { value: 'paid_to_load', label: 'Paid to Load' },
     { value: 'paid_charge_customer', label: 'Paid - Charge Customer' },
     { value: 'LTL', label: 'LTL' },
@@ -550,8 +402,7 @@ const reprintReceipt = (checkIn: CheckIn) => {
   const formatCheckInTime = (t?: string | null) => {
     if (!t) return '';
     try {
-      const d = new Date(t);
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } catch {
       return t;
     }
@@ -559,12 +410,7 @@ const reprintReceipt = (checkIn: CheckIn) => {
 
   const currentDate = new Date().toLocaleString();
   const today = new Date().toLocaleDateString();
-  const dockDisplay = checkIn.dock_number === 'Ramp'
-    ? 'Ramp'
-    : checkIn.dock_number
-      ? `Dock ${checkIn.dock_number}`
-      : 'Not Assigned';
-
+  const dockDisplay = checkIn.dock_number === 'Ramp' ? 'Ramp' : checkIn.dock_number ? `Dock ${checkIn.dock_number}` : 'Not Assigned';
   const isInbound = checkIn.load_type === 'inbound';
 
   const receiptHTML = `
@@ -577,10 +423,7 @@ const reprintReceipt = (checkIn: CheckIn) => {
             body { margin: 0; padding: 0; }
             .no-print { display: none; }
             .page-break { page-break-before: always; }
-            @page { 
-              margin: 0.5in;
-              size: letter;
-            }
+            @page { margin: 0.5in; size: letter; }
           }
           body { font-family: Arial, sans-serif; }
           .receipt-page { padding: 20px; max-width: 420px; margin: 0 auto; }
@@ -595,11 +438,9 @@ const reprintReceipt = (checkIn: CheckIn) => {
           .reference-box .reference-number { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
           .reference-box .dock-number { font-size: 16px; font-weight: bold; }
           .print-button { display: block; margin: 20px auto; padding: 12px 24px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
-          .print-button:hover { background-color: #45a049; }
           .inspection-page { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 10pt; }
           .title { text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 10px; }
           .info-line { margin: 8px 0; font-weight: bold; font-size: 11pt; }
-          .section-title { font-weight: bold; font-size: 12pt; margin: 15px 0 8px 0; padding: 5px 0; border-bottom: 1px solid black; }
           table { width: 100%; border-collapse: collapse; margin: 8px 0; }
           th, td { border: 1px solid black; padding: 4px 6px; text-align: left; font-size: 9pt; }
           th { background-color: #f0f0f0; font-weight: bold; }
@@ -620,67 +461,29 @@ const reprintReceipt = (checkIn: CheckIn) => {
             <h1>Driver Check-In Form</h1>
             <p style="margin: 5px 0; font-size: 12px;">${currentDate}</p>
           </div>
-
           <div class="reference-box">
             <div class="reference-number">Reference #: ${checkIn.reference_number || 'N/A'}</div>
             <div class="dock-number">ASSIGNED TO: ${dockDisplay}</div>
           </div>
-
           <div class="section">
-            <div class="row">
-              <span class="label">Driver:</span>
-              <span class="value">${checkIn.driver_name || 'N/A'}</span>
-            </div>
-            <div class="row">
-              <span class="label">Phone#:</span>
-              <span class="value">${checkIn.driver_phone || 'N/A'}</span>
-            </div>
-            <div class="row">
-              <span class="label">Carrier:</span>
-              <span class="value">${checkIn.carrier_name || 'N/A'}</span>
-            </div>
+            <div class="row"><span class="label">Driver:</span><span class="value">${checkIn.driver_name || 'N/A'}</span></div>
+            <div class="row"><span class="label">Phone#:</span><span class="value">${checkIn.driver_phone || 'N/A'}</span></div>
+            <div class="row"><span class="label">Carrier:</span><span class="value">${checkIn.carrier_name || 'N/A'}</span></div>
           </div>
-
           <div class="section">
-            <div class="row">
-              <span class="label">Trailer #:</span>
-              <span class="value">${checkIn.trailer_number || 'N/A'}</span>
-            </div>
-            <div class="row">
-              <span class="label">Trailer Length:</span>
-              <span class="value">${checkIn.trailer_length || 'N/A'}</span>
-            </div>
+            <div class="row"><span class="label">Trailer #:</span><span class="value">${checkIn.trailer_number || 'N/A'}</span></div>
+            <div class="row"><span class="label">Trailer Length:</span><span class="value">${checkIn.trailer_length || 'N/A'}</span></div>
           </div>
-
           <div class="section">
-            <div class="row">
-              <span class="label">Destination:</span>
-              <span class="value">${checkIn.ship_to_city || ''} ${checkIn.ship_to_state || ''}</span>
-            </div>
-            <div class="row">
-              <span class="label">Appointment:</span>
-              <span class="value">${checkIn.appointment_time ? formatApptTime(checkIn.appointment_time) : 'N/A'}</span>
-            </div>
-            <div class="row">
-              <span class="label">Check-in Time:</span>
-              <span class="value">${formatCheckInTime(checkIn.check_in_time)}</span>
-            </div>
+            <div class="row"><span class="label">Destination:</span><span class="value">${checkIn.ship_to_city || ''} ${checkIn.ship_to_state || ''}</span></div>
+            <div class="row"><span class="label">Appointment:</span><span class="value">${checkIn.appointment_time ? formatApptTime(checkIn.appointment_time) : 'N/A'}</span></div>
+            <div class="row"><span class="label">Check-in Time:</span><span class="value">${formatCheckInTime(checkIn.check_in_time)}</span></div>
           </div>
-
           <button class="print-button no-print" onclick="window.print()">Print Form</button>
         </div>
-
         <div class="page-break"></div>
-        
         ${isInbound ? getInboundInspectionForm() : getOutboundInspectionForm()}
-
-        <script>
-          window.onload = function() {
-            setTimeout(function() {
-              window.print();
-            }, 250);
-          };
-        </script>
+        <script>window.onload = function() { setTimeout(function() { window.print(); }, 250); };</script>
       </body>
     </html>
   `;
@@ -689,21 +492,10 @@ const reprintReceipt = (checkIn: CheckIn) => {
     return `
       <div class="inspection-page">
         <div class="title">PRP02A: INBOUND INSPECTION</div>
-        <div class="info-line">
-          Date: <strong>${today}</strong>&nbsp;&nbsp;&nbsp;
-          Delivery#: <strong>${checkIn.reference_number || 'N/A'}</strong>&nbsp;&nbsp;&nbsp;
-          Trailer#: <strong>${checkIn.trailer_number || 'N/A'}</strong>
-        </div>
+        <div class="info-line">Date: <strong>${today}</strong>&nbsp;&nbsp;&nbsp;Delivery#: <strong>${checkIn.reference_number || 'N/A'}</strong>&nbsp;&nbsp;&nbsp;Trailer#: <strong>${checkIn.trailer_number || 'N/A'}</strong></div>
         <div class="spacer-row"></div>
         <table>
-          <thead>
-            <tr>
-              <th>INSPECTION ITEM</th>
-              <th class="checkbox-cell">YES</th>
-              <th class="checkbox-cell">NO</th>
-              <th class="checkbox-cell">N/A</th>
-            </tr>
-          </thead>
+          <thead><tr><th>INSPECTION ITEM</th><th class="checkbox-cell">YES</th><th class="checkbox-cell">NO</th><th class="checkbox-cell">N/A</th></tr></thead>
           <tbody>
             <tr><td>IS THE TRAILER PROPERLY SEALED?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
             <tr><td>DOES THE SEAL# ON THE TRAILER MATCH THE SEAL# ON THE BOL AND BEEN INITIALED ON THE BOL?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
@@ -713,33 +505,12 @@ const reprintReceipt = (checkIn: CheckIn) => {
             <tr><td>IS ALL OF THE VISIBLE PRINT ON THE BAGS LEGIBLE AND ARE ALL OF THE VISIBLE VALVES FREE OF LEAKAGE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
           </tbody>
         </table>
-        <div class="warning-box">
-          IF ANY OF THE ABOVE QUESTIONS WERE ANSWERED "NO" PLEASE ENSURE CORRECTIVE ACTION IS TAKEN AND/OR NOTIFY A SUPERVISOR.<br>
-          IF ANY PRODUCT IS QUESTIONABLE TO RECEIVE INTO THE WAREHOUSE, CONTACT A SUPERVISOR FOR APPROVAL.
-        </div>
-        <div style="margin: 10px 0;">
-          <strong>I ACKNOWLEDGE THAT ALL ITEMS LISTED ABOVE HAVE BEEN EXECUTED.</strong><br>
-          <div class="spacer-row"></div>
-          <strong>OPERATOR SIGNATURE:</strong> <span class="signature-line"></span>
-        </div>
-        <div style="margin: 8px 0;">
-          <strong>COMMENTS:</strong>
-          <div class="comment-line"></div>
-          <div class="comment-line"></div>
-        </div>
-        <div class="spacer-row-double"></div>
-        <div class="spacer-row-double"></div>
-        <div class="spacer-row-double"></div>
+        <div class="warning-box">IF ANY OF THE ABOVE QUESTIONS WERE ANSWERED "NO" PLEASE ENSURE CORRECTIVE ACTION IS TAKEN AND/OR NOTIFY A SUPERVISOR.<br>IF ANY PRODUCT IS QUESTIONABLE TO RECEIVE INTO THE WAREHOUSE, CONTACT A SUPERVISOR FOR APPROVAL.</div>
+        <div style="margin: 10px 0;"><strong>I ACKNOWLEDGE THAT ALL ITEMS LISTED ABOVE HAVE BEEN EXECUTED.</strong><br><div class="spacer-row"></div><strong>OPERATOR SIGNATURE:</strong> <span class="signature-line"></span></div>
+        <div style="margin: 8px 0;"><strong>COMMENTS:</strong><div class="comment-line"></div><div class="comment-line"></div></div>
+        <div class="spacer-row-double"></div><div class="spacer-row-double"></div><div class="spacer-row-double"></div>
         <table style="font-size: 7pt; margin-top: 10px;">
-          <thead>
-            <tr>
-              <th style="width: 10%;">Rev #</th>
-              <th style="width: 40%;">Summary of Changes</th>
-              <th style="width: 17%;">Requested By</th>
-              <th style="width: 18%;">Authorized By</th>
-              <th style="width: 15%;">Date Updated</th>
-            </tr>
-          </thead>
+          <thead><tr><th style="width:10%;">Rev #</th><th style="width:40%;">Summary of Changes</th><th style="width:17%;">Requested By</th><th style="width:18%;">Authorized By</th><th style="width:15%;">Date Updated</th></tr></thead>
           <tbody>
             <tr><td>Original</td><td></td><td>Quality Manager</td><td>Operations Manager</td><td>10/28/2015</td></tr>
             <tr><td>2</td><td>Changed question 9.</td><td>Quality Manager</td><td>Operations Manager</td><td>10/30/2017</td></tr>
@@ -747,34 +518,17 @@ const reprintReceipt = (checkIn: CheckIn) => {
             <tr><td>4</td><td>Updated question 4 to add pallet inspection.</td><td>Quality Manager</td><td>Operations Manager</td><td>03/10/2026</td></tr>
           </tbody>
         </table>
-        <div class="footer">
-          <div class="footer-row">
-            <span><strong>PRP02A</strong> Inbound Inspection</span>
-            <span><strong>Owned By:</strong> Quality Manager</span>
-            <span><strong>Authorized By:</strong> Operations Manager</span>
-          </div>
-        </div>
-      </div>
-    `;
+        <div class="footer"><div class="footer-row"><span><strong>PRP02A</strong> Inbound Inspection</span><span><strong>Owned By:</strong> Quality Manager</span><span><strong>Authorized By:</strong> Operations Manager</span></div></div>
+      </div>`;
   }
 
   function getOutboundInspectionForm() {
     return `
       <div class="inspection-page">
         <div class="title">PRP03A: OUTBOUND INSPECTION</div>
-        <div class="info-line">
-          Date: <strong>${today}</strong>&nbsp;&nbsp;&nbsp;
-          Load#: <strong>${checkIn.reference_number || 'N/A'}</strong>&nbsp;&nbsp;&nbsp;
-          Trailer#: <strong>${checkIn.trailer_number || 'N/A'}</strong>
-        </div>
+        <div class="info-line">Date: <strong>${today}</strong>&nbsp;&nbsp;&nbsp;Load#: <strong>${checkIn.reference_number || 'N/A'}</strong>&nbsp;&nbsp;&nbsp;Trailer#: <strong>${checkIn.trailer_number || 'N/A'}</strong></div>
         <table>
-          <thead>
-            <tr>
-              <th>GENERAL TRAILER GMP</th>
-              <th class="checkbox-cell">YES</th>
-              <th class="checkbox-cell">NO</th>
-            </tr>
-          </thead>
+          <thead><tr><th>GENERAL TRAILER GMP</th><th class="checkbox-cell">YES</th><th class="checkbox-cell">NO</th></tr></thead>
           <tbody>
             <tr><td>EVIDENCE OF ODOR?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
             <tr><td>DEBRIS ON FLOOR OR IN CORNERS?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
@@ -788,43 +542,22 @@ const reprintReceipt = (checkIn: CheckIn) => {
           </tbody>
         </table>
         <table>
-          <thead>
-            <tr>
-              <th>PRODUCT SECURITY & LOADER SAFETY</th>
-              <th class="checkbox-cell">YES</th>
-              <th class="checkbox-cell">NO</th>
-            </tr>
-          </thead>
+          <thead><tr><th>PRODUCT SECURITY & LOADER SAFETY</th><th class="checkbox-cell">YES</th><th class="checkbox-cell">NO</th></tr></thead>
           <tbody>
             <tr><td>PROBLEMS WITH LATCHES ON DOORS WORKING PROPERLY?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
             <tr><td>IS TRAILER UNSEALABLE?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
             <tr><td>LOAD STRAPS/BARS APPLIED IF REQUIRED?</td><td class="checkbox-cell">☐</td><td class="checkbox-cell">☐</td></tr>
           </tbody>
         </table>
-        <div style="margin: 8px 0;">
-          <strong>LOADER SIGNATURE:</strong> <span class="signature-line"></span>
-        </div>
-        <div style="margin: 8px 0;">
-          <strong>COMMENTS:</strong>
-          <div class="comment-line"></div>
-          <div class="comment-line"></div>
-        </div>
+        <div style="margin: 8px 0;"><strong>LOADER SIGNATURE:</strong> <span class="signature-line"></span></div>
+        <div style="margin: 8px 0;"><strong>COMMENTS:</strong><div class="comment-line"></div><div class="comment-line"></div></div>
         <div class="checkbox-group">
           <div>Rejected by: <span class="signature-line"></span></div>
-          <div style="margin-top: 5px;">
-            ☐ OK TO LOAD AFTER SWEEPING 
-            ☐ Needs new trailer 
-            ☐ Driver can correct trailer
-          </div>
+          <div style="margin-top: 5px;">☐ OK TO LOAD AFTER SWEEPING &nbsp;☐ Needs new trailer &nbsp;☐ Driver can correct trailer</div>
         </div>
         <div class="spacer-row"></div>
         <table>
-          <thead>
-            <tr>
-              <th>PRE-SEALING CHECKLIST</th>
-              <th class="checkbox-cell">INITIAL</th>
-            </tr>
-          </thead>
+          <thead><tr><th>PRE-SEALING CHECKLIST</th><th class="checkbox-cell">INITIAL</th></tr></thead>
           <tbody>
             <tr><td>ALL THE INSTRUCTIONS ON THE BILL OF LADING HAVE BEEN FOLLOWED?</td><td class="checkbox-cell">☐</td></tr>
             <tr><td>TRAILER HAS BEEN LATCHED PROPERLY?</td><td class="checkbox-cell">☐</td></tr>
@@ -835,36 +568,20 @@ const reprintReceipt = (checkIn: CheckIn) => {
         </table>
         <div class="spacer-row-double"></div>
         <table style="font-size: 7pt; margin-top: 10px;">
-          <thead>
-            <tr>
-              <th style="width: 10%;">Rev #</th>
-              <th style="width: 40%;">Summary of Changes</th>
-              <th style="width: 17%;">Requested By</th>
-              <th style="width: 18%;">Authorized By</th>
-              <th style="width: 15%;">Date Updated</th>
-            </tr>
-          </thead>
+          <thead><tr><th style="width:10%;">Rev #</th><th style="width:40%;">Summary of Changes</th><th style="width:17%;">Requested By</th><th style="width:18%;">Authorized By</th><th style="width:15%;">Date Updated</th></tr></thead>
           <tbody>
             <tr><td>Original</td><td>Outbound Inspection - Restructured</td><td>Quality Manager</td><td>Operations Manager</td><td>7/24/2025</td></tr>
             <tr><td>2</td><td>Added loadbar question</td><td>Quality Manager</td><td>Operations Manager</td><td>7/31/2025</td></tr>
-            <tr><td>3</td><td>updated format and added revisions table.</td><td>Quality Manager</td><td>Operations Manager</td><td>3/10/2026</td></tr>
+            <tr><td>3</td><td>Updated format and added revisions table.</td><td>Quality Manager</td><td>Operations Manager</td><td>3/10/2026</td></tr>
           </tbody>
         </table>
-        <div class="footer">
-          <div class="footer-row">
-            <span><strong>PRP03A</strong> Outbound Inspection</span>
-            <span><strong>Owned By:</strong> Quality Manager</span>
-            <span><strong>Authorized By:</strong> Operations Manager</span>
-          </div>
-        </div>
-      </div>
-    `;
+        <div class="footer"><div class="footer-row"><span><strong>PRP03A</strong> Outbound Inspection</span><span><strong>Owned By:</strong> Quality Manager</span><span><strong>Authorized By:</strong> Operations Manager</span></div></div>
+      </div>`;
   }
 
   printWindow.document.write(receiptHTML);
   printWindow.document.close();
 };
-
 
 export default function DailyLog() {
   const router = useRouter();
@@ -872,33 +589,27 @@ export default function DailyLog() {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showInProgressOnly, setShowInProgressOnly] = useState(false);
-  const [appointments, setAppointments] = useState<Map<string, Appointment>>(new Map());
-
-  // Status detail popover state
   const [statusDetailCheckIn, setStatusDetailCheckIn] = useState<CheckIn | null>(null);
 
   const getCurrentDateInIndianapolis = () => {
     const now = new Date();
-    const formatter = new Intl.DateTimeFormat('en-US', {
+    const parts = new Intl.DateTimeFormat('en-US', {
       timeZone: TIMEZONE,
       year: 'numeric',
       month: '2-digit',
-      day: '2-digit'
-    });
-    const parts = formatter.formatToParts(now);
+      day: '2-digit',
+    }).formatToParts(now);
     const year = parts.find(p => p.type === 'year')?.value;
     const month = parts.find(p => p.type === 'month')?.value;
     const day = parts.find(p => p.type === 'day')?.value;
     return `${year}-${month}-${day}`;
   };
-  
+
   const [selectedDate, setSelectedDate] = useState<string>(getCurrentDateInIndianapolis());
   const [selectedForStatusChange, setSelectedForStatusChange] = useState<CheckIn | null>(null);
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
-  const [editModalOpen, setEditModalOpen] = useState(false);
 
   type AppointmentInfo = {
     time: string | null;
@@ -933,35 +644,19 @@ export default function DailyLog() {
           .filter(ref => ref.trim() !== '')
       ));
 
-      let appointmentsMap = new Map<string, {
-        time: string | null;
-        date: string | null;
-        customer: string | null;
-        ship_to_city: string | null;
-        ship_to_state: string | null;
-        carrier: string | null;
-        mode: string | null;
-        requested_ship_date: string | null;
-      }>();
+      const appointmentsMap = new Map<string, AppointmentInfo>();
 
       if (allReferenceNumbers.length > 0) {
         const BATCH_SIZE = 20;
-
         for (let i = 0; i < allReferenceNumbers.length; i += BATCH_SIZE) {
           const batch = allReferenceNumbers.slice(i, i + BATCH_SIZE);
-
           const orFilter = batch
-            .flatMap(ref => [
-              `sales_order.ilike.%${ref}%`,
-              `delivery.ilike.%${ref}%`
-            ])
+            .flatMap(ref => [`sales_order.ilike.%${ref}%`, `delivery.ilike.%${ref}%`])
             .join(',');
 
           const { data: appointmentsData, error: appointmentsError } = await supabase
             .from('appointments')
-            .select(
-              'sales_order, delivery, appointment_time, appointment_date, customer, requested_ship_date, carrier, mode, ship_to_city, ship_to_state'
-            )
+            .select('sales_order, delivery, appointment_time, appointment_date, customer, requested_ship_date, carrier, mode, ship_to_city, ship_to_state')
             .or(orFilter)
             .eq('appointment_date', selectedDate);
 
@@ -972,7 +667,7 @@ export default function DailyLog() {
 
           if (appointmentsData) {
             appointmentsData.forEach(apt => {
-              const appointmentInfo = {
+              const appointmentInfo: AppointmentInfo = {
                 time: apt.appointment_time ?? null,
                 date: apt.appointment_date ?? null,
                 customer: apt.customer ?? null,
@@ -989,7 +684,6 @@ export default function DailyLog() {
                 });
                 appointmentsMap.set(apt.sales_order.trim().toLowerCase(), appointmentInfo);
               }
-
               if (apt.delivery) {
                 parseReferenceNumbers(apt.delivery).forEach(ref => {
                   appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);
@@ -1001,39 +695,27 @@ export default function DailyLog() {
         }
       }
 
+      const MANUAL_APPOINTMENT_TYPES = ['LTL', 'Paid', 'Charge', 'work_in'];
+
       const enrichedCheckIns = (checkInsData || []).map(checkIn => {
         const refs = parseReferenceNumbers(checkIn.reference_number);
-
         let appointmentInfo: AppointmentInfo | undefined = undefined;
 
         for (const ref of refs) {
-          const trimmedRef = ref.trim().toLowerCase();
-          if (appointmentsMap.has(trimmedRef)) {
-            const candidate = appointmentsMap.get(trimmedRef);
-            if (candidate?.date === selectedDate) {
-              appointmentInfo = candidate;
-              break;
-            }
+          const candidate = appointmentsMap.get(ref.trim().toLowerCase());
+          if (candidate?.date === selectedDate) {
+            appointmentInfo = candidate;
+            break;
           }
         }
-
-        const MANUAL_APPOINTMENT_TYPES = [
-          'LTL',
-          'Paid',
-          'Charge',
-          'work_in',
-        ];
 
         const checkInHasManualType = checkIn.appointment_time &&
           MANUAL_APPOINTMENT_TYPES.includes(checkIn.appointment_time);
 
         return {
           ...checkIn,
-
-          appointment_time: appointmentInfo?.time ?? 
-            (checkInHasManualType ? checkIn.appointment_time : null),
-          appointment_date: appointmentInfo?.date ?? 
-            (checkInHasManualType ? checkIn.appointment_date : null),
+          appointment_time: appointmentInfo?.time ?? (checkInHasManualType ? checkIn.appointment_time : null),
+          appointment_date: appointmentInfo?.date ?? (checkInHasManualType ? checkIn.appointment_date : null),
           customer: appointmentInfo?.customer ?? checkIn.customer ?? null,
           ship_to_city: appointmentInfo?.ship_to_city ?? checkIn.ship_to_city ?? null,
           ship_to_state: appointmentInfo?.ship_to_state ?? checkIn.ship_to_state ?? null,
@@ -1044,7 +726,6 @@ export default function DailyLog() {
       });
 
       setCheckIns(enrichedCheckIns);
-
     } catch (err) {
       console.error('fetchCheckInsForDate error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -1053,7 +734,6 @@ export default function DailyLog() {
     }
   }, [selectedDate]);
 
-  // ── Single useEffect: fetch on mount/date change + real-time subscription ──
   useEffect(() => {
     fetchCheckInsForDate();
 
@@ -1067,21 +747,16 @@ export default function DailyLog() {
       })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [selectedDate, fetchCheckInsForDate]);
 
   const filteredCheckIns = checkIns.filter((checkIn) => {
     if (!searchTerm.trim()) return true;
     const searchLower = searchTerm.toLowerCase().trim();
-    const refNumber = checkIn.reference_number?.toLowerCase() || '';
-    const trailerNumber = checkIn.trailer_number?.toLowerCase() || '';
-    const dockNumber = checkIn.dock_number?.toLowerCase() || '';
     return (
-      refNumber.includes(searchLower) ||
-      trailerNumber.includes(searchLower) ||
-      dockNumber.includes(searchLower)
+      (checkIn.reference_number?.toLowerCase() || '').includes(searchLower) ||
+      (checkIn.trailer_number?.toLowerCase() || '').includes(searchLower) ||
+      (checkIn.dock_number?.toLowerCase() || '').includes(searchLower)
     );
   });
 
@@ -1089,68 +764,42 @@ export default function DailyLog() {
     ? filteredCheckIns.filter(checkIn => !checkIn.end_time && checkIn.status !== 'denied')
     : filteredCheckIns;
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      router.push('/login');
-      router.refresh();
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
-  };
+  const handleStatusChange = (checkIn: CheckIn) => setSelectedForStatusChange(checkIn);
+  const handleStatusChangeSuccess = () => { fetchCheckInsForDate(); setSelectedForStatusChange(null); };
+  const handleEdit = (checkIn: CheckIn) => setSelectedForEdit(checkIn);
+  const handleEditSuccess = () => { setSelectedForEdit(null); fetchCheckInsForDate(); };
 
-  const handleStatusChange = (checkIn: CheckIn) => {
-    setSelectedForStatusChange(checkIn);
-  };
-
-  const handleStatusChangeSuccess = () => {
-    fetchCheckInsForDate();
-    setSelectedForStatusChange(null);
-  };
-
-  const handleEdit = (checkIn: CheckIn) => {
-    setSelectedForEdit(checkIn);
-    setEditModalOpen(true);
-  };
-
-  const handleEditSuccess = () => {
-    setEditModalOpen(false);
-    setSelectedForEdit(null);
-    fetchCheckInsForDate();
-  };
-
-  // Determine if a status badge has clickable details
-  const statusHasDetails = (checkIn: CheckIn): boolean => {
-    return !!(
-      checkIn.status_note ||
-      checkIn.denial_reason ||
-      (checkIn.rejection_reasons && checkIn.rejection_reasons.length > 0) ||
-      checkIn.resolution_action
-    );
-  };
+  const statusHasDetails = (checkIn: CheckIn): boolean => !!(
+    checkIn.status_note ||
+    checkIn.denial_reason ||
+    (checkIn.rejection_reasons && checkIn.rejection_reasons.length > 0) ||
+    checkIn.resolution_action
+  );
 
   const getStatusBadgeColor = (status: string): string => {
-    const statusLower = status.toLowerCase();
-    if (statusLower === 'completed' || statusLower === 'checked_out') return 'bg-gray-500 text-white';
-    if (statusLower === 'unloaded') return 'bg-green-500 text-white';
-    if (statusLower === 'rejected') return 'bg-red-500 text-white';
-    if (statusLower === 'turned_away') return 'bg-orange-500 text-white';
-    if (statusLower === 'driver_left') return 'bg-indigo-500 text-white';
-    if (statusLower === 'pending') return 'bg-yellow-500 text-white';
-    if (statusLower === 'checked_in') return 'bg-purple-500 text-white';
-    if (statusLower === 'check_in_denial') return 'bg-red-700 text-white';
+    const s = status.toLowerCase();
+    if (s === 'completed' || s === 'checked_out') return 'bg-gray-500 text-white';
+    if (s === 'unloaded') return 'bg-green-500 text-white';
+    if (s === 'rejected') return 'bg-red-500 text-white';
+    if (s === 'turned_away') return 'bg-orange-500 text-white';
+    if (s === 'driver_left') return 'bg-indigo-500 text-white';
+    if (s === 'pending') return 'bg-yellow-500 text-white';
+    if (s === 'checked_in') return 'bg-purple-500 text-white';
+    if (s === 'check_in_denial') return 'bg-red-700 text-white';
     return 'bg-gray-500 text-white';
   };
 
   const getStatusLabel = (status: string): string => {
-    if (status === 'checked_in') return 'Checked In';
-    if (status === 'checked_out') return 'Checked Out';
-    if (status === 'driver_left') return 'Driver Left';
-    if (status === 'turned_away') return 'Turned Away';
-    if (status === 'unloaded') return 'Unloaded';
-    if (status === 'rejected') return 'Rejected';
-    if (status === 'check_in_denial') return 'Denied';
-    return status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ');
+    const labels: Record<string, string> = {
+      checked_in: 'Checked In',
+      checked_out: 'Checked Out',
+      driver_left: 'Driver Left',
+      turned_away: 'Turned Away',
+      unloaded: 'Unloaded',
+      rejected: 'Rejected',
+      check_in_denial: 'Denied',
+    };
+    return labels[status] ?? (status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' '));
   };
 
   if (loading) {
@@ -1173,12 +822,11 @@ export default function DailyLog() {
     <div className="min-h-screen bg-gray-50">
       <Header title="Daily Log" />
       <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
+
         {/* Date Selector, Search & Counters */}
         <div className="mb-6 flex gap-4 items-end max-w-7xl mx-auto">
           <div>
-            <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">
-              Select Date
-            </label>
+            <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
             <input
               id="date-select"
               type="date"
@@ -1187,7 +835,7 @@ export default function DailyLog() {
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-          
+
           <div className="flex-1">
             <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
               Search by Reference #, Trailer, or Door
@@ -1215,40 +863,25 @@ export default function DailyLog() {
             </div>
           </div>
 
-          {/* Counters */}
           <div className="flex gap-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
-              <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">
-                Total Checked In
-              </div>
-              <div className="text-2xl font-bold text-blue-900">
-                {filteredCheckIns.length}
-              </div>
+              <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">Total Checked In</div>
+              <div className="text-2xl font-bold text-blue-900">{filteredCheckIns.length}</div>
             </div>
-            
             <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-              <div className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">
-                Total Complete
-              </div>
-              <div className="text-2xl font-bold text-green-900">
-                {filteredCheckIns.filter(checkIn => checkIn.end_time).length}
-              </div>
+              <div className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">Total Complete</div>
+              <div className="text-2xl font-bold text-green-900">{filteredCheckIns.filter(ci => ci.end_time).length}</div>
             </div>
-
             <button
               onClick={() => setShowInProgressOnly(!showInProgressOnly)}
               className={`rounded-lg px-4 py-2 transition-colors border text-left ${
-                showInProgressOnly
-                  ? 'bg-yellow-400 border-yellow-500 ring-2 ring-yellow-300'
-                  : 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
+                showInProgressOnly ? 'bg-yellow-400 border-yellow-500 ring-2 ring-yellow-300' : 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
               }`}
             >
-              <div className="text-xs font-medium text-yellow-700 uppercase tracking-wider mb-1">
-                In Progress
-              </div>
+              <div className="text-xs font-medium text-yellow-700 uppercase tracking-wider mb-1">In Progress</div>
               <div className="flex items-center gap-2">
                 <div className="text-2xl font-bold text-yellow-900">
-                  {filteredCheckIns.filter(checkIn => !checkIn.end_time && checkIn.status !== 'denied').length}
+                  {filteredCheckIns.filter(ci => !ci.end_time && ci.status !== 'denied').length}
                 </div>
                 {showInProgressOnly && (
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-700" viewBox="0 0 20 20" fill="currentColor">
@@ -1280,35 +913,28 @@ export default function DailyLog() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            
             <tbody className="bg-white divide-y divide-gray-200">
               {displayedCheckIns.map((checkIn) => (
                 <tr key={checkIn.id} className="hover:bg-gray-50">
-                  {/* Type */}
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      checkIn.load_type === 'inbound' 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-orange-100 text-orange-800'
+                      checkIn.load_type === 'inbound' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
                     }`}>
                       {checkIn.load_type === 'inbound' ? 'I' : 'O'}
                     </span>
                   </td>
 
-                  {/* Driver Info */}
                   <td className="px-4 py-4 text-sm">
                     <div className="text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
                     <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
                     <div className="text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
                   </td>
 
-                  {/* Trailer Info */}
                   <td className="px-4 py-4 text-sm text-gray-900">
                     <div>{checkIn.trailer_number || 'N/A'}</div>
                     <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
                   </td>
 
-                  {/* Load Info */}
                   <td className="px-4 py-3 text-sm">
                     <div className="flex flex-col">
                       <span className="font-semibold text-gray-900">{checkIn.customer || 'N/A'}</span>
@@ -1321,7 +947,6 @@ export default function DailyLog() {
                     </div>
                   </td>
 
-                  {/* Transport */}
                   <td className="px-4 py-3 text-sm">
                     <div className="flex flex-col">
                       <span className="font-semibold text-gray-900">{checkIn.carrier || 'N/A'}</span>
@@ -1329,71 +954,49 @@ export default function DailyLog() {
                     </div>
                   </td>
 
-                  {/* Reference # */}
-                  <td className="font-bold text-gray-900">{checkIn.reference_number || 'N/A'}</td>
+                  <td className="font-bold text-gray-900 px-4 py-3 text-sm">{checkIn.reference_number || 'N/A'}</td>
+                  <td className="font-bold text-gray-900 px-4 py-3 text-sm">{checkIn.dock_number || 'N/A'}</td>
 
-                  {/* Dock */}
-                  <td className="font-bold text-gray-900">{checkIn.dock_number || 'N/A'}</td>
-
-                  {/* Check-In Time */}
                   <td className="px-4 py-3 whitespace-nowrap text-sm">
                     {formatTimeInIndianapolis(checkIn.check_in_time, true)}
                   </td>
 
-                  {/* Appointment Time */}
                   <td className="px-4 py-3 whitespace-nowrap text-sm">
                     {(() => {
-                      const status = getAppointmentStatus(
-                        checkIn.check_in_time,
-                        checkIn.appointment_time,
-                        checkIn.appointment_date
-                      );
-                      
-                      const bgColor = 
+                      const status = getAppointmentStatus(checkIn.check_in_time, checkIn.appointment_time, checkIn.appointment_date);
+                      const bgColor =
                         status.color === 'green' ? 'bg-green-200' :
                         status.color === 'red' ? 'bg-red-200' :
                         status.color === 'yellow' ? 'bg-yellow-200' :
-                        status.color === 'orange' ? 'bg-orange-200' :
-                        'bg-gray-300';
-                      
+                        status.color === 'orange' ? 'bg-orange-200' : 'bg-gray-300';
                       return (
                         <div className={`inline-block px-2 py-1 rounded ${bgColor}`}>
                           {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
-                          {status.message && (
-                            <div className="text-xs mt-1">{status.message}</div>
-                          )}
+                          {status.message && <div className="text-xs mt-1">{status.message}</div>}
                         </div>
                       );
                     })()}
                   </td>
 
-                  {/* End Time */}
                   <td className="px-4 py-3 whitespace-nowrap text-sm">
                     {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time, true) : (
-                      checkIn.status === 'denied' ? (
-                        <span className="text-red-500 font-medium">Denied</span>
-                      ) : (
-                        <span className="text-yellow-600 font-medium">In Progress</span>
-                      )
+                      checkIn.status === 'denied'
+                        ? <span className="text-red-500 font-medium">Denied</span>
+                        : <span className="text-yellow-600 font-medium">In Progress</span>
                     )}
                   </td>
 
-                  {/* Detention */}
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                     {(() => {
                       const { hasDetention, detentionDuration } = calculateDetention(
-                        checkIn.check_in_time,
-                        checkIn.end_time,
-                        checkIn.appointment_time,
-                        checkIn.appointment_date
+                        checkIn.check_in_time, checkIn.end_time, checkIn.appointment_time, checkIn.appointment_date
                       );
-                      return hasDetention ? (
-                        <span className="text-red-600 font-semibold">⚠️ Detention: {detentionDuration}</span>
-                      ) : null;
+                      return hasDetention
+                        ? <span className="text-red-600 font-semibold">⚠️ Detention: {detentionDuration}</span>
+                        : null;
                     })()}
                   </td>
 
-                  {/* Status — clickable if there are details */}
                   <td className="px-4 py-4 whitespace-nowrap text-sm">
                     {statusHasDetails(checkIn) ? (
                       <button
@@ -1413,21 +1016,10 @@ export default function DailyLog() {
                     )}
                   </td>
 
-                  {/* Actions */}
                   <td className="px-4 py-3 whitespace-nowrap text-sm">
                     <div className="flex flex-col gap-1">
-                      <button
-                        onClick={() => handleEdit(checkIn)}
-                        className="text-blue-600 hover:text-blue-900 font-medium text-left"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleStatusChange(checkIn)}
-                        className="text-green-600 hover:text-green-800 font-medium text-left"
-                      >
-                        Status
-                      </button>
+                      <button onClick={() => handleEdit(checkIn)} className="text-blue-600 hover:text-blue-900 font-medium text-left">Edit</button>
+                      <button onClick={() => handleStatusChange(checkIn)} className="text-green-600 hover:text-green-800 font-medium text-left">Status</button>
                       <button
                         onClick={() => reprintReceipt(checkIn)}
                         className="text-gray-500 hover:text-gray-800 font-medium text-left flex items-center gap-1"
@@ -1446,8 +1038,7 @@ export default function DailyLog() {
           </table>
         </div>
       </main>
-        
-      {/* Modals */}
+
       {selectedForStatusChange && (
         <StatusChangeModal
           checkIn={selectedForStatusChange}
@@ -1455,7 +1046,6 @@ export default function DailyLog() {
           onSuccess={handleStatusChangeSuccess}
         />
       )}
-
       {selectedForEdit && (
         <EditCheckInModal
           isOpen={true}
@@ -1464,8 +1054,6 @@ export default function DailyLog() {
           onSuccess={handleEditSuccess}
         />
       )}
-
-      {/* Status Detail Popover */}
       {statusDetailCheckIn && (
         <StatusDetailPopover
           checkIn={statusDetailCheckIn}
