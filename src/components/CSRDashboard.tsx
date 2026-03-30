@@ -261,8 +261,6 @@ interface CheckIn {
   mode?: string | null;
   requested_ship_date?: string | null;
   notes?: string;
-  appointment_sales_order?: string | null;   // ← ADD THIS
-  appointment_delivery?: string | null;       // ← ADD THIS
 }
 
 
@@ -333,17 +331,15 @@ const fetchAllData = async () => {
     ));
 
     const appointmentsMap = new Map<string, {
-  time: string | null;
-  date: string | null;
-  ship_to_city: string | null;
-  ship_to_state: string | null;
-  carrier: string | null;
-  mode: string | null;
-  customer: string | null;
-  requested_ship_date: string | null;
-  sales_order: string | null;   // ← ADD THIS
-  delivery: string | null;      // ← ADD THIS
-}>();
+      time: string | null;
+      date: string | null;
+      ship_to_city: string | null;
+      ship_to_state: string | null;
+      carrier: string | null;
+      mode: string | null;
+      customer: string | null;
+      requested_ship_date: string | null;
+    }>();
 
     if (referenceNumbers.length > 0) {
       const BATCH_SIZE = 20;
@@ -352,11 +348,11 @@ const fetchAllData = async () => {
         const batch = referenceNumbers.slice(i, i + BATCH_SIZE);
 
         const orFilter = batch
-  .flatMap(ref => [
-    `sales_order.ilike.%${ref}%`,
-    `delivery.ilike.%${ref}%`
-  ])
-  .join(',');
+          .flatMap((ref: string) => [
+            `sales_order.ilike.%${ref}%`,
+            `delivery.ilike.%${ref}%`
+          ])
+          .join(',');
 
        const { data: appointmentsData, error: appointmentsError } = await supabase
   .from('appointments')
@@ -379,19 +375,16 @@ console.log('appointmentsError:', appointmentsError);
         if (appointmentsData) {
           console.log('Appointments returned:', appointmentsData);
           appointmentsData.forEach((apt: any) => {
-         // Around where you build appointmentInfo inside the forEach:
-const appointmentInfo = {
-  time: apt.appointment_time ?? null,
-  date: apt.appointment_date ?? today,
-  ship_to_city: apt.ship_to_city ?? null,
-  ship_to_state: apt.ship_to_state ?? null,
-  carrier: apt.carrier ?? null,
-  mode: apt.mode ?? null,
-  customer: apt.customer ?? null,
-  requested_ship_date: apt.requested_ship_date ?? null,
-  sales_order: apt.sales_order ?? null,   // ← ADD THIS
-  delivery: apt.delivery ?? null,         // ← ADD THIS
-};
+            const appointmentInfo = {
+              time: apt.appointment_time ?? null,
+              date: apt.appointment_date ?? today,
+              ship_to_city: apt.ship_to_city ?? null,
+              ship_to_state: apt.ship_to_state ?? null,
+              carrier: apt.carrier ?? null,
+              mode: apt.mode ?? null,
+              customer: apt.customer ?? null,
+              requested_ship_date: apt.requested_ship_date ?? null,
+            };
 
            if (apt.sales_order) {
   apt.sales_order.split(/[,;\s|]+/).map((r: string) => r.trim().toLowerCase()).filter(Boolean)
@@ -429,18 +422,16 @@ if (apt.delivery) {
         console.log(`No match for: "${ci.reference_number}" | map keys:`, Array.from(appointmentsMap.keys()));
       }
 
-     return {
-  ...ci,
-  appointment_time: aptInfo?.time ?? null,
-  appointment_date: aptInfo?.date ?? null,
-  ship_to_city: aptInfo?.ship_to_city ?? ci.ship_to_city ?? null,
-  ship_to_state: aptInfo?.ship_to_state ?? ci.ship_to_state ?? null,
-  carrier: aptInfo?.carrier ?? ci.carrier ?? null,
-  mode: aptInfo?.mode ?? ci.mode ?? null,
-  requested_ship_date: aptInfo?.requested_ship_date ?? ci.requested_ship_date ?? null,
-  appointment_sales_order: aptInfo?.sales_order ?? null,   // ← ADD THIS
-  appointment_delivery: aptInfo?.delivery ?? null,         // ← ADD THIS
-};
+      return {
+        ...ci,
+        appointment_time: aptInfo?.time ?? null,
+        appointment_date: aptInfo?.date ?? null,
+        ship_to_city: aptInfo?.ship_to_city ?? ci.ship_to_city ?? null,
+        ship_to_state: aptInfo?.ship_to_state ?? ci.ship_to_state ?? null,
+        carrier: aptInfo?.carrier ?? ci.carrier ?? null,
+        mode: aptInfo?.mode ?? ci.mode ?? null,
+        requested_ship_date: aptInfo?.requested_ship_date ?? ci.requested_ship_date ?? null,
+      };
     });
 
     setCheckIns(processedCheckIns);
@@ -660,19 +651,9 @@ if (apt.delivery) {
                       </td>
 
                       {/* Reference Number */}
-<td className="px-4 py-3 text-sm font-medium">
-  <div>{checkIn.reference_number || 'N/A'}</div>
-  {checkIn.appointment_sales_order && (
-    <div className="text-xs text-gray-500">
-      SO: {checkIn.appointment_sales_order}
-    </div>
-  )}
-  {checkIn.appointment_delivery && (
-    <div className="text-xs text-gray-500">
-      DEL: {checkIn.appointment_delivery}
-    </div>
-  )}
-</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                        {checkIn.reference_number || 'N/A'}
+                      </td>
 
                       {/* Wait Time */}
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
