@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAppointment } from '@/lib/appointmentsService';
 import { AppointmentInput } from '@/types/appointments';
 import * as XLSX from 'xlsx';
-import { supabase } from '@/lib/supabase';
 
 function findColumnKey(rowKeys: string[], ...possibleNames: string[]): string | undefined {
   for (const key of rowKeys) {
@@ -51,36 +50,14 @@ export async function POST(request: NextRequest) {
       defval: ''
     }) as any[];
 
-    console.log('=== UPLOAD DEBUG ===');
-    console.log('Sheet ref:', worksheet['!ref']);
-    console.log('Standard parse row count:', rawData.length);
-
-    const ref = worksheet['!ref'];
-    if (ref) {
-      const cellsToCheck = ['A1','B1','C1','D1','E1','A2','B2','C2','D2','E2'];
-      for (const addr of cellsToCheck) {
-        const cell = worksheet[addr];
-        console.log(`Cell ${addr}:`, cell ? JSON.stringify(cell) : 'undefined');
-      }
-    }
-
     if (!rawData || rawData.length === 0) {
-      console.log('Standard parse empty. Scanning for header row...');
-
       const allRows = XLSX.utils.sheet_to_json(worksheet, {
         raw: false,
         defval: '',
         header: 1
       }) as any[][];
 
-      console.log('Raw array row count:', allRows.length);
-      if (allRows.length > 0) {
-        console.log('First 5 raw rows:', JSON.stringify(allRows.slice(0, 5)));
-      }
-
       if (allRows.length > 0 && allRows[0].length === 1) {
-        console.log('Single column detected - attempting to re-parse as delimited text');
-
         const singleColText = allRows
           .map((row) => String(row[0] || '').trim())
           .filter((line) => line.length > 0);
@@ -92,7 +69,6 @@ export async function POST(request: NextRequest) {
           else if (firstLine.includes(',') && !firstLine.includes('\t')) delimiter = ',';
 
           const headers = firstLine.split(delimiter).map((h: string) => h.trim());
-          console.log('Detected headers from single column:', headers);
 
           if (headers.length >= 3) {
             rawData = singleColText.slice(1).map((line) => {
@@ -105,8 +81,6 @@ export async function POST(request: NextRequest) {
             }).filter((row: any) => {
               return Object.values(row).some((v: any) => String(v || '').trim().length > 0);
             });
-
-            console.log('Re-parsed from single column, row count:', rawData.length);
           }
         }
       }
@@ -125,20 +99,16 @@ export async function POST(request: NextRequest) {
             .map((cell: any) => String(cell || '').toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ').trim())
             .join('|');
 
-          console.log(`Scanning row ${r}: "${rowText}"`);
-
           if (
             (rowText.includes('sales order') || rowText.includes('salesorder')) &&
             (rowText.includes('delivery') || rowText.includes('del'))
           ) {
             headerIndex = r;
-            console.log(`Header found at row ${r}`);
             break;
           }
 
           if (rowText.includes('apt') || rowText.includes('start date') || rowText.includes('appointment')) {
             headerIndex = r;
-            console.log(`Header found (lenient) at row ${r}`);
             break;
           }
         }
@@ -149,12 +119,10 @@ export async function POST(request: NextRequest) {
             defval: '',
             range: headerIndex
           }) as any[];
-          console.log('Re-parsed with range, row count:', rawData.length);
         }
       }
 
       if (!rawData || rawData.length === 0) {
-        console.log('All parse attempts failed. Trying cellDates + different read options...');
         try {
           const wb2 = XLSX.read(buffer, {
             type: 'buffer',
@@ -166,7 +134,6 @@ export async function POST(request: NextRequest) {
           const ws2 = wb2.Sheets[wb2.SheetNames[0]];
           if (ws2) {
             rawData = XLSX.utils.sheet_to_json(ws2, { raw: false, defval: '' }) as any[];
-            console.log('Retry with raw:true succeeded, row count:', rawData.length);
           }
         } catch (retryErr) {
           console.error('Retry parse error:', retryErr);
@@ -193,10 +160,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // STEP 3: Map columns flexibly — NOW INCLUDING NEW COLUMNS
     const firstRow = rawData[0];
     const allKeys = Object.keys(firstRow);
-    console.log('Detected columns:', allKeys);
 
     const dateCol = findColumnKey(allKeys,
       'Apt. Start Date', 'Apt Start Date', 'Start Date', 'Date', 'Appointment Date', 'Appt Date'
@@ -213,8 +178,6 @@ export async function POST(request: NextRequest) {
     const deliveryCol = findColumnKey(allKeys,
       'Delivery', 'Delivery Number', 'Del', 'Delivery#', 'Del Number'
     );
-
-    // ✅ NEW COLUMNS
     const carrierCol = findColumnKey(allKeys,
       'Carrier', 'Carrier Name', 'Carrier ID', 'SCAC'
     );
@@ -231,11 +194,6 @@ export async function POST(request: NextRequest) {
       'Ship-to State', 'Ship To State', 'ShipToState', 'Destination State', 'State'
     );
 
-    console.log('Column mapping:', {
-      dateCol, timeCol, customerCol, salesOrderCol, deliveryCol,
-      carrierCol, modeCol, requestedShipDateCol, shipToCityCol, shipToStateCol
-    });
-
     const missingCols: string[] = [];
     if (!dateCol) missingCols.push('Apt. Start Date');
     if (!timeCol) missingCols.push('Start Time');
@@ -251,7 +209,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // STEP 4: Process rows
     const results = {
       success: 0,
       failed: 0,
@@ -270,8 +227,6 @@ export async function POST(request: NextRequest) {
         const customer = customerCol ? String(row[customerCol] || '').trim() : '';
         const sales_order = String(row[salesOrderCol!] || '').trim();
         const delivery = String(row[deliveryCol!] || '').trim();
-
-        // ✅ NEW FIELDS
         const carrier = carrierCol ? String(row[carrierCol] || '').trim() : '';
         const mode = modeCol ? String(row[modeCol] || '').trim() : '';
         const requestedShipDateRaw = requestedShipDateCol
@@ -304,7 +259,6 @@ export async function POST(request: NextRequest) {
         } else if (startDate.includes('-')) {
           formattedDate = startDate;
         } else {
-          // Try Excel serial date
           const serial = parseFloat(startDate);
           if (!isNaN(serial)) {
             const excelEpoch = new Date(1899, 11, 30);
