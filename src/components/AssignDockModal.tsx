@@ -23,13 +23,6 @@ interface AssignDockModalProps {
   isOpen: boolean;
 }
 
-interface DockInfo {
-  dock_number: string;
-  status: 'available' | 'in-use' | 'blocked';
-  orders: Array<{ reference_number?: string; trailer_number?: string }>;
-  blocked_reason?: string;
-}
-
 interface OrderInfo {
   id: string;
   reference_number: string;
@@ -58,8 +51,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
   const [dockNumber, setDockNumber] = useState(checkIn.dock_number || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dockInfo, setDockInfo] = useState<DockInfo | null>(null);
-  const [showWarning, setShowWarning] = useState(false);
   const [dockStatuses, setDockStatuses] = useState<DockStatus[]>([]);
   const [loadingDocks, setLoadingDocks] = useState(false);
   const [showDoubleBookConfirm, setShowDoubleBookConfirm] = useState(false);
@@ -139,19 +130,16 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     }
   };
 
-  // Normalize reference numbers for comparison: strip whitespace and compare case-insensitively
   const normalizeRef = (val: string) => val.trim().toLowerCase().replace(/\s+/g, '');
 
   const refNumberMatches =
     paperRefNumber.trim() === '' ||
     normalizeRef(paperRefNumber) === normalizeRef(checkIn.reference_number || '');
 
-  // Sync state when modal opens
   useEffect(() => {
     if (isOpen) {
       setDockNumber(checkIn.dock_number || '');
       setError(null);
-      setShowWarning(false);
       setGrossWeight('');
       setGrossWeightTouched(false);
       setPaperRefNumber('');
@@ -161,7 +149,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     }
   }, [isOpen, checkIn]);
 
-  // Update mismatch state live as CSR types
   useEffect(() => {
     if (paperRefTouched && paperRefNumber.trim() !== '') {
       setRefMismatch(!refNumberMatches);
@@ -169,37 +156,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
       setRefMismatch(false);
     }
   }, [paperRefNumber, paperRefTouched]);
-
-  // Update warning when dock selection changes
-  useEffect(() => {
-    if (dockNumber) {
-      const dock = dockStatuses.find(d => d.dock_number === dockNumber);
-      if (dock) {
-        if (dock.status === 'blocked') {
-          setDockInfo({
-            dock_number: dockNumber,
-            status: 'blocked',
-            orders: [],
-            blocked_reason: dock.blocked_reason,
-          });
-          setShowWarning(true);
-        } else if (dock.status === 'in-use' || dock.status === 'double-booked') {
-          setDockInfo({
-            dock_number: dockNumber,
-            status: 'in-use',
-            orders: dock.orders.map(o => ({ reference_number: o.reference_number })),
-          });
-          setShowWarning(true);
-        } else {
-          setDockInfo({ dock_number: dockNumber, status: 'available', orders: [] });
-          setShowWarning(false);
-        }
-      }
-    } else {
-      setDockInfo(null);
-      setShowWarning(false);
-    }
-  }, [dockNumber, dockStatuses]);
 
   const fetchAllDockStatuses = async () => {
     setLoadingDocks(true);
@@ -290,10 +246,10 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
 
   const getDockStatusLabel = (status: DockStatus['status']) => {
     switch (status) {
-      case 'available':    return { text: 'Available', color: 'text-green-700' };
-      case 'in-use':       return { text: 'In Use',    color: 'text-yellow-700' };
-      case 'double-booked':return { text: 'Double',    color: 'text-red-700' };
-      case 'blocked':      return { text: 'Blocked',   color: 'text-gray-600' };
+      case 'available':     return { text: 'Available', color: 'text-green-700' };
+      case 'in-use':        return { text: 'In Use',    color: 'text-yellow-700' };
+      case 'double-booked': return { text: 'Double',    color: 'text-red-700' };
+      case 'blocked':       return { text: 'Blocked',   color: 'text-gray-600' };
     }
   };
 
@@ -305,7 +261,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
       return;
     }
     setDockNumber(dock.dock_number);
-    setShowWarning(false);
   };
 
   const confirmDoubleBook = () => {
@@ -320,7 +275,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
   };
 
   const handleAssign = async () => {
-    // Mark all fields as touched so validation messages show
     setGrossWeightTouched(true);
     setPaperRefTouched(true);
 
@@ -336,8 +290,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
       setError('Please enter the reference number from the paper bill.');
       return;
     }
-
-    // Reference number match check — hard block
     if (normalizeRef(paperRefNumber) !== normalizeRef(checkIn.reference_number || '')) {
       setError(
         `❌ Reference number mismatch. The paper bill shows "${paperRefNumber.trim()}" but this check-in is for "${checkIn.reference_number}". Please verify you have the correct paperwork.`
@@ -354,7 +306,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
         .maybeSingle();
       if (blockedCheck) {
         setError(`❌ Dock ${dockNumber} is blocked: "${blockedCheck.reason}". Please select a different dock.`);
-        setShowWarning(true);
         return;
       }
     }
@@ -363,38 +314,19 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     setError(null);
 
     try {
-      // Determine if this is a double-book
       const assignedDock = dockStatuses.find(d => d.dock_number === dockNumber);
       const isDoubleBooked = assignedDock?.status === 'in-use';
 
-      const fullUpdate = await supabase
+      const { error: updateError } = await supabase
         .from('check_ins')
         .update({
           dock_number: dockNumber,
           status: 'checked_in',
           appointment_time: checkIn.appointment_time,
-          gross_weight: grossWeight ? grossWeight.trim() : null,
+          gross_weight: grossWeight.trim(),
           is_double_booked: isDoubleBooked,
         })
         .eq('id', checkIn.id);
-
-      let updateError: any = fullUpdate.error;
-
-      if (fullUpdate.error) {
-        console.warn('Full update failed, trying without new columns:', fullUpdate.error.message);
-        const baseUpdate = await supabase
-          .from('check_ins')
-          .update({
-            dock_number: dockNumber,
-            status: 'checked_in',
-            appointment_time: checkIn.appointment_time,
-          })
-          .eq('id', checkIn.id);
-        updateError = baseUpdate.error;
-        if (!updateError) {
-          console.warn('Base update succeeded. Add these columns to check_ins:\n  ALTER TABLE check_ins ADD COLUMN IF NOT EXISTS gross_weight TEXT;\n  ALTER TABLE check_ins ADD COLUMN IF NOT EXISTS is_double_booked BOOLEAN DEFAULT false;');
-        }
-      }
 
       if (updateError) throw updateError;
 
@@ -454,7 +386,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
           .reference-box .reference-number { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
           .reference-box .dock-number { font-size: 16px; font-weight: bold; }
           .print-button { display: block; margin: 20px auto; padding: 12px 24px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
-          .print-button:hover { background-color: #45a049; }
           .inspection-page { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 10pt; }
           .title { text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 10px; }
           .info-line { margin: 8px 0; font-weight: bold; font-size: 11pt; }
@@ -498,10 +429,8 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
           </div>
           <button class="print-button no-print" onclick="window.print()">Print Form</button>
         </div>
-
         <div class="page-break"></div>
         ${isInbound ? getInboundInspectionForm() : getOutboundInspectionForm()}
-
         <script>
           window.onload = function() { setTimeout(function() { window.print(); }, 250); };
         </script>
@@ -815,17 +744,14 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             </div>
           )}
 
-          {/* No dock selected prompt */}
           {!dockNumber && (
             <div className="rounded-lg p-3 border border-blue-200 bg-blue-50 text-sm text-blue-700">
               👆 Click a dock above to select it
             </div>
           )}
 
-          {/* ── Verification & Weight Fields ── */}
+          {/* Verification & Weight Fields */}
           <div className="grid grid-cols-2 gap-4">
-
-            {/* Paper Bill Reference Number Verification */}
             <div>
               <label htmlFor="paperRefNumber" className="block text-sm font-medium text-gray-700">
                 Reference # from Paper Bill <span className="text-red-500">*</span>
@@ -852,7 +778,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
                       : 'border-gray-300 focus:ring-blue-500'
                   }`}
                 />
-                {/* Inline match indicator */}
                 {paperRefTouched && paperRefNumber.trim() !== '' && (
                   <div className="absolute inset-y-0 right-2.5 flex items-center pointer-events-none">
                     {refMismatch ? (
@@ -867,21 +792,17 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
                   </div>
                 )}
               </div>
-              {/* Feedback messages */}
               {paperRefTouched && paperRefNumber.trim() === '' && (
                 <p className="mt-1 text-xs text-red-500">Reference number is required.</p>
               )}
               {paperRefTouched && paperRefNumber.trim() !== '' && refMismatch && (
-                <p className="mt-1 text-xs text-red-600 font-medium">
-                  ❌ Does not match. Check your paperwork.
-                </p>
+                <p className="mt-1 text-xs text-red-600 font-medium">❌ Does not match. Check your paperwork.</p>
               )}
               {paperRefTouched && paperRefNumber.trim() !== '' && !refMismatch && (
                 <p className="mt-1 text-xs text-green-600 font-medium">✅ Reference number verified.</p>
               )}
             </div>
 
-            {/* Gross Weight */}
             <div>
               <label htmlFor="grossWeight" className="block text-sm font-medium text-gray-700">
                 Gross Weight <span className="text-red-500">*</span>
@@ -905,7 +826,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             </div>
           </div>
 
-          {/* Error message */}
           {error && (
             <div className="text-sm px-3 py-2 rounded-lg border bg-red-50 border-red-300 text-red-700">
               {error}
