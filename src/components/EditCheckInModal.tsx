@@ -35,7 +35,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // ✅ Accepts string | null | undefined
   const parseReferenceNumbers = (refNum?: string | null): string[] => {
     if (!refNum) return [''];
     const parts = refNum.split(',').map(s => s.trim()).filter(Boolean);
@@ -79,16 +78,12 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     'TL', 'LTL', 'Intermodal', 'Flatbed', 'Reefer', 'Partial', 'Van', 'Other'
   ];
 
-
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleReferenceChange = (index: number, value: string) => {
@@ -120,10 +115,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
       .filter(Boolean)
       .join(', ');
 
-    console.log('Submitting appointment_time:', formData.appointment_time);
-    console.log('Submitting end_time:', formData.end_time);
-    console.log('Full formData:', formData);
-
     try {
       const updatePayload = {
         driver_name: formData.driver_name,
@@ -145,16 +136,11 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
         notes: formData.notes,
       };
 
-      console.log('Update payload:', updatePayload);
-
-      const { data, error: updateError } = await supabase
+      const { error: updateError } = await supabase
         .from('check_ins')
         .update(updatePayload)
         .eq('id', checkIn.id)
         .select();
-
-      console.log('Supabase response data:', data);
-      console.log('Supabase response error:', updateError);
 
       if (updateError) throw updateError;
 
@@ -165,7 +151,6 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
       setSaving(false);
     }
   };
-
 
   if (!isOpen) return null;
 
@@ -187,9 +172,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
 
             {/* Load Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Load Type
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Load Type</label>
               <select
                 name="load_type"
                 value={formData.load_type}
@@ -203,9 +186,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
 
             {/* Reference Numbers */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Reference Number(s)
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Reference Number(s)</label>
               <div className="flex flex-col gap-2">
                 {referenceNumbers.map((ref, index) => (
                   <div key={index} className="flex items-center gap-2">
@@ -241,23 +222,21 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
               </div>
             </div>
 
-           {/* Appointment Type Override */}
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-2">
-    Appointment Type Override
-  </label>
-  <select
-    name="appointment_time"
-    value={formData.appointment_time}
-    onChange={handleChange}
-    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-  >
-    <option value="">-- No Override --</option>
-    <option value="LTL">LTL</option>
-    <option value="Paid">Paid</option>
-    <option value="Charge">Charge</option>
-  </select>
-</div>
+            {/* Appointment Type Override */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Appointment Type Override</label>
+              <select
+                name="appointment_time"
+                value={formData.appointment_time}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">-- No Override --</option>
+                <option value="LTL">LTL</option>
+                <option value="Paid">Paid</option>
+                <option value="Charge">Charge</option>
+              </select>
+            </div>
 
             {/* End Time */}
             <div>
@@ -275,9 +254,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
 
             {/* Dock Number */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Dock Number
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Dock Number</label>
               <input
                 type="text"
                 name="dock_number"
@@ -290,9 +267,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
 
             {/* Driver Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Driver Name
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Driver Name</label>
               <input
                 type="text"
                 name="driver_name"
@@ -304,9 +279,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
 
             {/* Driver Phone */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Driver Phone
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Driver Phone</label>
               <input
                 type="text"
                 name="driver_phone"
@@ -318,9 +291,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
 
             {/* Carrier Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Carrier Name
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Carrier Name</label>
               <input
                 type="text"
                 name="carrier_name"
@@ -332,9 +303,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
 
             {/* Trailer Number */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Trailer Number
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Trailer Number</label>
               <input
                 type="text"
                 name="trailer_number"
@@ -346,9 +315,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
 
             {/* Trailer Length */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Trailer Length
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Trailer Length</label>
               <input
                 type="text"
                 name="trailer_length"
@@ -455,9 +422,7 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
 
             {/* Notes - full width */}
             <div className="col-span-1 md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Notes
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
               <textarea
                 name="notes"
                 value={formData.notes}
