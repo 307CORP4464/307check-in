@@ -317,8 +317,6 @@ interface CheckIn {
   denial_reason?: string | null;
   rejection_reasons?: string[] | null;
   resolution_action?: string | null;
-  appointment_sales_order?: string | null;
-  appointment_delivery?: string | null;
 }
 
 interface Appointment {
@@ -335,8 +333,6 @@ interface Appointment {
   carrier?: string | null;
   mode?: string | null;
   requested_ship_date?: string | null;
-  appointment_sales_order?: string | null;
-  appointment_delivery?: string | null;
 }
 
 const calculateDetention = (
@@ -905,17 +901,15 @@ export default function DailyLog() {
   const [editModalOpen, setEditModalOpen] = useState(false);
 
   type AppointmentInfo = {
-  time: string | null;
-  date: string | null;
-  customer: string | null;
-  ship_to_city: string | null;
-  ship_to_state: string | null;
-  carrier: string | null;
-  mode: string | null;
-  requested_ship_date: string | null;
-  sales_order: string | null;   // ← ADD THIS
-  delivery: string | null;      // ← ADD THIS
-};;
+    time: string | null;
+    date: string | null;
+    customer: string | null;
+    ship_to_city: string | null;
+    ship_to_state: string | null;
+    carrier: string | null;
+    mode: string | null;
+    requested_ship_date: string | null;
+  };
 
   const fetchCheckInsForDate = useCallback(async () => {
     try {
@@ -949,8 +943,6 @@ export default function DailyLog() {
         carrier: string | null;
         mode: string | null;
         requested_ship_date: string | null;
-        sales_order: string | null; 
-        delivery: string | null;
       }>();
 
       if (allReferenceNumbers.length > 0) {
@@ -960,11 +952,11 @@ export default function DailyLog() {
           const batch = allReferenceNumbers.slice(i, i + BATCH_SIZE);
 
           const orFilter = batch
-  .flatMap(ref => [
-    `sales_order.ilike.%${ref}%`,
-    `delivery.ilike.%${ref}%`
-  ])
-  .join(',');
+            .flatMap(ref => [
+              `sales_order.ilike.%${ref}%`,
+              `delivery.ilike.%${ref}%`
+            ])
+            .join(',');
 
           const { data: appointmentsData, error: appointmentsError } = await supabase
             .from('appointments')
@@ -982,17 +974,15 @@ export default function DailyLog() {
           if (appointmentsData) {
             appointmentsData.forEach(apt => {
               const appointmentInfo = {
-  time: apt.appointment_time ?? null,
-  date: apt.appointment_date ?? null,
-  customer: apt.customer ?? null,
-  ship_to_city: apt.ship_to_city ?? null,
-  ship_to_state: apt.ship_to_state ?? null,
-  carrier: apt.carrier ?? null,
-  mode: apt.mode ?? null,
-  requested_ship_date: apt.requested_ship_date ?? null,
-  sales_order: apt.sales_order ?? null,   // ← ADD THIS
-  delivery: apt.delivery ?? null,         // ← ADD THIS
-};
+                time: apt.appointment_time ?? null,
+                date: apt.appointment_date ?? null,
+                customer: apt.customer ?? null,
+                ship_to_city: apt.ship_to_city ?? null,
+                ship_to_state: apt.ship_to_state ?? null,
+                carrier: apt.carrier ?? null,
+                mode: apt.mode ?? null,
+                requested_ship_date: apt.requested_ship_date ?? null,
+              };
 
               if (apt.sales_order) {
                 parseReferenceNumbers(apt.sales_order).forEach(ref => {
@@ -1050,8 +1040,6 @@ export default function DailyLog() {
           carrier: appointmentInfo?.carrier ?? checkIn.carrier ?? null,
           mode: appointmentInfo?.mode ?? checkIn.mode ?? null,
           requested_ship_date: appointmentInfo?.requested_ship_date ?? checkIn.requested_ship_date ?? null,
-          appointment_sales_order: appointmentInfo?.sales_order ?? null,
-          appointment_delivery: appointmentInfo?.delivery ?? null,
         };
       });
 
@@ -1342,19 +1330,7 @@ export default function DailyLog() {
                   </td>
 
                   {/* Reference # */}
-<td className="px-4 py-3 text-sm font-bold text-gray-900">
-  <div>{checkIn.reference_number || 'N/A'}</div>
-  {checkIn.appointment_sales_order && (
-    <div className="text-xs text-gray-500 font-normal">
-      SO: {checkIn.appointment_sales_order}
-    </div>
-  )}
-  {checkIn.appointment_delivery && (
-    <div className="text-xs text-gray-500 font-normal">
-      DEL: {checkIn.appointment_delivery}
-    </div>
-  )}
-</td>
+                  <td className="font-bold text-gray-900">{checkIn.reference_number || 'N/A'}</td>
 
                   {/* Dock */}
                   <td className="font-bold text-gray-900">{checkIn.dock_number || 'N/A'}</td>
