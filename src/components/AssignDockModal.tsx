@@ -407,7 +407,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
         <div class="receipt-page">
           <div class="receipt-header">
             <h1>Driver Check-In Form</h1>
-            <p style="margin: 5px 0; font-size: 12px;">${currentDate}</p>
           </div>
           <div class="reference-box">
             <div class="reference-number">Reference #: ${checkIn.reference_number || 'N/A'}</div>
