@@ -79,6 +79,8 @@ const calculateWaitTime = (checkInTime: string): number => {
   return diffMs / (1000 * 60);
 };
 
+const MANUAL_APPOINTMENT_TYPES = ['LTL', 'Paid', 'Charge', 'work_in'];
+
 const formatAppointmentTime = (appointmentTime: string | null | undefined): string => {
   if (!appointmentTime) return 'N/A';
   if (appointmentTime === 'work_in') return 'Work In';
@@ -424,8 +426,14 @@ if (apt.delivery) {
 
       return {
         ...ci,
-        appointment_time: aptInfo?.time ?? null,
-        appointment_date: aptInfo?.date ?? null,
+        appointment_time: aptInfo?.time ?? 
+  (MANUAL_APPOINTMENT_TYPES.includes(checkIn.appointment_time) 
+    ? checkIn.appointment_time 
+    : null),
+appointment_date: aptInfo?.date ?? 
+  (MANUAL_APPOINTMENT_TYPES.includes(checkIn.appointment_time) 
+    ? checkIn.appointment_date 
+    : null),
         ship_to_city: aptInfo?.ship_to_city ?? ci.ship_to_city ?? null,
         ship_to_state: aptInfo?.ship_to_state ?? ci.ship_to_state ?? null,
         carrier: aptInfo?.carrier ?? ci.carrier ?? null,
