@@ -348,6 +348,7 @@ function StatusScreen({
         <div className="bg-gray-900 text-white px-5 py-4 text-center">
           <p className="text-xl font-extrabold tracking-tight leading-snug">📱 Leave this page open</p>
           <p className="text-sm text-gray-300 mt-1">Load updates will appear below</p>
+          <p className="text-sm text-gray-300 mt-1">You may need to reload page if you do not see an update.</p>
         </div>
 
         {/* Status header */}
