@@ -1,4 +1,5 @@
 import Link from 'next/link';
+
 export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -11,7 +12,9 @@ export default function Home() {
             Select your portal to continue
           </p>
         </div>
-        <div className="grid md:grid-cols-2 gap-8 mb-8">
+
+        {/* Top row — 3 equal cards */}
+        <div className="grid md:grid-cols-3 gap-8 mb-8">
           {/* Driver Check-In */}
           <Link href="/check-in">
             <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-shadow cursor-pointer border-2 border-transparent hover:border-blue-500">
@@ -28,7 +31,8 @@ export default function Home() {
               </div>
             </div>
           </Link>
-          {/* CSR Portal */}
+
+          {/* CSR Dashboard */}
           <Link href="/dashboard">
             <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-shadow cursor-pointer border-2 border-transparent hover:border-blue-500">
               <div className="flex flex-col items-center text-center">
@@ -44,7 +48,25 @@ export default function Home() {
               </div>
             </div>
           </Link>
+
+          {/* Operator Portal */}
+          <Link href="/operator">
+            <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-shadow cursor-pointer border-2 border-transparent hover:border-slate-500">
+              <div className="flex flex-col items-center text-center">
+                <div className="bg-slate-100 p-6 rounded-full mb-6">
+                  <div className="text-6xl">🏭</div>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                  Operator Portal
+                </h2>
+                <p className="text-gray-600">
+                  View assigned loads and manage your loading queue
+                </p>
+              </div>
+            </div>
+          </Link>
         </div>
+
         {/* Check Load Status — full width below */}
         <Link href="/status">
           <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-shadow cursor-pointer border-2 border-transparent hover:border-green-500">
