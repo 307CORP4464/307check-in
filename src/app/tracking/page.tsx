@@ -69,7 +69,7 @@ interface DailyStats {
   date: string;
   totalInbound: number;
   totalOutbound: number;
-  totalCheckedIn: number;
+  totalCheckedOut: number;
   onlineCheckIns: number;
   onTimeCount: number;
   onTimePercentage: number;
@@ -355,7 +355,7 @@ export default function Tracking() {
         if (!data || data.length === 0) break;
 
         allData = [...allData, ...data];
-        if (data.length < PAGE_SIZE) break; // reached the last page
+        if (data.length < PAGE_SIZE) break;
         page++;
       }
       // ─────────────────────────────────────────────────────────────────────
@@ -380,10 +380,13 @@ export default function Tracking() {
       });
 
       const stats: DailyStats[] = Object.entries(statsByDate).map(([date, checkIns]) => {
-        const totalInbound   = checkIns.filter(c => c.load_type === 'inbound').length;
-        const totalOutbound  = checkIns.filter(c => c.load_type === 'outbound').length;
-        const totalCheckedIn = checkIns.length;
+        // Total, inbound, outbound counts are based on checked_out status only
+        const checkedOutCheckIns = checkIns.filter(c => c.status === 'checked_out');
+        const totalCheckedOut = checkedOutCheckIns.length;
+        const totalInbound    = checkedOutCheckIns.filter(c => c.load_type === 'inbound').length;
+        const totalOutbound   = checkedOutCheckIns.filter(c => c.load_type === 'outbound').length;
 
+        // Online check-ins, on-time, and detention use all check-ins
         const onlineCheckIns = checkIns.filter(c =>
           c.driver_name && c.driver_name !== 'N/A' &&
           c.driver_phone && c.driver_phone !== 'N/A'
@@ -442,7 +445,7 @@ export default function Tracking() {
           date,
           totalInbound,
           totalOutbound,
-          totalCheckedIn,
+          totalCheckedOut,
           onlineCheckIns,
           onTimeCount,
           onTimePercentage,
@@ -466,7 +469,7 @@ export default function Tracking() {
   const isMultiDay = dailyStats.length > 1;
 
   const rangeTotals = isMultiDay ? (() => {
-    const totalCheckedIn  = dailyStats.reduce((s, d) => s + d.totalCheckedIn, 0);
+    const totalCheckedOut = dailyStats.reduce((s, d) => s + d.totalCheckedOut, 0);
     const totalInbound    = dailyStats.reduce((s, d) => s + d.totalInbound, 0);
     const totalOutbound   = dailyStats.reduce((s, d) => s + d.totalOutbound, 0);
     const onlineCheckIns  = dailyStats.reduce((s, d) => s + d.onlineCheckIns, 0);
@@ -496,7 +499,7 @@ export default function Tracking() {
       });
     });
 
-    return { totalCheckedIn, totalInbound, totalOutbound, onlineCheckIns, onTimeCount, onTimePercentage, totalDetention, days, dockSetUsage, halfHourBreakdown };
+    return { totalCheckedOut, totalInbound, totalOutbound, onlineCheckIns, onTimeCount, onTimePercentage, totalDetention, days, dockSetUsage, halfHourBreakdown };
   })() : null;
 
   const isToday     = startDate === today     && endDate === today;
@@ -597,9 +600,9 @@ export default function Tracking() {
             <div className="p-6">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 <RangeCard
-                  label="Total Check-Ins"
-                  value={rangeTotals.totalCheckedIn}
-                  sub={`avg ${Math.round(rangeTotals.totalCheckedIn / rangeTotals.days)}/day`}
+                  label="Checked Out"
+                  value={rangeTotals.totalCheckedOut}
+                  sub={`avg ${Math.round(rangeTotals.totalCheckedOut / rangeTotals.days)}/day`}
                   accent="bg-gray-400"
                   textColor="text-gray-800"
                 />
@@ -627,7 +630,7 @@ export default function Tracking() {
                 <RangeCard
                   label="Online Check-Ins"
                   value={rangeTotals.onlineCheckIns}
-                  sub={`${rangeTotals.totalCheckedIn > 0 ? Math.round((rangeTotals.onlineCheckIns / rangeTotals.totalCheckedIn) * 100) : 0}% self-served`}
+                  sub={`${rangeTotals.totalCheckedOut > 0 ? Math.round((rangeTotals.onlineCheckIns / rangeTotals.totalCheckedOut) * 100) : 0}% self-served`}
                   accent="bg-orange-400"
                   textColor="text-orange-600"
                 />
@@ -702,7 +705,12 @@ export default function Tracking() {
             <div className="p-6 border-b border-gray-100">
               <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Summary</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                <StatCard label="Total Check-Ins" value={stat.totalCheckedIn} accent="bg-gray-400" textColor="text-gray-800" />
+                <StatCard
+                  label="Checked Out"
+                  value={stat.totalCheckedOut}
+                  accent="bg-gray-400"
+                  textColor="text-gray-800"
+                />
                 <StatCard label="Inbound" value={stat.totalInbound} accent="bg-emerald-500" textColor="text-emerald-700" />
                 <StatCard label="Outbound" value={stat.totalOutbound} accent="bg-blue-500" textColor="text-blue-700" />
                 <StatCard
@@ -715,7 +723,7 @@ export default function Tracking() {
                 <StatCard
                   label="Online Check-Ins"
                   value={stat.onlineCheckIns}
-                  sub={`${stat.totalCheckedIn > 0 ? Math.round((stat.onlineCheckIns / stat.totalCheckedIn) * 100) : 0}% self-served`}
+                  sub={`${stat.totalCheckedOut > 0 ? Math.round((stat.onlineCheckIns / stat.totalCheckedOut) * 100) : 0}% self-served`}
                   accent="bg-orange-400"
                   textColor="text-orange-600"
                 />
