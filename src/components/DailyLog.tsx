@@ -591,6 +591,7 @@ export default function DailyLog() {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showInProgressOnly, setShowInProgressOnly] = useState(false);
   const [statusDetailCheckIn, setStatusDetailCheckIn] = useState<CheckIn | null>(null);
+  const [denialsExpanded, setDenialsExpanded] = useState(false);
 
   const getCurrentDateInIndianapolis = () => {
     const now = new Date();
@@ -759,9 +760,17 @@ export default function DailyLog() {
     );
   });
 
+  // Split denials from the main log
+  const denialCheckIns = filteredCheckIns.filter(ci =>
+    ci.status === 'check_in_denial' || ci.status === 'turned_away'
+  );
+  const nonDenialCheckIns = filteredCheckIns.filter(ci =>
+    ci.status !== 'check_in_denial' && ci.status !== 'turned_away'
+  );
+
   const displayedCheckIns = showInProgressOnly
-    ? filteredCheckIns.filter(checkIn => !checkIn.end_time && checkIn.status !== 'denied')
-    : filteredCheckIns;
+    ? nonDenialCheckIns.filter(checkIn => !checkIn.end_time && checkIn.status !== 'denied')
+    : nonDenialCheckIns;
 
   const handleStatusChange = (checkIn: CheckIn) => setSelectedForStatusChange(checkIn);
   const handleStatusChangeSuccess = () => { fetchCheckInsForDate(); setSelectedForStatusChange(null); };
@@ -800,6 +809,148 @@ export default function DailyLog() {
     };
     return labels[status] ?? (status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' '));
   };
+
+  // Shared table rows renderer (used for both main and denials table)
+  const renderTableRows = (rows: CheckIn[]) => rows.map((checkIn) => (
+    <tr key={checkIn.id} className="hover:bg-gray-50">
+      <td className="px-4 py-3 whitespace-nowrap">
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          checkIn.load_type === 'inbound' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
+        }`}>
+          {checkIn.load_type === 'inbound' ? 'I' : 'O'}
+        </span>
+      </td>
+
+      <td className="px-4 py-4 text-sm">
+        <div className="text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
+        <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
+        <div className="text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
+      </td>
+
+      <td className="px-4 py-4 text-sm text-gray-900">
+        <div>{checkIn.trailer_number || 'N/A'}</div>
+        <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
+      </td>
+
+      <td className="px-4 py-3 text-sm">
+        <div className="flex flex-col">
+          <span className="font-semibold text-gray-900">{checkIn.customer || 'N/A'}</span>
+          <span className="font-semibold text-gray-900">{checkIn.requested_ship_date || 'N/A'}</span>
+          <span className="text-gray-500 text-xs mt-0.5">
+            {checkIn.ship_to_city && checkIn.ship_to_state
+              ? `${checkIn.ship_to_city}, ${checkIn.ship_to_state}`
+              : checkIn.ship_to_city || checkIn.ship_to_state || 'N/A'}
+          </span>
+        </div>
+      </td>
+
+      <td className="px-4 py-3 text-sm">
+        <div className="flex flex-col">
+          <span className="font-semibold text-gray-900">{checkIn.carrier || 'N/A'}</span>
+          <span className="font-semibold text-gray-900">{checkIn.mode || 'N/A'}</span>
+        </div>
+      </td>
+
+      <td className="font-bold text-gray-900 px-4 py-3 text-sm">{checkIn.reference_number || 'N/A'}</td>
+      <td className="font-bold text-gray-900 px-4 py-3 text-sm">{checkIn.dock_number || 'N/A'}</td>
+
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        {formatTimeInIndianapolis(checkIn.check_in_time, true)}
+      </td>
+
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        {(() => {
+          const status = getAppointmentStatus(checkIn.check_in_time, checkIn.appointment_time, checkIn.appointment_date);
+          const bgColor =
+            status.color === 'green' ? 'bg-green-200' :
+            status.color === 'red' ? 'bg-red-200' :
+            status.color === 'yellow' ? 'bg-yellow-200' :
+            status.color === 'orange' ? 'bg-orange-200' : 'bg-gray-300';
+          return (
+            <div className={`inline-block px-2 py-1 rounded ${bgColor}`}>
+              {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
+              {status.message && <div className="text-xs mt-1">{status.message}</div>}
+            </div>
+          );
+        })()}
+      </td>
+
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time, true) : (
+          checkIn.status === 'denied'
+            ? <span className="text-red-500 font-medium">Denied</span>
+            : <span className="text-yellow-600 font-medium">In Progress</span>
+        )}
+      </td>
+
+      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+        {(() => {
+          const { hasDetention, detentionDuration } = calculateDetention(
+            checkIn.check_in_time, checkIn.end_time, checkIn.appointment_time, checkIn.appointment_date
+          );
+          return hasDetention
+            ? <span className="text-red-600 font-semibold">⚠️ Detention: {detentionDuration}</span>
+            : null;
+        })()}
+      </td>
+
+      <td className="px-4 py-4 whitespace-nowrap text-sm">
+        {statusHasDetails(checkIn) ? (
+          <button
+            onClick={() => setStatusDetailCheckIn(checkIn)}
+            className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(checkIn.status)} underline decoration-dotted underline-offset-2 cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1`}
+            title="Click to view details"
+          >
+            {getStatusLabel(checkIn.status)}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 opacity-75" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+          </button>
+        ) : (
+          <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(checkIn.status)}`}>
+            {getStatusLabel(checkIn.status)}
+          </span>
+        )}
+      </td>
+
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        <div className="flex flex-col gap-1">
+          <button onClick={() => handleEdit(checkIn)} className="text-blue-600 hover:text-blue-900 font-medium text-left">Edit</button>
+          <button onClick={() => handleStatusChange(checkIn)} className="text-green-600 hover:text-green-800 font-medium text-left">Status</button>
+          <button
+            onClick={() => reprintReceipt(checkIn)}
+            className="text-gray-500 hover:text-gray-800 font-medium text-left flex items-center gap-1"
+            title="Reprint check-in receipt and inspection form"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a1 1 0 001 1h8a1 1 0 001-1v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a1 1 0 00-1-1H6a1 1 0 00-1 1zm2 0h6v3H7V4zm-1 9h8v3H6v-3zm8-5a1 1 0 110 2 1 1 0 010-2z" clipRule="evenodd" />
+            </svg>
+            Reprint
+          </button>
+        </div>
+      </td>
+    </tr>
+  ));
+
+  const tableHead = (
+    <thead className="bg-gray-50">
+      <tr>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver Info</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cust. Req. Date and Dest.</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SCAC and Mode</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference #</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dock</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-In Time</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment Time</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Detention</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+      </tr>
+    </thead>
+  );
 
   if (loading) {
     return (
@@ -863,13 +1014,14 @@ export default function DailyLog() {
           </div>
 
           <div className="flex gap-4">
+            {/* Total Checked In — excludes denials */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
               <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">Total Checked In</div>
-              <div className="text-2xl font-bold text-blue-900">{filteredCheckIns.length}</div>
+              <div className="text-2xl font-bold text-blue-900">{nonDenialCheckIns.length}</div>
             </div>
             <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
               <div className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">Total Complete</div>
-              <div className="text-2xl font-bold text-green-900">{filteredCheckIns.filter(ci => ci.end_time).length}</div>
+              <div className="text-2xl font-bold text-green-900">{nonDenialCheckIns.filter(ci => ci.end_time).length}</div>
             </div>
             <button
               onClick={() => setShowInProgressOnly(!showInProgressOnly)}
@@ -880,7 +1032,7 @@ export default function DailyLog() {
               <div className="text-xs font-medium text-yellow-700 uppercase tracking-wider mb-1">In Progress</div>
               <div className="flex items-center gap-2">
                 <div className="text-2xl font-bold text-yellow-900">
-                  {filteredCheckIns.filter(ci => !ci.end_time && ci.status !== 'denied').length}
+                  {nonDenialCheckIns.filter(ci => !ci.end_time && ci.status !== 'denied').length}
                 </div>
                 {showInProgressOnly && (
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-700" viewBox="0 0 20 20" fill="currentColor">
@@ -892,150 +1044,73 @@ export default function DailyLog() {
           </div>
         </div>
 
-        {/* Table */}
+        {/* Main Log Table */}
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver Info</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cust. Req. Date and Dest.</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SCAC and Mode</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference #</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dock</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-In Time</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment Time</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Detention</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
+            {tableHead}
             <tbody className="bg-white divide-y divide-gray-200">
-              {displayedCheckIns.map((checkIn) => (
-                <tr key={checkIn.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      checkIn.load_type === 'inbound' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
-                    }`}>
-                      {checkIn.load_type === 'inbound' ? 'I' : 'O'}
-                    </span>
-                  </td>
-
-                  <td className="px-4 py-4 text-sm">
-                    <div className="text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
-                    <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
-                    <div className="text-gray-500">{formatPhoneNumber(checkIn.driver_phone)}</div>
-                  </td>
-
-                  <td className="px-4 py-4 text-sm text-gray-900">
-                    <div>{checkIn.trailer_number || 'N/A'}</div>
-                    <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
-                  </td>
-
-                  <td className="px-4 py-3 text-sm">
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-gray-900">{checkIn.customer || 'N/A'}</span>
-                      <span className="font-semibold text-gray-900">{checkIn.requested_ship_date || 'N/A'}</span>
-                      <span className="text-gray-500 text-xs mt-0.5">
-                        {checkIn.ship_to_city && checkIn.ship_to_state
-                          ? `${checkIn.ship_to_city}, ${checkIn.ship_to_state}`
-                          : checkIn.ship_to_city || checkIn.ship_to_state || 'N/A'}
-                      </span>
-                    </div>
-                  </td>
-
-                  <td className="px-4 py-3 text-sm">
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-gray-900">{checkIn.carrier || 'N/A'}</span>
-                      <span className="font-semibold text-gray-900">{checkIn.mode || 'N/A'}</span>
-                    </div>
-                  </td>
-
-                  <td className="font-bold text-gray-900 px-4 py-3 text-sm">{checkIn.reference_number || 'N/A'}</td>
-                  <td className="font-bold text-gray-900 px-4 py-3 text-sm">{checkIn.dock_number || 'N/A'}</td>
-
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">
-                    {formatTimeInIndianapolis(checkIn.check_in_time, true)}
-                  </td>
-
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">
-                    {(() => {
-                      const status = getAppointmentStatus(checkIn.check_in_time, checkIn.appointment_time, checkIn.appointment_date);
-                      const bgColor =
-                        status.color === 'green' ? 'bg-green-200' :
-                        status.color === 'red' ? 'bg-red-200' :
-                        status.color === 'yellow' ? 'bg-yellow-200' :
-                        status.color === 'orange' ? 'bg-orange-200' : 'bg-gray-300';
-                      return (
-                        <div className={`inline-block px-2 py-1 rounded ${bgColor}`}>
-                          {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
-                          {status.message && <div className="text-xs mt-1">{status.message}</div>}
-                        </div>
-                      );
-                    })()}
-                  </td>
-
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">
-                    {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time, true) : (
-                      checkIn.status === 'denied'
-                        ? <span className="text-red-500 font-medium">Denied</span>
-                        : <span className="text-yellow-600 font-medium">In Progress</span>
-                    )}
-                  </td>
-
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {(() => {
-                      const { hasDetention, detentionDuration } = calculateDetention(
-                        checkIn.check_in_time, checkIn.end_time, checkIn.appointment_time, checkIn.appointment_date
-                      );
-                      return hasDetention
-                        ? <span className="text-red-600 font-semibold">⚠️ Detention: {detentionDuration}</span>
-                        : null;
-                    })()}
-                  </td>
-
-                  <td className="px-4 py-4 whitespace-nowrap text-sm">
-                    {statusHasDetails(checkIn) ? (
-                      <button
-                        onClick={() => setStatusDetailCheckIn(checkIn)}
-                        className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(checkIn.status)} underline decoration-dotted underline-offset-2 cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1`}
-                        title="Click to view details"
-                      >
-                        {getStatusLabel(checkIn.status)}
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 opacity-75" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                    ) : (
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(checkIn.status)}`}>
-                        {getStatusLabel(checkIn.status)}
-                      </span>
-                    )}
-                  </td>
-
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">
-                    <div className="flex flex-col gap-1">
-                      <button onClick={() => handleEdit(checkIn)} className="text-blue-600 hover:text-blue-900 font-medium text-left">Edit</button>
-                      <button onClick={() => handleStatusChange(checkIn)} className="text-green-600 hover:text-green-800 font-medium text-left">Status</button>
-                      <button
-                        onClick={() => reprintReceipt(checkIn)}
-                        className="text-gray-500 hover:text-gray-800 font-medium text-left flex items-center gap-1"
-                        title="Reprint check-in receipt and inspection form"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a1 1 0 001 1h8a1 1 0 001-1v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a1 1 0 00-1-1H6a1 1 0 00-1 1zm2 0h6v3H7V4zm-1 9h8v3H6v-3zm8-5a1 1 0 110 2 1 1 0 010-2z" clipRule="evenodd" />
-                        </svg>
-                        Reprint
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {renderTableRows(displayedCheckIns)}
             </tbody>
           </table>
         </div>
+
+        {/* Denials Section */}
+        {denialCheckIns.length > 0 && (
+          <div className="mt-10">
+            <button
+              onClick={() => setDenialsExpanded(!denialsExpanded)}
+              className="w-full flex items-center justify-between px-5 py-3 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524L13.477 14.89zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clipRule="evenodd" />
+                </svg>
+                <span className="font-semibold text-red-800 text-sm uppercase tracking-wide">
+                  Denials &amp; Turned Away
+                </span>
+                <span className="bg-red-200 text-red-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                  {denialCheckIns.length}
+                </span>
+              </div>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className={`h-5 w-5 text-red-500 transition-transform duration-200 ${denialsExpanded ? 'rotate-180' : ''}`}
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+
+            {denialsExpanded && (
+              <div className="mt-2 overflow-x-auto border border-red-200 rounded-lg">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-red-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Type</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Driver Info</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Trailer</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Cust. Req. Date and Dest.</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">SCAC and Mode</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Reference #</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Dock</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Check-In Time</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Appointment Time</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">End Time</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Detention</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {renderTableRows(denialCheckIns)}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
       </main>
 
       {selectedForStatusChange && (
