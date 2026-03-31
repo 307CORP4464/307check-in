@@ -70,6 +70,7 @@ interface DailyStats {
   totalInbound: number;
   totalOutbound: number;
   totalCheckedOut: number;
+  totalAllCheckIns: number;
   onlineCheckIns: number;
   onTimeCount: number;
   onTimePercentage: number;
@@ -337,7 +338,6 @@ export default function Tracking() {
       const startOfDayIndy = zonedTimeToUtc(`${startDate} 00:00:00`, TIMEZONE);
       const endOfDayIndy   = zonedTimeToUtc(`${endDate} 23:59:59`, TIMEZONE);
 
-      // ── Paginated fetch to bypass Supabase's 1000-row default limit ──────
       const PAGE_SIZE = 1000;
       let allData: CheckIn[] = [];
       let page = 0;
@@ -358,7 +358,6 @@ export default function Tracking() {
         if (data.length < PAGE_SIZE) break;
         page++;
       }
-      // ─────────────────────────────────────────────────────────────────────
 
       const statsByDate: { [key: string]: CheckIn[] } = {};
 
@@ -382,11 +381,14 @@ export default function Tracking() {
       const stats: DailyStats[] = Object.entries(statsByDate).map(([date, checkIns]) => {
         // Total, inbound, outbound counts are based on checked_out status only
         const checkedOutCheckIns = checkIns.filter(c => c.status === 'checked_out');
-        const totalCheckedOut = checkedOutCheckIns.length;
-        const totalInbound    = checkedOutCheckIns.filter(c => c.load_type === 'inbound').length;
-        const totalOutbound   = checkedOutCheckIns.filter(c => c.load_type === 'outbound').length;
+        const totalCheckedOut  = checkedOutCheckIns.length;
+        const totalInbound     = checkedOutCheckIns.filter(c => c.load_type === 'inbound').length;
+        const totalOutbound    = checkedOutCheckIns.filter(c => c.load_type === 'outbound').length;
 
-        // Online check-ins, on-time, and detention use all check-ins
+        // Total all check-ins (used as denominator for % self-served)
+        const totalAllCheckIns = checkIns.length;
+
+        // Online check-ins use all check-ins; % self-served is out of all check-ins
         const onlineCheckIns = checkIns.filter(c =>
           c.driver_name && c.driver_name !== 'N/A' &&
           c.driver_phone && c.driver_phone !== 'N/A'
@@ -446,6 +448,7 @@ export default function Tracking() {
           totalInbound,
           totalOutbound,
           totalCheckedOut,
+          totalAllCheckIns,
           onlineCheckIns,
           onTimeCount,
           onTimePercentage,
@@ -469,13 +472,14 @@ export default function Tracking() {
   const isMultiDay = dailyStats.length > 1;
 
   const rangeTotals = isMultiDay ? (() => {
-    const totalCheckedOut = dailyStats.reduce((s, d) => s + d.totalCheckedOut, 0);
-    const totalInbound    = dailyStats.reduce((s, d) => s + d.totalInbound, 0);
-    const totalOutbound   = dailyStats.reduce((s, d) => s + d.totalOutbound, 0);
-    const onlineCheckIns  = dailyStats.reduce((s, d) => s + d.onlineCheckIns, 0);
-    const onTimeCount     = dailyStats.reduce((s, d) => s + d.onTimeCount, 0);
-    const totalDetention  = dailyStats.reduce((s, d) => s + d.detentionInstances.length, 0);
-    const days            = dailyStats.length;
+    const totalCheckedOut  = dailyStats.reduce((s, d) => s + d.totalCheckedOut, 0);
+    const totalInbound     = dailyStats.reduce((s, d) => s + d.totalInbound, 0);
+    const totalOutbound    = dailyStats.reduce((s, d) => s + d.totalOutbound, 0);
+    const totalAllCheckIns = dailyStats.reduce((s, d) => s + d.totalAllCheckIns, 0);
+    const onlineCheckIns   = dailyStats.reduce((s, d) => s + d.onlineCheckIns, 0);
+    const onTimeCount      = dailyStats.reduce((s, d) => s + d.onTimeCount, 0);
+    const totalDetention   = dailyStats.reduce((s, d) => s + d.detentionInstances.length, 0);
+    const days             = dailyStats.length;
 
     const totalWithAppt = dailyStats.reduce((s, d) =>
       s + (d.onTimePercentage > 0 ? Math.round(d.onTimeCount / (d.onTimePercentage / 100)) : 0), 0
@@ -499,7 +503,7 @@ export default function Tracking() {
       });
     });
 
-    return { totalCheckedOut, totalInbound, totalOutbound, onlineCheckIns, onTimeCount, onTimePercentage, totalDetention, days, dockSetUsage, halfHourBreakdown };
+    return { totalCheckedOut, totalInbound, totalOutbound, totalAllCheckIns, onlineCheckIns, onTimeCount, onTimePercentage, totalDetention, days, dockSetUsage, halfHourBreakdown };
   })() : null;
 
   const isToday     = startDate === today     && endDate === today;
@@ -630,7 +634,7 @@ export default function Tracking() {
                 <RangeCard
                   label="Online Check-Ins"
                   value={rangeTotals.onlineCheckIns}
-                  sub={`${rangeTotals.totalCheckedOut > 0 ? Math.round((rangeTotals.onlineCheckIns / rangeTotals.totalCheckedOut) * 100) : 0}% self-served`}
+                  sub={`${rangeTotals.totalAllCheckIns > 0 ? Math.round((rangeTotals.onlineCheckIns / rangeTotals.totalAllCheckIns) * 100) : 0}% self-served`}
                   accent="bg-orange-400"
                   textColor="text-orange-600"
                 />
@@ -723,7 +727,7 @@ export default function Tracking() {
                 <StatCard
                   label="Online Check-Ins"
                   value={stat.onlineCheckIns}
-                  sub={`${stat.totalCheckedOut > 0 ? Math.round((stat.onlineCheckIns / stat.totalCheckedOut) * 100) : 0}% self-served`}
+                  sub={`${stat.totalAllCheckIns > 0 ? Math.round((stat.onlineCheckIns / stat.totalAllCheckIns) * 100) : 0}% self-served`}
                   accent="bg-orange-400"
                   textColor="text-orange-600"
                 />
