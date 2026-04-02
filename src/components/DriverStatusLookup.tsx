@@ -350,6 +350,12 @@ const clearActiveCheckIn = () => {
   localStorage.removeItem(STORAGE_KEY);
 };
 
+/**
+ * Returns the stored check-in ID only if:
+ * - It exists in localStorage
+ * - It is less than 24 hours old
+ * If stale or malformed, clears the entry and returns null.
+ */
 const getStoredCheckInId = (): string | null => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -393,6 +399,8 @@ function StatusScreen({
         console.log('[CheckIn Update] Full record from DB:', JSON.stringify(data, null, 2));
         setRecord(data as CheckInRecord);
         setLastUpdated(new Date());
+
+        // Clear localStorage if the status is one that allows re-check-in
         if (NON_REDIRECT_STATUSES.includes(data.status)) {
           clearActiveCheckIn();
         }
@@ -401,17 +409,17 @@ function StatusScreen({
 
     const channel = supabase
       .channel(`check_in_${initialRecord.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'check_ins', filter: `id=eq.${initialRecord.id}` },
-        (payload) => {
-          if (payload.new) {
-            setRecord(payload.new as CheckInRecord);
-            setLastUpdated(new Date());
-          }
-          fetchFull();
-        }
-      )
+     .on(
+  'postgres_changes',
+  { event: 'UPDATE', schema: 'public', table: 'check_ins', filter: `id=eq.${initialRecord.id}` },
+  (payload) => {
+    if (payload.new) {
+      setRecord(payload.new as CheckInRecord);
+      setLastUpdated(new Date());
+    }
+    fetchFull();
+  }
+)
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') setConnectionStatus('connected');
         else if (status === 'CHANNEL_ERROR') setConnectionStatus('error');
@@ -419,12 +427,15 @@ function StatusScreen({
     return () => { supabase.removeChannel(channel); };
   }, [initialRecord.id, supabase]);
 
+  // ── Derived state ──────────────────────────────────────────────────────────
+
   const status = record.status;
   const meta = getStatusMeta(status);
   const filledRefs = referenceNumbers.filter((r) => r.trim());
 
   const hasDock = !!record.dock_number;
   const dockDisplay = record.dock_number === 'Ramp' ? 'RAMP' : record.dock_number;
+
   const dockIsAssigned = hasDock || status === 'dock_assigned' || status === 'checked_in';
 
   const STATUSES_WITHOUT_INSTRUCTIONS = ['loading', 'unloading', 'checked_out', 'complete', 'rejected', 'check_in_denial', 'turned_away', 'driver_left', 'on_hold'];
@@ -525,21 +536,26 @@ function StatusScreen({
     return null;
   })();
 
+  // ── Render ─────────────────────────────────────────────────────────────────
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
 
+        {/* Top banner */}
         <div className="bg-gray-900 text-white px-5 py-4 text-center">
           <p className="text-xl font-extrabold tracking-tight leading-snug">📱 Leave this page open</p>
           <p className="text-sm text-gray-300 mt-1">Load updates will appear below</p>
         </div>
 
+        {/* Status header */}
         <div className={`${meta.headerBg} text-white p-6 text-center transition-colors duration-500`}>
           <div className="text-5xl mb-3">{meta.headerIcon}</div>
           <h2 className="text-2xl font-bold">{meta.headerTitle}</h2>
           <p className="text-white/80 text-sm mt-1">Welcome, {record.driver_name}!</p>
         </div>
 
+        {/* Status banner — label + dock number */}
         <div className={`mx-4 mt-4 p-4 rounded-lg border-2 ${meta.bannerBg} ${meta.bannerBorder} transition-all duration-500`}>
           <div className="flex items-center gap-2">
             {meta.bannerIcon}
@@ -553,10 +569,13 @@ function StatusScreen({
           )}
         </div>
 
+        {/* ── Detail section ── */}
         <div className="mx-4 mt-3 space-y-3">
 
+          {/* 1. Action box */}
           {actionBox}
 
+          {/* 2. Double booked warning */}
           {hasDock && record.is_double_booked && (
             <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
               <p className="text-sm font-bold text-orange-800 mb-1">⚠️ Important — Please Wait Before Pulling In</p>
@@ -568,6 +587,7 @@ function StatusScreen({
             </div>
           )}
 
+          {/* 3. Gross weight */}
           {hasDock && record.gross_weight && (
             <div className="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
               <p className="text-sm font-bold text-orange-700 mb-1">
@@ -580,6 +600,7 @@ function StatusScreen({
             </div>
           )}
 
+          {/* 4. Appointment time */}
           {record.appointment_time && (
             <div className="p-4 bg-white border border-gray-200 rounded-lg">
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Appointment Time</p>
@@ -599,14 +620,17 @@ function StatusScreen({
             </div>
           )}
 
+          {/* 5. Load instructions */}
           {showInstructions && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               {record.load_type === 'inbound' ? <InboundInstructions /> : <OutboundInstructions />}
             </div>
           )}
 
+          {/* 6. Checked-out next steps */}
           {isCheckedOut && <CheckedOutNextSteps />}
 
+          {/* 7. Completion time */}
           {isComplete && record.end_time && (
             <div className="p-4 bg-white border border-gray-200 rounded-lg">
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Completed At</p>
@@ -614,6 +638,7 @@ function StatusScreen({
             </div>
           )}
 
+          {/* 8. Trailer rejected */}
           {isRejected && (
             <>
               {rejectionReasons.length > 0 && (
@@ -657,6 +682,7 @@ function StatusScreen({
             </>
           )}
 
+          {/* 9. Check-in denied */}
           {isDenied && (
             <>
               {record.denial_reason && (
@@ -671,6 +697,7 @@ function StatusScreen({
             </>
           )}
 
+          {/* 10. Note from office */}
           {record.status_note && (
             <div className="p-4 bg-white border border-gray-200 rounded-lg">
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Note from Office</p>
@@ -680,6 +707,7 @@ function StatusScreen({
 
         </div>
 
+        {/* Load info summary */}
         <div className="mx-4 mt-4 p-4 bg-gray-50 rounded-lg text-sm space-y-2">
           {filledRefs.length > 0 && (
             <div className="flex justify-between">
@@ -711,6 +739,7 @@ function StatusScreen({
           </div>
         </div>
 
+        {/* Connection indicator */}
         <div className="mx-4 mt-3 mb-4 flex items-center justify-between text-xs text-gray-400">
           <div className="flex items-center gap-1.5">
             <span className={`inline-block w-2 h-2 rounded-full ${
@@ -754,8 +783,6 @@ export default function DriverCheckInForm() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // ✅ NEW: stores the ID of an existing check-in if a duplicate is detected
-  const [duplicateCheckInId, setDuplicateCheckInId] = useState<string | null>(null);
   const [checkInRecord, setCheckInRecord] = useState<CheckInRecord | null>(null);
   const [timeRestrictionWarning, setTimeRestrictionWarning] = useState<string | null>(null);
 
@@ -774,8 +801,7 @@ export default function DriverCheckInForm() {
           .single();
 
         if (data && !NON_REDIRECT_STATUSES.includes(data.status)) {
-          // ✅ Use replace() so back button skips the form
-          window.location.replace(`/status?id=${storedId}`);
+          window.location.href = `/status?id=${storedId}`;
         } else {
           clearActiveCheckIn();
         }
@@ -786,6 +812,7 @@ export default function DriverCheckInForm() {
 
     verify();
   }, []);
+  // ─────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const check = () => {
@@ -829,8 +856,6 @@ export default function DriverCheckInForm() {
       ...prev,
       [name]: name === 'driverPhone' ? formatPhoneNumber(value) : value,
     }));
-    // Clear duplicate warning when the driver changes any field
-    setDuplicateCheckInId(null);
   }, []);
 
   const resetForm = useCallback(() => {
@@ -838,7 +863,6 @@ export default function DriverCheckInForm() {
     setReferenceNumbers(['']);
     setReferenceErrors([null]);
     setError(null);
-    setDuplicateCheckInId(null);
     setCheckInRecord(null);
   }, []);
 
@@ -846,7 +870,6 @@ export default function DriverCheckInForm() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setDuplicateCheckInId(null);
 
     try {
       const timeCheck = isWithinAllowedTime();
@@ -860,35 +883,6 @@ export default function DriverCheckInForm() {
 
       const hasBlankEntry = referenceNumbers.some((r, i) => r.trim() === '' && i < referenceNumbers.length - 1);
       if (hasBlankEntry) { setError('Please fill in all reference number fields or remove empty ones'); return; }
-
-      // ── Duplicate check ────────────────────────────────────────────────────
-      // Look for any check-in in the last 24 hours with the same trailer,
-      // carrier, and reference number. Block re-submission unless the existing
-      // record is a rejected + correctable trailer (driver fixed it and returned).
-      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data: existing } = await supabase
-        .from('check_ins')
-        .select('id, status, resolution_action')
-        .eq('trailer_number', formData.trailerNumber)
-        .eq('carrier_name', formData.carrierName)
-        .ilike('reference_number', `%${filledRefs[0].trim()}%`)
-        .gte('check_in_time', since)
-        .order('check_in_time', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (existing) {
-        const isCorrectableRejection =
-          existing.status === 'rejected' && existing.resolution_action === 'correct_and_return';
-
-        if (!isCorrectableRejection) {
-          // Block and show a link to the existing record
-          setDuplicateCheckInId(existing.id);
-          return;
-        }
-        // Correctable rejection — fall through and allow a fresh check-in
-      }
-      // ──────────────────────────────────────────────────────────────────────
 
       const { data: checkInData, error: insertError } = await supabase
         .from('check_ins')
@@ -919,8 +913,7 @@ export default function DriverCheckInForm() {
       if (insertError) throw insertError;
 
       saveActiveCheckIn(checkInData.id);
-      // ✅ replace() instead of href so the back button has nowhere to go
-      window.location.replace(`/status?id=${checkInData.id}`);
+      window.location.href = `/status?id=${checkInData.id}`;
     } catch (err: any) {
       console.error('Driver check-in error:', err);
       setError(err.message || 'Failed to submit check-in. Please try again.');
@@ -939,7 +932,7 @@ export default function DriverCheckInForm() {
             <p className="text-blue-100 mt-1">Please fill out all required fields to check in</p>
           </div>
 
-          {/* Status lookup link */}
+          {/* ── Status lookup link — prominent, top of page ── */}
           <div className="mx-6 mt-5">
             <a
               href="/status"
@@ -955,27 +948,9 @@ export default function DriverCheckInForm() {
             </div>
           )}
 
-          {/* Standard error */}
           {error && (
             <div className="mx-6 mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
               {error}
-            </div>
-          )}
-
-          {/* ✅ Duplicate check-in warning with link to existing status */}
-          {duplicateCheckInId && (
-            <div className="mx-6 mt-4 p-4 bg-amber-50 border-2 border-amber-400 text-amber-900 rounded-lg">
-              <p className="font-semibold mb-2">⚠️ Already checked in</p>
-              <p className="text-sm mb-3">
-                This trailer is already checked in with the same reference number.
-                Please view your load status instead of submitting again.
-              </p>
-              <a
-                href={`/status?id=${duplicateCheckInId}`}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition-colors text-sm"
-              >
-                🔍 View status of this load →
-              </a>
             </div>
           )}
 
