@@ -1,19 +1,10 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { Plus, Minus, CheckCircle, Clock, Truck, AlertCircle, Loader2, XCircle, Package } from 'lucide-react';
+import { CheckCircle, Clock, Truck, AlertCircle, Loader2, XCircle, Package, Search } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────────────
-
-interface FormData {
-  driverName: string;
-  driverPhone: string;
-  carrierName: string;
-  trailerNumber: string;
-  trailerLength: string;
-  loadType: 'inbound' | 'outbound';
-}
 
 interface CheckInRecord {
   id: string;
@@ -38,40 +29,7 @@ interface CheckInRecord {
   end_time: string | null;
 }
 
-// ── Constants ──────────────────────────────────────────────────────────────
-
-const INITIAL_FORM_DATA: FormData = {
-  driverName: '',
-  driverPhone: '',
-  carrierName: '',
-  trailerNumber: '',
-  trailerLength: '',
-  loadType: 'outbound',
-};
-
-const TRAILER_LENGTHS = [
-  { value: '', label: 'Select trailer length' },
-  { value: 'Box/Van', label: 'Box Truck or Van' },
-  { value: '20', label: '20 ft' },
-  { value: '40', label: '40 ft' },
-  { value: '45', label: '45 ft' },
-  { value: '48', label: '48 ft' },
-  { value: '53', label: '53 ft' },
-] as const;
-
-const REFERENCE_NUMBER_PATTERNS = [
-  /^2\d{6}$/,
-  /^4\d{6}$/,
-  /^44\d{8}$/,
-  /^48\d{8}$/,
-  /^8\d{7}$/,
-  /^TLNA-SO-0\d{5}$/,
-  /^\d{6}$/,
-  /^[A-Za-z]{4}\d{7}$/,
-  /^T\d{5}$/,
-];
-
-// Statuses that should NOT redirect — driver needs to be able to re-check in
+// Statuses where the driver needs to be able to re-check in
 const NON_REDIRECT_STATUSES = [
   'rejected',
   'check_in_denial',
@@ -80,6 +38,23 @@ const NON_REDIRECT_STATUSES = [
   'driver_left',
   'complete',
 ];
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+const getSupabaseClient = () => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) throw new Error('Missing Supabase environment variables');
+  return createBrowserClient(url, key);
+};
+
+const formatTime = (iso: string) =>
+  new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+const formatDateTime = (iso: string) =>
+  new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+
+const clearActiveCheckIn = () => localStorage.removeItem('activeCheckIn');
 
 // ── Status helpers ─────────────────────────────────────────────────────────
 
@@ -98,125 +73,67 @@ const getStatusMeta = (status: string): StatusMeta => {
   switch (status) {
     case 'pending':
       return {
-        headerBg: 'bg-amber-500',
-        headerTitle: 'Checked In',
-        headerIcon: '✓',
-        bannerBg: 'bg-amber-50',
-        bannerBorder: 'border-amber-300',
-        bannerText: 'text-amber-700',
-        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />,
-        bannerLabel: 'Awaiting Dock Assignment',
+        headerBg: 'bg-amber-500', headerTitle: 'Checked In', headerIcon: '✓',
+        bannerBg: 'bg-amber-50', bannerBorder: 'border-amber-300', bannerText: 'text-amber-700',
+        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'Awaiting Dock Assignment',
       };
     case 'dock_assigned':
     case 'checked_in':
       return {
-        headerBg: 'bg-blue-600',
-        headerTitle: 'Dock Assigned',
-        headerIcon: '✓',
-        bannerBg: 'bg-blue-50',
-        bannerBorder: 'border-blue-300',
-        bannerText: 'text-blue-700',
-        bannerIcon: <Truck className="w-5 h-5 text-blue-500" />,
-        bannerLabel: 'Dock Assigned — Please Proceed',
+        headerBg: 'bg-blue-600', headerTitle: 'Dock Assigned', headerIcon: '✓',
+        bannerBg: 'bg-blue-50', bannerBorder: 'border-blue-300', bannerText: 'text-blue-700',
+        bannerIcon: <Truck className="w-5 h-5 text-blue-500" />, bannerLabel: 'Dock Assigned — Please Proceed',
       };
     case 'loading':
       return {
-        headerBg: 'bg-purple-600',
-        headerTitle: 'Loading in Progress',
-        headerIcon: '🚛',
-        bannerBg: 'bg-purple-50',
-        bannerBorder: 'border-purple-300',
-        bannerText: 'text-purple-700',
-        bannerIcon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />,
-        bannerLabel: 'Loading in Progress',
+        headerBg: 'bg-purple-600', headerTitle: 'Loading in Progress', headerIcon: '🚛',
+        bannerBg: 'bg-purple-50', bannerBorder: 'border-purple-300', bannerText: 'text-purple-700',
+        bannerIcon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />, bannerLabel: 'Loading in Progress',
       };
     case 'unloading':
       return {
-        headerBg: 'bg-purple-600',
-        headerTitle: 'Unloading in Progress',
-        headerIcon: '📦',
-        bannerBg: 'bg-purple-50',
-        bannerBorder: 'border-purple-300',
-        bannerText: 'text-purple-700',
-        bannerIcon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />,
-        bannerLabel: 'Unloading in Progress',
+        headerBg: 'bg-purple-600', headerTitle: 'Unloading in Progress', headerIcon: '📦',
+        bannerBg: 'bg-purple-50', bannerBorder: 'border-purple-300', bannerText: 'text-purple-700',
+        bannerIcon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />, bannerLabel: 'Unloading in Progress',
       };
     case 'checked_out':
       return {
-        headerBg: 'bg-orange-500',
-        headerTitle: 'Almost Finished — Waiting to Be Sealed',
-        headerIcon: '🟡',
-        bannerBg: 'bg-orange-50',
-        bannerBorder: 'border-orange-300',
-        bannerText: 'text-orange-700',
-        bannerIcon: <AlertCircle className="w-5 h-5 text-orange-500" />,
-        bannerLabel: 'Almost Finished — Waiting to Be Sealed',
+        headerBg: 'bg-orange-500', headerTitle: 'Almost Finished — Waiting to Be Sealed', headerIcon: '🟡',
+        bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
+        bannerIcon: <AlertCircle className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed',
       };
     case 'complete':
       return {
-        headerBg: 'bg-green-600',
-        headerTitle: 'Load Complete — Ready to Depart',
-        headerIcon: '✓',
-        bannerBg: 'bg-green-50',
-        bannerBorder: 'border-green-300',
-        bannerText: 'text-green-700',
-        bannerIcon: <CheckCircle className="w-5 h-5 text-green-500" />,
-        bannerLabel: 'Load Complete — Ready to Depart',
+        headerBg: 'bg-green-600', headerTitle: 'Load Complete — Ready to Depart', headerIcon: '✓',
+        bannerBg: 'bg-green-50', bannerBorder: 'border-green-300', bannerText: 'text-green-700',
+        bannerIcon: <CheckCircle className="w-5 h-5 text-green-500" />, bannerLabel: 'Load Complete — Ready to Depart',
       };
     case 'on_hold':
       return {
-        headerBg: 'bg-red-600',
-        headerTitle: 'On Hold',
-        headerIcon: '⚠️',
-        bannerBg: 'bg-red-50',
-        bannerBorder: 'border-red-300',
-        bannerText: 'text-red-700',
-        bannerIcon: <AlertCircle className="w-5 h-5 text-red-500" />,
-        bannerLabel: 'On Hold',
+        headerBg: 'bg-red-600', headerTitle: 'On Hold', headerIcon: '⚠️',
+        bannerBg: 'bg-red-50', bannerBorder: 'border-red-300', bannerText: 'text-red-700',
+        bannerIcon: <AlertCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'On Hold',
       };
     case 'rejected':
       return {
-        headerBg: 'bg-red-700',
-        headerTitle: 'Trailer Rejected',
-        headerIcon: '⚠️',
-        bannerBg: 'bg-red-50',
-        bannerBorder: 'border-red-400',
-        bannerText: 'text-red-700',
-        bannerIcon: <XCircle className="w-5 h-5 text-red-500" />,
-        bannerLabel: 'Trailer Rejected',
+        headerBg: 'bg-red-700', headerTitle: 'Trailer Rejected', headerIcon: '⚠️',
+        bannerBg: 'bg-red-50', bannerBorder: 'border-red-400', bannerText: 'text-red-700',
+        bannerIcon: <XCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'Trailer Rejected',
       };
     case 'check_in_denial':
     case 'turned_away':
     case 'denied':
       return {
-        headerBg: 'bg-red-700',
-        headerTitle: 'Check-In Denied',
-        headerIcon: '✕',
-        bannerBg: 'bg-red-50',
-        bannerBorder: 'border-red-400',
-        bannerText: 'text-red-700',
-        bannerIcon: <XCircle className="w-5 h-5 text-red-500" />,
-        bannerLabel: 'Check-In Denied',
-      };
-    case 'driver_left':
-      return {
-        headerBg: 'bg-gray-500',
-        headerTitle: 'Driver Left',
-        headerIcon: '🚚',
-        bannerBg: 'bg-gray-50',
-        bannerBorder: 'border-gray-300',
-        bannerText: 'text-gray-700',
-        bannerIcon: <Package className="w-5 h-5 text-gray-500" />,
-        bannerLabel: 'Driver Left',
+        headerBg: 'bg-red-700', headerTitle: 'Check-In Denied', headerIcon: '✕',
+        bannerBg: 'bg-red-50', bannerBorder: 'border-red-400', bannerText: 'text-red-700',
+        bannerIcon: <XCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'Check-In Denied',
       };
     default:
       return {
         headerBg: 'bg-gray-600',
         headerTitle: status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
         headerIcon: '✓',
-        bannerBg: 'bg-gray-50',
-        bannerBorder: 'border-gray-300',
-        bannerText: 'text-gray-700',
+        bannerBg: 'bg-gray-50', bannerBorder: 'border-gray-300', bannerText: 'text-gray-700',
         bannerIcon: <Package className="w-5 h-5 text-gray-500" />,
         bannerLabel: status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
       };
@@ -274,7 +191,7 @@ function InboundInstructions() {
 
 function CheckedOutNextSteps() {
   return (
-    <div className="mt-3 p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
+    <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
       <p className="text-sm font-bold text-orange-700 mb-3">📋 Next Steps — Please Read Carefully:</p>
       <ol className="space-y-2">
         <li className="flex gap-2 text-sm text-gray-700">
@@ -290,99 +207,16 @@ function CheckedOutNextSteps() {
   );
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-const getSupabaseClient = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error('Missing Supabase environment variables');
-  return createBrowserClient(url, key);
-};
-
-const validateReferenceNumber = (value: string): boolean => {
-  if (!value) return false;
-  const cleaned = value.replace(/\s/g, '').toUpperCase();
-  return REFERENCE_NUMBER_PATTERNS.some((p) => p.test(cleaned));
-};
-
-const formatPhoneNumber = (value: string): string => {
-  const cleaned = value.replace(/\D/g, '');
-  const match = cleaned.match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/);
-  if (!match) return value;
-  const [, areaCode, prefix, lineNumber] = match;
-  if (lineNumber) return `(${areaCode}) ${prefix}-${lineNumber}`;
-  if (prefix) return `(${areaCode}) ${prefix}`;
-  if (areaCode) return `(${areaCode}`;
-  return value;
-};
-
-const isWithinAllowedTime = (): { allowed: boolean; message?: string } => {
-  const now = new Date();
-  const day = now.getDay();
-  const hour = now.getHours();
-  if (day === 0 || day === 6)
-    return { allowed: false, message: 'Check-in is only available Monday through Friday' };
-  if (hour < 6)
-    return { allowed: false, message: 'Check-in is not available before 6:00 AM' };
-  if (hour >= 17)
-    return { allowed: false, message: 'Check-in is not available after 5:00 PM' };
-  return { allowed: true };
-};
-
-const formatTime = (iso: string) =>
-  new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-const formatDateTime = (iso: string) =>
-  new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-
-// ── localStorage helpers ───────────────────────────────────────────────────
-
-const STORAGE_KEY = 'activeCheckIn';
-
-const saveActiveCheckIn = (id: string) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    id,
-    checkedInAt: new Date().toISOString(),
-  }));
-};
-
-const clearActiveCheckIn = () => {
-  localStorage.removeItem(STORAGE_KEY);
-};
-
-/**
- * Returns the stored check-in ID only if:
- * - It exists in localStorage
- * - It is less than 24 hours old
- * If stale or malformed, clears the entry and returns null.
- */
-const getStoredCheckInId = (): string | null => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return null;
-    const { id, checkedInAt } = JSON.parse(stored);
-    const ageHours = (Date.now() - new Date(checkedInAt).getTime()) / 36e5;
-    if (id && ageHours < 24) return id;
-    clearActiveCheckIn();
-    return null;
-  } catch {
-    clearActiveCheckIn();
-    return null;
-  }
-};
-
 // ── Status Screen ──────────────────────────────────────────────────────────
 
 function StatusScreen({
   initialRecord,
-  referenceNumbers,
   supabase,
-  onNewCheckIn,
+  onBack,
 }: {
   initialRecord: CheckInRecord;
-  referenceNumbers: string[];
   supabase: ReturnType<typeof getSupabaseClient>;
-  onNewCheckIn: () => void;
+  onBack: () => void;
 }) {
   const [record, setRecord] = useState<CheckInRecord>(initialRecord);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -396,11 +230,10 @@ function StatusScreen({
         .eq('id', initialRecord.id)
         .single();
       if (data) {
-        console.log('[CheckIn Update] Full record from DB:', JSON.stringify(data, null, 2));
         setRecord(data as CheckInRecord);
         setLastUpdated(new Date());
 
-        // Clear localStorage if the status is one that allows re-check-in
+        // Clear localStorage if status moved to one that allows re-check-in
         if (NON_REDIRECT_STATUSES.includes(data.status)) {
           clearActiveCheckIn();
         }
@@ -408,8 +241,8 @@ function StatusScreen({
     };
 
     const channel = supabase
-      .channel(`check_in_${initialRecord.id}`)
-     .on(
+      .channel(`lookup_${initialRecord.id}`)
+      .on(
   'postgres_changes',
   { event: 'UPDATE', schema: 'public', table: 'check_ins', filter: `id=eq.${initialRecord.id}` },
   (payload) => {
@@ -427,37 +260,22 @@ function StatusScreen({
     return () => { supabase.removeChannel(channel); };
   }, [initialRecord.id, supabase]);
 
-  // ── Derived state ──────────────────────────────────────────────────────────
-
   const status = record.status;
   const meta = getStatusMeta(status);
-  const filledRefs = referenceNumbers.filter((r) => r.trim());
 
   const hasDock = !!record.dock_number;
   const dockDisplay = record.dock_number === 'Ramp' ? 'RAMP' : record.dock_number;
-
   const dockIsAssigned = hasDock || status === 'dock_assigned' || status === 'checked_in';
 
   const STATUSES_WITHOUT_INSTRUCTIONS = ['loading', 'unloading', 'checked_out', 'complete', 'rejected', 'check_in_denial', 'turned_away', 'driver_left', 'on_hold'];
   const showInstructions = dockIsAssigned && !STATUSES_WITHOUT_INSTRUCTIONS.includes(status);
 
-  console.log('[CheckIn Render]', {
-    status,
-    dock_number: record.dock_number,
-    hasDock,
-    dockIsAssigned,
-    showInstructions,
-    gross_weight: record.gross_weight,
-    is_double_booked: record.is_double_booked,
-    load_type: record.load_type,
-  });
-
-  const isLoading   = status === 'loading';
-  const isUnloading = status === 'unloading';
+  const isLoading    = status === 'loading';
+  const isUnloading  = status === 'unloading';
   const isCheckedOut = status === 'checked_out';
-  const isComplete  = status === 'complete';
-  const isRejected  = status === 'rejected';
-  const isDenied    = status === 'check_in_denial' || status === 'turned_away' || status === 'denied';
+  const isComplete   = status === 'complete';
+  const isRejected   = status === 'rejected';
+  const isDenied     = status === 'check_in_denial' || status === 'turned_away' || status === 'denied';
 
   const rejectionReasons: string[] = (() => {
     const raw = record.rejection_reasons;
@@ -484,59 +302,43 @@ function StatusScreen({
         </div>
       );
     }
-    if (isLoading) {
-      return (
-        <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-900">
-          🔴 <strong>Stay at your dock.</strong> The dock light is red — your trailer is being loaded. The light will turn green when complete.
-        </div>
-      );
-    }
-    if (isUnloading) {
-      return (
-        <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-900">
-          🔴 <strong>Stay at your dock.</strong> The dock light is red — your trailer is being unloaded. The light will turn green when complete.
-        </div>
-      );
-    }
-    if (isCheckedOut) {
-      return (
-        <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg text-sm text-orange-900">
-          🟢 <strong>Watch for the dock light to turn GREEN,</strong> then come to the office for your paperwork.
-        </div>
-      );
-    }
-    if (isComplete) {
-      return (
-        <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900">
-          ✅ <strong>You are clear to depart.</strong> Come to the office if you need paperwork signed. Safe travels!
-        </div>
-      );
-    }
-    if (isRejected) {
-      return (
-        <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
-          ⚠️ <strong>Your trailer has been rejected.</strong> Review the details below and see us in the office if you have questions.
-        </div>
-      );
-    }
-    if (isDenied) {
-      return (
-        <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
-          🚫 <strong>Your check-in has been denied.</strong> Please contact the facility for further assistance.
-        </div>
-      );
-    }
-    if (status === 'on_hold') {
-      return (
-        <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
-          ⏸️ <strong>Your load is on hold.</strong> Please come to the office for more information.
-        </div>
-      );
-    }
+    if (isLoading) return (
+      <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-900">
+        🔴 <strong>Stay at your dock.</strong> The dock light is red — your trailer is being loaded. The light will turn green when complete.
+      </div>
+    );
+    if (isUnloading) return (
+      <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-900">
+        🔴 <strong>Stay at your dock.</strong> The dock light is red — your trailer is being unloaded. The light will turn green when complete.
+      </div>
+    );
+    if (isCheckedOut) return (
+      <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg text-sm text-orange-900">
+        🟢 <strong>Watch for the dock light to turn GREEN,</strong> then come to the office for your paperwork.
+      </div>
+    );
+    if (isComplete) return (
+      <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900">
+        ✅ <strong>You are clear to depart.</strong> Come to the office if you need paperwork signed. Safe travels!
+      </div>
+    );
+    if (isRejected) return (
+      <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
+        ⚠️ <strong>Your trailer has been rejected.</strong> Review the details below and see us in the office if you have questions.
+      </div>
+    );
+    if (isDenied) return (
+      <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
+        🚫 <strong>Your check-in has been denied.</strong> Please contact the facility for further assistance.
+      </div>
+    );
+    if (status === 'on_hold') return (
+      <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
+        ⏸️ <strong>Your load is on hold.</strong> Please come to the office for more information.
+      </div>
+    );
     return null;
   })();
-
-  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -546,16 +348,17 @@ function StatusScreen({
         <div className="bg-gray-900 text-white px-5 py-4 text-center">
           <p className="text-xl font-extrabold tracking-tight leading-snug">📱 Leave this page open</p>
           <p className="text-sm text-gray-300 mt-1">Load updates will appear below</p>
+          <p className="text-sm text-gray-300 mt-1">You may need to reload page if you do not see an update.</p>
         </div>
 
         {/* Status header */}
         <div className={`${meta.headerBg} text-white p-6 text-center transition-colors duration-500`}>
           <div className="text-5xl mb-3">{meta.headerIcon}</div>
           <h2 className="text-2xl font-bold">{meta.headerTitle}</h2>
-          <p className="text-white/80 text-sm mt-1">Welcome, {record.driver_name}!</p>
+          <p className="text-white/80 text-sm mt-1">Welcome back, {record.driver_name}!</p>
         </div>
 
-        {/* Status banner — label + dock number */}
+        {/* Status banner */}
         <div className={`mx-4 mt-4 p-4 rounded-lg border-2 ${meta.bannerBg} ${meta.bannerBorder} transition-all duration-500`}>
           <div className="flex items-center gap-2">
             {meta.bannerIcon}
@@ -569,13 +372,11 @@ function StatusScreen({
           )}
         </div>
 
-        {/* ── Detail section ── */}
+        {/* Detail section */}
         <div className="mx-4 mt-3 space-y-3">
 
-          {/* 1. Action box */}
           {actionBox}
 
-          {/* 2. Double booked warning */}
           {hasDock && record.is_double_booked && (
             <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
               <p className="text-sm font-bold text-orange-800 mb-1">⚠️ Important — Please Wait Before Pulling In</p>
@@ -587,7 +388,6 @@ function StatusScreen({
             </div>
           )}
 
-          {/* 3. Gross weight */}
           {hasDock && record.gross_weight && (
             <div className="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
               <p className="text-sm font-bold text-orange-700 mb-1">
@@ -600,7 +400,6 @@ function StatusScreen({
             </div>
           )}
 
-          {/* 4. Appointment time */}
           {record.appointment_time && (
             <div className="p-4 bg-white border border-gray-200 rounded-lg">
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Appointment Time</p>
@@ -620,17 +419,14 @@ function StatusScreen({
             </div>
           )}
 
-          {/* 5. Load instructions */}
           {showInstructions && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               {record.load_type === 'inbound' ? <InboundInstructions /> : <OutboundInstructions />}
             </div>
           )}
 
-          {/* 6. Checked-out next steps */}
           {isCheckedOut && <CheckedOutNextSteps />}
 
-          {/* 7. Completion time */}
           {isComplete && record.end_time && (
             <div className="p-4 bg-white border border-gray-200 rounded-lg">
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Completed At</p>
@@ -638,7 +434,6 @@ function StatusScreen({
             </div>
           )}
 
-          {/* 8. Trailer rejected */}
           {isRejected && (
             <>
               {rejectionReasons.length > 0 && (
@@ -656,11 +451,8 @@ function StatusScreen({
                   </ol>
                 </div>
               )}
-
               <div className={`p-4 rounded-lg border-2 ${
-                record.resolution_action === 'new_trailer'
-                  ? 'bg-red-50 border-red-500'
-                  : 'bg-yellow-50 border-orange-400'
+                record.resolution_action === 'new_trailer' ? 'bg-red-50 border-red-500' : 'bg-yellow-50 border-orange-400'
               }`}>
                 <p className={`text-sm font-bold mb-2 ${
                   record.resolution_action === 'new_trailer' ? 'text-red-700' : 'text-orange-700'
@@ -675,14 +467,10 @@ function StatusScreen({
                     : 'The trailer issues listed above must be corrected before re-entry. Once the trailer has been cleaned and/or repaired to meet our requirements, you may check back in.'}
                 </p>
               </div>
-
-              <p className="text-xs text-center text-gray-500 pb-1">
-                If you have questions, please see us in the office.
-              </p>
+              <p className="text-xs text-center text-gray-500 pb-1">If you have questions, please see us in the office.</p>
             </>
           )}
 
-          {/* 9. Check-in denied */}
           {isDenied && (
             <>
               {record.denial_reason && (
@@ -697,7 +485,6 @@ function StatusScreen({
             </>
           )}
 
-          {/* 10. Note from office */}
           {record.status_note && (
             <div className="p-4 bg-white border border-gray-200 rounded-lg">
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Note from Office</p>
@@ -709,12 +496,10 @@ function StatusScreen({
 
         {/* Load info summary */}
         <div className="mx-4 mt-4 p-4 bg-gray-50 rounded-lg text-sm space-y-2">
-          {filledRefs.length > 0 && (
-            <div className="flex justify-between">
-              <span className="text-gray-500">Reference(s)</span>
-              <span className="font-medium text-gray-800 text-right max-w-[60%]">{filledRefs.join(', ')}</span>
-            </div>
-          )}
+          <div className="flex justify-between">
+            <span className="text-gray-500">Reference(s)</span>
+            <span className="font-medium text-gray-800 text-right max-w-[60%]">{record.reference_number}</span>
+          </div>
           <div className="flex justify-between">
             <span className="text-gray-500">Load Type</span>
             <span className="font-medium text-gray-800 capitalize">{record.load_type}</span>
@@ -740,7 +525,7 @@ function StatusScreen({
         </div>
 
         {/* Connection indicator */}
-        <div className="mx-4 mt-3 mb-4 flex items-center justify-between text-xs text-gray-400">
+        <div className="mx-4 mt-3 mb-2 flex items-center justify-between text-xs text-gray-400">
           <div className="flex items-center gap-1.5">
             <span className={`inline-block w-2 h-2 rounded-full ${
               connectionStatus === 'connected' ? 'bg-green-400 animate-pulse' :
@@ -756,15 +541,15 @@ function StatusScreen({
           {lastUpdated && <span>Updated {formatTime(lastUpdated.toISOString())}</span>}
         </div>
 
-        <div className="px-4 pb-6">
+        <div className="px-4 pb-6 pt-2">
           <button
             onClick={() => {
               clearActiveCheckIn();
-              onNewCheckIn();
+              onBack();
             }}
             className="w-full py-2.5 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
           >
-            New Check-In
+            Look Up a Different Reference Number
           </button>
         </div>
       </div>
@@ -772,296 +557,239 @@ function StatusScreen({
   );
 }
 
-// ── Main Form ──────────────────────────────────────────────────────────────
+// ── Lookup Form ────────────────────────────────────────────────────────────
 
-export default function DriverCheckInForm() {
+export default function DriverStatusLookup() {
   const supabase = useMemo(() => getSupabaseClient(), []);
 
-  const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
-  const [referenceNumbers, setReferenceNumbers] = useState<string[]>(['']);
-  const [referenceErrors, setReferenceErrors] = useState<(string | null)[]>([null]);
-
-  const [loading, setLoading] = useState(false);
+  const [refInput, setRefInput] = useState('');
+  const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [checkInRecord, setCheckInRecord] = useState<CheckInRecord | null>(null);
-  const [timeRestrictionWarning, setTimeRestrictionWarning] = useState<string | null>(null);
+  const [record, setRecord] = useState<CheckInRecord | null>(null);
+  const [multipleResults, setMultipleResults] = useState<CheckInRecord[]>([]);
 
-  // ── On mount: check localStorage for an active pending check-in ──────────
-  useEffect(() => {
-    const storedId = getStoredCheckInId();
-    if (!storedId) return;
+  // ── On mount: auto-load from ?id= query param (set by check-in form) ─────
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (!id) return;
 
-    const verify = async () => {
-      try {
-        const supabaseClient = getSupabaseClient();
-        const { data } = await supabaseClient
-          .from('check_ins')
-          .select('id, status')
-          .eq('id', storedId)
-          .single();
-
-        if (data && !NON_REDIRECT_STATUSES.includes(data.status)) {
-          window.location.href = `/status?id=${storedId}`;
-        } else {
-          clearActiveCheckIn();
-        }
-      } catch {
-        clearActiveCheckIn();
-      }
-    };
-
-    verify();
-  }, []);
-  // ─────────────────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    const check = () => {
-      const t = isWithinAllowedTime();
-      setTimeRestrictionWarning(t.allowed ? null : t.message ?? 'Check-in not available at this time');
-    };
-    check();
-    const interval = setInterval(check, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleReferenceChange = useCallback((index: number, value: string) => {
-    setReferenceNumbers((prev) => { const u = [...prev]; u[index] = value; return u; });
-    setReferenceErrors((prev) => { const u = [...prev]; u[index] = null; return u; });
-  }, []);
-
-  const handleReferenceBlur = useCallback((index: number, value: string) => {
-    if (!value.trim()) return;
-    setReferenceErrors((prev) => {
-      const u = [...prev];
-      u[index] = !validateReferenceNumber(value)
-        ? 'Invalid format. Must match: 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, 8xxxxxxx, or TLNA-SO-0xxxxx'
-        : null;
-      return u;
-    });
-  }, []);
-
-  const addReferenceNumber = useCallback(() => {
-    setReferenceNumbers((p) => [...p, '']);
-    setReferenceErrors((p) => [...p, null]);
-  }, []);
-
-  const removeReferenceNumber = useCallback((index: number) => {
-    setReferenceNumbers((p) => p.filter((_, i) => i !== index));
-    setReferenceErrors((p) => p.filter((_, i) => i !== index));
-  }, []);
-
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === 'driverPhone' ? formatPhoneNumber(value) : value,
-    }));
-  }, []);
-
-  const resetForm = useCallback(() => {
-    setFormData(INITIAL_FORM_DATA);
-    setReferenceNumbers(['']);
-    setReferenceErrors([null]);
-    setError(null);
-    setCheckInRecord(null);
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
+  const load = async () => {
+    setSearching(true);
     try {
-      const timeCheck = isWithinAllowedTime();
-      if (!timeCheck.allowed) { setError(timeCheck.message ?? 'Check-in not available at this time'); return; }
-
-      const filledRefs = referenceNumbers.map((r) => r.trim()).filter(Boolean);
-      if (filledRefs.length === 0) { setError('Please provide at least one reference number'); return; }
-
-      const invalidRef = filledRefs.find((r) => !validateReferenceNumber(r));
-      if (invalidRef) { setError(`Reference number "${invalidRef}" has an invalid format`); return; }
-
-      const hasBlankEntry = referenceNumbers.some((r, i) => r.trim() === '' && i < referenceNumbers.length - 1);
-      if (hasBlankEntry) { setError('Please fill in all reference number fields or remove empty ones'); return; }
-
-      const { data: checkInData, error: insertError } = await supabase
+      const { data, error: queryError } = await supabase
         .from('check_ins')
-        .insert({
-          driver_name: formData.driverName,
-          driver_phone: formData.driverPhone,
-          carrier_name: formData.carrierName,
-          trailer_number: formData.trailerNumber,
-          trailer_length: formData.trailerLength || null,
-          load_type: formData.loadType,
-          reference_number: filledRefs.join(', '),
-          status: 'pending',
-          check_in_time: new Date().toISOString(),
-          dock_number: null,
-          status_note: null,
-          appointment_time: null,
-          appointment_status: null,
-          gross_weight: null,
-          is_double_booked: null,
-          rejection_reasons: null,
-          resolution_action: null,
-          denial_reason: null,
-          end_time: null,
-        })
-        .select()
+        .select('*')
+        .eq('id', id)
         .single();
 
-      if (insertError) throw insertError;
+      if (queryError || !data) {
+        setError('Could not load your check-in. Please search by reference number below.');
+        return;
+      }
 
-      saveActiveCheckIn(checkInData.id);
-      window.location.href = `/status?id=${checkInData.id}`;
-    } catch (err: any) {
-      console.error('Driver check-in error:', err);
-      setError(err.message || 'Failed to submit check-in. Please try again.');
+      setRecord(data as CheckInRecord);  // ← always show, no status check
+    } catch (err) {
+      console.error('Auto-load error:', err);
+      setError('Something went wrong. Please search by reference number below.');
     } finally {
-      setLoading(false);
+      setSearching(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+  load();
+}, [supabase]);
+  // ─────────────────────────────────────────────────────────────────────────
 
-          <div className="bg-blue-600 text-white p-6">
-            <h1 className="text-2xl font-bold">Driver Check-In</h1>
-            <p className="text-blue-100 mt-1">Please fill out all required fields to check in</p>
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = refInput.trim().toUpperCase();
+    if (!query) return;
+
+    setSearching(true);
+    setError(null);
+    setRecord(null);
+    setMultipleResults([]);
+
+    try {
+      const { data, error: queryError } = await supabase
+        .from('check_ins')
+        .select('*')
+        .ilike('reference_number', `%${query}%`)
+        .order('check_in_time', { ascending: false })
+        .limit(10);
+
+      if (queryError) throw queryError;
+
+      if (!data || data.length === 0) {
+        setError('No check-in found for that reference number. Please check the number and try again, or see the office for help.');
+        return;
+      }
+
+      const recent = data.filter(r => {
+        const daysDiff = (Date.now() - new Date(r.check_in_time).getTime()) / (1000 * 60 * 60 * 24);
+        return daysDiff <= 7;
+      });
+
+      if (recent.length === 0) {
+        setError('No active check-in found for that reference number. Check-ins are only shown for the past 7 days.');
+        return;
+      }
+
+      if (recent.length === 1) {
+        setRecord(recent[0] as CheckInRecord);
+        return;
+      }
+
+      setMultipleResults(recent as CheckInRecord[]);
+    } catch (err: any) {
+      console.error('Lookup error:', err);
+      setError('Something went wrong. Please try again or see the office for help.');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // Show loading spinner while auto-loading from ?id=
+  if (searching && !refInput) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-10 text-center">
+          <svg className="animate-spin h-10 w-10 text-blue-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <p className="text-gray-500 text-sm">Loading your check-in status...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (record) {
+    return (
+      <StatusScreen
+        initialRecord={record}
+        supabase={supabase}
+        onBack={() => {
+          setRecord(null);
+          setMultipleResults([]);
+          // Remove ?id= from URL so a refresh doesn't re-trigger the auto-load
+          window.history.replaceState({}, '', window.location.pathname);
+        }}
+      />
+    );
+  }
+
+  if (multipleResults.length > 1) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
+          <div className="bg-blue-600 text-white p-6 text-center">
+            <div className="text-4xl mb-2">🔍</div>
+            <h2 className="text-xl font-bold">Multiple Results Found</h2>
+            <p className="text-blue-100 text-sm mt-1">Select your check-in below</p>
           </div>
-
-          {/* ── Status lookup link — prominent, top of page ── */}
-          <div className="mx-6 mt-5">
-            <a
-              href="/status"
-              className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-blue-50 border-2 border-blue-300 rounded-lg text-blue-700 font-semibold text-base hover:bg-blue-100 hover:border-blue-400 transition-colors"
+          <div className="p-4 space-y-3">
+            {multipleResults.map((r) => {
+              const meta = getStatusMeta(r.status);
+              return (
+                <button
+                  key={r.id}
+                  onClick={() => setRecord(r)}
+                  className="w-full text-left p-4 border-2 border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-all"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-semibold text-gray-800">{r.driver_name}</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${meta.bannerBg} ${meta.bannerText} border ${meta.bannerBorder}`}>
+                      {meta.bannerLabel}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 space-y-0.5">
+                    <div><span className="font-medium">Ref:</span> {r.reference_number}</div>
+                    <div><span className="font-medium">Carrier:</span> {r.carrier_name} · <span className="capitalize">{r.load_type}</span></div>
+                    <div><span className="font-medium">Checked in:</span> {formatDateTime(r.check_in_time)}</div>
+                    {r.dock_number && <div className="text-blue-700 font-semibold">Dock: {r.dock_number === 'Ramp' ? 'RAMP' : r.dock_number}</div>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div className="px-4 pb-4">
+            <button
+              onClick={() => { setMultipleResults([]); setRefInput(''); }}
+              className="w-full py-2.5 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
             >
-              🔍 Already checked in? Look up your load status
-            </a>
+              Search Again
+            </button>
           </div>
+        </div>
+      </div>
+    );
+  }
 
-          {timeRestrictionWarning && (
-            <div className="mx-6 mt-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded">
-              ⚠️ {timeRestrictionWarning}
-            </div>
-          )}
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
+
+        <div className="bg-blue-600 text-white p-8 text-center">
+          <div className="text-5xl mb-3">🔍</div>
+          <h1 className="text-2xl font-bold">Check Your Load Status</h1>
+          <p className="text-blue-100 mt-2 text-sm">
+            Enter your reference number to see your current dock assignment and load status
+          </p>
+        </div>
+
+        <form onSubmit={handleSearch} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Reference Number
+            </label>
+            <input
+              type="text"
+              value={refInput}
+              onChange={(e) => { setRefInput(e.target.value); setError(null); }}
+              placeholder="e.g., 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, 8xxxxxxx, TLNA-SO-0xxxxx"
+              autoFocus
+              className="w-full px-4 py-4 text-lg border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center tracking-wider placeholder:text-xs placeholder:tracking-normal"
+            />
+          </div>
 
           {error && (
-            <div className="mx-6 mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            <div className="p-3 bg-red-50 border border-red-300 text-red-700 rounded-lg text-sm">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <button
+            type="submit"
+            disabled={searching || !refInput.trim()}
+            className={`w-full py-3 px-6 rounded-lg font-semibold text-lg transition-all flex items-center justify-center gap-2 ${
+              searching || !refInput.trim()
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
+            }`}
+          >
+            {searching ? (
+              <>
+                <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Searching...
+              </>
+            ) : (
+              <>
+                <Search className="w-5 h-5" />
+                Find My Status
+              </>
+            )}
+          </button>
 
-            <div className="border-b pb-5">
-              <h2 className="text-lg font-semibold text-gray-700 mb-4">Driver Information</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
-                  <input type="text" name="driverName" value={formData.driverName} onChange={handleInputChange} required placeholder="John"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number <span className="text-red-500">*</span></label>
-                  <input type="tel" name="driverPhone" value={formData.driverPhone} onChange={handleInputChange} required placeholder="(555) 555-5555"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-              </div>
-            </div>
-
-            <div className="border-b pb-5">
-              <h2 className="text-lg font-semibold text-gray-700 mb-4">Load Information</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Load Type <span className="text-red-500">*</span></label>
-                  <select name="loadType" value={formData.loadType} onChange={handleInputChange} required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="outbound">Outbound Pickup</option>
-                    <option value="inbound">Inbound Delivery</option>
-                  </select>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-sm font-medium text-gray-700">Reference Number(s): Must match one of these formats: 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, 8xxxxxxx, TLNA-SO-0xxxxx <span className="text-red-500">*</span></label>
-                    <button type="button" onClick={addReferenceNumber} className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors">
-                      <Plus size={16} /> Add
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {referenceNumbers.map((ref, index) => (
-                      <div key={index}>
-                        <div className="flex items-center gap-2">
-                          <input type="text" value={ref} onChange={(e) => handleReferenceChange(index, e.target.value)} onBlur={(e) => handleReferenceBlur(index, e.target.value)} required={index === 0}
-                            placeholder={index === 0 ? 'e.g., 2xxxxxx or 4xxxxxx' : `Reference #${index + 1}`}
-                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${referenceErrors[index] ? 'border-red-400' : 'border-gray-300'}`} />
-                          {index > 0 && (
-                            <button type="button" onClick={() => removeReferenceNumber(index)} className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors">
-                              <Minus size={18} />
-                            </button>
-                          )}
-                        </div>
-                        {referenceErrors[index] && <p className="text-red-500 text-xs mt-1">{referenceErrors[index]}</p>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-b pb-5">
-              <h2 className="text-lg font-semibold text-gray-700 mb-4">Carrier & Trailer</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Carrier Name <span className="text-red-500">*</span></label>
-                  <input type="text" name="carrierName" value={formData.carrierName} onChange={handleInputChange} required placeholder="e.g., J.B. Hunt"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Trailer Number <span className="text-red-500">*</span></label>
-                  <input type="text" name="trailerNumber" value={formData.trailerNumber} onChange={handleInputChange} required placeholder="e.g., TRL-12345"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Trailer Length <span className="text-red-500">*</span></label>
-                  <select name="trailerLength" value={formData.trailerLength} onChange={handleInputChange} required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    {TRAILER_LENGTHS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button type="submit" disabled={loading || !!timeRestrictionWarning}
-                className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${loading || timeRestrictionWarning ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}>
-                {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Processing...
-                  </span>
-                ) : 'Check In'}
-              </button>
-              {(formData.driverName || formData.carrierName) && (
-                <button type="button" onClick={resetForm}
-                  className="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-all">
-                  Reset
-                </button>
-              )}
-            </div>
-
-            <div className="text-center text-xs text-gray-500 pt-4 border-t border-gray-200">
-              <p className="mb-1"><strong>Operating Hours:</strong> Monday – Friday, 7:00 AM – 5:00 PM</p>
-              <p>For assistance, contact the shipping office at{' '}
-                <a href="tel:+17654742512" className="text-blue-600 hover:underline">(765) 474-2512</a></p>
-            </div>
-          </form>
-        </div>
+          <p className="text-center text-xs text-gray-400 pt-2">
+            Can't find your status? Contact the shipping office at{' '}
+            <a href="tel:+17654742512" className="text-blue-600 hover:underline">(765) 474-2512</a>
+          </p>
+        </form>
       </div>
     </div>
   );
