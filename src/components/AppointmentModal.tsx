@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Minus, ChevronDown, ChevronUp } from 'lucide-react';
 import { Appointment, AppointmentInput, TIME_SLOTS } from '@/types/appointments';
+import { getHoliday, isHoliday } from '@/lib/holidays';
 
 interface AppointmentModalProps {
   isOpen: boolean;
@@ -46,10 +47,12 @@ export default function AppointmentModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [editingExisting, setEditingExisting] = useState(false);
-  // Controls the Load & Transport collapsible section
   const [showLoadInfo, setShowLoadInfo] = useState(false);
 
   const activeAppointment = editingExisting ? existingAppointment : appointment;
+
+  // Derived: is the currently-selected appointment date a holiday?
+  const selectedDateHoliday = getHoliday(formData.appointment_date);
 
   useEffect(() => {
     if (activeAppointment) {
@@ -78,7 +81,6 @@ export default function AppointmentModal({
       setSalesOrders(existingSOs.length > 0 ? existingSOs : ['']);
       setDeliveries(existingDOs.length > 0 ? existingDOs : ['']);
 
-      // Auto-expand Load & Transport section if any of those fields have data
       const hasLoadInfo =
         !!activeAppointment.carrier ||
         !!activeAppointment.mode ||
@@ -145,6 +147,15 @@ export default function AppointmentModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // ── Holiday guard ────────────────────────────────────────────────
+    const holidayOnDate = getHoliday(formData.appointment_date);
+    if (holidayOnDate) {
+      setError(
+        `${formData.appointment_date} is ${holidayOnDate.name} — the facility is closed on this date. Please choose a different day.`
+      );
+      return;
+    }
 
     const filledSOs = salesOrders.map(s => s.trim()).filter(Boolean);
     const filledDOs = deliveries.map(d => d.trim()).filter(Boolean);
@@ -287,9 +298,23 @@ export default function AppointmentModal({
                 type="date"
                 value={formData.appointment_date}
                 onChange={e => setFormData({ ...formData, appointment_date: e.target.value })}
-                className={inputClass}
+                className={`${inputClass} ${selectedDateHoliday ? 'border-red-400 bg-red-50' : ''}`}
                 required
               />
+              {/* ── Holiday warning under the date picker ── */}
+              {selectedDateHoliday && (
+                <div className="mt-2 flex items-start gap-2 p-3 bg-red-50 border border-red-300 rounded-lg">
+                  <span className="text-red-500 text-base shrink-0">🚫</span>
+                  <div>
+                    <p className="text-sm font-semibold text-red-700">
+                      Facility closed — {selectedDateHoliday.name}
+                    </p>
+                    <p className="text-xs text-red-600 mt-0.5">
+                      Appointments cannot be scheduled on this date. Please select a different day.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Time */}
@@ -404,8 +429,6 @@ export default function AppointmentModal({
 
               {showLoadInfo && (
                 <div className="p-4 space-y-3 border-t border-gray-200">
-
-                  {/* Carrier */}
                   <div>
                     <label className={labelClass}>Carrier</label>
                     <input
@@ -416,8 +439,6 @@ export default function AppointmentModal({
                       className={inputClass}
                     />
                   </div>
-
-                  {/* Mode */}
                   <div>
                     <label className={labelClass}>Mode</label>
                     <input
@@ -428,8 +449,6 @@ export default function AppointmentModal({
                       className={inputClass}
                     />
                   </div>
-
-                  {/* Requested Ship Date */}
                   <div>
                     <label className={labelClass}>Requested Ship Date</label>
                     <input
@@ -439,8 +458,6 @@ export default function AppointmentModal({
                       className={inputClass}
                     />
                   </div>
-
-                  {/* Ship To City + State side by side */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className={labelClass}>Ship To City</label>
@@ -464,7 +481,6 @@ export default function AppointmentModal({
                       />
                     </div>
                   </div>
-
                 </div>
               )}
             </div>
@@ -493,8 +509,8 @@ export default function AppointmentModal({
               </button>
               <button
                 type="submit"
-                disabled={saving}
-                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium disabled:opacity-50"
+                disabled={saving || !!selectedDateHoliday}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? 'Saving...' : 'Save Appointment'}
               </button>
@@ -506,4 +522,3 @@ export default function AppointmentModal({
     </div>
   );
 }
-
