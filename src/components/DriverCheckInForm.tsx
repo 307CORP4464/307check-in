@@ -812,8 +812,8 @@ export default function DriverCheckInForm() {
 
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: existing } = await supabase
-        .from('check_ins')
-        .select('id, status, resolution_action')
+  .from('check_ins')
+  .select('id, status, resolution_action, denial_reason')
         .eq('trailer_number', formData.trailerNumber)
         .eq('carrier_name', formData.carrierName)
         .ilike('reference_number', `%${normalisedFirstRef}%`)
