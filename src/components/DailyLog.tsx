@@ -613,6 +613,17 @@ export default function DailyLog() {
 
   const MANUAL_APPOINTMENT_TYPES = ['LTL', 'Paid', 'Charge', 'work_in'];
 
+  // ── Date navigation helpers ────────────────────────────────────────────────
+  const changeDateByDays = (days: number) => {
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    date.setDate(date.getDate() + days);
+    const ny = date.getFullYear();
+    const nm = String(date.getMonth() + 1).padStart(2, '0');
+    const nd = String(date.getDate()).padStart(2, '0');
+    setSelectedDate(`${ny}-${nm}-${nd}`);
+  };
+
   const fetchCheckInsForDate = useCallback(async () => {
     try {
       setLoading(true);
@@ -635,9 +646,6 @@ export default function DailyLog() {
           .filter(ref => ref.trim() !== '')
       ));
 
-      // ── Fetch appointments and keep ALL rows for scored matching ─────
-      // Replaces the old token-keyed map that caused prefix collisions
-      // (e.g. "NR. 2400" and "NR. 2401" both keying to "nr.").
       let allDateAppointments: any[] = [];
 
       if (allReferenceNumbers.length > 0) {
@@ -663,7 +671,6 @@ export default function DailyLog() {
           }
         }
 
-        // Deduplicate rows that appeared in multiple batches
         const seen = new Set<string>();
         allDateAppointments = allDateAppointments.filter(apt => {
           const key = `${apt.sales_order ?? ''}||${apt.delivery ?? ''}`;
@@ -675,10 +682,7 @@ export default function DailyLog() {
 
       const enrichedCheckIns = (checkInsData || []).map(checkIn => {
         const refs = parseReferenceNumbers(checkIn.reference_number);
-
-        // Scored best-match — fixes NR. prefix collision
         const appointmentInfo = matchAppointmentToCheckIn(refs, allDateAppointments);
-
         const checkInHasManualType = checkIn.appointment_time &&
           MANUAL_APPOINTMENT_TYPES.includes(checkIn.appointment_time);
 
@@ -800,6 +804,29 @@ export default function DailyLog() {
         <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
       </td>
 
+      <td className="font-bold text-gray-900 px-4 py-3 text-sm">{checkIn.reference_number || 'N/A'}</td>
+
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        {(() => {
+          const status = getAppointmentStatus(checkIn.check_in_time, checkIn.appointment_time, checkIn.appointment_date);
+          const bgColor =
+            status.color === 'green'  ? 'bg-green-200'  :
+            status.color === 'red'    ? 'bg-red-200'    :
+            status.color === 'yellow' ? 'bg-yellow-200' :
+            status.color === 'orange' ? 'bg-orange-200' : 'bg-gray-300';
+          return (
+            <div className={`inline-block px-2 py-1 rounded ${bgColor}`}>
+              {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
+              {status.message && <div className="text-xs mt-1">{status.message}</div>}
+            </div>
+          );
+        })()}
+      </td>
+
+      <td className="px-4 py-3 whitespace-nowrap text-sm">
+        {formatTimeInIndianapolis(checkIn.check_in_time, true)}
+      </td>
+
       <td className="px-4 py-3 text-sm">
         <div className="flex flex-col">
           <span className="font-semibold text-gray-900">{checkIn.customer || 'N/A'}</span>
@@ -819,29 +846,7 @@ export default function DailyLog() {
         </div>
       </td>
 
-      <td className="font-bold text-gray-900 px-4 py-3 text-sm">{checkIn.reference_number || 'N/A'}</td>
       <td className="font-bold text-gray-900 px-4 py-3 text-sm">{checkIn.dock_number || 'N/A'}</td>
-
-      <td className="px-4 py-3 whitespace-nowrap text-sm">
-        {formatTimeInIndianapolis(checkIn.check_in_time, true)}
-      </td>
-
-      <td className="px-4 py-3 whitespace-nowrap text-sm">
-        {(() => {
-          const status = getAppointmentStatus(checkIn.check_in_time, checkIn.appointment_time, checkIn.appointment_date);
-          const bgColor =
-            status.color === 'green' ? 'bg-green-200' :
-            status.color === 'red' ? 'bg-red-200' :
-            status.color === 'yellow' ? 'bg-yellow-200' :
-            status.color === 'orange' ? 'bg-orange-200' : 'bg-gray-300';
-          return (
-            <div className={`inline-block px-2 py-1 rounded ${bgColor}`}>
-              {formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}
-              {status.message && <div className="text-xs mt-1">{status.message}</div>}
-            </div>
-          );
-        })()}
-      </td>
 
       <td className="px-4 py-3 whitespace-nowrap text-sm">
         {checkIn.end_time ? formatTimeInIndianapolis(checkIn.end_time, true) : (
@@ -857,7 +862,7 @@ export default function DailyLog() {
             checkIn.check_in_time, checkIn.end_time, checkIn.appointment_time, checkIn.appointment_date
           );
           return hasDetention
-            ? <span className="text-red-600 font-semibold">⚠️ Detention: {detentionDuration}</span>
+            ? <span className="text-red-600 font-semibold">⚠️ {detentionDuration}</span>
             : null;
         })()}
       </td>
@@ -906,12 +911,12 @@ export default function DailyLog() {
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver Info</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference #</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-In Time</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cust. Req. Date and Dest.</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SCAC and Mode</th>
-        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference #</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dock</th>
-        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-In Time</th>
-        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment Time</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Detention</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -939,38 +944,56 @@ export default function DailyLog() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header title="Daily Log" />
-      <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-[1600px] mx-auto px-4 py-6">
 
-        {/* Date Selector, Search & Counters */}
-        <div className="mb-6 flex gap-4 items-end max-w-7xl mx-auto">
-          <div>
-            <label htmlFor="date-select" className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
+        {/* ── Toolbar: date nav, search, counters — matches dashboard layout ── */}
+        <div className="mb-4 flex flex-wrap gap-3 items-center justify-between">
+
+          {/* Date selector with prev/next arrows */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => changeDateByDays(-1)}
+              className="p-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              aria-label="Previous day"
+            >
+              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
             <input
-              id="date-select"
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+            <button
+              onClick={() => changeDateByDays(1)}
+              className="p-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              aria-label="Next day"
+            >
+              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
 
-          <div className="flex-1">
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
-              Search by Reference #, Trailer, or Door
-            </label>
+          {/* Search */}
+          <div className="flex-1 min-w-48 max-w-sm">
             <div className="relative">
               <input
-                id="search"
                 type="text"
                 placeholder="Reference #, trailer, or door..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 pr-9 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 pr-9 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
+              <svg className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
                   aria-label="Clear search"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -981,19 +1004,22 @@ export default function DailyLog() {
             </div>
           </div>
 
-          <div className="flex gap-4">
+          {/* Counters — same style as dashboard */}
+          <div className="flex gap-3">
             <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
-              <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">Total Checked In</div>
+              <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">Total</div>
               <div className="text-2xl font-bold text-blue-900">{nonDenialCheckIns.length}</div>
             </div>
             <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-              <div className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">Total Complete</div>
+              <div className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">Complete</div>
               <div className="text-2xl font-bold text-green-900">{nonDenialCheckIns.filter(ci => ci.end_time).length}</div>
             </div>
             <button
               onClick={() => setShowInProgressOnly(!showInProgressOnly)}
               className={`rounded-lg px-4 py-2 transition-colors border text-left ${
-                showInProgressOnly ? 'bg-yellow-400 border-yellow-500 ring-2 ring-yellow-300' : 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
+                showInProgressOnly
+                  ? 'bg-yellow-400 border-yellow-500 ring-2 ring-yellow-300'
+                  : 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
               }`}
             >
               <div className="text-xs font-medium text-yellow-700 uppercase tracking-wider mb-1">In Progress</div>
@@ -1011,19 +1037,34 @@ export default function DailyLog() {
           </div>
         </div>
 
-        {/* Main Log Table */}
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            {tableHead}
-            <tbody className="bg-white divide-y divide-gray-200">
-              {renderTableRows(displayedCheckIns)}
-            </tbody>
-          </table>
+        {/* ── Main table — same card style as dashboard ── */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900">Daily Log</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              {nonDenialCheckIns.length} check-in{nonDenialCheckIns.length !== 1 ? 's' : ''} for {selectedDate}
+            </p>
+          </div>
+
+          {displayedCheckIns.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              {searchTerm ? 'No check-ins match your search' : 'No check-ins for this date'}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                {tableHead}
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {renderTableRows(displayedCheckIns)}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {/* Denials Section */}
+        {/* ── Denials section ── */}
         {denialCheckIns.length > 0 && (
-          <div className="mt-10">
+          <div className="mt-6">
             <button
               onClick={() => setDenialsExpanded(!denialsExpanded)}
               className="w-full flex items-center justify-between px-5 py-3 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
@@ -1050,35 +1091,37 @@ export default function DailyLog() {
             </button>
 
             {denialsExpanded && (
-              <div className="mt-2 overflow-x-auto border border-red-200 rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-red-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Type</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Driver Info</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Trailer</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Cust. Req. Date and Dest.</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">SCAC and Mode</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Reference #</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Dock</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Check-In Time</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Appointment Time</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">End Time</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Detention</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {renderTableRows(denialCheckIns)}
-                  </tbody>
-                </table>
+              <div className="mt-2 bg-white rounded-lg shadow overflow-hidden border border-red-200">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-red-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Type</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Driver Info</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Trailer</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Reference #</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Appointment</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Check-In Time</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Cust. Req. Date and Dest.</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">SCAC and Mode</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Dock</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">End Time</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Detention</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {renderTableRows(denialCheckIns)}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
         )}
 
-      </main>
+      </div>
 
       {selectedForStatusChange && (
         <StatusChangeModal
