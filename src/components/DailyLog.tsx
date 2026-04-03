@@ -914,7 +914,7 @@ export default function DailyLog() {
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ref. #</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-In Time</th>
-        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer, Requested Date and Destination</th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer, Req. Date and Dest.</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SCAC and Mode</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dock</th>
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
