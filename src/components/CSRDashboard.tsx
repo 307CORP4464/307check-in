@@ -258,7 +258,6 @@ export default function CSRDashboard() {
 
       if (checkInsError) throw checkInsError;
 
-      // Collect all unique reference number tokens from pending check-ins
       const referenceNumbers = Array.from(new Set(
         (checkInsData || [])
           .flatMap((ci: any) =>
@@ -268,10 +267,6 @@ export default function CSRDashboard() {
           )
       ));
 
-      // ── Fetch today's appointments and keep ALL rows for scored matching ──
-      // Previously we built a token-keyed map which caused "NR. 2400" and
-      // "NR. 2401" to collide on the key "nr." — last write won regardless
-      // of which ref the driver actually checked in with.
       let allTodayAppointments: any[] = [];
 
       if (referenceNumbers.length > 0) {
@@ -300,7 +295,6 @@ export default function CSRDashboard() {
           }
         }
 
-        // Deduplicate rows that appeared in multiple batches
         const seen = new Set<string>();
         allTodayAppointments = allTodayAppointments.filter(apt => {
           const key = `${apt.sales_order ?? ''}||${apt.delivery ?? ''}`;
@@ -315,7 +309,6 @@ export default function CSRDashboard() {
           ? ci.reference_number.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean)
           : [];
 
-        // Scored best-match — fixes NR. prefix collision
         const aptInfo = matchAppointmentToCheckIn(refs, allTodayAppointments);
 
         return {
@@ -422,14 +415,15 @@ export default function CSRDashboard() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
+                    {/* ── Column order now matches Daily Log ── */}
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver Info</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-in Time</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference #</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-In Time</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Req. Date and Dest.</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SCAC and Mode</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference #</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wait Time</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -437,6 +431,8 @@ export default function CSRDashboard() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {checkIns.map((checkIn) => (
                     <tr key={checkIn.id} className="hover:bg-gray-50">
+
+                      {/* Type */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           checkIn.load_type === 'inbound' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
@@ -445,28 +441,34 @@ export default function CSRDashboard() {
                         </span>
                       </td>
 
+                      {/* Driver Info — carrier first, then driver name, then phone (matches Daily Log) */}
                       <td className="px-4 py-3 text-sm">
-                        <div>{checkIn.driver_name || 'N/A'}</div>
+                        <div className="text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
+                        <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
                         <div className="text-gray-500 text-xs">{formatPhoneNumber(checkIn.driver_phone)}</div>
-                        <div className="text-gray-500 text-xs">{checkIn.carrier_name || 'N/A'}</div>
                       </td>
 
+                      {/* Trailer — length with 'ft' suffix (matches Daily Log) */}
                       <td className="px-4 py-3 text-sm">
-                        <div>{checkIn.trailer_number || 'N/A'}</div>
-                        <div className="text-gray-500 text-xs">{checkIn.trailer_length || 'N/A'}</div>
+                        <div className="text-gray-900">{checkIn.trailer_number || 'N/A'}</div>
+                        <div className="text-gray-500 text-xs">
+                          {checkIn.trailer_length ? `${checkIn.trailer_length}'` : 'N/A'}
+                        </div>
                       </td>
 
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {formatTimeInIndianapolis(checkIn.check_in_time, true)}
+                      {/* Reference # */}
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
+                        {checkIn.reference_number || 'N/A'}
                       </td>
 
+                      {/* Appointment (color-coded, matches Daily Log) */}
                       <td className={`px-4 py-3 text-sm ${
                         (() => {
                           const status = getAppointmentStatus(checkIn.check_in_time, checkIn.appointment_time, checkIn.appointment_date);
-                          return status.color === 'green' ? 'bg-green-100' :
+                          return status.color === 'green'  ? 'bg-green-100'  :
                                  status.color === 'yellow' ? 'bg-yellow-100' :
                                  status.color === 'orange' ? 'bg-orange-100' :
-                                 status.color === 'red' ? 'bg-red-200' : '';
+                                 status.color === 'red'    ? 'bg-red-200'    : '';
                         })()
                       }`}>
                         <div>{formatAppointmentDateTime(checkIn.appointment_date, checkIn.appointment_time)}</div>
@@ -478,22 +480,33 @@ export default function CSRDashboard() {
                         })()}
                       </td>
 
+                      {/* Check-In Time */}
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        {formatTimeInIndianapolis(checkIn.check_in_time, true)}
+                      </td>
+
+                      {/* Req. Date and Dest. (matches Daily Log) */}
                       <td className="px-4 py-3 text-sm">
-                        <div>{checkIn.customer || 'N/A'}</div>
-                        <div>{checkIn.requested_ship_date || 'N/A'}</div>
-                        <div>{checkIn.ship_to_city && checkIn.ship_to_state
-                          ? `${checkIn.ship_to_city}, ${checkIn.ship_to_state}`
-                          : 'N/A'}</div>
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-gray-900">{checkIn.customer || 'N/A'}</span>
+                          <span className="font-semibold text-gray-900">{checkIn.requested_ship_date || 'N/A'}</span>
+                          <span className="text-gray-500 text-xs mt-0.5">
+                            {checkIn.ship_to_city && checkIn.ship_to_state
+                              ? `${checkIn.ship_to_city}, ${checkIn.ship_to_state}`
+                              : checkIn.ship_to_city || checkIn.ship_to_state || 'N/A'}
+                          </span>
+                        </div>
                       </td>
 
+                      {/* SCAC and Mode — two lines (matches Daily Log) */}
                       <td className="px-4 py-3 text-sm">
-                        {checkIn.carrier && checkIn.mode ? `${checkIn.carrier}, ${checkIn.mode}` : 'N/A'}
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-gray-900">{checkIn.carrier || 'N/A'}</span>
+                          <span className="font-semibold text-gray-900">{checkIn.mode || 'N/A'}</span>
+                        </div>
                       </td>
 
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                        {checkIn.reference_number || 'N/A'}
-                      </td>
-
+                      {/* Wait Time (CSR only) */}
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
                         <span className={`font-medium ${
                           calculateWaitTime(checkIn.check_in_time) > 60 ? 'text-red-600' : 'text-gray-900'
@@ -502,6 +515,7 @@ export default function CSRDashboard() {
                         </span>
                       </td>
 
+                      {/* Actions */}
                       <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium space-x-2">
                         <button onClick={() => setSelectedForEdit(checkIn)} className="text-blue-600 hover:text-blue-900">
                           Edit
