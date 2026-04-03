@@ -7,6 +7,7 @@ import Link from 'next/link';
 import StatusChangeModal from './StatusChangeModal';
 import EditCheckInModal from './EditCheckInModal';
 import Header from './Header';
+import { matchAppointmentToCheckIn } from '@/lib/appointmentMatcher';
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -408,7 +409,6 @@ const reprintReceipt = (checkIn: CheckIn) => {
     }
   };
 
-  const currentDate = new Date().toLocaleString();
   const today = new Date().toLocaleDateString();
   const dockDisplay = checkIn.dock_number === 'Ramp' ? 'Ramp' : checkIn.dock_number ? `Dock ${checkIn.dock_number}` : 'Not Assigned';
   const isInbound = checkIn.load_type === 'inbound';
@@ -611,16 +611,7 @@ export default function DailyLog() {
   const [selectedForStatusChange, setSelectedForStatusChange] = useState<CheckIn | null>(null);
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
 
-  type AppointmentInfo = {
-    time: string | null;
-    date: string | null;
-    customer: string | null;
-    ship_to_city: string | null;
-    ship_to_state: string | null;
-    carrier: string | null;
-    mode: string | null;
-    requested_ship_date: string | null;
-  };
+  const MANUAL_APPOINTMENT_TYPES = ['LTL', 'Paid', 'Charge', 'work_in'];
 
   const fetchCheckInsForDate = useCallback(async () => {
     try {
@@ -644,7 +635,10 @@ export default function DailyLog() {
           .filter(ref => ref.trim() !== '')
       ));
 
-      const appointmentsMap = new Map<string, AppointmentInfo>();
+      // ── Fetch appointments and keep ALL rows for scored matching ─────
+      // Replaces the old token-keyed map that caused prefix collisions
+      // (e.g. "NR. 2400" and "NR. 2401" both keying to "nr.").
+      let allDateAppointments: any[] = [];
 
       if (allReferenceNumbers.length > 0) {
         const BATCH_SIZE = 20;
@@ -664,50 +658,26 @@ export default function DailyLog() {
             console.error('Appointments error:', appointmentsError);
             continue;
           }
-
           if (appointmentsData) {
-            appointmentsData.forEach(apt => {
-              const appointmentInfo: AppointmentInfo = {
-                time: apt.appointment_time ?? null,
-                date: apt.appointment_date ?? null,
-                customer: apt.customer ?? null,
-                ship_to_city: apt.ship_to_city ?? null,
-                ship_to_state: apt.ship_to_state ?? null,
-                carrier: apt.carrier ?? null,
-                mode: apt.mode ?? null,
-                requested_ship_date: apt.requested_ship_date ?? null,
-              };
-
-              if (apt.sales_order) {
-                parseReferenceNumbers(apt.sales_order).forEach(ref => {
-                  appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);
-                });
-                appointmentsMap.set(apt.sales_order.trim().toLowerCase(), appointmentInfo);
-              }
-              if (apt.delivery) {
-                parseReferenceNumbers(apt.delivery).forEach(ref => {
-                  appointmentsMap.set(ref.trim().toLowerCase(), appointmentInfo);
-                });
-                appointmentsMap.set(apt.delivery.trim().toLowerCase(), appointmentInfo);
-              }
-            });
+            allDateAppointments = allDateAppointments.concat(appointmentsData);
           }
         }
-      }
 
-      const MANUAL_APPOINTMENT_TYPES = ['LTL', 'Paid', 'Charge', 'work_in'];
+        // Deduplicate rows that appeared in multiple batches
+        const seen = new Set<string>();
+        allDateAppointments = allDateAppointments.filter(apt => {
+          const key = `${apt.sales_order ?? ''}||${apt.delivery ?? ''}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      }
 
       const enrichedCheckIns = (checkInsData || []).map(checkIn => {
         const refs = parseReferenceNumbers(checkIn.reference_number);
-        let appointmentInfo: AppointmentInfo | undefined = undefined;
 
-        for (const ref of refs) {
-          const candidate = appointmentsMap.get(ref.trim().toLowerCase());
-          if (candidate?.date === selectedDate) {
-            appointmentInfo = candidate;
-            break;
-          }
-        }
+        // Scored best-match — fixes NR. prefix collision
+        const appointmentInfo = matchAppointmentToCheckIn(refs, allDateAppointments);
 
         const checkInHasManualType = checkIn.appointment_time &&
           MANUAL_APPOINTMENT_TYPES.includes(checkIn.appointment_time);
@@ -760,7 +730,6 @@ export default function DailyLog() {
     );
   });
 
-  // Split denials from the main log
   const denialCheckIns = filteredCheckIns.filter(ci =>
     ci.status === 'check_in_denial' || ci.status === 'turned_away'
   );
@@ -810,7 +779,6 @@ export default function DailyLog() {
     return labels[status] ?? (status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' '));
   };
 
-  // Shared table rows renderer (used for both main and denials table)
   const renderTableRows = (rows: CheckIn[]) => rows.map((checkIn) => (
     <tr key={checkIn.id} className="hover:bg-gray-50">
       <td className="px-4 py-3 whitespace-nowrap">
@@ -1014,7 +982,6 @@ export default function DailyLog() {
           </div>
 
           <div className="flex gap-4">
-            {/* Total Checked In — excludes denials */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
               <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">Total Checked In</div>
               <div className="text-2xl font-bold text-blue-900">{nonDenialCheckIns.length}</div>
