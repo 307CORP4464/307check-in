@@ -10,6 +10,7 @@ import EditCheckInModal from './EditCheckInModal';
 import DenyCheckInModal from './DenyCheckInModal';
 import ManualCheckInModal from './ManualCheckInModal';
 import Header from './Header';
+import { matchAppointmentToCheckIn } from '@/lib/appointmentMatcher';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
@@ -257,6 +258,7 @@ export default function CSRDashboard() {
 
       if (checkInsError) throw checkInsError;
 
+      // Collect all unique reference number tokens from pending check-ins
       const referenceNumbers = Array.from(new Set(
         (checkInsData || [])
           .flatMap((ci: any) =>
@@ -266,16 +268,11 @@ export default function CSRDashboard() {
           )
       ));
 
-      const appointmentsMap = new Map<string, {
-        time: string | null;
-        date: string | null;
-        ship_to_city: string | null;
-        ship_to_state: string | null;
-        carrier: string | null;
-        mode: string | null;
-        customer: string | null;
-        requested_ship_date: string | null;
-      }>();
+      // ── Fetch today's appointments and keep ALL rows for scored matching ──
+      // Previously we built a token-keyed map which caused "NR. 2400" and
+      // "NR. 2401" to collide on the key "nr." — last write won regardless
+      // of which ref the driver actually checked in with.
+      let allTodayAppointments: any[] = [];
 
       if (referenceNumbers.length > 0) {
         const BATCH_SIZE = 20;
@@ -298,33 +295,19 @@ export default function CSRDashboard() {
             console.error('Error fetching appointments:', appointmentsError);
             continue;
           }
-
           if (appointmentsData) {
-            appointmentsData.forEach((apt: any) => {
-              const appointmentInfo = {
-                time: apt.appointment_time ?? null,
-                date: apt.appointment_date ?? today,
-                ship_to_city: apt.ship_to_city ?? null,
-                ship_to_state: apt.ship_to_state ?? null,
-                carrier: apt.carrier ?? null,
-                mode: apt.mode ?? null,
-                customer: apt.customer ?? null,
-                requested_ship_date: apt.requested_ship_date ?? null,
-              };
-
-              if (apt.sales_order) {
-                apt.sales_order.split(/[,;\s|]+/).map((r: string) => r.trim().toLowerCase()).filter(Boolean)
-                  .forEach((ref: string) => appointmentsMap.set(ref, appointmentInfo));
-                appointmentsMap.set(apt.sales_order.trim().toLowerCase(), appointmentInfo);
-              }
-              if (apt.delivery) {
-                apt.delivery.split(/[,;\s|]+/).map((r: string) => r.trim().toLowerCase()).filter(Boolean)
-                  .forEach((ref: string) => appointmentsMap.set(ref, appointmentInfo));
-                appointmentsMap.set(apt.delivery.trim().toLowerCase(), appointmentInfo);
-              }
-            });
+            allTodayAppointments = allTodayAppointments.concat(appointmentsData);
           }
         }
+
+        // Deduplicate rows that appeared in multiple batches
+        const seen = new Set<string>();
+        allTodayAppointments = allTodayAppointments.filter(apt => {
+          const key = `${apt.sales_order ?? ''}||${apt.delivery ?? ''}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
       }
 
       const processedCheckIns = (checkInsData || []).map((ci: any) => {
@@ -332,14 +315,8 @@ export default function CSRDashboard() {
           ? ci.reference_number.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean)
           : [];
 
-        let aptInfo = null;
-        for (const ref of refs) {
-          const candidate = appointmentsMap.get(ref.toLowerCase());
-          if (candidate) {
-            aptInfo = candidate;
-            break;
-          }
-        }
+        // Scored best-match — fixes NR. prefix collision
+        const aptInfo = matchAppointmentToCheckIn(refs, allTodayAppointments);
 
         return {
           ...ci,
