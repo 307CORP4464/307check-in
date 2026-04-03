@@ -36,18 +36,15 @@ interface AppointmentCandidate extends AppointmentInfo {
 }
 
 /**
- * Splits a reference string into tokens the same way the existing code does,
- * but we intentionally do NOT use the token list as map keys anymore —
- * it's only used for the score-1 fallback.
+ * Splits a reference string into an array of tokens.
+ * Using an array instead of Set to avoid --downlevelIteration requirement.
  */
-const tokenise = (value: string): Set<string> =>
-  new Set(
-    value
-      .toLowerCase()
-      .split(/[,;\s|]+/)
-      .map(t => t.trim())
-      .filter(Boolean)
-  );
+const tokenise = (value: string): string[] =>
+  value
+    .toLowerCase()
+    .split(/[,;\s|]+/)
+    .map(t => t.trim())
+    .filter(Boolean);
 
 /**
  * Score how well `checkInRef` matches `appointmentRef`.
@@ -57,9 +54,14 @@ const scoreMatch = (checkInRef: string, appointmentRef: string): number => {
   if (checkInRef === appointmentRef) return 3;                        // exact
   if (checkInRef.includes(appointmentRef) ||
       appointmentRef.includes(checkInRef)) return 2;                 // substring
-  const ci = tokenise(checkInRef);
-  const ap = tokenise(appointmentRef);
-  for (const t of ci) { if (ap.has(t) && t.length > 1) return 1; }  // token overlap (skip single chars)
+
+  // Token overlap fallback — use arrays + indexOf to avoid Set iteration
+  const ciTokens = tokenise(checkInRef);
+  const apTokens = tokenise(appointmentRef);
+  for (let i = 0; i < ciTokens.length; i++) {
+    const t = ciTokens[i];
+    if (t.length > 1 && apTokens.indexOf(t) !== -1) return 1;       // token overlap
+  }
   return 0;
 };
 
@@ -76,7 +78,8 @@ export const findBestAppointment = (
   let best: AppointmentInfo | undefined;
   let bestScore = 0;
 
-  for (const candidate of candidates) {
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i];
     const score = scoreMatch(needle, candidate.rawRef.trim().toLowerCase());
     if (score > bestScore) {
       bestScore = score;
@@ -114,7 +117,8 @@ export const matchAppointmentToCheckIn = (
   // Build a flat list of candidates — one entry per (appointment, field) pair
   const candidates: AppointmentCandidate[] = [];
 
-  for (const apt of appointments) {
+  for (let i = 0; i < appointments.length; i++) {
+    const apt = appointments[i];
     const info: AppointmentInfo = {
       time: apt.appointment_time ?? null,
       date: apt.appointment_date ?? null,
@@ -126,28 +130,32 @@ export const matchAppointmentToCheckIn = (
       requested_ship_date: apt.requested_ship_date ?? null,
     };
     // Index the full field value — NOT individual tokens
-    if (apt.sales_order?.trim()) {
+    if (apt.sales_order && apt.sales_order.trim()) {
       candidates.push({ ...info, rawRef: apt.sales_order.trim() });
     }
-    if (apt.delivery?.trim()) {
+    if (apt.delivery && apt.delivery.trim()) {
       candidates.push({ ...info, rawRef: apt.delivery.trim() });
     }
   }
 
-  // Try each check-in ref in order; return as soon as we get a score-3 hit
+  // Try each check-in ref in order; track the overall best score
   let best: AppointmentInfo | undefined;
   let bestScore = 0;
 
-  for (const ref of refs) {
+  for (let i = 0; i < refs.length; i++) {
+    const ref = refs[i];
     const match = findBestAppointment(ref, candidates);
     if (!match) continue;
 
     // Re-score to get the actual score for comparison
-    const score = Math.max(
-      ...candidates
-        .filter(c => c === match || (c.time === match.time && c.date === match.date))
-        .map(c => scoreMatch(ref.trim().toLowerCase(), c.rawRef.trim().toLowerCase()))
-    );
+    let score = 0;
+    for (let j = 0; j < candidates.length; j++) {
+      const c = candidates[j];
+      if (c.time === match.time && c.date === match.date) {
+        const s = scoreMatch(ref.trim().toLowerCase(), c.rawRef.trim().toLowerCase());
+        if (s > score) score = s;
+      }
+    }
 
     if (score > bestScore) {
       bestScore = score;
