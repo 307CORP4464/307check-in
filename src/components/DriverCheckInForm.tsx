@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import { Plus, Minus, CheckCircle, Clock, Truck, AlertCircle, Loader2, XCircle, Package } from 'lucide-react';
+import { getHoliday, isHoliday, todayString } from '@/lib/holidays';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -264,16 +265,31 @@ const formatPhoneNumber = (value: string): string => {
   return value;
 };
 
+/**
+ * Checks if the current date/time falls within allowed check-in hours.
+ * Blocks: weekends, outside 6 AM–5 PM, and company holidays.
+ */
 const isWithinAllowedTime = (): { allowed: boolean; message?: string } => {
   const now = new Date();
   const day = now.getDay();
   const hour = now.getHours();
+
   if (day === 0 || day === 6)
     return { allowed: false, message: 'Check-in is only available Monday through Friday' };
   if (hour < 6)
     return { allowed: false, message: 'Check-in is not available before 6:00 AM' };
   if (hour >= 17)
     return { allowed: false, message: 'Check-in is not available after 5:00 PM' };
+
+  // ── Holiday check ──────────────────────────────────────────────────────
+  const today = todayString();
+  const holiday = getHoliday(today);
+  if (holiday)
+    return {
+      allowed: false,
+      message: `We are closed today for ${holiday.name}. Check-in is not available.`,
+    };
+
   return { allowed: true };
 };
 
@@ -766,9 +782,7 @@ export default function DriverCheckInForm() {
       const hasBlankEntry = referenceNumbers.some((r, i) => r.trim() === '' && i < referenceNumbers.length - 1);
       if (hasBlankEntry) { setError('Please fill in all reference number fields or remove empty ones'); return; }
 
-      // Duplicate check: block re-submission if a check-in exists in the last
-      // 24 hours for the same trailer/carrier/reference, unless it was a
-      // rejected trailer that the office marked as correctable.
+      // Duplicate check
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: existing } = await supabase
         .from('check_ins')
@@ -819,8 +833,6 @@ export default function DriverCheckInForm() {
       if (insertError) throw insertError;
 
       saveActiveCheckIn(checkInData.id);
-      // router.replace() removes the check-in form from browser history
-      // so pressing back won't loop drivers back to this page
       router.replace(`/status?id=${checkInData.id}`);
     } catch (err: any) {
       console.error('Driver check-in error:', err);
@@ -829,6 +841,9 @@ export default function DriverCheckInForm() {
       setLoading(false);
     }
   };
+
+  // Detect if today is a holiday for the banner display
+  const todayHoliday = getHoliday(todayString());
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -840,8 +855,6 @@ export default function DriverCheckInForm() {
             <p className="text-blue-100 mt-1">Please fill out all required fields to check in</p>
           </div>
 
-          {/* clearActiveCheckIn() is called before navigating so the mount
-              effect above doesn't immediately redirect back to the old status */}
           <div className="mx-6 mt-5">
             <a
               href="/status"
@@ -852,7 +865,21 @@ export default function DriverCheckInForm() {
             </a>
           </div>
 
-          {timeRestrictionWarning && (
+          {/* ── Holiday banner ─────────────────────────────────────────── */}
+          {todayHoliday && (
+            <div className="mx-6 mt-4 p-4 bg-red-50 border-2 border-red-300 rounded-lg flex items-start gap-3">
+              <span className="text-2xl">🎌</span>
+              <div>
+                <p className="font-bold text-red-800">Facility Closed — {todayHoliday.name}</p>
+                <p className="text-sm text-red-700 mt-0.5">
+                  We are closed today in observance of {todayHoliday.name}. Check-in is not available.
+                  We will resume normal operations on the next business day.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {timeRestrictionWarning && !todayHoliday && (
             <div className="mx-6 mt-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded">
               ⚠️ {timeRestrictionWarning}
             </div>
