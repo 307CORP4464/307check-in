@@ -822,14 +822,23 @@ export default function DriverCheckInForm() {
         .limit(1)
         .maybeSingle();
 
-      if (existing) {
-        const isCorrectableRejection =
-          existing.status === 'rejected' && existing.resolution_action === 'correct_and_return';
-        if (!isCorrectableRejection) {
-          setDuplicateCheckInId(existing.id);
-          return;
-        }
-      }
+     if (existing) {
+  const isCorrectableRejection =
+    existing.status === 'rejected' && existing.resolution_action === 'correct_and_return';
+
+  const isNoAppointmentDenial =
+    (existing.status === 'check_in_denial' ||
+     existing.status === 'turned_away' ||
+     existing.status === 'denied') &&
+    typeof existing.denial_reason === 'string' &&
+    existing.denial_reason.includes('$204 same day loading fee');
+
+  if (!isCorrectableRejection && !isNoAppointmentDenial) {
+    setDuplicateCheckInId(existing.id);
+    return;
+  }
+  // Correctable rejection or no-appointment denial — fall through and allow a fresh check-in
+}
 
       // Store the reference number exactly as the driver typed it.
       const { data: checkInData, error: insertError } = await supabase
