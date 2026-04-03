@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { Plus, Minus, CheckCircle, Clock, Truck, AlertCircle, Loader2, XCircle, Package } from 'lucide-react';
+import { isHoliday, getHoliday, todayString } from '@/lib/holidays';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -258,22 +259,38 @@ const formatPhoneNumber = (value: string): string => {
   return value;
 };
 
+/** Zero-padded 'YYYY-MM-DD' from a Date object using local time. */
+const toLocalDateString = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+/**
+ * Returns the next working day after `from`, skipping weekends AND holidays.
+ * Advances one day at a time until it finds a Monday–Friday that is not a
+ * company holiday (as defined in holidays.ts).
+ */
+const getNextWorkingDay = (from: Date): Date => {
+  const next = new Date(from);
+  next.setHours(0, 0, 0, 0);
+  while (true) {
+    next.setDate(next.getDate() + 1);
+    const dow = next.getDay(); // 0 = Sun, 6 = Sat
+    if (dow === 0 || dow === 6) continue;           // skip weekends
+    if (isHoliday(toLocalDateString(next))) continue; // skip holidays
+    return next;
+  }
+};
+
 const getTodayDateTime = (): string => {
   const now = new Date();
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
 
-const getNextWorkingDay = (from: Date): Date => {
-  const next = new Date(from);
-  next.setDate(from.getDate() + 1);
-  if (next.getDay() === 6) next.setDate(next.getDate() + 2); // Sat → Mon
-  if (next.getDay() === 0) next.setDate(next.getDate() + 1); // Sun → Mon
-  return next;
-};
-
 const getNextWorkingDayAt0600 = (): string => {
-  const now = new Date();
-  const next = getNextWorkingDay(now);
+  const next = getNextWorkingDay(new Date());
   next.setHours(6, 0, 0, 0);
   return new Date(next.getTime() - next.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
@@ -299,6 +316,29 @@ const getLocalDateLabel = (iso: string): string =>
 
 const getTodayLabel = (): string =>
   new Date().toLocaleDateString('en-US', { dateStyle: 'long' });
+
+// ── Next Working Day button label ──────────────────────────────────────────
+// Shows the holiday name if the calendar-tomorrow would have been skipped,
+// so the driver understands why the date jumped further than expected.
+const getNextWorkingDayButtonLabel = (): string => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+
+  const tomorrowStr = toLocalDateString(tomorrow);
+  const tomorrowDow = tomorrow.getDay();
+
+  const isWeekend = tomorrowDow === 0 || tomorrowDow === 6;
+  const holiday = getHoliday(tomorrowStr);
+
+  if (holiday) {
+    return `🌅 Next Working Day (skip ${holiday.name})`;
+  }
+  if (isWeekend) {
+    return `🌅 Next Working Day (6:00 AM)`;
+  }
+  return `🌅 Next Working Day (6:00 AM)`;
+};
 
 // ── Carrier Daily Check-In List ────────────────────────────────────────────
 
@@ -350,11 +390,8 @@ function CarrierCheckInList({
     );
   }
 
-  // Group records by local date label
   const todayLabel = getTodayLabel();
-  const nextWorkingLabel = getLocalDateLabel(
-    getNextWorkingDay(new Date()).toISOString()
-  );
+  const nextWorkingLabel = getLocalDateLabel(getNextWorkingDay(new Date()).toISOString());
 
   const grouped: Record<string, CheckInRecord[]> = {};
   for (const r of records) {
@@ -782,6 +819,10 @@ export default function CarrierEarlyCheckInForm() {
   const [error, setError] = useState<string | null>(null);
   const [checkInRecord, setCheckInRecord] = useState<CheckInRecord | null>(null);
 
+  // Pre-compute the button label once on render (avoids recalculating on every keystroke)
+  const nextWorkingDayLabel = getNextWorkingDayButtonLabel();
+  const nextWorkingDayValue = getNextWorkingDayAt0600();
+
   const handleScheduledDateTimeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setScheduledDateTime(value);
@@ -910,13 +951,21 @@ export default function CarrierEarlyCheckInForm() {
               <div className="flex gap-3 mb-3">
                 <button type="button"
                   onClick={() => { setScheduledDateTime(getTodayDateTime()); setScheduledDateTimeError(null); }}
-                  className={`flex-1 py-2 px-4 rounded-lg border-2 font-semibold text-sm transition-all ${scheduledDateTime && scheduledDateTime.slice(0, 10) === getTodayDateTime().slice(0, 10) ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-indigo-300 text-indigo-700 hover:bg-indigo-50'}`}>
+                  className={`flex-1 py-2 px-4 rounded-lg border-2 font-semibold text-sm transition-all ${
+                    scheduledDateTime && scheduledDateTime.slice(0, 10) === getTodayDateTime().slice(0, 10)
+                      ? 'border-indigo-600 bg-indigo-600 text-white'
+                      : 'border-indigo-300 text-indigo-700 hover:bg-indigo-50'
+                  }`}>
                   📅 Today
                 </button>
                 <button type="button"
-                  onClick={() => { setScheduledDateTime(getNextWorkingDayAt0600()); setScheduledDateTimeError(null); }}
-                  className={`flex-1 py-2 px-4 rounded-lg border-2 font-semibold text-sm transition-all ${scheduledDateTime === getNextWorkingDayAt0600() ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-indigo-300 text-indigo-700 hover:bg-indigo-50'}`}>
-                  🌅 Next Working Day (6:00 AM)
+                  onClick={() => { setScheduledDateTime(nextWorkingDayValue); setScheduledDateTimeError(null); }}
+                  className={`flex-1 py-2 px-4 rounded-lg border-2 font-semibold text-sm transition-all ${
+                    scheduledDateTime === nextWorkingDayValue
+                      ? 'border-indigo-600 bg-indigo-600 text-white'
+                      : 'border-indigo-300 text-indigo-700 hover:bg-indigo-50'
+                  }`}>
+                  {nextWorkingDayLabel}
                 </button>
               </div>
               <div>
