@@ -62,15 +62,15 @@ const TRAILER_LENGTHS = [
 ] as const;
 
 const REFERENCE_NUMBER_PATTERNS = [
-  /^2\d{6}$/,
-  /^4\d{6}$/,
-  /^44\d{8}$/,
-  /^48\d{8}$/,
-  /^8\d{7}$/,
-  /^TLNA-SO-0\d{5}$/,
-  /^\d{6}$/,
-  /^[A-Za-z]{4}\d{7}$/,
-  /^T\d{5}$/,
+  /^2\d{6}$/,       // 2xxxxxxx  (7 digits starting with 2)
+  /^4\d{6}$/,       // 4xxxxxxx  (7 digits starting with 4)
+  /^44\d{8}$/,      // 44xxxxxxxx (10 digits starting with 44)
+  /^48\d{8}$/,      // 48xxxxxxxx (10 digits starting with 48)
+  /^8\d{7}$/,       // 8xxxxxxx  (8 digits starting with 8)
+  /^TLNA-SO-0\d{5}$/, // TLNA-SO-0xxxxx
+  /^\d{6}$/,        // xxxxxx    (any 6 digits, including 00xxxx)
+  /^[A-Za-z]{4}\d{7}$/, // AAAAxxxxxxx
+  /^T\d{5}$/,       // Txxxxx
 ];
 
 const NON_REDIRECT_STATUSES = [
@@ -81,6 +81,42 @@ const NON_REDIRECT_STATUSES = [
   'driver_left',
   'complete',
 ];
+
+// ── Reference number helpers ───────────────────────────────────────────────
+
+/**
+ * Strips leading zeros from purely-numeric strings only.
+ * Alphanumeric formats (TLNA-SO-…, Txxxxx, AAAAxxxxxxx) are left untouched.
+ * Returns '0' if the entire string was zeros.
+ */
+const stripLeadingZeros = (value: string): string =>
+  /^\d+$/.test(value) ? value.replace(/^0+/, '') || '0' : value;
+
+/**
+ * Validates a reference number.
+ * Accepts the value as typed AND after stripping leading zeros, so that
+ * e.g. 008xxxxxxx is accepted and treated as 8xxxxxxx.
+ * 6-digit codes that legitimately begin with 00 (e.g. 001234) still pass
+ * because they match the ^\d{6}$ pattern before stripping is attempted.
+ */
+const validateReferenceNumber = (value: string): boolean => {
+  if (!value) return false;
+  const cleaned = value.replace(/\s/g, '').toUpperCase();
+  return (
+    REFERENCE_NUMBER_PATTERNS.some((p) => p.test(cleaned)) ||
+    REFERENCE_NUMBER_PATTERNS.some((p) => p.test(stripLeadingZeros(cleaned)))
+  );
+};
+
+/**
+ * Returns the normalised form of a reference number used for appointment
+ * lookups. Purely-numeric refs have leading zeros stripped; everything else
+ * is returned as-is. The original value is always preserved in the DB.
+ */
+const normaliseRefForLookup = (value: string): string => {
+  const cleaned = value.trim().replace(/\s/g, '');
+  return /^\d+$/.test(cleaned) ? stripLeadingZeros(cleaned) : cleaned;
+};
 
 // ── Status helpers ─────────────────────────────────────────────────────────
 
@@ -248,12 +284,6 @@ const getSupabaseClient = () => {
   return createBrowserClient(url, key);
 };
 
-const validateReferenceNumber = (value: string): boolean => {
-  if (!value) return false;
-  const cleaned = value.replace(/\s/g, '').toUpperCase();
-  return REFERENCE_NUMBER_PATTERNS.some((p) => p.test(cleaned));
-};
-
 const formatPhoneNumber = (value: string): string => {
   const cleaned = value.replace(/\D/g, '');
   const match = cleaned.match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/);
@@ -281,7 +311,6 @@ const isWithinAllowedTime = (): { allowed: boolean; message?: string } => {
   if (hour >= 17)
     return { allowed: false, message: 'Check-in is not available after 5:00 PM' };
 
-  // ── Holiday check ──────────────────────────────────────────────────────
   const today = todayString();
   const holiday = getHoliday(today);
   if (holiday)
@@ -354,7 +383,6 @@ function StatusScreen({
         .eq('id', initialRecord.id)
         .single();
       if (data) {
-        console.log('[CheckIn Update] Full record from DB:', JSON.stringify(data, null, 2));
         setRecord(data as CheckInRecord);
         setLastUpdated(new Date());
         if (NON_REDIRECT_STATUSES.includes(data.status)) {
@@ -393,8 +421,6 @@ function StatusScreen({
 
   const STATUSES_WITHOUT_INSTRUCTIONS = ['loading', 'unloading', 'checked_out', 'complete', 'rejected', 'check_in_denial', 'turned_away', 'driver_left', 'on_hold'];
   const showInstructions = dockIsAssigned && !STATUSES_WITHOUT_INSTRUCTIONS.includes(status);
-
-  console.log('[CheckIn Render]', { status, dock_number: record.dock_number, hasDock, dockIsAssigned, showInstructions });
 
   const isLoading    = status === 'loading';
   const isUnloading  = status === 'unloading';
@@ -684,8 +710,6 @@ export default function DriverCheckInForm() {
   const [checkInRecord, setCheckInRecord] = useState<CheckInRecord | null>(null);
   const [timeRestrictionWarning, setTimeRestrictionWarning] = useState<string | null>(null);
 
-  // On mount: if driver has an active check-in stored, redirect them to their
-  // status page using router.replace() so the form is removed from history.
   useEffect(() => {
     const storedId = getStoredCheckInId();
     if (!storedId) return;
@@ -729,7 +753,7 @@ export default function DriverCheckInForm() {
     setReferenceErrors((prev) => {
       const u = [...prev];
       u[index] = !validateReferenceNumber(value)
-        ? 'Invalid format. Must match: 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, 8xxxxxxx, or TLNA-SO-0xxxxx'
+        ? 'Invalid format. Must match: 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, 8xxxxxxxx, or TLNA-SO-0xxxxx'
         : null;
       return u;
     });
@@ -782,14 +806,17 @@ export default function DriverCheckInForm() {
       const hasBlankEntry = referenceNumbers.some((r, i) => r.trim() === '' && i < referenceNumbers.length - 1);
       if (hasBlankEntry) { setError('Please fill in all reference number fields or remove empty ones'); return; }
 
-      // Duplicate check
+      // Normalise the primary ref for the duplicate check so that 008xxxxxxx
+      // matches an existing check-in stored as 8xxxxxxx, and vice versa.
+      const normalisedFirstRef = normaliseRefForLookup(filledRefs[0]);
+
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: existing } = await supabase
         .from('check_ins')
         .select('id, status, resolution_action')
         .eq('trailer_number', formData.trailerNumber)
         .eq('carrier_name', formData.carrierName)
-        .ilike('reference_number', `%${filledRefs[0].trim()}%`)
+        .ilike('reference_number', `%${normalisedFirstRef}%`)
         .gte('check_in_time', since)
         .order('check_in_time', { ascending: false })
         .limit(1)
@@ -804,6 +831,7 @@ export default function DriverCheckInForm() {
         }
       }
 
+      // Store the reference number exactly as the driver typed it.
       const { data: checkInData, error: insertError } = await supabase
         .from('check_ins')
         .insert({
@@ -842,7 +870,6 @@ export default function DriverCheckInForm() {
     }
   };
 
-  // Detect if today is a holiday for the banner display
   const todayHoliday = getHoliday(todayString());
 
   return (
@@ -865,7 +892,6 @@ export default function DriverCheckInForm() {
             </a>
           </div>
 
-          {/* ── Holiday banner ─────────────────────────────────────────── */}
           {todayHoliday && (
             <div className="mx-6 mt-4 p-4 bg-red-50 border-2 border-red-300 rounded-lg flex items-start gap-3">
               <span className="text-2xl">🎌</span>
@@ -938,7 +964,9 @@ export default function DriverCheckInForm() {
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-sm font-medium text-gray-700">Reference Number(s): Must match one of these formats: 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, 8xxxxxxx, TLNA-SO-0xxxxx <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Reference Number(s): Must match one of these formats: 2xxxxxx, 4xxxxxx, 44xxxxxxxx, 48xxxxxxxx, 8xxxxxxxx, or TLNA-SO-0xxxxx <span className="text-red-500">*</span>
+                    </label>
                     <button type="button" onClick={addReferenceNumber} className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors">
                       <Plus size={16} /> Add
                     </button>
