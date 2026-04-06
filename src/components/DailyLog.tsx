@@ -197,6 +197,32 @@ const parseReferenceNumbers = (referenceNumber: string | undefined): string[] =>
   return referenceNumber.split(/[,;\s|]+/).map(ref => ref.trim()).filter(ref => ref.length > 0);
 };
 
+/**
+ * Strips leading zeros from purely-numeric strings.
+ * Alphanumeric formats (e.g. "NR. 2401", "TLNA-SO-0xxxxx") are left untouched.
+ * Returns '0' if the entire string was zeros.
+ */
+const stripLeadingZeros = (value: string): string =>
+  /^\d+$/.test(value) ? value.replace(/^0+/, '') || '0' : value;
+
+/**
+ * Given a list of parsed reference number tokens, returns an expanded list
+ * that includes both the original value AND the leading-zero-stripped version
+ * for any purely-numeric token. This ensures that a stored ref like "008xxxxxxx"
+ * will find an appointment indexed as "8xxxxxxx" (and vice versa).
+ * Deduplicates so we don't send the same token twice.
+ */
+const expandRefsWithNormalized = (refs: string[]): string[] => {
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const ref of refs) {
+    if (!seen.has(ref)) { result.push(ref); seen.add(ref); }
+    const stripped = stripLeadingZeros(ref);
+    if (stripped !== ref && !seen.has(stripped)) { result.push(stripped); seen.add(stripped); }
+  }
+  return result;
+};
+
 interface CheckIn {
   id: string;
   check_in_time: string;
@@ -640,11 +666,15 @@ export default function DailyLog() {
 
       if (checkInsError) throw checkInsError;
 
-      const allReferenceNumbers = Array.from(new Set(
+      // Parse all reference number tokens from today's check-ins, then expand
+      // each token with its leading-zero-stripped variant so that a stored ref
+      // like "008xxxxxxx" also searches for "8xxxxxxx" in the appointments table.
+      const rawReferenceNumbers = Array.from(new Set(
         (checkInsData || [])
           .flatMap(ci => parseReferenceNumbers(ci.reference_number))
           .filter(ref => ref.trim() !== '')
       ));
+      const allReferenceNumbers = expandRefsWithNormalized(rawReferenceNumbers);
 
       let allDateAppointments: any[] = [];
 
@@ -682,7 +712,10 @@ export default function DailyLog() {
 
       const enrichedCheckIns = (checkInsData || []).map(checkIn => {
         const refs = parseReferenceNumbers(checkIn.reference_number);
-        const appointmentInfo = matchAppointmentToCheckIn(refs, allDateAppointments);
+        // Expand refs with normalized variants so the scorer can match
+        // "008xxxxxxx" against an appointment stored as "8xxxxxxx"
+        const expandedRefs = expandRefsWithNormalized(refs);
+        const appointmentInfo = matchAppointmentToCheckIn(expandedRefs, allDateAppointments);
         const checkInHasManualType = checkIn.appointment_time &&
           MANUAL_APPOINTMENT_TYPES.includes(checkIn.appointment_time);
 
@@ -946,7 +979,6 @@ export default function DailyLog() {
       <Header title="Daily Log" />
       <div className="max-w-[1600px] mx-auto px-4 py-6">
 
-        {/* ── Toolbar: date nav, search, counters — matches dashboard layout ── */}
         <div className="mb-4 flex flex-wrap gap-3 items-center justify-between">
 
           {/* Date selector with prev/next arrows */}
@@ -985,7 +1017,7 @@ export default function DailyLog() {
                 placeholder="Reference #, trailer, or door..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 pr-9 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 pl-9 pr-9 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <svg className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -1004,7 +1036,7 @@ export default function DailyLog() {
             </div>
           </div>
 
-          {/* Counters — same style as dashboard */}
+          {/* Counters */}
           <div className="flex gap-3">
             <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
               <div className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">Total</div>
@@ -1037,7 +1069,7 @@ export default function DailyLog() {
           </div>
         </div>
 
-        {/* ── Main table — same card style as dashboard ── */}
+        {/* Main table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">Daily Log</h2>
@@ -1062,7 +1094,7 @@ export default function DailyLog() {
           )}
         </div>
 
-        {/* ── Denials section ── */}
+        {/* Denials section */}
         {denialCheckIns.length > 0 && (
           <div className="mt-6">
             <button
@@ -1102,7 +1134,7 @@ export default function DailyLog() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Reference #</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Appointment</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Check-In Time</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Cust. Req. Date and Dest.</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Customer, Req. Date and Dest.</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">SCAC and Mode</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">Dock</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-red-600 uppercase tracking-wider">End Time</th>
