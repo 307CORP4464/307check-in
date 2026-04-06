@@ -197,21 +197,9 @@ const parseReferenceNumbers = (referenceNumber: string | undefined): string[] =>
   return referenceNumber.split(/[,;\s|]+/).map(ref => ref.trim()).filter(ref => ref.length > 0);
 };
 
-/**
- * Strips leading zeros from purely-numeric strings.
- * Alphanumeric formats (e.g. "NR. 2401", "TLNA-SO-0xxxxx") are left untouched.
- * Returns '0' if the entire string was zeros.
- */
 const stripLeadingZeros = (value: string): string =>
   /^\d+$/.test(value) ? value.replace(/^0+/, '') || '0' : value;
 
-/**
- * Given a list of parsed reference number tokens, returns an expanded list
- * that includes both the original value AND the leading-zero-stripped version
- * for any purely-numeric token. This ensures that a stored ref like "008xxxxxxx"
- * will find an appointment indexed as "8xxxxxxx" (and vice versa).
- * Deduplicates so we don't send the same token twice.
- */
 const expandRefsWithNormalized = (refs: string[]): string[] => {
   const result: string[] = [];
   const seen = new Set<string>();
@@ -619,6 +607,12 @@ export default function DailyLog() {
   const [statusDetailCheckIn, setStatusDetailCheckIn] = useState<CheckIn | null>(null);
   const [denialsExpanded, setDenialsExpanded] = useState(false);
 
+  // ── Detention warning state ────────────────────────────────────────────────
+  const [detentionWarnings, setDetentionWarnings] = useState<
+    { id: string; referenceNumber: string; minutesUntilDetention: number }[]
+  >([]);
+  const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
+
   const getCurrentDateInIndianapolis = () => {
     const now = new Date();
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -666,9 +660,6 @@ export default function DailyLog() {
 
       if (checkInsError) throw checkInsError;
 
-      // Parse all reference number tokens from today's check-ins, then expand
-      // each token with its leading-zero-stripped variant so that a stored ref
-      // like "008xxxxxxx" also searches for "8xxxxxxx" in the appointments table.
       const rawReferenceNumbers = Array.from(new Set(
         (checkInsData || [])
           .flatMap(ci => parseReferenceNumbers(ci.reference_number))
@@ -712,8 +703,6 @@ export default function DailyLog() {
 
       const enrichedCheckIns = (checkInsData || []).map(checkIn => {
         const refs = parseReferenceNumbers(checkIn.reference_number);
-        // Expand refs with normalized variants so the scorer can match
-        // "008xxxxxxx" against an appointment stored as "8xxxxxxx"
         const expandedRefs = expandRefsWithNormalized(refs);
         const appointmentInfo = matchAppointmentToCheckIn(expandedRefs, allDateAppointments);
         const checkInHasManualType = checkIn.appointment_time &&
@@ -756,6 +745,76 @@ export default function DailyLog() {
 
     return () => { supabase.removeChannel(channel); };
   }, [selectedDate, fetchCheckInsForDate]);
+
+  // ── Approaching-detention checker ──────────────────────────────────────────
+  const checkApproachingDetention = useCallback(() => {
+    const now = new Date();
+    const warnings: { id: string; referenceNumber: string; minutesUntilDetention: number }[] = [];
+
+    checkIns.forEach((checkIn) => {
+      // Skip if already completed, denied, or no appointment
+      if (checkIn.end_time) return;
+      if (checkIn.status === 'denied') return;
+      if (!checkIn.appointment_time || !checkIn.appointment_date) return;
+
+      // Only warn for on-time (green) loads — detention only applies to those
+      const status = getAppointmentStatus(
+        checkIn.check_in_time,
+        checkIn.appointment_time,
+        checkIn.appointment_date
+      );
+      if (status.color !== 'green') return;
+
+      const normalizedTime = checkIn.appointment_time.replace(/:/g, '').trim();
+      if (!normalizedTime.match(/^\d{4}$/)) return;
+
+      try {
+        let aptYear: number, aptMonth: number, aptDay: number;
+        if (checkIn.appointment_date.includes('/')) {
+          [aptMonth, aptDay, aptYear] = checkIn.appointment_date.split('/').map(Number);
+        } else if (checkIn.appointment_date.match(/^\d{4}-\d{2}-\d{2}/)) {
+          [aptYear, aptMonth, aptDay] = checkIn.appointment_date.substring(0, 10).split('-').map(Number);
+        } else {
+          return;
+        }
+
+        const aptHour = parseInt(normalizedTime.substring(0, 2));
+        const aptMinute = parseInt(normalizedTime.substring(2, 4));
+        const aptLocalString = `${aptYear}-${String(aptMonth).padStart(2, '0')}-${String(aptDay).padStart(2, '0')}T${String(aptHour).padStart(2, '0')}:${String(aptMinute).padStart(2, '0')}:00`;
+        const appointmentUTC = zonedTimeToUtc(aptLocalString, TIMEZONE);
+
+        // Detention begins 2 hours after appointment
+        const detentionStartUTC = new Date(appointmentUTC.getTime() + 2 * 60 * 60 * 1000);
+        // Warn window: 30 minutes before detention starts
+        const warnWindowStart = new Date(detentionStartUTC.getTime() - 30 * 60 * 1000);
+
+        if (now >= warnWindowStart && now < detentionStartUTC) {
+          const minutesUntil = Math.ceil((detentionStartUTC.getTime() - now.getTime()) / (1000 * 60));
+          warnings.push({
+            id: checkIn.id,
+            referenceNumber: checkIn.reference_number || 'N/A',
+            minutesUntilDetention: minutesUntil,
+          });
+        }
+      } catch {
+        // ignore malformed dates
+      }
+    });
+
+    setDetentionWarnings(warnings);
+  }, [checkIns]);
+
+  // Run on every checkIns update and then every 60 seconds
+  useEffect(() => {
+    checkApproachingDetention();
+    const interval = setInterval(checkApproachingDetention, 60_000);
+    return () => clearInterval(interval);
+  }, [checkApproachingDetention]);
+
+  // Clear dismissed warnings when the date changes so stale dismissals don't carry over
+  useEffect(() => {
+    setDismissedWarnings(new Set());
+  }, [selectedDate]);
 
   const filteredCheckIns = checkIns.filter((checkIn) => {
     if (!searchTerm.trim()) return true;
@@ -974,9 +1033,70 @@ export default function DailyLog() {
     );
   }
 
+  // Visible (non-dismissed) warnings
+  const visibleWarnings = detentionWarnings.filter(w => !dismissedWarnings.has(w.id));
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header title="Daily Log" />
+
+      {/* ── Approaching-detention warning banner ── */}
+      {visibleWarnings.length > 0 && (
+        <div className="bg-amber-50 border-b border-amber-300">
+          <div className="max-w-[1600px] mx-auto px-4 py-2 flex flex-col gap-1.5">
+            {visibleWarnings.map(warning => (
+              <div
+                key={warning.id}
+                className="flex items-center justify-between gap-3 bg-amber-100 border border-amber-400 rounded-lg px-4 py-2"
+              >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 text-amber-700 shrink-0"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span className="text-sm font-semibold text-amber-900">
+                    Detention in {warning.minutesUntilDetention} min
+                  </span>
+                  <span className="text-sm text-amber-800">
+                    — Ref{' '}
+                    <span className="font-mono font-bold">{warning.referenceNumber}</span>
+                    {' '}has not been checked out
+                  </span>
+                </div>
+                <button
+                  onClick={() =>
+                    setDismissedWarnings(prev => new Set(prev).add(warning.id))
+                  }
+                  className="text-amber-600 hover:text-amber-900 shrink-0 p-1 rounded hover:bg-amber-200 transition-colors"
+                  aria-label="Dismiss warning"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="max-w-[1600px] mx-auto px-4 py-6">
 
         <div className="mb-4 flex flex-wrap gap-3 items-center justify-between">
