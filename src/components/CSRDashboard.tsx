@@ -220,6 +220,7 @@ interface CheckIn {
   mode?: string | null;
   requested_ship_date?: string | null;
   notes?: string;
+  has_duplicate_in_progress?: boolean;
 }
 
 export default function CSRDashboard() {
@@ -257,6 +258,25 @@ export default function CSRDashboard() {
         .order('check_in_time', { ascending: true });
 
       if (checkInsError) throw checkInsError;
+
+      // ── Fetch in-progress check-ins (started but not yet completed) ──
+      const { data: inProgressData } = await supabase
+        .from('check_ins')
+        .select('id, reference_number, start_time, end_time')
+        .not('start_time', 'is', null)
+        .is('end_time', null);
+
+      // Build a Set of reference numbers currently in progress
+      const inProgressRefs = new Set<string>();
+      (inProgressData || []).forEach((ci: any) => {
+        if (ci.reference_number) {
+          ci.reference_number
+            .split(/[,;\s|]+/)
+            .map((r: string) => r.trim())
+            .filter(Boolean)
+            .forEach((ref: string) => inProgressRefs.add(ref));
+        }
+      });
 
       const referenceNumbers = Array.from(new Set(
         (checkInsData || [])
@@ -311,6 +331,9 @@ export default function CSRDashboard() {
 
         const aptInfo = matchAppointmentToCheckIn(refs, allTodayAppointments);
 
+        // Flag if any of this check-in's reference numbers are already in progress at a dock
+        const hasDuplicateInProgress = refs.some((ref: string) => inProgressRefs.has(ref));
+
         return {
           ...ci,
           appointment_time: aptInfo?.time ??
@@ -322,6 +345,7 @@ export default function CSRDashboard() {
           carrier: aptInfo?.carrier ?? ci.carrier ?? null,
           mode: aptInfo?.mode ?? ci.mode ?? null,
           requested_ship_date: aptInfo?.requested_ship_date ?? ci.requested_ship_date ?? null,
+          has_duplicate_in_progress: hasDuplicateInProgress,
         };
       });
 
@@ -415,7 +439,6 @@ export default function CSRDashboard() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    {/* ── Column order now matches Daily Log ── */}
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver Info</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trailer</th>
@@ -441,14 +464,14 @@ export default function CSRDashboard() {
                         </span>
                       </td>
 
-                      {/* Driver Info — carrier first, then driver name, then phone (matches Daily Log) */}
+                      {/* Driver Info */}
                       <td className="px-4 py-3 text-sm">
                         <div className="text-gray-900">{checkIn.carrier_name || 'N/A'}</div>
                         <div className="text-gray-700">{checkIn.driver_name || 'N/A'}</div>
                         <div className="text-gray-500 text-xs">{formatPhoneNumber(checkIn.driver_phone)}</div>
                       </td>
 
-                      {/* Trailer — length with 'ft' suffix (matches Daily Log) */}
+                      {/* Trailer */}
                       <td className="px-4 py-3 text-sm">
                         <div className="text-gray-900">{checkIn.trailer_number || 'N/A'}</div>
                         <div className="text-gray-500 text-xs">
@@ -456,12 +479,22 @@ export default function CSRDashboard() {
                         </div>
                       </td>
 
-                      {/* Reference # */}
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
-                        {checkIn.reference_number || 'N/A'}
+                      {/* Reference # — with duplicate in-progress flag */}
+                      <td className="px-4 py-3 text-sm font-bold text-gray-900">
+                        <div>{checkIn.reference_number || 'N/A'}</div>
+                        {checkIn.has_duplicate_in_progress && (
+                          <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                            <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M8 2L14.5 13.5H1.5L8 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                              <line x1="8" y1="7" x2="8" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                              <circle cx="8" cy="12" r="0.75" fill="currentColor"/>
+                            </svg>
+                            Already at dock
+                          </span>
+                        )}
                       </td>
 
-                      {/* Appointment (color-coded, matches Daily Log) */}
+                      {/* Appointment */}
                       <td className={`px-4 py-3 text-sm ${
                         (() => {
                           const status = getAppointmentStatus(checkIn.check_in_time, checkIn.appointment_time, checkIn.appointment_date);
@@ -485,7 +518,7 @@ export default function CSRDashboard() {
                         {formatTimeInIndianapolis(checkIn.check_in_time, true)}
                       </td>
 
-                      {/* Req. Date and Dest. (matches Daily Log) */}
+                      {/* Req. Date and Dest. */}
                       <td className="px-4 py-3 text-sm">
                         <div className="flex flex-col">
                           <span className="font-semibold text-gray-900">{checkIn.customer || 'N/A'}</span>
@@ -498,7 +531,7 @@ export default function CSRDashboard() {
                         </div>
                       </td>
 
-                      {/* SCAC and Mode — two lines (matches Daily Log) */}
+                      {/* SCAC and Mode */}
                       <td className="px-4 py-3 text-sm">
                         <div className="flex flex-col">
                           <span className="font-semibold text-gray-900">{checkIn.carrier || 'N/A'}</span>
@@ -506,7 +539,7 @@ export default function CSRDashboard() {
                         </div>
                       </td>
 
-                      {/* Wait Time (CSR only) */}
+                      {/* Wait Time */}
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
                         <span className={`font-medium ${
                           calculateWaitTime(checkIn.check_in_time) > 60 ? 'text-red-600' : 'text-gray-900'
