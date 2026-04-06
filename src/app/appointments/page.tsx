@@ -244,37 +244,55 @@ export default function AppointmentsPage() {
     }
   };
 
-  const fetchCheckInStatuses = async () => {
-    try {
-      const { zonedTimeToUtc } = await import('date-fns-tz');
-      const startUtc = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
-      const endUtc = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
+const fetchCheckInStatuses = async () => {
+  try {
+    const { zonedTimeToUtc } = await import('date-fns-tz');
+    const startUtc = zonedTimeToUtc(`${selectedDate} 00:00:00`, TIMEZONE);
+    const endUtc = zonedTimeToUtc(`${selectedDate} 23:59:59`, TIMEZONE);
 
-      const { data, error } = await supabase
-        .from('check_ins')
-        .select('reference_number, status')
-        .gte('check_in_time', startUtc.toISOString())
-        .lte('check_in_time', endUtc.toISOString())
-        .not('reference_number', 'is', null);
+    const { data, error } = await supabase
+      .from('check_ins')
+      .select('reference_number, status')
+      .gte('check_in_time', startUtc.toISOString())
+      .lte('check_in_time', endUtc.toISOString())
+      .not('reference_number', 'is', null);
 
-      if (error) {
-        console.error('Error fetching check-in statuses:', error);
-        return;
-      }
-
-      if (data) {
-        const statusMap: Record<string, string> = {};
-        data.forEach((checkIn: { reference_number: string; status: string }) => {
-          if (checkIn.reference_number) {
-            statusMap[checkIn.reference_number.trim().toLowerCase()] = checkIn.status;
-          }
-        });
-        setCheckInStatuses(statusMap);
-      }
-    } catch (error) {
+    if (error) {
       console.error('Error fetching check-in statuses:', error);
+      return;
     }
-  };
+
+    if (data) {
+      const statusMap: Record<string, string> = {};
+      data.forEach((checkIn: { reference_number: string; status: string }) => {
+        if (checkIn.reference_number) {
+          // Split on the same delimiters used elsewhere in the codebase
+          const refs = checkIn.reference_number
+            .split(/[,;\s|]+/)
+            .map((r: string) => r.trim())
+            .filter(Boolean);
+
+          refs.forEach((ref: string) => {
+            const key = ref.toLowerCase();
+            statusMap[key] = checkIn.status;
+
+            // Also store the leading-zero-stripped version so that
+            // e.g. check-in ref "00012345" matches appointment SO "12345"
+            const stripped = /^\d+$/.test(ref)
+              ? ref.replace(/^0+/, '') || '0'
+              : ref;
+            if (stripped !== ref) {
+              statusMap[stripped.toLowerCase()] = checkIn.status;
+            }
+          });
+        }
+      });
+      setCheckInStatuses(statusMap);
+    }
+  } catch (error) {
+    console.error('Error fetching check-in statuses:', error);
+  }
+};
 
   const handleEdit = (appointment: Appointment) => {
     setExistingAppointment(null);
