@@ -283,7 +283,8 @@ export default function CSRDashboard() {
       const { data: checkedOutData } = await supabase
         .from('check_ins')
         .select('id, reference_number, end_time')
-        .not('end_time', 'is', null);
+        .not('end_time', 'is', null)
+        .not('status', 'eq', 'pending');
 
       // Build a Set of reference numbers that have already been checked out
       const checkedOutRefs = new Set<string>();
