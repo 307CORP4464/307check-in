@@ -260,49 +260,7 @@ export default function CSRDashboard() {
 
       if (checkInsError) throw checkInsError;
 
-      // ── Fetch in-progress check-ins (started but not yet completed) ──
-      const { data: inProgressData } = await supabase
-        .from('check_ins')
-        .select('id, reference_number, start_time, end_time')
-        .not('start_time', 'is', null)
-        .is('end_time', null);
-
-      // Build a Set of reference numbers currently in progress
-      const inProgressRefs = new Set<string>();
-      (inProgressData || []).forEach((ci: any) => {
-        if (ci.reference_number) {
-          ci.reference_number
-            .split(/[,;\s|]+/)
-            .map((r: string) => r.trim())
-            .filter(Boolean)
-            .forEach((ref: string) => inProgressRefs.add(ref));
-        }
-      });
-
-      // ── Fetch checked-out check-ins (have an end_time) ──
-      const { data: checkedOutData, error: checkedOutError } = await supabase
-        .from('check_ins')
-        .select('id, reference_number, end_time, status')
-        .not('end_time', 'is', null)
-
-      console.log('[DEBUG] checkedOutData:', checkedOutData);
-      console.log('[DEBUG] checkedOutError:', checkedOutError);
-
-      // Build a Set of reference numbers that have already been checked out
-      const checkedOutRefs = new Set<string>();
-      (checkedOutData || []).forEach((ci: any) => {
-        if (ci.reference_number) {
-          ci.reference_number
-            .split(/[,;\s|]+/)
-            .map((r: string) => r.trim())
-            .filter(Boolean)
-            .forEach((ref: string) => checkedOutRefs.add(ref));
-        }
-      });
-
-      console.log('[DEBUG] checkedOutRefs:', Array.from(checkedOutRefs));
-      console.log('[DEBUG] pending ref numbers:', (checkInsData || []).map((ci: any) => ci.reference_number));
-
+      // ── Build the list of reference numbers from pending check-ins ──
       const referenceNumbers = Array.from(new Set(
         (checkInsData || [])
           .flatMap((ci: any) =>
@@ -311,6 +269,53 @@ export default function CSRDashboard() {
               : []
           )
       ));
+
+      // ── Query in-progress and checked-out scoped to today and only matching ref numbers ──
+      const inProgressRefs = new Set<string>();
+      const checkedOutRefs = new Set<string>();
+
+      if (referenceNumbers.length > 0) {
+        const todayStart = `${today}T00:00:00.000Z`;
+        const todayEnd = `${today}T23:59:59.999Z`;
+
+        const { data: inProgressData } = await supabase
+          .from('check_ins')
+          .select('id, reference_number, start_time, end_time')
+          .in('reference_number', referenceNumbers)
+          .not('start_time', 'is', null)
+          .is('end_time', null)
+          .gte('check_in_time', todayStart)
+          .lte('check_in_time', todayEnd);
+
+        (inProgressData || []).forEach((ci: any) => {
+          if (ci.reference_number) {
+            ci.reference_number
+              .split(/[,;\s|]+/)
+              .map((r: string) => r.trim())
+              .filter(Boolean)
+              .forEach((ref: string) => inProgressRefs.add(ref));
+          }
+        });
+
+        const { data: checkedOutData } = await supabase
+          .from('check_ins')
+          .select('id, reference_number, end_time')
+          .in('reference_number', referenceNumbers)
+          .not('end_time', 'is', null)
+          .gte('check_in_time', todayStart)
+          .lte('check_in_time', todayEnd);
+
+        (checkedOutData || []).forEach((ci: any) => {
+          if (ci.reference_number) {
+            ci.reference_number
+              .split(/[,;\s|]+/)
+              .map((r: string) => r.trim())
+              .filter(Boolean)
+              .forEach((ref: string) => checkedOutRefs.add(ref));
+          }
+        });
+      }
+
 
       let allTodayAppointments: any[] = [];
 
