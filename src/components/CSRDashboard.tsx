@@ -280,11 +280,13 @@ export default function CSRDashboard() {
       });
 
       // ── Fetch checked-out check-ins (have an end_time) ──
-      const { data: checkedOutData } = await supabase
+      const { data: checkedOutData, error: checkedOutError } = await supabase
         .from('check_ins')
-        .select('id, reference_number, end_time')
+        .select('id, reference_number, end_time, status')
         .not('end_time', 'is', null)
-        .not('status', 'eq', 'pending');
+
+      console.log('[DEBUG] checkedOutData:', checkedOutData);
+      console.log('[DEBUG] checkedOutError:', checkedOutError);
 
       // Build a Set of reference numbers that have already been checked out
       const checkedOutRefs = new Set<string>();
@@ -297,6 +299,9 @@ export default function CSRDashboard() {
             .forEach((ref: string) => checkedOutRefs.add(ref));
         }
       });
+
+      console.log('[DEBUG] checkedOutRefs:', Array.from(checkedOutRefs));
+      console.log('[DEBUG] pending ref numbers:', (checkInsData || []).map((ci: any) => ci.reference_number));
 
       const referenceNumbers = Array.from(new Set(
         (checkInsData || [])
