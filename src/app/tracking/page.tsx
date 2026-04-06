@@ -452,7 +452,7 @@ export default function Tracking() {
             const detention = calculateDetention(checkIn);
             if (!detention.hasDetention) return null;
             if (checkIn.carrier_name?.toLowerCase().includes('vision')) return null;
-            return {
+            const instance: DetentionInstance = {
               reference_number:  checkIn.reference_number || '',
               check_in_time:     checkIn.check_in_time,
               appointment_time:  checkIn.appointment_time || '',
@@ -461,6 +461,7 @@ export default function Tracking() {
               carrier_name:      checkIn.carrier_name || 'N/A',
               date,
             };
+            return instance;
           })
           .filter((d): d is DetentionInstance => d !== null);
 
