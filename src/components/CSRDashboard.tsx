@@ -221,6 +221,7 @@ interface CheckIn {
   requested_ship_date?: string | null;
   notes?: string;
   has_duplicate_in_progress?: boolean;
+  has_duplicate_checked_out?: boolean;
 }
 
 export default function CSRDashboard() {
@@ -275,6 +276,24 @@ export default function CSRDashboard() {
             .map((r: string) => r.trim())
             .filter(Boolean)
             .forEach((ref: string) => inProgressRefs.add(ref));
+        }
+      });
+
+      // ── Fetch checked-out check-ins (have an end_time) ──
+      const { data: checkedOutData } = await supabase
+        .from('check_ins')
+        .select('id, reference_number, end_time')
+        .not('end_time', 'is', null);
+
+      // Build a Set of reference numbers that have already been checked out
+      const checkedOutRefs = new Set<string>();
+      (checkedOutData || []).forEach((ci: any) => {
+        if (ci.reference_number) {
+          ci.reference_number
+            .split(/[,;\s|]+/)
+            .map((r: string) => r.trim())
+            .filter(Boolean)
+            .forEach((ref: string) => checkedOutRefs.add(ref));
         }
       });
 
@@ -334,6 +353,9 @@ export default function CSRDashboard() {
         // Flag if any of this check-in's reference numbers are already in progress at a dock
         const hasDuplicateInProgress = refs.some((ref: string) => inProgressRefs.has(ref));
 
+        // Flag if any of this check-in's reference numbers have already been checked out
+        const hasDuplicateCheckedOut = refs.some((ref: string) => checkedOutRefs.has(ref));
+
         return {
           ...ci,
           appointment_time: aptInfo?.time ??
@@ -346,6 +368,7 @@ export default function CSRDashboard() {
           mode: aptInfo?.mode ?? ci.mode ?? null,
           requested_ship_date: aptInfo?.requested_ship_date ?? ci.requested_ship_date ?? null,
           has_duplicate_in_progress: hasDuplicateInProgress,
+          has_duplicate_checked_out: hasDuplicateCheckedOut,
         };
       });
 
@@ -479,7 +502,7 @@ export default function CSRDashboard() {
                         </div>
                       </td>
 
-                      {/* Reference # — with duplicate in-progress flag */}
+                      {/* Reference # — with duplicate in-progress / checked-out flags */}
                       <td className="px-4 py-3 text-sm font-bold text-gray-900">
                         <div>{checkIn.reference_number || 'N/A'}</div>
                         {checkIn.has_duplicate_in_progress && (
@@ -490,6 +513,15 @@ export default function CSRDashboard() {
                               <circle cx="8" cy="12" r="0.75" fill="currentColor"/>
                             </svg>
                             Already at dock
+                          </span>
+                        )}
+                        {checkIn.has_duplicate_checked_out && (
+                          <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-300">
+                            <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
+                              <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                            Previously checked out
                           </span>
                         )}
                       </td>
