@@ -50,6 +50,7 @@ interface DetentionInstance {
   end_time: string;
   detention_minutes: number;
   carrier_name: string;
+  date?: string;
 }
 
 const DOCK_SETS: { label: string; docks: number[] }[] = [
@@ -244,6 +245,47 @@ function Section({ title, children, badge }: { title: string; children: React.Re
   );
 }
 
+// ─── Detention Table ─────────────────────────────────────────────────────────
+function DetentionTable({ instances, showDate }: { instances: DetentionInstance[]; showDate?: boolean }) {
+  if (instances.length === 0) {
+    return <p className="text-sm text-gray-400">No detention instances.</p>;
+  }
+  return (
+    <div className="overflow-x-auto rounded-lg border border-gray-100">
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="bg-gray-50 border-b border-gray-100">
+            {[...(showDate ? ['Date'] : []), 'Reference #', 'Carrier', 'Appt', 'Check-In', 'End Time', 'Detention'].map(h => (
+              <th key={h} className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-gray-400">
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {instances.map((d, i) => (
+            <tr key={i} className={`border-b border-gray-50 last:border-0 ${i % 2 === 0 ? 'bg-white' : 'bg-red-50/20'}`}>
+              {showDate && (
+                <td className="px-4 py-2.5 text-gray-500 text-xs font-mono whitespace-nowrap">{d.date}</td>
+              )}
+              <td className="px-4 py-2.5 font-mono text-gray-800 text-xs">{d.reference_number}</td>
+              <td className="px-4 py-2.5 text-gray-700">{d.carrier_name}</td>
+              <td className="px-4 py-2.5 text-gray-600 font-mono">{d.appointment_time}</td>
+              <td className="px-4 py-2.5 text-gray-600 font-mono">{formatTimeInIndianapolis(d.check_in_time)}</td>
+              <td className="px-4 py-2.5 text-gray-600 font-mono">{formatTimeInIndianapolis(d.end_time)}</td>
+              <td className="px-4 py-2.5">
+                <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                  {d.detention_minutes} min
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function Tracking() {
   const router = useRouter();
   const supabase = createBrowserClient(
@@ -379,16 +421,12 @@ export default function Tracking() {
       });
 
       const stats: DailyStats[] = Object.entries(statsByDate).map(([date, checkIns]) => {
-        // Total, inbound, outbound counts are based on checked_out status only
         const checkedOutCheckIns = checkIns.filter(c => c.status === 'checked_out');
         const totalCheckedOut  = checkedOutCheckIns.length;
         const totalInbound     = checkedOutCheckIns.filter(c => c.load_type === 'inbound').length;
         const totalOutbound    = checkedOutCheckIns.filter(c => c.load_type === 'outbound').length;
-
-        // Total all check-ins (used as denominator for % self-served)
         const totalAllCheckIns = checkIns.length;
 
-        // Online check-ins use all check-ins; % self-served is out of all check-ins
         const onlineCheckIns = checkIns.filter(c =>
           c.driver_name && c.driver_name !== 'N/A' &&
           c.driver_phone && c.driver_phone !== 'N/A'
@@ -415,12 +453,13 @@ export default function Tracking() {
             if (!detention.hasDetention) return null;
             if (checkIn.carrier_name?.toLowerCase().includes('vision')) return null;
             return {
-              reference_number: checkIn.reference_number || '',
-              check_in_time:    checkIn.check_in_time,
-              appointment_time: checkIn.appointment_time || '',
-              end_time:         checkIn.end_time || '',
+              reference_number:  checkIn.reference_number || '',
+              check_in_time:     checkIn.check_in_time,
+              appointment_time:  checkIn.appointment_time || '',
+              end_time:          checkIn.end_time || '',
               detention_minutes: detention.minutes,
-              carrier_name:     checkIn.carrier_name || 'N/A'
+              carrier_name:      checkIn.carrier_name || 'N/A',
+              date,
             };
           })
           .filter((d): d is DetentionInstance => d !== null);
@@ -472,14 +511,15 @@ export default function Tracking() {
   const isMultiDay = dailyStats.length > 1;
 
   const rangeTotals = isMultiDay ? (() => {
-    const totalCheckedOut  = dailyStats.reduce((s, d) => s + d.totalCheckedOut, 0);
-    const totalInbound     = dailyStats.reduce((s, d) => s + d.totalInbound, 0);
-    const totalOutbound    = dailyStats.reduce((s, d) => s + d.totalOutbound, 0);
-    const totalAllCheckIns = dailyStats.reduce((s, d) => s + d.totalAllCheckIns, 0);
-    const onlineCheckIns   = dailyStats.reduce((s, d) => s + d.onlineCheckIns, 0);
-    const onTimeCount      = dailyStats.reduce((s, d) => s + d.onTimeCount, 0);
-    const totalDetention   = dailyStats.reduce((s, d) => s + d.detentionInstances.length, 0);
-    const days             = dailyStats.length;
+    const totalCheckedOut      = dailyStats.reduce((s, d) => s + d.totalCheckedOut, 0);
+    const totalInbound         = dailyStats.reduce((s, d) => s + d.totalInbound, 0);
+    const totalOutbound        = dailyStats.reduce((s, d) => s + d.totalOutbound, 0);
+    const totalAllCheckIns     = dailyStats.reduce((s, d) => s + d.totalAllCheckIns, 0);
+    const onlineCheckIns       = dailyStats.reduce((s, d) => s + d.onlineCheckIns, 0);
+    const onTimeCount          = dailyStats.reduce((s, d) => s + d.onTimeCount, 0);
+    const allDetentionInstances: DetentionInstance[] = dailyStats.flatMap(d => d.detentionInstances);
+    const totalDetention       = allDetentionInstances.length;
+    const days                 = dailyStats.length;
 
     const totalWithAppt = dailyStats.reduce((s, d) =>
       s + (d.onTimePercentage > 0 ? Math.round(d.onTimeCount / (d.onTimePercentage / 100)) : 0), 0
@@ -503,7 +543,7 @@ export default function Tracking() {
       });
     });
 
-    return { totalCheckedOut, totalInbound, totalOutbound, totalAllCheckIns, onlineCheckIns, onTimeCount, onTimePercentage, totalDetention, days, dockSetUsage, halfHourBreakdown };
+    return { totalCheckedOut, totalInbound, totalOutbound, totalAllCheckIns, onlineCheckIns, onTimeCount, onTimePercentage, totalDetention, allDetentionInstances, days, dockSetUsage, halfHourBreakdown };
   })() : null;
 
   const isToday     = startDate === today     && endDate === today;
@@ -675,7 +715,7 @@ export default function Tracking() {
 
             {/* Range — Half-Hour Breakdown */}
             {Object.keys(rangeTotals.halfHourBreakdown).length > 0 && (
-              <div className="px-6 pb-6 border-t border-blue-50">
+              <div className="px-6 pb-5 border-t border-blue-50">
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mt-4 mb-3">Check-Ins by Half Hour</p>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(rangeTotals.halfHourBreakdown)
@@ -692,6 +732,19 @@ export default function Tracking() {
                 </div>
               </div>
             )}
+
+            {/* Range — All Detention Instances */}
+            <div className="px-6 pb-6 border-t border-blue-50">
+              <div className="flex items-center gap-2 mt-4 mb-3">
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-400">All Detention Instances</p>
+                <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold ${
+                  rangeTotals.totalDetention > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-400'
+                }`}>
+                  {rangeTotals.totalDetention}
+                </span>
+              </div>
+              <DetentionTable instances={rangeTotals.allDetentionInstances} showDate />
+            </div>
           </div>
         )}
 
@@ -783,39 +836,7 @@ export default function Tracking() {
                 </span>
               }
             >
-              {stat.detentionInstances.length === 0 ? (
-                <p className="text-sm text-gray-400">No detention instances for this day.</p>
-              ) : (
-                <div className="overflow-x-auto rounded-lg border border-gray-100">
-                  <table className="min-w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-100">
-                        {['Reference #', 'Carrier', 'Appt', 'Check-In', 'End Time', 'Detention'].map(h => (
-                          <th key={h} className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-widest text-gray-400">
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stat.detentionInstances.map((d, i) => (
-                        <tr key={i} className={`border-b border-gray-50 last:border-0 ${i % 2 === 0 ? 'bg-white' : 'bg-red-50/20'}`}>
-                          <td className="px-4 py-2.5 font-mono text-gray-800 text-xs">{d.reference_number}</td>
-                          <td className="px-4 py-2.5 text-gray-700">{d.carrier_name}</td>
-                          <td className="px-4 py-2.5 text-gray-600 font-mono">{d.appointment_time}</td>
-                          <td className="px-4 py-2.5 text-gray-600 font-mono">{formatTimeInIndianapolis(d.check_in_time)}</td>
-                          <td className="px-4 py-2.5 text-gray-600 font-mono">{formatTimeInIndianapolis(d.end_time)}</td>
-                          <td className="px-4 py-2.5">
-                            <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 text-xs font-bold px-2.5 py-1 rounded-full">
-                              {d.detention_minutes} min
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              <DetentionTable instances={stat.detentionInstances} />
             </Section>
 
           </div>
