@@ -12,6 +12,7 @@ interface DenyCheckInModalProps {
     reference_number?: string;
     carrier_name?: string;
     appointment_time?: string | null;
+    appointment_date?: string | null; // ← added
   };
   onClose: () => void;
   onDeny: () => void;
@@ -37,28 +38,60 @@ const DENIAL_OPTIONS: { value: DenialOption; label: string }[] = [
 ];
 
 /**
- * Safely parse an appointment_time string into a formatted date/time string.
- * Returns a fallback string if parsing fails.
+ * Builds a human-readable appointment string from the two separate fields
+ * the dashboard stores: appointment_date (e.g. "2025-04-07" or "04/07/2025")
+ * and appointment_time (e.g. "1400" or "14:00").
  */
-function formatAppointmentTime(appointmentTime: string | null | undefined): string {
-  if (!appointmentTime) return 'your appointment time';
-
-  // Try parsing directly first
-  let date = new Date(appointmentTime);
-
-  // If invalid, attempt to handle common non-standard formats
-  if (isNaN(date.getTime())) {
-    // e.g. "2024-06-15 14:00:00" (space instead of T separator)
-    const normalized = appointmentTime.replace(' ', 'T');
-    date = new Date(normalized);
+function formatAppointmentDisplay(
+  appointmentDate: string | null | undefined,
+  appointmentTime: string | null | undefined
+): string {
+  // Special string values that are not real times
+  if (!appointmentTime || ['null', 'undefined', 'LTL', 'Paid', 'Charge'].includes(appointmentTime)) {
+    return 'your appointment time';
   }
 
-  if (isNaN(date.getTime())) return 'your appointment time';
+  if (appointmentTime === 'work_in' || appointmentTime === 'Work In') {
+    return 'your work-in appointment';
+  }
 
-  return date.toLocaleString('en-US', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  });
+  // Normalize 4-digit time like "1400" → "2:00 PM"
+  const normalizedTime = appointmentTime.replace(/:/g, '').trim();
+  let timeLabel = appointmentTime;
+  if (/^\d{4}$/.test(normalizedTime)) {
+    const hours = parseInt(normalizedTime.substring(0, 2));
+    const minutes = normalizedTime.substring(2, 4);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+    timeLabel = `${displayHour}:${minutes} ${ampm}`;
+  }
+
+  // Parse the date using the same logic as the dashboard
+  let dateLabel = '';
+  if (appointmentDate && !['null', 'undefined'].includes(appointmentDate)) {
+    let date: Date | null = null;
+
+    if (appointmentDate.includes('/')) {
+      const [m, d, y] = appointmentDate.split('/').map(Number);
+      date = new Date(y, m - 1, d);
+    } else if (/^\d{4}-\d{2}-\d{2}/.test(appointmentDate)) {
+      const [y, m, d] = appointmentDate.substring(0, 10).split('-').map(Number);
+      date = new Date(y, m - 1, d);
+    } else {
+      date = new Date(appointmentDate);
+    }
+
+    if (date && !isNaN(date.getTime()) && date.getFullYear() >= 2000) {
+      dateLabel = date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    }
+  }
+
+  if (dateLabel) return `${dateLabel} at ${timeLabel}`;
+  return timeLabel;
 }
 
 export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheckInModalProps) {
@@ -74,9 +107,11 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
   );
 
   const getPrewrittenMessage = (option: DenialOption): string => {
-    const appointmentTime = formatAppointmentTime(checkIn.appointment_time);
+    const appointmentDisplay = formatAppointmentDisplay(
+      checkIn.appointment_date,
+      checkIn.appointment_time
+    );
 
-    // Format future ship date for display
     const futureShipFormatted = futureShipDate
       ? new Date(futureShipDate + 'T00:00:00').toLocaleDateString('en-US', {
           month: 'long',
@@ -88,7 +123,7 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
     const messages: Record<DenialOption, string> = {
       invalid_number:
         'The number you have provided is the correct format however it does not match any orders in the system. Please contact your dispatch for another number and reattempt check in.',
-      too_early: `You have attempted to check in too early for your scheduled appointment time, ${appointmentTime}. We do not have docks available currently. Please resubmit the check in form 1 hour before your appointment time.`,
+      too_early: `You have attempted to check in too early for your scheduled appointment time, ${appointmentDisplay}. We do not have docks available currently. Please resubmit the check in form 1 hour before your appointment time.`,
       not_from_1403:
         'The number you have provided is a valid number however it does not ship from this location. Please contact your dispatch.',
       no_appointment:
@@ -195,7 +230,6 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
                   onChange={() => {
                     setSelectedOption(option.value);
                     setError(null);
-                    // Reset dependent fields when switching options
                     if (option.value !== 'future_shipment') setFutureShipDate('');
                     if (option.value !== 'other') setCustomMessage('');
                   }}
@@ -228,7 +262,7 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
           </div>
         )}
 
-        {/* Message Preview — shown for all preset options (including future_shipment once date chosen) */}
+        {/* Message Preview */}
         {selectedOption &&
           selectedOption !== 'other' &&
           (selectedOption !== 'future_shipment' || futureShipDate) && (
@@ -242,7 +276,7 @@ export default function DenyCheckInModal({ checkIn, onClose, onDeny }: DenyCheck
             </div>
           )}
 
-        {/* Custom Message Box — shown only for "Other" */}
+        {/* Custom Message Box */}
         {selectedOption === 'other' && (
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
