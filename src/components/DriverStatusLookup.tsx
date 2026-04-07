@@ -73,7 +73,7 @@ const getStatusMeta = (status: string): StatusMeta => {
   switch (status) {
     case 'pending':
       return {
-        headerBg: 'bg-amber-500', headerTitle: 'Checked In', headerIcon: '✓',
+        headerBg: 'bg-amber-500', headerTitle: 'Submitted - Penidng Dock Assignment', headerIcon: '',
         bannerBg: 'bg-amber-50', bannerBorder: 'border-amber-300', bannerText: 'text-amber-700',
         bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'Awaiting Dock Assignment',
       };
