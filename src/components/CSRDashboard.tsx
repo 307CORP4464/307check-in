@@ -222,6 +222,7 @@ interface CheckIn {
   notes?: string;
   has_duplicate_in_progress?: boolean;
   has_duplicate_checked_out?: boolean;
+  has_duplicate_denied?: boolean;
 }
 
 export default function CSRDashboard() {
@@ -271,8 +272,10 @@ export default function CSRDashboard() {
       ));
 
       // ── Query in-progress and checked-out scoped to today and only matching ref numbers ──
+      // ── Query in-progress, checked-out, and denied scoped to today and only matching ref numbers ──
       const inProgressRefs = new Set<string>();
       const checkedOutRefs = new Set<string>();
+      const deniedRefs = new Set<string>();
 
       if (referenceNumbers.length > 0) {
         const todayStart = `${today}T00:00:00.000Z`;
@@ -314,7 +317,26 @@ export default function CSRDashboard() {
               .forEach((ref: string) => checkedOutRefs.add(ref));
           }
         });
+
+        const { data: deniedData } = await supabase
+          .from('check_ins')
+          .select('id, reference_number, status')
+          .in('reference_number', referenceNumbers)
+          .in('status', ['denied', 'turned_away'])
+          .gte('check_in_time', todayStart)
+          .lte('check_in_time', todayEnd);
+
+        (deniedData || []).forEach((ci: any) => {
+          if (ci.reference_number) {
+            ci.reference_number
+              .split(/[,;\s|]+/)
+              .map((r: string) => r.trim())
+              .filter(Boolean)
+              .forEach((ref: string) => deniedRefs.add(ref));
+          }
+        });
       }
+
 
 
       let allTodayAppointments: any[] = [];
@@ -367,6 +389,9 @@ export default function CSRDashboard() {
         // Flag if any of this check-in's reference numbers have already been checked out
         const hasDuplicateCheckedOut = refs.some((ref: string) => checkedOutRefs.has(ref));
 
+        // Flag if any of this check-in's reference numbers were denied today
+        const hasDuplicateDenied = refs.some((ref: string) => deniedRefs.has(ref));
+
         return {
           ...ci,
           appointment_time: aptInfo?.time ??
@@ -380,6 +405,7 @@ export default function CSRDashboard() {
           requested_ship_date: aptInfo?.requested_ship_date ?? ci.requested_ship_date ?? null,
           has_duplicate_in_progress: hasDuplicateInProgress,
           has_duplicate_checked_out: hasDuplicateCheckedOut,
+          has_duplicate_denied: hasDuplicateDenied,
         };
       });
 
@@ -532,7 +558,17 @@ export default function CSRDashboard() {
                               <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
                               <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                             </svg>
-                            Previously checked out
+                            Already Checked out
+                          </span>
+                        )}
+                        {checkIn.has_duplicate_denied && (
+                          <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
+                            <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
+                              <line x1="5" y1="5" x2="11" y2="11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                              <line x1="11" y1="5" x2="5" y2="11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                            </svg>
+                            Check-In Denied Previously
                           </span>
                         )}
                       </td>
