@@ -62,15 +62,15 @@ const TRAILER_LENGTHS = [
 ] as const;
 
 const REFERENCE_NUMBER_PATTERNS = [
-  /^2\d{6}$/,       // 2xxxxxxx  (7 digits starting with 2)
-  /^4\d{6}$/,       // 4xxxxxxx  (7 digits starting with 4)
-  /^44\d{8}$/,      // 44xxxxxxxx (10 digits starting with 44)
-  /^48\d{8}$/,      // 48xxxxxxxx (10 digits starting with 48)
-  /^8\d{7}$/,       // 8xxxxxxx  (8 digits starting with 8)
-  /^TLNA-SO-0\d{5}$/, // TLNA-SO-0xxxxx
-  /^\d{6}$/,        // xxxxxx    (any 6 digits, including 00xxxx)
-  /^[A-Za-z]{4}\d{7}$/, // AAAAxxxxxxx
-  /^T\d{5}$/,       // Txxxxx
+  /^2\d{6}$/,
+  /^4\d{6}$/,
+  /^44\d{8}$/,
+  /^48\d{8}$/,
+  /^8\d{7}$/,
+  /^TLNA-SO-0\d{5}$/,
+  /^\d{6}$/,
+  /^[A-Za-z]{4}\d{7}$/,
+  /^T\d{5}$/,
 ];
 
 const NON_REDIRECT_STATUSES = [
@@ -84,21 +84,9 @@ const NON_REDIRECT_STATUSES = [
 
 // ── Reference number helpers ───────────────────────────────────────────────
 
-/**
- * Strips leading zeros from purely-numeric strings only.
- * Alphanumeric formats (TLNA-SO-…, Txxxxx, AAAAxxxxxxx) are left untouched.
- * Returns '0' if the entire string was zeros.
- */
 const stripLeadingZeros = (value: string): string =>
   /^\d+$/.test(value) ? value.replace(/^0+/, '') || '0' : value;
 
-/**
- * Validates a reference number.
- * Accepts the value as typed AND after stripping leading zeros, so that
- * e.g. 008xxxxxxx is accepted and treated as 8xxxxxxx.
- * 6-digit codes that legitimately begin with 00 (e.g. 001234) still pass
- * because they match the ^\d{6}$ pattern before stripping is attempted.
- */
 const validateReferenceNumber = (value: string): boolean => {
   if (!value) return false;
   const cleaned = value.replace(/\s/g, '').toUpperCase();
@@ -108,14 +96,68 @@ const validateReferenceNumber = (value: string): boolean => {
   );
 };
 
-/**
- * Returns the normalised form of a reference number used for appointment
- * lookups. Purely-numeric refs have leading zeros stripped; everything else
- * is returned as-is. The original value is always preserved in the DB.
- */
 const normaliseRefForLookup = (value: string): string => {
   const cleaned = value.trim().replace(/\s/g, '');
   return /^\d+$/.test(cleaned) ? stripLeadingZeros(cleaned) : cleaned;
+};
+
+// ── Duplicate check helper ─────────────────────────────────────────────────
+
+/**
+ * Returns true if the existing check-in record should BLOCK a new submission.
+ *
+ * BLOCK when:
+ *   - Status is any active status (pending, checked_in, dock_assigned,
+ *     loading, unloading, checked_out, on_hold)
+ *   - Status is complete (load already finished — no reason to check in again)
+ *   - Status is a denial AND the reason was an invalid/bad pickup number
+ *   - Status is rejected AND resolution_action is new_trailer (not correctable)
+ *
+ * ALLOW through when:
+ *   - Status is driver_left
+ *   - Status is rejected AND resolution_action is correct_and_return
+ *   - Status is a denial for any OTHER reason (too early, no appointment,
+ *     not from 1403, other/custom) — driver should be able to try again
+ */
+const shouldBlockCheckIn = (existing: {
+  status: string;
+  resolution_action: string | null;
+  denial_reason: string | null;
+}): boolean => {
+  const { status, resolution_action, denial_reason } = existing;
+
+  // Always allow: driver left
+  if (status === 'driver_left') return false;
+
+  // Always block: complete
+  if (status === 'complete') return true;
+
+  // Rejection logic
+  if (status === 'rejected') {
+    // Allow if trailer can be corrected and returned
+    if (resolution_action === 'correct_and_return') return false;
+    // Block for new_trailer required or resolution not set
+    return true;
+  }
+
+  // Denial logic
+  if (
+    status === 'check_in_denial' ||
+    status === 'turned_away' ||
+    status === 'denied'
+  ) {
+    // Block ONLY for invalid/bad pickup number denial
+    const isInvalidNumber =
+      typeof denial_reason === 'string' &&
+      denial_reason.includes('does not match any orders in the system');
+    return isInvalidNumber;
+    // All other denial reasons (too early, no appointment, not from 1403,
+    // other/custom) return false — driver is allowed to try again
+  }
+
+  // Everything else is an active status (pending, checked_in, dock_assigned,
+  // loading, unloading, checked_out, on_hold, etc.) → block
+  return true;
 };
 
 // ── Status helpers ─────────────────────────────────────────────────────────
@@ -295,10 +337,6 @@ const formatPhoneNumber = (value: string): string => {
   return value;
 };
 
-/**
- * Checks if the current date/time falls within allowed check-in hours.
- * Blocks: weekends, outside 6 AM–5 PM, and company holidays.
- */
 const isWithinAllowedTime = (): { allowed: boolean; message?: string } => {
   const now = new Date();
   const day = now.getDay();
@@ -806,14 +844,13 @@ export default function DriverCheckInForm() {
       const hasBlankEntry = referenceNumbers.some((r, i) => r.trim() === '' && i < referenceNumbers.length - 1);
       if (hasBlankEntry) { setError('Please fill in all reference number fields or remove empty ones'); return; }
 
-      // Normalise the primary ref for the duplicate check so that 008xxxxxxx
-      // matches an existing check-in stored as 8xxxxxxx, and vice versa.
       const normalisedFirstRef = normaliseRefForLookup(filledRefs[0]);
 
+      // ── Duplicate check ────────────────────────────────────────────────────
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: existing } = await supabase
-  .from('check_ins')
-  .select('id, status, resolution_action, denial_reason')
+        .from('check_ins')
+        .select('id, status, resolution_action, denial_reason')
         .eq('trailer_number', formData.trailerNumber)
         .eq('carrier_name', formData.carrierName)
         .ilike('reference_number', `%${normalisedFirstRef}%`)
@@ -822,25 +859,12 @@ export default function DriverCheckInForm() {
         .limit(1)
         .maybeSingle();
 
-     if (existing) {
-  const isCorrectableRejection =
-    existing.status === 'rejected' && existing.resolution_action === 'correct_and_return';
+      if (existing && shouldBlockCheckIn(existing)) {
+        setDuplicateCheckInId(existing.id);
+        return;
+      }
+      // ──────────────────────────────────────────────────────────────────────
 
-  const isNoAppointmentDenial =
-    (existing.status === 'check_in_denial' ||
-     existing.status === 'turned_away' ||
-     existing.status === 'denied') &&
-    typeof existing.denial_reason === 'string' &&
-    existing.denial_reason.includes('$204 same day loading fee');
-
-  if (!isCorrectableRejection && !isNoAppointmentDenial) {
-    setDuplicateCheckInId(existing.id);
-    return;
-  }
-  // Correctable rejection or no-appointment denial — fall through and allow a fresh check-in
-}
-
-      // Store the reference number exactly as the driver typed it.
       const { data: checkInData, error: insertError } = await supabase
         .from('check_ins')
         .insert({
