@@ -305,6 +305,7 @@ export default function CSRDashboard() {
           .select('id, reference_number, end_time')
           .in('reference_number', referenceNumbers)
           .not('end_time', 'is', null)
+          .not('status', 'in', '("check_in_denial","denied","turned_away","driver_left","rejected")')
           .gte('check_in_time', todayStart)
           .lte('check_in_time', todayEnd);
 
@@ -322,7 +323,7 @@ export default function CSRDashboard() {
           .from('check_ins')
           .select('id, reference_number, status')
           .in('reference_number', referenceNumbers)
-          .in('status', ['denied', 'turned_away'])
+          .in('status', ['check_in_denial', 'denied', 'turned_away'])
           .gte('check_in_time', todayStart)
           .lte('check_in_time', todayEnd);
 
@@ -552,15 +553,6 @@ export default function CSRDashboard() {
                             Already at dock
                           </span>
                         )}
-                        {checkIn.has_duplicate_checked_out && (
-                          <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-300">
-                            <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
-                              <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                            Already Checked out
-                          </span>
-                        )}
                         {checkIn.has_duplicate_denied && (
                           <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
                             <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -569,6 +561,15 @@ export default function CSRDashboard() {
                               <line x1="11" y1="5" x2="5" y2="11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                             </svg>
                             Check-In Denied Previously
+                          </span>
+                        )}
+                        {checkIn.has_duplicate_checked_out && !checkIn.has_duplicate_denied && (
+                          <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-300">
+                            <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5"/>
+                              <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                            Already Checked Out
                           </span>
                         )}
                       </td>
