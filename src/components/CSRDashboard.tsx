@@ -195,7 +195,28 @@ const getAppointmentStatus = (
   }
 };
 
-// ─── Types ───
+// ─── Leading-zero normalization (mirrors DailyLog) ───────────────────────────
+
+const stripLeadingZeros = (value: string): string =>
+  /^\d+$/.test(value) ? value.replace(/^0+/, '') || '0' : value;
+
+const parseReferenceNumbers = (referenceNumber: string | undefined): string[] => {
+  if (!referenceNumber) return [];
+  return referenceNumber.split(/[,;\s|]+/).map(ref => ref.trim()).filter(ref => ref.length > 0);
+};
+
+const expandRefsWithNormalized = (refs: string[]): string[] => {
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const ref of refs) {
+    if (!seen.has(ref)) { result.push(ref); seen.add(ref); }
+    const stripped = stripLeadingZeros(ref);
+    if (stripped !== ref && !seen.has(stripped)) { result.push(stripped); seen.add(stripped); }
+  }
+  return result;
+};
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 interface CheckIn {
   id: string;
   check_in_time: string;
@@ -261,18 +282,14 @@ export default function CSRDashboard() {
 
       if (checkInsError) throw checkInsError;
 
-      // ── Build the list of reference numbers from pending check-ins ──
-      const referenceNumbers = Array.from(new Set(
+      // ── Build normalized reference number list for querying ──────────────
+      const rawReferenceNumbers = Array.from(new Set(
         (checkInsData || [])
-          .flatMap((ci: any) =>
-            ci.reference_number
-              ? ci.reference_number.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean)
-              : []
-          )
+          .flatMap((ci: any) => parseReferenceNumbers(ci.reference_number))
       ));
+      const referenceNumbers = expandRefsWithNormalized(rawReferenceNumbers);
 
-      // ── Query in-progress and checked-out scoped to today and only matching ref numbers ──
-      // ── Query in-progress, checked-out, and denied scoped to today and only matching ref numbers ──
+      // ── Query in-progress, checked-out, and denied using expanded refs ───
       const inProgressRefs = new Set<string>();
       const checkedOutRefs = new Set<string>();
       const deniedRefs = new Set<string>();
@@ -292,10 +309,7 @@ export default function CSRDashboard() {
 
         (inProgressData || []).forEach((ci: any) => {
           if (ci.reference_number) {
-            ci.reference_number
-              .split(/[,;\s|]+/)
-              .map((r: string) => r.trim())
-              .filter(Boolean)
+            expandRefsWithNormalized(parseReferenceNumbers(ci.reference_number))
               .forEach((ref: string) => inProgressRefs.add(ref));
           }
         });
@@ -311,10 +325,7 @@ export default function CSRDashboard() {
 
         (checkedOutData || []).forEach((ci: any) => {
           if (ci.reference_number) {
-            ci.reference_number
-              .split(/[,;\s|]+/)
-              .map((r: string) => r.trim())
-              .filter(Boolean)
+            expandRefsWithNormalized(parseReferenceNumbers(ci.reference_number))
               .forEach((ref: string) => checkedOutRefs.add(ref));
           }
         });
@@ -329,17 +340,13 @@ export default function CSRDashboard() {
 
         (deniedData || []).forEach((ci: any) => {
           if (ci.reference_number) {
-            ci.reference_number
-              .split(/[,;\s|]+/)
-              .map((r: string) => r.trim())
-              .filter(Boolean)
+            expandRefsWithNormalized(parseReferenceNumbers(ci.reference_number))
               .forEach((ref: string) => deniedRefs.add(ref));
           }
         });
       }
 
-
-
+      // ── Fetch appointments using expanded refs ───────────────────────────
       let allTodayAppointments: any[] = [];
 
       if (referenceNumbers.length > 0) {
@@ -377,21 +384,17 @@ export default function CSRDashboard() {
         });
       }
 
+      // ── Enrich each check-in with appointment data ───────────────────────
       const processedCheckIns = (checkInsData || []).map((ci: any) => {
-        const refs = ci.reference_number
-          ? ci.reference_number.split(/[,;\s|]+/).map((r: string) => r.trim()).filter(Boolean)
-          : [];
+        const refs = parseReferenceNumbers(ci.reference_number);
+        const expandedRefs = expandRefsWithNormalized(refs);
 
-        const aptInfo = matchAppointmentToCheckIn(refs, allTodayAppointments);
+        const aptInfo = matchAppointmentToCheckIn(expandedRefs, allTodayAppointments);
 
-        // Flag if any of this check-in's reference numbers are already in progress at a dock
-        const hasDuplicateInProgress = refs.some((ref: string) => inProgressRefs.has(ref));
-
-        // Flag if any of this check-in's reference numbers have already been checked out
-        const hasDuplicateCheckedOut = refs.some((ref: string) => checkedOutRefs.has(ref));
-
-        // Flag if any of this check-in's reference numbers were denied today
-        const hasDuplicateDenied = refs.some((ref: string) => deniedRefs.has(ref));
+        // Use all expanded refs when checking duplicate sets
+        const hasDuplicateInProgress = expandedRefs.some((ref: string) => inProgressRefs.has(ref));
+        const hasDuplicateCheckedOut = expandedRefs.some((ref: string) => checkedOutRefs.has(ref));
+        const hasDuplicateDenied = expandedRefs.some((ref: string) => deniedRefs.has(ref));
 
         return {
           ...ci,
