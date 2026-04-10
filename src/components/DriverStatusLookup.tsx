@@ -33,8 +33,6 @@ interface CheckInRecord {
 const NON_REDIRECT_STATUSES = [
   'rejected',
   'check_in_denial',
-  'turned_away',
-  'denied',
   'driver_left',
   'complete',
 ];
@@ -53,6 +51,12 @@ const formatTime = (iso: string) =>
 
 const formatDateTime = (iso: string) =>
   new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+
+// Safely format appointment_time — if it's not a real date (e.g. "Work In"), display as-is
+const formatAppointmentTime = (value: string): string => {
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? value : formatDateTime(value);
+};
 
 const clearActiveCheckIn = () => localStorage.removeItem('activeCheckIn');
 
@@ -75,44 +79,19 @@ const getStatusMeta = (status: string): StatusMeta => {
       return {
         headerBg: 'bg-amber-500', headerTitle: 'Submitted - Pending Dock Assignment', headerIcon: '',
         bannerBg: 'bg-amber-50', bannerBorder: 'border-amber-300', bannerText: 'text-amber-700',
-        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'We are processing your check-in, this make take several minutes.',
+        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'We are processing your check-in, this may take several minutes.',
       };
-    case 'dock_assigned':
     case 'checked_in':
       return {
         headerBg: 'bg-blue-600', headerTitle: 'Dock Assigned', headerIcon: '✓',
         bannerBg: 'bg-blue-50', bannerBorder: 'border-blue-300', bannerText: 'text-blue-700',
         bannerIcon: <Truck className="w-5 h-5 text-blue-500" />, bannerLabel: 'Dock Assigned — Please Proceed',
       };
-    case 'loading':
-      return {
-        headerBg: 'bg-purple-600', headerTitle: 'Loading in Progress', headerIcon: '🚛',
-        bannerBg: 'bg-purple-50', bannerBorder: 'border-purple-300', bannerText: 'text-purple-700',
-        bannerIcon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />, bannerLabel: 'Loading in Progress',
-      };
-    case 'unloading':
-      return {
-        headerBg: 'bg-purple-600', headerTitle: 'Unloading in Progress', headerIcon: '📦',
-        bannerBg: 'bg-purple-50', bannerBorder: 'border-purple-300', bannerText: 'text-purple-700',
-        bannerIcon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />, bannerLabel: 'Unloading in Progress',
-      };
-    case 'checked_out':
-      return {
-        headerBg: 'bg-orange-500', headerTitle: 'Almost Finished — Waiting to Be Sealed', headerIcon: '🟡',
-        bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
-        bannerIcon: <AlertCircle className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed',
-      };
     case 'complete':
       return {
         headerBg: 'bg-green-600', headerTitle: 'Load Complete — Ready to Depart', headerIcon: '✓',
         bannerBg: 'bg-green-50', bannerBorder: 'border-green-300', bannerText: 'text-green-700',
         bannerIcon: <CheckCircle className="w-5 h-5 text-green-500" />, bannerLabel: 'Load Complete — Ready to Depart',
-      };
-    case 'on_hold':
-      return {
-        headerBg: 'bg-red-600', headerTitle: 'On Hold', headerIcon: '⚠️',
-        bannerBg: 'bg-red-50', bannerBorder: 'border-red-300', bannerText: 'text-red-700',
-        bannerIcon: <AlertCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'On Hold',
       };
     case 'rejected':
       return {
@@ -121,12 +100,19 @@ const getStatusMeta = (status: string): StatusMeta => {
         bannerIcon: <XCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'Trailer Rejected',
       };
     case 'check_in_denial':
-    case 'turned_away':
-    case 'denied':
       return {
         headerBg: 'bg-red-700', headerTitle: 'Check-In Denied', headerIcon: '✕',
         bannerBg: 'bg-red-50', bannerBorder: 'border-red-400', bannerText: 'text-red-700',
         bannerIcon: <XCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'Check-In Denied',
+      };
+    case 'driver_left':
+      return {
+        headerBg: 'bg-gray-600',
+        headerTitle: 'Check-In Closed — Driver Departed',
+        headerIcon: '✓',
+        bannerBg: 'bg-gray-50', bannerBorder: 'border-gray-300', bannerText: 'text-gray-700',
+        bannerIcon: <Package className="w-5 h-5 text-gray-500" />,
+        bannerLabel: 'This check-in has been closed.',
       };
     default:
       return {
@@ -189,24 +175,6 @@ function InboundInstructions() {
   );
 }
 
-function CheckedOutNextSteps() {
-  return (
-    <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
-      <p className="text-sm font-bold text-orange-700 mb-3">📋 Next Steps — Please Read Carefully:</p>
-      <ol className="space-y-2">
-        <li className="flex gap-2 text-sm text-gray-700">
-          <span className="shrink-0">🟢</span>
-          <span><strong>Step 1:</strong> Watch for the <strong>dock light to change to GREEN</strong>.</span>
-        </li>
-        <li className="flex gap-2 text-sm text-gray-700">
-          <span className="shrink-0">🏢</span>
-          <span><strong>Step 2:</strong> Once the light turns green, <strong>come to the office for your paperwork</strong>.</span>
-        </li>
-      </ol>
-    </div>
-  );
-}
-
 // ── Status Screen ──────────────────────────────────────────────────────────
 
 function StatusScreen({
@@ -233,7 +201,6 @@ function StatusScreen({
         setRecord(data as CheckInRecord);
         setLastUpdated(new Date());
 
-        // Clear localStorage if status moved to one that allows re-check-in
         if (NON_REDIRECT_STATUSES.includes(data.status)) {
           clearActiveCheckIn();
         }
@@ -243,16 +210,16 @@ function StatusScreen({
     const channel = supabase
       .channel(`lookup_${initialRecord.id}`)
       .on(
-  'postgres_changes',
-  { event: 'UPDATE', schema: 'public', table: 'check_ins', filter: `id=eq.${initialRecord.id}` },
-  (payload) => {
-    if (payload.new) {
-      setRecord(payload.new as CheckInRecord);
-      setLastUpdated(new Date());
-    }
-    fetchFull();
-  }
-)
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'check_ins', filter: `id=eq.${initialRecord.id}` },
+        (payload) => {
+          if (payload.new) {
+            setRecord(payload.new as CheckInRecord);
+            setLastUpdated(new Date());
+          }
+          fetchFull();
+        }
+      )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') setConnectionStatus('connected');
         else if (status === 'CHANNEL_ERROR') setConnectionStatus('error');
@@ -265,17 +232,14 @@ function StatusScreen({
 
   const hasDock = !!record.dock_number;
   const dockDisplay = record.dock_number === 'Ramp' ? 'RAMP' : record.dock_number;
-  const dockIsAssigned = hasDock || status === 'dock_assigned' || status === 'checked_in';
+  const dockIsAssigned = hasDock || status === 'checked_in';
 
-  const STATUSES_WITHOUT_INSTRUCTIONS = ['loading', 'unloading', 'checked_out', 'complete', 'rejected', 'check_in_denial', 'turned_away', 'driver_left', 'on_hold'];
+  const STATUSES_WITHOUT_INSTRUCTIONS = ['complete', 'rejected', 'check_in_denial', 'driver_left'];
   const showInstructions = dockIsAssigned && !STATUSES_WITHOUT_INSTRUCTIONS.includes(status);
 
-  const isLoading    = status === 'loading';
-  const isUnloading  = status === 'unloading';
-  const isCheckedOut = status === 'checked_out';
-  const isComplete   = status === 'complete';
-  const isRejected   = status === 'rejected';
-  const isDenied     = status === 'check_in_denial' || status === 'turned_away' || status === 'denied';
+  const isComplete  = status === 'complete';
+  const isRejected  = status === 'rejected';
+  const isDenied    = status === 'check_in_denial';
 
   const rejectionReasons: string[] = (() => {
     const raw = record.rejection_reasons;
@@ -302,21 +266,6 @@ function StatusScreen({
         </div>
       );
     }
-    if (isLoading) return (
-      <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-900">
-        🔴 <strong>Stay at your dock.</strong> The dock light is red — your trailer is being loaded. The light will turn green when complete.
-      </div>
-    );
-    if (isUnloading) return (
-      <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-900">
-        🔴 <strong>Stay at your dock.</strong> The dock light is red — your trailer is being unloaded. The light will turn green when complete.
-      </div>
-    );
-    if (isCheckedOut) return (
-      <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg text-sm text-orange-900">
-        🟢 <strong>Watch for the dock light to turn GREEN,</strong> then come to the office for your paperwork.
-      </div>
-    );
     if (isComplete) return (
       <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900">
         ✅ <strong>You are clear to depart.</strong> Come to the office if you need paperwork signed. Safe travels!
@@ -332,9 +281,9 @@ function StatusScreen({
         🚫 <strong>Your check-in has been denied.</strong> Please contact the facility for further assistance.
       </div>
     );
-    if (status === 'on_hold') return (
-      <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
-        ⏸️ <strong>Your load is on hold.</strong> Please come to the office for more information.
+    if (status === 'driver_left') return (
+      <div className="p-4 bg-gray-50 border-2 border-gray-300 rounded-lg text-sm text-gray-800">
+        This check-in is no longer active. If you need to check in again, please use the check-in form or see the office.
       </div>
     );
     return null;
@@ -404,7 +353,9 @@ function StatusScreen({
             <div className="p-4 bg-white border border-gray-200 rounded-lg">
               <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Appointment Time</p>
               <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-gray-800">{formatDateTime(record.appointment_time)}</p>
+                <p className="text-sm font-medium text-gray-800">
+                  {formatAppointmentTime(record.appointment_time)}
+                </p>
                 {record.appointment_status && (
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                     record.appointment_status === 'On Time' ? 'bg-green-100 text-green-700' :
@@ -424,8 +375,6 @@ function StatusScreen({
               {record.load_type === 'inbound' ? <InboundInstructions /> : <OutboundInstructions />}
             </div>
           )}
-
-          {isCheckedOut && <CheckedOutNextSteps />}
 
           {isComplete && record.end_time && (
             <div className="p-4 bg-white border border-gray-200 rounded-lg">
@@ -569,36 +518,36 @@ export default function DriverStatusLookup() {
   const [multipleResults, setMultipleResults] = useState<CheckInRecord[]>([]);
 
   // ── On mount: auto-load from ?id= query param (set by check-in form) ─────
-useEffect(() => {
-  const params = new URLSearchParams(window.location.search);
-  const id = params.get('id');
-  if (!id) return;
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    if (!id) return;
 
-  const load = async () => {
-    setSearching(true);
-    try {
-      const { data, error: queryError } = await supabase
-        .from('check_ins')
-        .select('*')
-        .eq('id', id)
-        .single();
+    const load = async () => {
+      setSearching(true);
+      try {
+        const { data, error: queryError } = await supabase
+          .from('check_ins')
+          .select('*')
+          .eq('id', id)
+          .single();
 
-      if (queryError || !data) {
-        setError('Could not load your check-in. Please search by reference number below.');
-        return;
+        if (queryError || !data) {
+          setError('Could not load your check-in. Please search by reference number below.');
+          return;
+        }
+
+        setRecord(data as CheckInRecord);
+      } catch (err) {
+        console.error('Auto-load error:', err);
+        setError('Something went wrong. Please search by reference number below.');
+      } finally {
+        setSearching(false);
       }
+    };
 
-      setRecord(data as CheckInRecord);  // ← always show, no status check
-    } catch (err) {
-      console.error('Auto-load error:', err);
-      setError('Something went wrong. Please search by reference number below.');
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  load();
-}, [supabase]);
+    load();
+  }, [supabase]);
   // ─────────────────────────────────────────────────────────────────────────
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -673,7 +622,6 @@ useEffect(() => {
         onBack={() => {
           setRecord(null);
           setMultipleResults([]);
-          // Remove ?id= from URL so a refresh doesn't re-trigger the auto-load
           window.history.replaceState({}, '', window.location.pathname);
         }}
       />
