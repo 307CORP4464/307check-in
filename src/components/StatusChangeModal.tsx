@@ -36,7 +36,7 @@ const REJECTION_REASONS = [
   'Evidence of leaks, standing water, moisture, mold or mildew',
   'Problems with latches or doors working properly',
   'Unable to seal trailer',
-  'Unable to load trailer due to load instructions'
+  'Unable to load trailer type due to load instructions'
 ];
 
 const RESOLUTION_OPTIONS: { value: ResolutionAction; label: string; description: string }[] = [
