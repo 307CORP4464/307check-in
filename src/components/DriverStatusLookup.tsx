@@ -75,7 +75,7 @@ const getStatusMeta = (status: string): StatusMeta => {
       return {
         headerBg: 'bg-amber-500', headerTitle: 'Submitted - Penidng Dock Assignment', headerIcon: '',
         bannerBg: 'bg-amber-50', bannerBorder: 'border-amber-300', bannerText: 'text-amber-700',
-        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'Awaiting Dock Assignment',
+        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'We are processing your check-in, this make take several minutes.',
       };
     case 'dock_assigned':
     case 'checked_in':
@@ -346,7 +346,7 @@ function StatusScreen({
 
         {/* Top banner */}
         <div className="bg-gray-900 text-white px-5 py-4 text-center">
-          <p className="text-xl font-extrabold tracking-tight leading-snug">📱 Leave this page open</p>
+          <p className="text-xl font-extrabold tracking-tight leading-snug">📱 DO NOT CLOSE</p>
           <p className="text-sm text-gray-300 mt-1">Load updates will appear below</p>
           <p className="text-sm text-gray-300 mt-1">You may need to reload page if you do not see an update.</p>
         </div>
