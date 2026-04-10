@@ -79,7 +79,7 @@ const getStatusMeta = (status: string): StatusMeta => {
       return {
         headerBg: 'bg-amber-500', headerTitle: 'Submitted - Pending Dock Assignment', headerIcon: '',
         bannerBg: 'bg-amber-50', bannerBorder: 'border-amber-300', bannerText: 'text-amber-700',
-        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'We are processing your check-in, this may take several minutes.',
+        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'We are processing your check-in, please note this may take several minutes.',
       };
     case 'checked_in':
       return {
@@ -304,7 +304,7 @@ function StatusScreen({
         <div className={`${meta.headerBg} text-white p-6 text-center transition-colors duration-500`}>
           <div className="text-5xl mb-3">{meta.headerIcon}</div>
           <h2 className="text-2xl font-bold">{meta.headerTitle}</h2>
-          <p className="text-white/80 text-sm mt-1">Welcome back, {record.driver_name}!</p>
+          <p className="text-white/80 text-sm mt-1">Welcome, {record.driver_name}!</p>
         </div>
 
         {/* Status banner */}
