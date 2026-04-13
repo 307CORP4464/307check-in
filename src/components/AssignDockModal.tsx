@@ -780,14 +780,9 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
               <label htmlFor="paperRefNumber" className="block text-sm font-medium text-gray-700">
                 Reference # from Paper Bill <span className="text-red-500">*</span>
               </label>
-              <p className="text-xs text-gray-400 mb-1">
-                Enter the ref # from the physical bill — must match{' '}
-                {checkIn.companion_reference ? (
-                  <span className="font-medium text-gray-500">{acceptedRefsHint}</span>
-                ) : (
-                  'the check-in reference'
-                )}
-              </p>
+           <p className="text-xs text-gray-400 mb-1">
+  Enter the ref # exactly as shown on the physical bill
+</p>
               <div className="relative">
                 <input
                   id="paperRefNumber"
@@ -795,7 +790,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
                   value={paperRefNumber}
                   onChange={(e) => setPaperRefNumber(e.target.value)}
                   onBlur={() => setPaperRefTouched(true)}
-                  placeholder="e.g. 1234567"
+                  placeholder="."
                   autoComplete="off"
                   className={`block w-full rounded-md border px-3 py-2 pr-9 shadow-sm focus:outline-none focus:ring-2 sm:text-sm ${
                     paperRefTouched && paperRefNumber.trim() !== ''
