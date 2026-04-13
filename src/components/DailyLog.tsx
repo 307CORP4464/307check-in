@@ -223,6 +223,7 @@ interface CheckIn {
   trailer_length?: string;
   load_type?: 'inbound' | 'outbound';
   reference_number?: string;
+  companion_reference?: string | null;
   dock_number?: string;
   appointment_time?: string | null;
   appointment_date?: string | null;
@@ -708,8 +709,41 @@ export default function DailyLog() {
         const checkInHasManualType = checkIn.appointment_time &&
           MANUAL_APPOINTMENT_TYPES.includes(checkIn.appointment_time);
 
+        // ── Derive companion reference ─────────────────────────────────────
+        let companionReference: string | null = checkIn.companion_reference ?? null;
+        if (appointmentInfo && !companionReference) {
+          const checkedInRefs = expandedRefs.map((r: string) => r.toLowerCase());
+          const salesOrder = appointmentInfo.sales_order ?? null;
+          const delivery = appointmentInfo.delivery ?? null;
+
+          const primaryLower = (checkIn.reference_number || '').toLowerCase();
+
+          if (salesOrder && delivery) {
+            const soLower = salesOrder.toLowerCase();
+            const delLower = delivery.toLowerCase();
+            // Whichever number the driver didn't check in with becomes the companion
+            const primaryMatchesSO = checkedInRefs.some(r => soLower.includes(r) || r.includes(soLower));
+            if (primaryMatchesSO && !delLower.includes(primaryLower) && !primaryLower.includes(delLower)) {
+              companionReference = delivery;
+            } else if (!soLower.includes(primaryLower) && !primaryLower.includes(soLower)) {
+              companionReference = salesOrder;
+            }
+          }
+
+          // Write companion reference back to DB if newly found
+          if (companionReference) {
+            supabase
+              .from('check_ins')
+              .update({ companion_reference: companionReference })
+              .eq('id', checkIn.id)
+              .is('companion_reference', null)
+              .then(() => {});
+          }
+        }
+
         return {
           ...checkIn,
+          companion_reference: companionReference,
           appointment_time: appointmentInfo?.time ?? (checkInHasManualType ? checkIn.appointment_time : null),
           appointment_date: appointmentInfo?.date ?? (checkInHasManualType ? checkIn.appointment_date : null),
           customer: appointmentInfo?.customer ?? checkIn.customer ?? null,
@@ -752,12 +786,10 @@ export default function DailyLog() {
     const warnings: { id: string; referenceNumber: string; dockNumber: string | null; minutesUntilDetention: number }[] = [];
 
     checkIns.forEach((checkIn) => {
-      // Skip if already completed, denied, or no appointment
       if (checkIn.end_time) return;
       if (checkIn.status === 'denied') return;
       if (!checkIn.appointment_time || !checkIn.appointment_date) return;
 
-      // Only warn for on-time (green) loads — detention only applies to those
       const status = getAppointmentStatus(
         checkIn.check_in_time,
         checkIn.appointment_time,
@@ -783,9 +815,7 @@ export default function DailyLog() {
         const aptLocalString = `${aptYear}-${String(aptMonth).padStart(2, '0')}-${String(aptDay).padStart(2, '0')}T${String(aptHour).padStart(2, '0')}:${String(aptMinute).padStart(2, '0')}:00`;
         const appointmentUTC = zonedTimeToUtc(aptLocalString, TIMEZONE);
 
-        // Detention begins 2 hours after appointment
         const detentionStartUTC = new Date(appointmentUTC.getTime() + 2 * 60 * 60 * 1000);
-        // Warn window: 30 minutes before detention starts
         const warnWindowStart = new Date(detentionStartUTC.getTime() - 30 * 60 * 1000);
 
         if (now >= warnWindowStart && now < detentionStartUTC) {
@@ -805,23 +835,23 @@ export default function DailyLog() {
     setDetentionWarnings(warnings);
   }, [checkIns]);
 
-  // Run on every checkIns update and then every 60 seconds
   useEffect(() => {
     checkApproachingDetention();
     const interval = setInterval(checkApproachingDetention, 60_000);
     return () => clearInterval(interval);
   }, [checkApproachingDetention]);
 
-  // Clear dismissed warnings when the date changes so stale dismissals don't carry over
   useEffect(() => {
     setDismissedWarnings(new Set());
   }, [selectedDate]);
 
+  // ── Search: also matches companion_reference ───────────────────────────────
   const filteredCheckIns = checkIns.filter((checkIn) => {
     if (!searchTerm.trim()) return true;
     const searchLower = searchTerm.toLowerCase().trim();
     return (
       (checkIn.reference_number?.toLowerCase() || '').includes(searchLower) ||
+      (checkIn.companion_reference?.toLowerCase() || '').includes(searchLower) ||
       (checkIn.trailer_number?.toLowerCase() || '').includes(searchLower) ||
       (checkIn.dock_number?.toLowerCase() || '').includes(searchLower)
     );
@@ -897,7 +927,15 @@ export default function DailyLog() {
         <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
       </td>
 
-      <td className="font-bold text-gray-900 px-4 py-3 text-sm">{checkIn.reference_number || 'N/A'}</td>
+      {/* Reference # — with companion reference underneath */}
+      <td className="px-4 py-3 text-sm">
+        <div className="font-bold text-gray-900">{checkIn.reference_number || 'N/A'}</div>
+        {checkIn.companion_reference && (
+          <div className="text-xs font-normal text-gray-500 mt-0.5">
+            Also: {checkIn.companion_reference}
+          </div>
+        )}
+      </td>
 
       <td className="px-4 py-3 whitespace-nowrap text-sm">
         {(() => {
@@ -1034,7 +1072,6 @@ export default function DailyLog() {
     );
   }
 
-  // Visible (non-dismissed) warnings
   const visibleWarnings = detentionWarnings.filter(w => !dismissedWarnings.has(w.id));
 
   return (
@@ -1138,7 +1175,7 @@ export default function DailyLog() {
             </button>
           </div>
 
-          {/* Search */}
+          {/* Search — now includes companion_reference */}
           <div className="flex-1 min-w-48 max-w-sm">
             <div className="relative">
               <input
