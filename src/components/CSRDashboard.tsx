@@ -393,43 +393,40 @@ export default function CSRDashboard() {
         const aptInfo = matchAppointmentToCheckIn(expandedRefs, allTodayAppointments);
 
         // ── Derive companion reference from the matched appointment ────────
-        let companionReference: string | null = ci.companion_reference ?? null;
-        if (aptInfo && !companionReference) {
-          const checkedInRefs = expandedRefs.map(r => r.toLowerCase());
-          const salesOrder = aptInfo.sales_order ?? null;
-          const delivery = aptInfo.delivery ?? null;
+let companionReference: string | null = ci.companion_reference ?? null;
+if (!companionReference) {
+  // Find the raw appointment that matched this check-in
+  const matchedApt = allTodayAppointments.find(apt => {
+    const soMatch = apt.sales_order && expandedRefs.some((r: string) =>
+      apt.sales_order.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(apt.sales_order.toLowerCase())
+    );
+    const delMatch = apt.delivery && expandedRefs.some((r: string) =>
+      apt.delivery.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(apt.delivery.toLowerCase())
+    );
+    return soMatch || delMatch;
+  });
 
-          const usedSalesOrder = salesOrder
-            ? checkedInRefs.some(r => salesOrder.toLowerCase().includes(r) || r.includes(salesOrder.toLowerCase()))
-            : false;
-          const usedDelivery = delivery
-            ? checkedInRefs.some(r => delivery.toLowerCase().includes(r) || r.includes(delivery.toLowerCase()))
-            : false;
+  if (matchedApt?.sales_order && matchedApt?.delivery) {
+    const primaryLower = (ci.reference_number || '').toLowerCase();
+    const soLower = matchedApt.sales_order.toLowerCase();
+    const delLower = matchedApt.delivery.toLowerCase();
+    // Whichever one the driver didn't check in with becomes the companion
+    if (primaryLower.includes(soLower) || soLower.includes(primaryLower)) {
+      companionReference = matchedApt.delivery;
+    } else {
+      companionReference = matchedApt.sales_order;
+    }
+  }
 
-          if (usedSalesOrder && delivery && delivery !== ci.reference_number) {
-            companionReference = delivery;
-          } else if (usedDelivery && salesOrder && salesOrder !== ci.reference_number) {
-            companionReference = salesOrder;
-          } else if (salesOrder && delivery) {
-            // Store whichever one isn't the primary reference
-            const primaryLower = (ci.reference_number || '').toLowerCase();
-            if (!salesOrder.toLowerCase().includes(primaryLower) && !primaryLower.includes(salesOrder.toLowerCase())) {
-              companionReference = salesOrder;
-            } else if (!delivery.toLowerCase().includes(primaryLower) && !primaryLower.includes(delivery.toLowerCase())) {
-              companionReference = delivery;
-            }
-          }
-
-          // Write companion reference back to DB if newly found
-          if (companionReference) {
-            supabase
-              .from('check_ins')
-              .update({ companion_reference: companionReference })
-              .eq('id', ci.id)
-              .is('companion_reference', null)
-              .then(() => {});
-          }
-        }
+  if (companionReference) {
+    supabase
+      .from('check_ins')
+      .update({ companion_reference: companionReference })
+      .eq('id', ci.id)
+      .is('companion_reference', null)
+      .then(() => {});
+  }
+}
 
         // Use all expanded refs when checking duplicate sets
         const hasDuplicateInProgress = expandedRefs.some((ref: string) => inProgressRefs.has(ref));
