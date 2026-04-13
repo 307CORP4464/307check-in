@@ -1,4 +1,4 @@
-'use client';
+ 'use client';
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 
@@ -10,6 +10,7 @@ interface AssignDockModalProps {
     appointment_time?: string | null;
     carrier_name?: string;
     reference_number?: string;
+    companion_reference?: string | null;
     driver_phone?: string;
     trailer_number?: string;
     trailer_length?: string;
@@ -132,9 +133,12 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
 
   const normalizeRef = (val: string) => val.trim().toLowerCase().replace(/\s+/g, '');
 
+  // ── Match against primary reference OR companion reference ────────────────
   const refNumberMatches =
     paperRefNumber.trim() === '' ||
-    normalizeRef(paperRefNumber) === normalizeRef(checkIn.reference_number || '');
+    normalizeRef(paperRefNumber) === normalizeRef(checkIn.reference_number || '') ||
+    (!!checkIn.companion_reference &&
+      normalizeRef(paperRefNumber) === normalizeRef(checkIn.companion_reference));
 
   useEffect(() => {
     if (isOpen) {
@@ -155,7 +159,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
     } else {
       setRefMismatch(false);
     }
-  }, [paperRefNumber, paperRefTouched]);
+  }, [paperRefNumber, paperRefTouched, refNumberMatches]);
 
   const fetchAllDockStatuses = async () => {
     setLoadingDocks(true);
@@ -290,9 +294,20 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
       setError('Please enter the reference number from the paper bill.');
       return;
     }
-    if (normalizeRef(paperRefNumber) !== normalizeRef(checkIn.reference_number || '')) {
+
+    // Check against both primary and companion reference
+    const enteredNormalized = normalizeRef(paperRefNumber);
+    const primaryMatches = enteredNormalized === normalizeRef(checkIn.reference_number || '');
+    const companionMatches =
+      !!checkIn.companion_reference &&
+      enteredNormalized === normalizeRef(checkIn.companion_reference);
+
+    if (!primaryMatches && !companionMatches) {
+      const acceptedRefs = [checkIn.reference_number, checkIn.companion_reference]
+        .filter(Boolean)
+        .join(' or ');
       setError(
-        `❌ Reference number mismatch. The paper bill shows "${paperRefNumber.trim()}" but this check-in is for "${checkIn.reference_number}". Please verify you have the correct paperwork.`
+        `❌ Reference number mismatch. The paper bill shows "${paperRefNumber.trim()}" but this check-in is for "${acceptedRefs}". Please verify you have the correct paperwork.`
       );
       return;
     }
@@ -384,6 +399,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
           .value { text-align: right; }
           .reference-box { background-color: #ffeb3b; padding: 12px; margin: 10px 0 6px; border: 2px solid #000; text-align: center; }
           .reference-box .reference-number { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+          .reference-box .companion-number { font-size: 13px; color: #555; margin-bottom: 4px; }
           .reference-box .dock-number { font-size: 16px; font-weight: bold; }
           .print-button { display: block; margin: 20px auto; padding: 12px 24px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
           .inspection-page { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 10pt; }
@@ -410,6 +426,7 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
           </div>
           <div class="reference-box">
             <div class="reference-number">Reference #: ${checkIn.reference_number || 'N/A'}</div>
+            ${checkIn.companion_reference ? `<div class="companion-number">Also: ${checkIn.companion_reference}</div>` : ''}
             <div class="dock-number">ASSIGNED TO: ${dockDisplay}</div>
           </div>
           <div class="section">
@@ -579,6 +596,11 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
 
   const selectedDockData = dockStatuses.find(d => d.dock_number === dockNumber);
 
+  // Build a hint string showing which ref numbers are accepted
+  const acceptedRefsHint = [checkIn.reference_number, checkIn.companion_reference]
+    .filter(Boolean)
+    .join(' or ');
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col">
@@ -589,6 +611,9 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             <h2 className="text-xl font-bold text-gray-900">Assign Dock</h2>
             <p className="text-sm text-gray-500 mt-0.5">
               {checkIn.driver_name} — {checkIn.reference_number || 'No Ref #'}
+              {checkIn.companion_reference && (
+                <span className="text-gray-400"> / {checkIn.companion_reference}</span>
+              )}
             </p>
           </div>
           <button
@@ -756,7 +781,12 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
                 Reference # from Paper Bill <span className="text-red-500">*</span>
               </label>
               <p className="text-xs text-gray-400 mb-1">
-                Type the ref # exactly as shown on the physical bill — must match
+                Enter the ref # from the physical bill — must match{' '}
+                {checkIn.companion_reference ? (
+                  <span className="font-medium text-gray-500">{acceptedRefsHint}</span>
+                ) : (
+                  'the check-in reference'
+                )}
               </p>
               <div className="relative">
                 <input
