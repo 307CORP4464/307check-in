@@ -933,7 +933,7 @@ if (!companionReference) {
         <div className="font-bold text-gray-900">{checkIn.reference_number || 'N/A'}</div>
         {checkIn.companion_reference && (
           <div className="text-xs font-normal text-gray-500 mt-0.5">
-            Also: {checkIn.companion_reference}
+             {checkIn.companion_reference}
           </div>
         )}
       </td>
