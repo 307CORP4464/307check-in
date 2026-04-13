@@ -14,6 +14,7 @@ interface CheckInRecord {
   trailer_number: string;
   trailer_length: string | null;
   reference_number: string;
+  companion_reference: string | null;
   load_type: string;
   status: string;
   dock_number: string | null;
@@ -447,7 +448,12 @@ function StatusScreen({
         <div className="mx-4 mt-4 p-4 bg-gray-50 rounded-lg text-sm space-y-2">
           <div className="flex justify-between">
             <span className="text-gray-500">Reference(s)</span>
-            <span className="font-medium text-gray-800 text-right max-w-[60%]">{record.reference_number}</span>
+            <div className="text-right max-w-[60%]">
+              <span className="font-medium text-gray-800">{record.reference_number}</span>
+              {record.companion_reference && (
+                <div className="text-xs text-gray-500 mt-0.5">Also: {record.companion_reference}</div>
+              )}
+            </div>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500">Load Type</span>
@@ -561,10 +567,12 @@ export default function DriverStatusLookup() {
     setMultipleResults([]);
 
     try {
+      // Search both reference_number AND companion_reference so drivers can
+      // look up by either their sales order or delivery number
       const { data, error: queryError } = await supabase
         .from('check_ins')
         .select('*')
-        .ilike('reference_number', `%${query}%`)
+        .or(`reference_number.ilike.%${query}%,companion_reference.ilike.%${query}%`)
         .order('check_in_time', { ascending: false })
         .limit(10);
 
@@ -654,6 +662,9 @@ export default function DriverStatusLookup() {
                   </div>
                   <div className="text-xs text-gray-500 space-y-0.5">
                     <div><span className="font-medium">Ref:</span> {r.reference_number}</div>
+                    {r.companion_reference && (
+                      <div><span className="font-medium">Also:</span> {r.companion_reference}</div>
+                    )}
                     <div><span className="font-medium">Carrier:</span> {r.carrier_name} · <span className="capitalize">{r.load_type}</span></div>
                     <div><span className="font-medium">Checked in:</span> {formatDateTime(r.check_in_time)}</div>
                     {r.dock_number && <div className="text-blue-700 font-semibold">Dock: {r.dock_number === 'Ramp' ? 'RAMP' : r.dock_number}</div>}
