@@ -609,7 +609,7 @@ export default function DailyLog() {
 
   // ── Detention warning state ────────────────────────────────────────────────
   const [detentionWarnings, setDetentionWarnings] = useState<
-    { id: string; referenceNumber: string; minutesUntilDetention: number }[]
+    { id: string; referenceNumber: string; dockNumber: string | null; minutesUntilDetention: number }[]
   >([]);
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
 
@@ -749,7 +749,7 @@ export default function DailyLog() {
   // ── Approaching-detention checker ──────────────────────────────────────────
   const checkApproachingDetention = useCallback(() => {
     const now = new Date();
-    const warnings: { id: string; referenceNumber: string; minutesUntilDetention: number }[] = [];
+    const warnings: { id: string; referenceNumber: string; dockNumber: string | null; minutesUntilDetention: number }[] = [];
 
     checkIns.forEach((checkIn) => {
       // Skip if already completed, denied, or no appointment
@@ -793,6 +793,7 @@ export default function DailyLog() {
           warnings.push({
             id: checkIn.id,
             referenceNumber: checkIn.reference_number || 'N/A',
+            dockNumber: checkIn.dock_number || null,
             minutesUntilDetention: minutesUntil,
           });
         }
@@ -1068,6 +1069,14 @@ export default function DailyLog() {
                   <span className="text-sm text-amber-800">
                     — Ref{' '}
                     <span className="font-mono font-bold">{warning.referenceNumber}</span>
+                    {warning.dockNumber && (
+                      <>
+                        {' '}at{' '}
+                        <span className="font-mono font-bold">
+                          {warning.dockNumber === 'Ramp' ? 'Ramp' : `Dock ${warning.dockNumber}`}
+                        </span>
+                      </>
+                    )}
                     {' '}has not been checked out
                   </span>
                 </div>
