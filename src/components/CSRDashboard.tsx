@@ -195,7 +195,7 @@ const getAppointmentStatus = (
   }
 };
 
-// ─── Leading-zero normalization (mirrors DailyLog) ───────────────────────────
+// ─── Leading-zero normalization ───────────────────────────────────────────────
 
 const stripLeadingZeros = (value: string): string =>
   /^\d+$/.test(value) ? value.replace(/^0+/, '') || '0' : value;
@@ -229,6 +229,7 @@ interface CheckIn {
   trailer_length?: string;
   load_type?: 'inbound' | 'outbound';
   reference_number?: string;
+  companion_reference?: string | null;
   dock_number?: string;
   appointment_date?: string | null;
   appointment_time?: string | null;
@@ -384,12 +385,51 @@ export default function CSRDashboard() {
         });
       }
 
-      // ── Enrich each check-in with appointment data ───────────────────────
+      // ── Enrich each check-in with appointment data + companion reference ─
       const processedCheckIns = (checkInsData || []).map((ci: any) => {
         const refs = parseReferenceNumbers(ci.reference_number);
         const expandedRefs = expandRefsWithNormalized(refs);
 
         const aptInfo = matchAppointmentToCheckIn(expandedRefs, allTodayAppointments);
+
+        // ── Derive companion reference from the matched appointment ────────
+        let companionReference: string | null = ci.companion_reference ?? null;
+        if (aptInfo && !companionReference) {
+          const checkedInRefs = expandedRefs.map(r => r.toLowerCase());
+          const salesOrder = aptInfo.sales_order ?? null;
+          const delivery = aptInfo.delivery ?? null;
+
+          const usedSalesOrder = salesOrder
+            ? checkedInRefs.some(r => salesOrder.toLowerCase().includes(r) || r.includes(salesOrder.toLowerCase()))
+            : false;
+          const usedDelivery = delivery
+            ? checkedInRefs.some(r => delivery.toLowerCase().includes(r) || r.includes(delivery.toLowerCase()))
+            : false;
+
+          if (usedSalesOrder && delivery && delivery !== ci.reference_number) {
+            companionReference = delivery;
+          } else if (usedDelivery && salesOrder && salesOrder !== ci.reference_number) {
+            companionReference = salesOrder;
+          } else if (salesOrder && delivery) {
+            // Store whichever one isn't the primary reference
+            const primaryLower = (ci.reference_number || '').toLowerCase();
+            if (!salesOrder.toLowerCase().includes(primaryLower) && !primaryLower.includes(salesOrder.toLowerCase())) {
+              companionReference = salesOrder;
+            } else if (!delivery.toLowerCase().includes(primaryLower) && !primaryLower.includes(delivery.toLowerCase())) {
+              companionReference = delivery;
+            }
+          }
+
+          // Write companion reference back to DB if newly found
+          if (companionReference) {
+            supabase
+              .from('check_ins')
+              .update({ companion_reference: companionReference })
+              .eq('id', ci.id)
+              .is('companion_reference', null)
+              .then(() => {});
+          }
+        }
 
         // Use all expanded refs when checking duplicate sets
         const hasDuplicateInProgress = expandedRefs.some((ref: string) => inProgressRefs.has(ref));
@@ -398,6 +438,7 @@ export default function CSRDashboard() {
 
         return {
           ...ci,
+          companion_reference: companionReference,
           appointment_time: aptInfo?.time ??
             (MANUAL_APPOINTMENT_TYPES.includes(ci.appointment_time) ? ci.appointment_time : null),
           appointment_date: aptInfo?.date ??
@@ -543,9 +584,14 @@ export default function CSRDashboard() {
                         </div>
                       </td>
 
-                      {/* Reference # — with duplicate in-progress / checked-out flags */}
+                      {/* Reference # — with companion reference + duplicate flags */}
                       <td className="px-4 py-3 text-sm font-bold text-gray-900">
                         <div>{checkIn.reference_number || 'N/A'}</div>
+                        {checkIn.companion_reference && (
+                          <div className="text-xs font-normal text-gray-500 mt-0.5">
+                            Also: {checkIn.companion_reference}
+                          </div>
+                        )}
                         {checkIn.has_duplicate_in_progress && (
                           <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 border border-red-200">
                             <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
