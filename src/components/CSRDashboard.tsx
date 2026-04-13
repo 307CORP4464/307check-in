@@ -586,7 +586,7 @@ if (!companionReference) {
                         <div>{checkIn.reference_number || 'N/A'}</div>
                         {checkIn.companion_reference && (
                           <div className="text-xs font-normal text-gray-500 mt-0.5">
-                            Also: {checkIn.companion_reference}
+                            {checkIn.companion_reference}
                           </div>
                         )}
                         {checkIn.has_duplicate_in_progress && (
