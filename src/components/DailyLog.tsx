@@ -709,37 +709,38 @@ export default function DailyLog() {
         const checkInHasManualType = checkIn.appointment_time &&
           MANUAL_APPOINTMENT_TYPES.includes(checkIn.appointment_time);
 
-        // ── Derive companion reference ─────────────────────────────────────
-        let companionReference: string | null = checkIn.companion_reference ?? null;
-        if (appointmentInfo && !companionReference) {
-          const checkedInRefs = expandedRefs.map((r: string) => r.toLowerCase());
-          const salesOrder = appointmentInfo.sales_order ?? null;
-          const delivery = appointmentInfo.delivery ?? null;
+      // ── Derive companion reference ─────────────────────────────────────
+let companionReference: string | null = checkIn.companion_reference ?? null;
+if (!companionReference) {
+  const matchedApt = allDateAppointments.find((apt: any) => {
+    const soMatch = apt.sales_order && expandedRefs.some((r: string) =>
+      apt.sales_order.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(apt.sales_order.toLowerCase())
+    );
+    const delMatch = apt.delivery && expandedRefs.some((r: string) =>
+      apt.delivery.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(apt.delivery.toLowerCase())
+    );
+    return soMatch || delMatch;
+  });
 
-          const primaryLower = (checkIn.reference_number || '').toLowerCase();
+  if (matchedApt?.sales_order && matchedApt?.delivery) {
+    const primaryLower = (checkIn.reference_number || '').toLowerCase();
+    const soLower = matchedApt.sales_order.toLowerCase();
+    if (primaryLower.includes(soLower) || soLower.includes(primaryLower)) {
+      companionReference = matchedApt.delivery;
+    } else {
+      companionReference = matchedApt.sales_order;
+    }
+  }
 
-          if (salesOrder && delivery) {
-            const soLower = salesOrder.toLowerCase();
-            const delLower = delivery.toLowerCase();
-            // Whichever number the driver didn't check in with becomes the companion
-            const primaryMatchesSO = checkedInRefs.some(r => soLower.includes(r) || r.includes(soLower));
-            if (primaryMatchesSO && !delLower.includes(primaryLower) && !primaryLower.includes(delLower)) {
-              companionReference = delivery;
-            } else if (!soLower.includes(primaryLower) && !primaryLower.includes(soLower)) {
-              companionReference = salesOrder;
-            }
-          }
-
-          // Write companion reference back to DB if newly found
-          if (companionReference) {
-            supabase
-              .from('check_ins')
-              .update({ companion_reference: companionReference })
-              .eq('id', checkIn.id)
-              .is('companion_reference', null)
-              .then(() => {});
-          }
-        }
+  if (companionReference) {
+    supabase
+      .from('check_ins')
+      .update({ companion_reference: companionReference })
+      .eq('id', checkIn.id)
+      .is('companion_reference', null)
+      .then(() => {});
+  }
+}
 
         return {
           ...checkIn,
