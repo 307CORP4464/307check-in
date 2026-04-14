@@ -108,7 +108,7 @@ export default function Header({ title }: HeaderProps) {
   Daily Logs
 </Link>
 <Link href="/status" className="bg-teal-500 text-white px-3 py-2 rounded-lg hover:bg-teal-600 transition-colors font-medium text-sm">
-  Status
+  Status Lookup
 </Link>
 <Link href="/tracking" className="bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm">
   Tracking
