@@ -906,185 +906,184 @@ export default function DriverCheckInForm() {
   const todayHoliday = getHoliday(todayString());
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+  <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="max-w-2xl mx-auto">
+      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
 
-          <div className="bg-blue-600 text-white p-6">
-            <h1 className="text-2xl font-bold">Driver Check-In</h1>
-            <p className="text-blue-100 mt-1">Please fill out all required fields to check in</p>
+        <div className="bg-blue-600 text-white p-6">
+          <h1 className="text-2xl font-bold">Driver Check-In</h1>
+          <p className="text-blue-100 mt-1">Please fill out all required fields to check in</p>
+        </div>
+
+        <div className="mx-6 mt-5">
+          
+            href="/status"
+            onClick={() => clearActiveCheckIn()}
+            className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-blue-50 border-2 border-blue-300 rounded-lg text-blue-700 font-semibold text-base hover:bg-blue-100 hover:border-blue-400 transition-colors"
+          >
+            🔍 Already checked in? Look up your load status
+          </a>
+        </div>
+
+        {todayHoliday && (
+          <div className="mx-6 mt-4 p-4 bg-red-50 border-2 border-red-300 rounded-lg flex items-start gap-3">
+            <span className="text-2xl">🎌</span>
+            <div>
+              <p className="font-bold text-red-800">Facility Closed — {todayHoliday.name}</p>
+              <p className="text-sm text-red-700 mt-0.5">
+                We are closed today in observance of {todayHoliday.name}. Check-in is not available.
+                We will resume normal operations on the next business day.
+              </p>
+            </div>
           </div>
+        )}
 
-          <div className="mx-6 mt-5">
-            <a
-              href="/status"
-              onClick={() => clearActiveCheckIn()}
-              className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-blue-50 border-2 border-blue-300 rounded-lg text-blue-700 font-semibold text-base hover:bg-blue-100 hover:border-blue-400 transition-colors"
+        {timeRestrictionWarning && !todayHoliday && (
+          <div className="mx-6 mt-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded">
+            ⚠️ {timeRestrictionWarning}
+          </div>
+        )}
+
+        {error && (
+          <div className="mx-6 mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
+          </div>
+        )}
+
+        {duplicateCheckInId && (
+          <div className="mx-6 mt-4 p-4 bg-amber-50 border-2 border-amber-400 text-amber-900 rounded-lg">
+            <p className="font-semibold mb-2">⚠️ Already checked in</p>
+            <p className="text-sm mb-3">
+              This trailer is already checked in with the same reference number.
+              Please view your load status instead of submitting again.
+            </p>
+            
+              href={`/status?id=${duplicateCheckInId}`}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition-colors text-sm"
             >
-              🔍 Already checked in? Look up your load status
+              🔍 View status of this load →
             </a>
           </div>
+        )}
 
-          {todayHoliday && (
-            <div className="mx-6 mt-4 p-4 bg-red-50 border-2 border-red-300 rounded-lg flex items-start gap-3">
-              <span className="text-2xl">🎌</span>
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+
+          <div className="border-b pb-5">
+            <h2 className="text-lg font-semibold text-gray-700 mb-4">Driver Information</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <p className="font-bold text-red-800">Facility Closed — {todayHoliday.name}</p>
-                <p className="text-sm text-red-700 mt-0.5">
-                  We are closed today in observance of {todayHoliday.name}. Check-in is not available.
-                  We will resume normal operations on the next business day.
-                </p>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
+                <input type="text" name="driverName" value={formData.driverName} onChange={handleInputChange} required placeholder="John"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number <span className="text-red-500">*</span></label>
+                <input type="tel" name="driverPhone" value={formData.driverPhone} onChange={handleInputChange} required placeholder="(555) 555-5555"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
             </div>
-          )}
+          </div>
 
-          {timeRestrictionWarning && !todayHoliday && (
-            <div className="mx-6 mt-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded">
-              ⚠️ {timeRestrictionWarning}
-            </div>
-          )}
-
-          {error && (
-            <div className="mx-6 mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-              {error}
-            </div>
-          )}
-
-          {duplicateCheckInId && (
-            <div className="mx-6 mt-4 p-4 bg-amber-50 border-2 border-amber-400 text-amber-900 rounded-lg">
-              <p className="font-semibold mb-2">⚠️ Already checked in</p>
-              <p className="text-sm mb-3">
-                This trailer is already checked in with the same reference number.
-                Please view your load status instead of submitting again.
-              </p>
-              <a
-                href={`/status?id=${duplicateCheckInId}`}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition-colors text-sm"
-              >
-                🔍 View status of this load →
-              </a>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
-
-            <div className="border-b pb-5">
-              <h2 className="text-lg font-semibold text-gray-700 mb-4">Driver Information</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
-                  <input type="text" name="driverName" value={formData.driverName} onChange={handleInputChange} required placeholder="John"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <div className="border-b pb-5">
+            <h2 className="text-lg font-semibold text-gray-700 mb-4">Load Information</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Load Type <span className="text-red-500">*</span></label>
+                <select name="loadType" value={formData.loadType} onChange={handleInputChange} required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="outbound">Outbound Pickup</option>
+                  <option value="inbound">Inbound Delivery</option>
+                </select>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Reference Number(s) <span className="text-red-500">*</span>
+                  </label>
+                  <button type="button" onClick={addReferenceNumber} className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors">
+                    <Plus size={16} /> Add
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number <span className="text-red-500">*</span></label>
-                  <input type="tel" name="driverPhone" value={formData.driverPhone} onChange={handleInputChange} required placeholder="(555) 555-5555"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <div className="space-y-2">
+                  {referenceNumbers.map((ref, index) => (
+                    <div key={index}>
+                      <div className="flex items-center gap-2">
+                        <input type="text" value={ref} onChange={(e) => handleReferenceChange(index, e.target.value)} onBlur={(e) => handleReferenceBlur(index, e.target.value)} required={index === 0}
+                          placeholder={index === 0 ? 'e.g., 26xxxxx or 41xxxxx' : `Reference #${index + 1}`}
+                          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${referenceErrors[index] ? 'border-red-400' : 'border-gray-300'}`} />
+                        {index > 0 && (
+                          <button type="button" onClick={() => removeReferenceNumber(index)} className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors">
+                            <Minus size={18} />
+                          </button>
+                        )}
+                      </div>
+                      {referenceErrors[index] && <p className="text-red-500 text-xs mt-1">{referenceErrors[index]}</p>}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+                  <p>Must match one of these formats:</p>
+                  <p>• 7 digits starting with 26 or 41 <span className="font-mono">(26xxxxx, 41xxxxx)</span></p>
+                  <p>• 8 digits starting with 86 or 88 <span className="font-mono">(86xxxxxxxx, 88xxxxxxxx)</span></p>
+                  <p>• 10 digits starting with 44 or 48 <span className="font-mono">(44xxxxxxxx, 48xxxxxxxx)</span></p>
+                  <p>• <span className="font-mono">(TLNA-SO-0xxxxx)</span></p>
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="border-b pb-5">
-              <h2 className="text-lg font-semibold text-gray-700 mb-4">Load Information</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Load Type <span className="text-red-500">*</span></label>
-                  <select name="loadType" value={formData.loadType} onChange={handleInputChange} required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="outbound">Outbound Pickup</option>
-                    <option value="inbound">Inbound Delivery</option>
-                  </select>
-                </div>
+          <div className="border-b pb-5">
+            <h2 className="text-lg font-semibold text-gray-700 mb-4">Carrier & Trailer</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-  <div className="flex items-center justify-between mb-1">
-    <label className="block text-sm font-medium text-gray-700">
-      Reference Number(s) <span className="text-red-500">*</span>
-    </label>
-    <button type="button" onClick={addReferenceNumber} className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors">
-      <Plus size={16} /> Add
-    </button>
-  </div>
-  <div className="space-y-2">
-    {referenceNumbers.map((ref, index) => (
-      <div key={index}>
-        <div className="flex items-center gap-2">
-          <input type="text" value={ref} onChange={(e) => handleReferenceChange(index, e.target.value)} onBlur={(e) => handleReferenceBlur(index, e.target.value)} required={index === 0}
-            placeholder={index === 0 ? 'e.g., 26xxxxx or 41xxxxx' : `Reference #${index + 1}`}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${referenceErrors[index] ? 'border-red-400' : 'border-gray-300'}`} />
-          {index > 0 && (
-            <button type="button" onClick={() => removeReferenceNumber(index)} className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors">
-              <Minus size={18} />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Carrier Name <span className="text-red-500">*</span></label>
+                <input type="text" name="carrierName" value={formData.carrierName} onChange={handleInputChange} required placeholder="e.g., J.B. Hunt"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Trailer Number <span className="text-red-500">*</span></label>
+                <input type="text" name="trailerNumber" value={formData.trailerNumber} onChange={handleInputChange} required placeholder="e.g., TRL-12345"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Trailer Length <span className="text-red-500">*</span></label>
+                <select name="trailerLength" value={formData.trailerLength} onChange={handleInputChange} required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {TRAILER_LENGTHS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button type="submit" disabled={loading || !!timeRestrictionWarning}
+              className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${loading || timeRestrictionWarning ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}>
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Processing...
+                </span>
+              ) : 'Check In'}
             </button>
-          )}
-        </div>
-        {referenceErrors[index] && <p className="text-red-500 text-xs mt-1">{referenceErrors[index]}</p>}
-      </div>
-    ))}
-  </div>
-
-  {/* Format hints below the field */}
-  <div className="mt-2 text-xs text-gray-500 space-y-0.5">
-    <p>Must match one of these formats:</p>
-    <p>• 7 digits starting with 26 or 41 <span className="font-mono">(26xxxxx, 41xxxxx)</span></p>
-    <p>• 8 digits starting with 86 or 88 <span className="font-mono">(86xxxxxxxx, 88xxxxxxxx)</span></p>
-    <p>• 10 digits starting with 44 or 48 <span className="font-mono">(44xxxxxxxx, 48xxxxxxxx)</span></p>
-    <p>• Toyota format <span className="font-mono">(TLNA-SO-0xxxxx)</span></p>
-  </div>
-</div>
-  
-
-            <div className="border-b pb-5">
-              <h2 className="text-lg font-semibold text-gray-700 mb-4">Carrier & Trailer</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Carrier Name <span className="text-red-500">*</span></label>
-                  <input type="text" name="carrierName" value={formData.carrierName} onChange={handleInputChange} required placeholder="e.g., J.B. Hunt"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Trailer Number <span className="text-red-500">*</span></label>
-                  <input type="text" name="trailerNumber" value={formData.trailerNumber} onChange={handleInputChange} required placeholder="e.g., TRL-12345"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Trailer Length <span className="text-red-500">*</span></label>
-                  <select name="trailerLength" value={formData.trailerLength} onChange={handleInputChange} required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    {TRAILER_LENGTHS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button type="submit" disabled={loading || !!timeRestrictionWarning}
-                className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${loading || timeRestrictionWarning ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}>
-                {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Processing...
-                  </span>
-                ) : 'Check In'}
+            {(formData.driverName || formData.carrierName) && (
+              <button type="button" onClick={resetForm}
+                className="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-all">
+                Reset
               </button>
-              {(formData.driverName || formData.carrierName) && (
-                <button type="button" onClick={resetForm}
-                  className="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-all">
-                  Reset
-                </button>
-              )}
-            </div>
+            )}
+          </div>
 
-            <div className="text-center text-xs text-gray-500 pt-4 border-t border-gray-200">
-              <p className="mb-1"><strong>Operating Hours:</strong> Monday – Friday, 7:00 AM – 5:00 PM</p>
-              <p>For assistance, contact the shipping office at{' '}
-                <a href="tel:+17654742512" className="text-blue-600 hover:underline">(765) 474-2512</a></p>
-            </div>
-          </form>
-        </div>
+          <div className="text-center text-xs text-gray-500 pt-4 border-t border-gray-200">
+            <p className="mb-1"><strong>Operating Hours:</strong> Monday – Friday, 7:00 AM – 5:00 PM</p>
+            <p>For assistance, contact the shipping office at{' '}
+              <a href="tel:+17654742512" className="text-blue-600 hover:underline">(765) 474-2512</a></p>
+          </div>
+
+        </form>
       </div>
     </div>
-  );
-}
+  </div>
+);
