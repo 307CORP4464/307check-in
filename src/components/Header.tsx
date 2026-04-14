@@ -95,37 +95,27 @@ export default function Header({ title }: HeaderProps) {
             <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
           </div>
           <div className="flex flex-wrap gap-2 items-center">
-            <Link href="/appointments" className="bg-orange-500 text-white px-3 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium text-sm">
-              Appointments
-            </Link>
-            <Link href="/dock-status" className="bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm">
-              Dock Status
-            </Link>
-            <Link href="/dashboard" className="bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium text-sm">
-              Dashboard
-            </Link>
-            <Link href="/logs" className="bg-purple-500 text-white px-3 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium text-sm">
-              Daily Logs
-            </Link>
-            <Link href="/tracking" className="bg-pink-500 text-white px-3 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium text-sm">
-              Tracking
-            </Link>
-            <Link href="/check-in" className="bg-yellow-500 text-white px-3 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium text-sm">
-              Check-In Form
-            </Link>
-
-            {/* Notification toggle */}
-            <button
-              onClick={enableNotifications}
-              className={`px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
-                notificationsEnabled
-                  ? 'bg-gray-200 text-gray-700'
-                  : 'bg-indigo-500 text-white hover:bg-indigo-600'
-              }`}
-            >
-              {notificationsEnabled ? '🔔 Alerts On' : '🔕 Enable Alerts'}
-            </button>
-
+            <Link href="/appointments" className="bg-pink-500 text-white px-3 py-2 rounded-lg hover:bg-pink-600 transition-colors font-medium text-sm">
+  Appointments
+</Link>
+<Link href="/dock-status" className="bg-orange-500 text-white px-3 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium text-sm">
+  Dock Status
+</Link>
+<Link href="/dashboard" className="bg-yellow-500 text-white px-3 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium text-sm">
+  Dashboard
+</Link>
+<Link href="/logs" className="bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition-colors font-medium text-sm">
+  Daily Logs
+</Link>
+<Link href="/status" className="bg-teal-500 text-white px-3 py-2 rounded-lg hover:bg-teal-600 transition-colors font-medium text-sm">
+  Status
+</Link>
+<Link href="/tracking" className="bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm">
+  Tracking
+</Link>
+<Link href="/check-in" className="bg-purple-500 text-white px-3 py-2 rounded-lg hover:bg-purple-600 transition-colors font-medium text-sm">
+  Check-In Form
+</Link>
             {/* Pulsing badge */}
             {pendingCount > 0 && (
               <span className="relative flex items-center justify-center w-8 h-8">
