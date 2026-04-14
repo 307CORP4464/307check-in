@@ -8,7 +8,7 @@ import { getHoliday, isHoliday } from '@/lib/holidays';
 interface AppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: AppointmentInput) => Promise<void>;
+  onSave: (data: AppointmentInput, id?: number) => Promise<void>;
   appointment?: Appointment | null;
   initialDate?: string;
   existingAppointment?: Appointment | null;
@@ -49,46 +49,48 @@ export default function AppointmentModal({
   const [editingExisting, setEditingExisting] = useState(false);
   const [showLoadInfo, setShowLoadInfo] = useState(false);
 
-  const activeAppointment = editingExisting ? existingAppointment : appointment;
-
   // Derived: is the currently-selected appointment date a holiday?
   const selectedDateHoliday = getHoliday(formData.appointment_date);
 
+  // ── Effect 1: Reset form when modal opens or the primary appointment prop changes ──
+  // NOTE: existingAppointment is intentionally NOT in the dep array so that
+  // duplicate-check results arriving mid-typing don't wipe the form.
   useEffect(() => {
-    if (activeAppointment) {
+    if (!isOpen) return;
+
+    if (appointment) {
       setFormData({
-        appointment_date: activeAppointment.appointment_date,
-        appointment_time: activeAppointment.appointment_time,
-        sales_order: activeAppointment.sales_order || '',
-        delivery: activeAppointment.delivery || '',
-        customer: activeAppointment.customer || '',
-        carrier: activeAppointment.carrier || '',
-        mode: activeAppointment.mode || '',
-        requested_ship_date: activeAppointment.requested_ship_date || '',
-        ship_to_city: activeAppointment.ship_to_city || '',
-        ship_to_state: activeAppointment.ship_to_state || '',
-        notes: activeAppointment.notes || '',
-        source: activeAppointment.source,
+        appointment_date: appointment.appointment_date,
+        appointment_time: appointment.appointment_time,
+        sales_order: appointment.sales_order || '',
+        delivery: appointment.delivery || '',
+        customer: appointment.customer || '',
+        carrier: appointment.carrier || '',
+        mode: appointment.mode || '',
+        requested_ship_date: appointment.requested_ship_date || '',
+        ship_to_city: appointment.ship_to_city || '',
+        ship_to_state: appointment.ship_to_state || '',
+        notes: appointment.notes || '',
+        source: appointment.source,
       });
 
-      const existingSOs = activeAppointment.sales_order
-        ? activeAppointment.sales_order.split(',').map(s => s.trim()).filter(Boolean)
+      const existingSOs = appointment.sales_order
+        ? appointment.sales_order.split(',').map(s => s.trim()).filter(Boolean)
         : [''];
-      const existingDOs = activeAppointment.delivery
-        ? activeAppointment.delivery.split(',').map(s => s.trim()).filter(Boolean)
+      const existingDOs = appointment.delivery
+        ? appointment.delivery.split(',').map(s => s.trim()).filter(Boolean)
         : [''];
 
       setSalesOrders(existingSOs.length > 0 ? existingSOs : ['']);
       setDeliveries(existingDOs.length > 0 ? existingDOs : ['']);
 
       const hasLoadInfo =
-        !!activeAppointment.carrier ||
-        !!activeAppointment.mode ||
-        !!activeAppointment.requested_ship_date ||
-        !!activeAppointment.ship_to_city ||
-        !!activeAppointment.ship_to_state;
+        !!appointment.carrier ||
+        !!appointment.mode ||
+        !!appointment.requested_ship_date ||
+        !!appointment.ship_to_city ||
+        !!appointment.ship_to_state;
       setShowLoadInfo(hasLoadInfo);
-
     } else {
       setFormData({
         appointment_date: initialDate,
@@ -109,8 +111,49 @@ export default function AppointmentModal({
       setShowLoadInfo(false);
     }
     setError('');
-  }, [activeAppointment, initialDate, isOpen]);
+  }, [appointment, initialDate, isOpen]);
 
+  // ── Effect 2: Populate form from existingAppointment ONLY when user clicks
+  //    "Edit Existing Appointment Instead" — not on every prop change ──
+  useEffect(() => {
+    if (!editingExisting || !existingAppointment) return;
+
+    setFormData({
+      appointment_date: existingAppointment.appointment_date,
+      appointment_time: existingAppointment.appointment_time,
+      sales_order: existingAppointment.sales_order || '',
+      delivery: existingAppointment.delivery || '',
+      customer: existingAppointment.customer || '',
+      carrier: existingAppointment.carrier || '',
+      mode: existingAppointment.mode || '',
+      requested_ship_date: existingAppointment.requested_ship_date || '',
+      ship_to_city: existingAppointment.ship_to_city || '',
+      ship_to_state: existingAppointment.ship_to_state || '',
+      notes: existingAppointment.notes || '',
+      source: existingAppointment.source,
+    });
+
+    const sos = existingAppointment.sales_order
+      ? existingAppointment.sales_order.split(',').map(s => s.trim()).filter(Boolean)
+      : [''];
+    const dos = existingAppointment.delivery
+      ? existingAppointment.delivery.split(',').map(s => s.trim()).filter(Boolean)
+      : [''];
+
+    setSalesOrders(sos.length > 0 ? sos : ['']);
+    setDeliveries(dos.length > 0 ? dos : ['']);
+
+    const hasLoadInfo =
+      !!existingAppointment.carrier ||
+      !!existingAppointment.mode ||
+      !!existingAppointment.requested_ship_date ||
+      !!existingAppointment.ship_to_city ||
+      !!existingAppointment.ship_to_state;
+    setShowLoadInfo(hasLoadInfo);
+    setError('');
+  }, [editingExisting]); // ← only fires when the user clicks the button
+
+  // ── Reset editingExisting when modal closes ──
   useEffect(() => {
     if (!isOpen) setEditingExisting(false);
   }, [isOpen]);
@@ -181,13 +224,24 @@ export default function AppointmentModal({
       return;
     }
 
+    // Determine which record ID to update:
+    // - editingExisting → use the existingAppointment's ID
+    // - normal edit     → use the appointment prop's ID
+    // - new appointment → undefined (triggers createAppointment in parent)
+    const idToUpdate = editingExisting
+      ? existingAppointment?.id
+      : appointment?.id;
+
     setSaving(true);
     try {
-      await onSave({
-        ...formData,
-        sales_order: filledSOs.join(', '),
-        delivery: filledDOs.join(', '),
-      });
+      await onSave(
+        {
+          ...formData,
+          sales_order: filledSOs.join(', '),
+          delivery: filledDOs.join(', '),
+        },
+        idToUpdate
+      );
       onClose();
     } catch (err: any) {
       setError(err.message || 'Error saving appointment');
@@ -301,7 +355,6 @@ export default function AppointmentModal({
                 className={`${inputClass} ${selectedDateHoliday ? 'border-red-400 bg-red-50' : ''}`}
                 required
               />
-              {/* ── Holiday warning under the date picker ── */}
               {selectedDateHoliday && (
                 <div className="mt-2 flex items-start gap-2 p-3 bg-red-50 border border-red-300 rounded-lg">
                   <span className="text-red-500 text-base shrink-0">🚫</span>
@@ -416,7 +469,7 @@ export default function AppointmentModal({
               </button>
             </div>
 
-            {/* ── Load & Transport Info (collapsible) ── */}
+            {/* Load & Transport Info (collapsible) */}
             <div className="border border-gray-200 rounded-lg overflow-hidden">
               <button
                 type="button"
