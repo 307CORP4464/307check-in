@@ -995,7 +995,7 @@ export default function DriverCheckInForm() {
                     <option value="inbound">Inbound Delivery</option>
                   </select>
                 </div>
-               <div>
+              <div>
   <div className="flex items-center justify-between mb-1">
     <label className="block text-sm font-medium text-gray-700">
       Reference Number(s) <span className="text-red-500">*</span>
@@ -1017,6 +1017,7 @@ export default function DriverCheckInForm() {
             </button>
           )}
         </div>
+        {referenceErrors[index] && <p className="text-red-500 text-xs mt-1">{referenceErrors[index]}</p>}
       </div>
     ))}
   </div>
@@ -1030,15 +1031,7 @@ export default function DriverCheckInForm() {
     <p>• Toyota format <span className="font-mono">(TLNA-SO-0xxxxx)</span></p>
   </div>
 </div>
-                          )}
-                        </div>
-                        {referenceErrors[index] && <p className="text-red-500 text-xs mt-1">{referenceErrors[index]}</p>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+  
 
             <div className="border-b pb-5">
               <h2 className="text-lg font-semibold text-gray-700 mb-4">Carrier & Trailer</h2>
