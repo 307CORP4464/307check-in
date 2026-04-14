@@ -103,6 +103,22 @@ const normaliseRefForLookup = (value: string): string => {
 
 // ── Duplicate check helper ─────────────────────────────────────────────────
 
+/**
+ * Returns true if the existing check-in record should BLOCK a new submission.
+ *
+ * BLOCK when:
+ *   - Status is any active status (pending, checked_in, dock_assigned,
+ *     loading, unloading, checked_out, on_hold)
+ *   - Status is complete (load already finished — no reason to check in again)
+ *   - Status is a denial AND the reason was an invalid/bad pickup number
+ *   - Status is rejected AND resolution_action is new_trailer (not correctable)
+ *
+ * ALLOW through when:
+ *   - Status is driver_left
+ *   - Status is rejected AND resolution_action is correct_and_return
+ *   - Status is a denial for any OTHER reason (too early, no appointment,
+ *     not from 1403, other/custom) — driver should be able to try again
+ */
 const shouldBlockCheckIn = (existing: {
   status: string;
   resolution_action: string | null;
@@ -110,25 +126,37 @@ const shouldBlockCheckIn = (existing: {
 }): boolean => {
   const { status, resolution_action, denial_reason } = existing;
 
+  // Always allow: driver left
   if (status === 'driver_left') return false;
+
+  // Always block: complete
   if (status === 'complete') return true;
 
+  // Rejection logic
   if (status === 'rejected') {
+    // Allow if trailer can be corrected and returned
     if (resolution_action === 'correct_and_return') return false;
+    // Block for new_trailer required or resolution not set
     return true;
   }
 
+  // Denial logic
   if (
     status === 'check_in_denial' ||
     status === 'turned_away' ||
     status === 'denied'
   ) {
+    // Block ONLY for invalid/bad pickup number denial
     const isInvalidNumber =
       typeof denial_reason === 'string' &&
       denial_reason.includes('does not match any orders in the system');
     return isInvalidNumber;
+    // All other denial reasons (too early, no appointment, not from 1403,
+    // other/custom) return false — driver is allowed to try again
   }
 
+  // Everything else is an active status (pending, checked_in, dock_assigned,
+  // loading, unloading, checked_out, on_hold, etc.) → block
   return true;
 };
 
@@ -818,6 +846,7 @@ export default function DriverCheckInForm() {
 
       const normalisedFirstRef = normaliseRefForLookup(filledRefs[0]);
 
+      // ── Duplicate check ────────────────────────────────────────────────────
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: existing } = await supabase
         .from('check_ins')
@@ -834,6 +863,7 @@ export default function DriverCheckInForm() {
         setDuplicateCheckInId(existing.id);
         return;
       }
+      // ──────────────────────────────────────────────────────────────────────
 
       const { data: checkInData, error: insertError } = await supabase
         .from('check_ins')
@@ -886,7 +916,7 @@ export default function DriverCheckInForm() {
           </div>
 
           <div className="mx-6 mt-5">
-            
+            <a
               href="/status"
               onClick={() => clearActiveCheckIn()}
               className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-blue-50 border-2 border-blue-300 rounded-lg text-blue-700 font-semibold text-base hover:bg-blue-100 hover:border-blue-400 transition-colors"
@@ -927,7 +957,7 @@ export default function DriverCheckInForm() {
                 This trailer is already checked in with the same reference number.
                 Please view your load status instead of submitting again.
               </p>
-              
+              <a
                 href={`/status?id=${duplicateCheckInId}`}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition-colors text-sm"
               >
@@ -968,7 +998,7 @@ export default function DriverCheckInForm() {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-sm font-medium text-gray-700">
-                      Reference Number(s) <span className="text-red-500">*</span>
+                      Reference Number(s): Must match one of these formats: 7 digits starting with 26 or 41 (26xxxxx, 41xxxxx) 8 digits starting with 86 or 88 ( 86xxxxxxx, 88xxxxxxx) 10 digitsd starting with 44 or 48 (44xxxxxxxx, 48xxxxxxxx) or TLNA-SO-0xxxxx <span className="text-red-500">*</span>
                     </label>
                     <button type="button" onClick={addReferenceNumber} className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors">
                       <Plus size={16} /> Add
@@ -990,13 +1020,6 @@ export default function DriverCheckInForm() {
                         {referenceErrors[index] && <p className="text-red-500 text-xs mt-1">{referenceErrors[index]}</p>}
                       </div>
                     ))}
-                  </div>
-                  <div className="mt-2 text-xs text-gray-500 space-y-0.5">
-                    <p>Must match one of these formats:</p>
-                    <p>• 7 digits starting with 26 or 41 <span className="font-mono">(26xxxxx, 41xxxxx)</span></p>
-                    <p>• 8 digits starting with 86 or 88 <span className="font-mono">(86xxxxxxxx, 88xxxxxxxx)</span></p>
-                    <p>• 10 digits starting with 44 or 48 <span className="font-mono">(44xxxxxxxx, 48xxxxxxxx)</span></p>
-                    <p>• Toyota format <span className="font-mono">(TLNA-SO-0xxxxx)</span></p>
                   </div>
                 </div>
               </div>
@@ -1051,7 +1074,6 @@ export default function DriverCheckInForm() {
               <p>For assistance, contact the shipping office at{' '}
                 <a href="tel:+17654742512" className="text-blue-600 hover:underline">(765) 474-2512</a></p>
             </div>
-
           </form>
         </div>
       </div>
