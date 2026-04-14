@@ -995,26 +995,41 @@ export default function DriverCheckInForm() {
                     <option value="inbound">Inbound Delivery</option>
                   </select>
                 </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Reference Number(s): Must match one of these formats: 7 digits starting with 26 or 41 (26xxxxx, 41xxxxx) 8 digits starting with 86 or 88 ( 86xxxxxxx, 88xxxxxxx) 10 digitsd starting with 44 or 48 (44xxxxxxxx, 48xxxxxxxx) or TLNA-SO-0xxxxx <span className="text-red-500">*</span>
-                    </label>
-                    <button type="button" onClick={addReferenceNumber} className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors">
-                      <Plus size={16} /> Add
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {referenceNumbers.map((ref, index) => (
-                      <div key={index}>
-                        <div className="flex items-center gap-2">
-                          <input type="text" value={ref} onChange={(e) => handleReferenceChange(index, e.target.value)} onBlur={(e) => handleReferenceBlur(index, e.target.value)} required={index === 0}
-                            placeholder={index === 0 ? 'e.g., 26xxxxx or 41xxxxx' : `Reference #${index + 1}`}
-                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${referenceErrors[index] ? 'border-red-400' : 'border-gray-300'}`} />
-                          {index > 0 && (
-                            <button type="button" onClick={() => removeReferenceNumber(index)} className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors">
-                              <Minus size={18} />
-                            </button>
+               <div>
+  <div className="flex items-center justify-between mb-1">
+    <label className="block text-sm font-medium text-gray-700">
+      Reference Number(s) <span className="text-red-500">*</span>
+    </label>
+    <button type="button" onClick={addReferenceNumber} className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors">
+      <Plus size={16} /> Add
+    </button>
+  </div>
+  <div className="space-y-2">
+    {referenceNumbers.map((ref, index) => (
+      <div key={index}>
+        <div className="flex items-center gap-2">
+          <input type="text" value={ref} onChange={(e) => handleReferenceChange(index, e.target.value)} onBlur={(e) => handleReferenceBlur(index, e.target.value)} required={index === 0}
+            placeholder={index === 0 ? 'e.g., 26xxxxx or 41xxxxx' : `Reference #${index + 1}`}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${referenceErrors[index] ? 'border-red-400' : 'border-gray-300'}`} />
+          {index > 0 && (
+            <button type="button" onClick={() => removeReferenceNumber(index)} className="flex-shrink-0 text-red-500 hover:text-red-700 transition-colors">
+              <Minus size={18} />
+            </button>
+          )}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  {/* Format hints below the field */}
+  <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+    <p>Must match one of these formats:</p>
+    <p>• 7 digits starting with 26 or 41 <span className="font-mono">(26xxxxx, 41xxxxx)</span></p>
+    <p>• 8 digits starting with 86 or 88 <span className="font-mono">(86xxxxxxxx, 88xxxxxxxx)</span></p>
+    <p>• 10 digits starting with 44 or 48 <span className="font-mono">(44xxxxxxxx, 48xxxxxxxx)</span></p>
+    <p>• Toyota format <span className="font-mono">(TLNA-SO-0xxxxx)</span></p>
+  </div>
+</div>
                           )}
                         </div>
                         {referenceErrors[index] && <p className="text-red-500 text-xs mt-1">{referenceErrors[index]}</p>}
