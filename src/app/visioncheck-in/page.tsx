@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { Plus, Minus, CheckCircle, Clock, Truck, AlertCircle, Loader2, XCircle, Package } from 'lucide-react';
+import { Plus, Minus, Clock, Truck, XCircle, Package, Search } from 'lucide-react';
 import { isHoliday, getHoliday, todayString } from '@/lib/holidays';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -24,6 +24,7 @@ interface CheckInRecord {
   trailer_number: string;
   trailer_length: string | null;
   reference_number: string;
+  companion_reference: string | null;
   load_type: string;
   status: string;
   dock_number: string | null;
@@ -93,40 +94,64 @@ const getStatusMeta = (status: string): StatusMeta => {
   switch (status) {
     case 'pending':
       return {
-        headerBg: 'bg-amber-500', headerTitle: 'Submitted - Pending Dock Assignment', headerIcon: '',
+        headerBg: 'bg-amber-500',
+        headerTitle: 'Submitted - Pending Dock Assignment',
+        headerIcon: '',
         bannerBg: 'bg-amber-50', bannerBorder: 'border-amber-300', bannerText: 'text-amber-700',
-        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'We are processing your check-in, please note this may take several minutes. Please wait in your truck for this page to update.',
+        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />,
+        bannerLabel: 'We are processing your check-in, please note this may take several minutes. Please wait in your truck for this page to update.',
+        badgeBg: 'bg-amber-100', badgeText: 'text-amber-700',
       };
     case 'checked_in':
       return {
-        headerBg: 'bg-blue-600', headerTitle: 'Dock Assigned', headerIcon: '✓',
+        headerBg: 'bg-blue-600',
+        headerTitle: 'Dock Assigned',
+        headerIcon: '✓',
         bannerBg: 'bg-blue-50', bannerBorder: 'border-blue-300', bannerText: 'text-blue-700',
-        bannerIcon: <Truck className="w-5 h-5 text-blue-500" />, bannerLabel: 'Dock Assigned — Please Proceed',
+        bannerIcon: <Truck className="w-5 h-5 text-blue-500" />,
+        bannerLabel: 'Dock Assigned — Please Proceed',
+        badgeBg: 'bg-blue-100', badgeText: 'text-blue-700',
       };
     case 'checked_out':
-case 'complete':
-  return {
-    headerBg: 'bg-orange-500', headerTitle: 'Almost Finished — Waiting to Be Sealed', headerIcon: '🟡',
-    bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
-    bannerIcon: <Clock className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed',
-  };
+    case 'complete':
+      return {
+        headerBg: 'bg-orange-500',
+        headerTitle: 'Almost Finished — Waiting to Be Sealed',
+        headerIcon: '🟡',
+        bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
+        bannerIcon: <Clock className="w-5 h-5 text-orange-500" />,
+        bannerLabel: 'Almost Finished — Waiting to Be Sealed',
+        badgeBg: 'bg-orange-100', badgeText: 'text-orange-700',
+      };
     case 'rejected':
       return {
-        headerBg: 'bg-red-700', headerTitle: 'Trailer Rejected', headerIcon: '⚠️',
+        headerBg: 'bg-red-700',
+        headerTitle: 'Trailer Rejected',
+        headerIcon: '⚠️',
         bannerBg: 'bg-red-50', bannerBorder: 'border-red-400', bannerText: 'text-red-700',
-        bannerIcon: <XCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'Trailer Rejected',
+        bannerIcon: <XCircle className="w-5 h-5 text-red-500" />,
+        bannerLabel: 'Trailer Rejected',
+        badgeBg: 'bg-red-100', badgeText: 'text-red-700',
       };
     case 'check_in_denial':
       return {
-        headerBg: 'bg-red-700', headerTitle: 'Check-In Denied', headerIcon: '✕',
+        headerBg: 'bg-red-700',
+        headerTitle: 'Check-In Denied',
+        headerIcon: '✕',
         bannerBg: 'bg-red-50', bannerBorder: 'border-red-400', bannerText: 'text-red-700',
-        bannerIcon: <XCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'Check-In Denied',
+        bannerIcon: <XCircle className="w-5 h-5 text-red-500" />,
+        bannerLabel: 'Check-In Denied',
+        badgeBg: 'bg-red-100', badgeText: 'text-red-700',
       };
     case 'driver_left':
       return {
-        headerBg: 'bg-gray-600', headerTitle: 'Check-In Closed — Driver Departed', headerIcon: '✓',
+        headerBg: 'bg-gray-600',
+        headerTitle: 'Check-In Closed — Driver Departed',
+        headerIcon: '✓',
         bannerBg: 'bg-gray-50', bannerBorder: 'border-gray-300', bannerText: 'text-gray-700',
-        bannerIcon: <Package className="w-5 h-5 text-gray-500" />, bannerLabel: 'This check-in has been closed.',
+        bannerIcon: <Package className="w-5 h-5 text-gray-500" />,
+        bannerLabel: 'This check-in has been closed.',
+        badgeBg: 'bg-gray-100', badgeText: 'text-gray-600',
       };
     default:
       return {
@@ -136,6 +161,7 @@ case 'complete':
         bannerBg: 'bg-gray-50', bannerBorder: 'border-gray-300', bannerText: 'text-gray-700',
         bannerIcon: <Package className="w-5 h-5 text-gray-500" />,
         bannerLabel: status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        badgeBg: 'bg-gray-100', badgeText: 'text-gray-700',
       };
   }
 };
@@ -144,7 +170,7 @@ case 'complete':
 
 function OutboundInstructions() {
   return (
-    <div className="mt-4 pt-4 border-t border-blue-200">
+    <div>
       <p className="text-sm font-bold text-blue-700 mb-3">🚚 Loading Instructions:</p>
       <ol className="space-y-2">
         {[
@@ -168,7 +194,7 @@ function OutboundInstructions() {
 
 function InboundInstructions() {
   return (
-    <div className="mt-4 pt-4 border-t border-blue-200">
+    <div>
       <p className="text-sm font-bold text-blue-700 mb-3">📦 Unloading Instructions:</p>
       <ol className="space-y-2">
         {[
@@ -184,24 +210,6 @@ function InboundInstructions() {
             {step}
           </li>
         ))}
-      </ol>
-    </div>
-  );
-}
-
-function CheckedOutNextSteps() {
-  return (
-    <div className="mt-3 p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
-      <p className="text-sm font-bold text-orange-700 mb-3">📋 Next Steps — Please Read Carefully:</p>
-      <ol className="space-y-2">
-        <li className="flex gap-2 text-sm text-gray-700">
-          <span className="shrink-0">🟢</span>
-          <span><strong>Step 1:</strong> Watch for the <strong>dock light to change to GREEN</strong>.</span>
-        </li>
-        <li className="flex gap-2 text-sm text-gray-700">
-          <span className="shrink-0">🏢</span>
-          <span><strong>Step 2:</strong> Once the light turns green, <strong>come to the office for your paperwork</strong>.</span>
-        </li>
       </ol>
     </div>
   );
@@ -233,7 +241,6 @@ const formatPhoneNumber = (value: string): string => {
   return value;
 };
 
-/** Zero-padded 'YYYY-MM-DD' from a Date object using local time. */
 const toLocalDateString = (d: Date): string => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -241,19 +248,14 @@ const toLocalDateString = (d: Date): string => {
   return `${y}-${m}-${day}`;
 };
 
-/**
- * Returns the next working day after `from`, skipping weekends AND holidays.
- * Advances one day at a time until it finds a Monday–Friday that is not a
- * company holiday (as defined in holidays.ts).
- */
 const getNextWorkingDay = (from: Date): Date => {
   const next = new Date(from);
   next.setHours(0, 0, 0, 0);
   while (true) {
     next.setDate(next.getDate() + 1);
-    const dow = next.getDay(); // 0 = Sun, 6 = Sat
-    if (dow === 0 || dow === 6) continue;           // skip weekends
-    if (isHoliday(toLocalDateString(next))) continue; // skip holidays
+    const dow = next.getDay();
+    if (dow === 0 || dow === 6) continue;
+    if (isHoliday(toLocalDateString(next))) continue;
     return next;
   }
 };
@@ -285,15 +287,18 @@ const formatTime = (iso: string) =>
 const formatDateTime = (iso: string) =>
   new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
+// Safely format appointment_time — if it's not a real date (e.g. "Work In"), display as-is
+const formatAppointmentTime = (value: string): string => {
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? value : formatDateTime(value);
+};
+
 const getLocalDateLabel = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-US', { dateStyle: 'long' });
 
 const getTodayLabel = (): string =>
   new Date().toLocaleDateString('en-US', { dateStyle: 'long' });
 
-// ── Next Working Day button label ──────────────────────────────────────────
-// Shows the holiday name if the calendar-tomorrow would have been skipped,
-// so the driver understands why the date jumped further than expected.
 const getNextWorkingDayButtonLabel = (): string => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -305,12 +310,8 @@ const getNextWorkingDayButtonLabel = (): string => {
   const isWeekend = tomorrowDow === 0 || tomorrowDow === 6;
   const holiday = getHoliday(tomorrowStr);
 
-  if (holiday) {
-    return `🌅 Next Working Day (skip ${holiday.name})`;
-  }
-  if (isWeekend) {
-    return `🌅 Next Working Day (6:00 AM)`;
-  }
+  if (holiday) return `🌅 Next Working Day (skip ${holiday.name})`;
+  if (isWeekend) return `🌅 Next Working Day (6:00 AM)`;
   return `🌅 Next Working Day (6:00 AM)`;
 };
 
@@ -350,9 +351,8 @@ function CarrierCheckInList({
     return () => { supabase.removeChannel(channel); };
   }, [fetchRecords, supabase]);
 
-  const handlePulled = useCallback(async (id: string) => {
+  const handlePulled = useCallback((id: string) => {
     setPullingId(id);
-    // Optimistic update
     setPulledIds(prev => new Set([...prev, id]));
     setPullingId(null);
   }, []);
@@ -376,24 +376,15 @@ function CarrierCheckInList({
   const todayLabel = getTodayLabel();
   const nextWorkingLabel = getLocalDateLabel(getNextWorkingDay(new Date()).toISOString());
 
-  const grouped: Record<string, CheckInRecord[]> = {};
-  for (const r of records) {
-    const label = getLocalDateLabel(r.check_in_time);
-    if (!grouped[label]) grouped[label] = [];
-    grouped[label].push(r);
-  }
-
   const dayHeading = (dateLabel: string): string => {
     if (dateLabel === todayLabel) return `Today — ${dateLabel}`;
     if (dateLabel === nextWorkingLabel) return `Next Working Day — ${dateLabel}`;
     return dateLabel;
   };
 
-  // Separate pulled vs active records
   const activeRecords = records.filter(r => !pulledIds.has(r.id));
   const pulledRecords = records.filter(r => pulledIds.has(r.id));
 
-  // Re-group only active records
   const activeGrouped: Record<string, CheckInRecord[]> = {};
   for (const r of activeRecords) {
     const label = getLocalDateLabel(r.check_in_time);
@@ -405,7 +396,7 @@ function CarrierCheckInList({
     const meta = getStatusMeta(r.status);
     const isCurrentRecord = r.id === currentRecordId;
     const dockDisplay = r.dock_number === 'Ramp' ? 'RAMP' : r.dock_number;
-    const canMarkPulled = r.status === 'complete' && !pulledIds.has(r.id);
+    const canMarkPulled = (r.status === 'complete' || r.status === 'checked_out') && !pulledIds.has(r.id);
 
     return (
       <div key={r.id} className={`bg-white rounded-lg border-2 p-4 transition-all ${
@@ -424,6 +415,9 @@ function CarrierCheckInList({
             </div>
             <div className="text-xs text-gray-500 space-y-0.5">
               <div><span className="font-medium">Ref:</span> {r.reference_number}</div>
+              {r.companion_reference && (
+                <div><span className="font-medium">Also:</span> {r.companion_reference}</div>
+              )}
               <div>
                 <span className="font-medium">Trailer:</span> {r.trailer_number}
                 {r.trailer_length ? ` (${r.trailer_length})` : ''} · <span className="capitalize">{r.load_type}</span>
@@ -435,7 +429,7 @@ function CarrierCheckInList({
                   <span className="font-semibold">Rejected:</span> {r.rejection_reasons.join(', ')}
                 </div>
               )}
-              {(r.status === 'check_in_denial' || r.status === 'turned_away') && r.denial_reason && (
+              {r.status === 'check_in_denial' && r.denial_reason && (
                 <div className="text-red-600 mt-1">
                   <span className="font-semibold">Denied:</span> {r.denial_reason}
                 </div>
@@ -470,7 +464,6 @@ function CarrierCheckInList({
         Vision Check-Ins ({records.length})
       </h3>
 
-      {/* Active loads */}
       {Object.entries(activeGrouped).map(([dateLabel, dayRecords]) => (
         <div key={dateLabel} className="mb-6">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
@@ -482,7 +475,6 @@ function CarrierCheckInList({
         </div>
       ))}
 
-      {/* Pulled trailers section */}
       {pulledRecords.length > 0 && (
         <div className="mt-6">
           <div className="flex items-center gap-2 mb-3">
@@ -552,17 +544,14 @@ function StatusScreen({
 
   const hasDock = !!record.dock_number;
   const dockDisplay = record.dock_number === 'Ramp' ? 'RAMP' : record.dock_number;
-  const dockIsAssigned = hasDock || status === 'dock_assigned' || status === 'checked_in';
+  const dockIsAssigned = hasDock || status === 'checked_in';
 
-  const STATUSES_WITHOUT_INSTRUCTIONS = ['loading', 'unloading', 'checked_out', 'complete', 'rejected', 'check_in_denial', 'turned_away', 'driver_left', 'on_hold'];
+  const STATUSES_WITHOUT_INSTRUCTIONS = ['checked_out', 'complete', 'rejected', 'check_in_denial', 'driver_left'];
   const showInstructions = dockIsAssigned && !STATUSES_WITHOUT_INSTRUCTIONS.includes(status);
 
-  const isLoading    = status === 'loading';
-  const isUnloading  = status === 'unloading';
-  const isCheckedOut = status === 'checked_out';
-  const isComplete   = status === 'complete';
-  const isRejected   = status === 'rejected';
-  const isDenied     = status === 'check_in_denial' || status === 'turned_away' || status === 'denied';
+  const isComplete  = status === 'complete' || status === 'checked_out';
+  const isRejected  = status === 'rejected';
+  const isDenied    = status === 'check_in_denial';
 
   const rejectionReasons: string[] = (() => {
     const raw = record.rejection_reasons;
@@ -574,7 +563,7 @@ function StatusScreen({
     return [];
   })();
 
-const actionBox = (() => {
+  const actionBox = (() => {
     if (status === 'pending' && !hasDock) {
       return (
         <div className="p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg text-sm text-yellow-900">
@@ -590,11 +579,11 @@ const actionBox = (() => {
       );
     }
     if (isComplete) return (
-  <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900 space-y-2">
-    <p className="font-bold">✅ Next Steps — Please Read Carefully:</p>
-    <p><strong>Step 1:</strong> Watch for the dock light to change to <strong>GREEN</strong>.</p>
-    <p><strong>Step 2:</strong> Once the light turns green, <strong>come to the office for your paperwork.</strong></p>
-  </div>
+      <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900 space-y-2">
+        <p className="font-bold">✅ Next Steps — Please Read Carefully:</p>
+        <p><strong>Step 1:</strong> Watch for the dock light to change to <strong>GREEN</strong>.</p>
+        <p><strong>Step 2:</strong> Once the light turns green, <strong>come to the office for your paperwork.</strong></p>
+      </div>
     );
     if (isRejected) return (
       <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
@@ -614,8 +603,6 @@ const actionBox = (() => {
     return null;
   })();
 
-
- 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
@@ -772,15 +759,17 @@ const actionBox = (() => {
 
         {/* Load info summary */}
         <div className="mx-4 mt-4 p-4 bg-gray-50 rounded-lg text-sm space-y-2">
-          <div className="flex justify-between">
-            <span className="text-gray-500">Reference(s)</span>
-            <div className="text-right max-w-[60%]">
-              <span className="font-medium text-gray-800">{record.reference_number}</span>
-              {record.companion_reference && (
-                <div className="text-xs text-gray-500 mt-0.5">Also: {record.companion_reference}</div>
-              )}
+          {filledRefs.length > 0 && (
+            <div className="flex justify-between">
+              <span className="text-gray-500">Reference(s)</span>
+              <div className="text-right max-w-[60%]">
+                <span className="font-medium text-gray-800">{filledRefs.join(', ')}</span>
+                {record.companion_reference && (
+                  <div className="text-xs text-gray-500 mt-0.5">Also: {record.companion_reference}</div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
           <div className="flex justify-between">
             <span className="text-gray-500">Load Type</span>
             <span className="font-medium text-gray-800 capitalize">{record.load_type}</span>
@@ -805,38 +794,37 @@ const actionBox = (() => {
           </div>
         </div>
 
-          <div className="mx-4 mt-3 mb-4 flex items-center justify-between text-xs text-gray-400">
-            <div className="flex items-center gap-1.5">
-              <span className={`inline-block w-2 h-2 rounded-full ${
-                connectionStatus === 'connected' ? 'bg-green-400 animate-pulse' :
-                connectionStatus === 'error'     ? 'bg-red-400' :
-                'bg-yellow-400 animate-pulse'
-              }`} />
-              <span>
-                {connectionStatus === 'connected' ? 'Live updates active' :
-                 connectionStatus === 'error'     ? 'Connection error — refresh page' :
-                 'Connecting...'}
-              </span>
-            </div>
-            {lastUpdated && <span>Updated {formatTime(lastUpdated.toISOString())}</span>}
+        {/* Connection indicator */}
+        <div className="mx-4 mt-3 mb-4 flex items-center justify-between text-xs text-gray-400">
+          <div className="flex items-center gap-1.5">
+            <span className={`inline-block w-2 h-2 rounded-full ${
+              connectionStatus === 'connected' ? 'bg-green-400 animate-pulse' :
+              connectionStatus === 'error'     ? 'bg-red-400' :
+              'bg-yellow-400 animate-pulse'
+            }`} />
+            <span>
+              {connectionStatus === 'connected' ? 'Live updates active' :
+               connectionStatus === 'error'     ? 'Connection error — refresh page' :
+               'Connecting...'}
+            </span>
           </div>
-
-          <div className="px-4 pb-6">
-            <button
-              onClick={onNewCheckIn}
-              className="w-full py-2.5 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-            >
-              New Check-In
-            </button>
-          </div>
+          {lastUpdated && <span>Updated {formatTime(lastUpdated.toISOString())}</span>}
         </div>
 
-        <CarrierCheckInList supabase={supabase} currentRecordId={record.id} />
+        <div className="px-4 pb-6">
+          <button
+            onClick={onNewCheckIn}
+            className="w-full py-2.5 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            New Check-In
+          </button>
+        </div>
       </div>
+
+      <CarrierCheckInList supabase={supabase} currentRecordId={record.id} />
     </div>
   );
 }
-
 
 // ── Main Form ──────────────────────────────────────────────────────────────
 
@@ -852,7 +840,6 @@ export default function CarrierEarlyCheckInForm() {
   const [error, setError] = useState<string | null>(null);
   const [checkInRecord, setCheckInRecord] = useState<CheckInRecord | null>(null);
 
-  // Pre-compute the button label once on render (avoids recalculating on every keystroke)
   const nextWorkingDayLabel = getNextWorkingDayButtonLabel();
   const nextWorkingDayValue = getNextWorkingDayAt0600();
 
