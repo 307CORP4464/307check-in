@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
-import { Plus, Minus, CheckCircle, Clock, Truck, AlertCircle, Loader2, XCircle, Package } from 'lucide-react';
+import { Plus, Minus, Clock, Truck, XCircle, Package } from 'lucide-react';
 import { getHoliday, isHoliday, todayString } from '@/lib/holidays';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -103,22 +103,6 @@ const normaliseRefForLookup = (value: string): string => {
 
 // ── Duplicate check helper ─────────────────────────────────────────────────
 
-/**
- * Returns true if the existing check-in record should BLOCK a new submission.
- *
- * BLOCK when:
- *   - Status is any active status (pending, checked_in, dock_assigned,
- *     loading, unloading, checked_out, on_hold)
- *   - Status is complete (load already finished — no reason to check in again)
- *   - Status is a denial AND the reason was an invalid/bad pickup number
- *   - Status is rejected AND resolution_action is new_trailer (not correctable)
- *
- * ALLOW through when:
- *   - Status is driver_left
- *   - Status is rejected AND resolution_action is correct_and_return
- *   - Status is a denial for any OTHER reason (too early, no appointment,
- *     not from 1403, other/custom) — driver should be able to try again
- */
 const shouldBlockCheckIn = (existing: {
   status: string;
   resolution_action: string | null;
@@ -126,37 +110,25 @@ const shouldBlockCheckIn = (existing: {
 }): boolean => {
   const { status, resolution_action, denial_reason } = existing;
 
-  // Always allow: driver left
   if (status === 'driver_left') return false;
-
-  // Always block: complete
   if (status === 'complete') return true;
 
-  // Rejection logic
   if (status === 'rejected') {
-    // Allow if trailer can be corrected and returned
     if (resolution_action === 'correct_and_return') return false;
-    // Block for new_trailer required or resolution not set
     return true;
   }
 
-  // Denial logic
   if (
     status === 'check_in_denial' ||
     status === 'turned_away' ||
     status === 'denied'
   ) {
-    // Block ONLY for invalid/bad pickup number denial
     const isInvalidNumber =
       typeof denial_reason === 'string' &&
       denial_reason.includes('does not match any orders in the system');
     return isInvalidNumber;
-    // All other denial reasons (too early, no appointment, not from 1403,
-    // other/custom) return false — driver is allowed to try again
   }
 
-  // Everything else is an active status (pending, checked_in, dock_assigned,
-  // loading, unloading, checked_out, on_hold, etc.) → block
   return true;
 };
 
@@ -267,24 +239,6 @@ function InboundInstructions() {
             {step}
           </li>
         ))}
-      </ol>
-    </div>
-  );
-}
-
-function CheckedOutNextSteps() {
-  return (
-    <div className="mt-3 p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
-      <p className="text-sm font-bold text-orange-700 mb-3">📋 Next Steps — Please Read Carefully:</p>
-      <ol className="space-y-2">
-        <li className="flex gap-2 text-sm text-gray-700">
-          <span className="shrink-0">🟢</span>
-          <span><strong>Step 1:</strong> Watch for the <strong>dock light to change to GREEN</strong>.</span>
-        </li>
-        <li className="flex gap-2 text-sm text-gray-700">
-          <span className="shrink-0">🏢</span>
-          <span><strong>Step 2:</strong> Once the light turns green, <strong>come to the office for your paperwork</strong>.</span>
-        </li>
       </ol>
     </div>
   );
@@ -428,17 +382,14 @@ function StatusScreen({
 
   const hasDock = !!record.dock_number;
   const dockDisplay = record.dock_number === 'Ramp' ? 'RAMP' : record.dock_number;
-  const dockIsAssigned = hasDock || status === 'dock_assigned' || status === 'checked_in';
+  const dockIsAssigned = hasDock || status === 'checked_in';
 
-  const STATUSES_WITHOUT_INSTRUCTIONS = ['loading', 'unloading', 'checked_out', 'complete', 'rejected', 'check_in_denial', 'turned_away', 'driver_left', 'on_hold'];
+  const STATUSES_WITHOUT_INSTRUCTIONS = ['complete', 'rejected', 'check_in_denial', 'driver_left'];
   const showInstructions = dockIsAssigned && !STATUSES_WITHOUT_INSTRUCTIONS.includes(status);
 
-  const isLoading    = status === 'loading';
-  const isUnloading  = status === 'unloading';
-  const isCheckedOut = status === 'checked_out';
-  const isComplete   = status === 'complete';
-  const isRejected   = status === 'rejected';
-  const isDenied     = status === 'check_in_denial' || status === 'turned_away' || status === 'denied';
+  const isComplete = status === 'complete';
+  const isRejected = status === 'rejected';
+  const isDenied   = status === 'check_in_denial';
 
   const rejectionReasons: string[] = (() => {
     const raw = record.rejection_reasons;
@@ -454,7 +405,7 @@ function StatusScreen({
     if (status === 'pending' && !hasDock) {
       return (
         <div className="p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg text-sm text-yellow-900">
-          🅿️ <strong>Park in the angled spaces</strong> in front of the office and <strong>stay with your truck.</strong> Your dock assignment will appear below — do not leave this page.
+          🅿️ <strong>Park in the angled spaces</strong> in front of the office and <strong>wait in your truck.</strong> Your dock assignment will appear below — do not leave this page.
         </div>
       );
     }
@@ -465,24 +416,11 @@ function StatusScreen({
         </div>
       );
     }
-    if (isLoading) return (
-      <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-900">
-        🔴 <strong>Stay at your dock.</strong> The dock light is red — your trailer is being loaded. The light will turn green when complete.
-      </div>
-    );
-    if (isUnloading) return (
-      <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-900">
-        🔴 <strong>Stay at your dock.</strong> The dock light is red — your trailer is being unloaded. The light will turn green when complete.
-      </div>
-    );
-    if (isCheckedOut) return (
-      <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg text-sm text-orange-900">
-        🟢 <strong>Watch for the dock light to turn GREEN,</strong> then come to the office for your paperwork.
-      </div>
-    );
     if (isComplete) return (
-      <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900">
-        ✅ <strong>You are clear to depart.</strong> Come to the office if you need paperwork signed. Safe travels!
+      <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900 space-y-2">
+        <p className="font-bold">✅ Next Steps — Please Read Carefully:</p>
+        <p><strong>Step 1:</strong> Watch for the dock light to change to <strong>GREEN</strong>.</p>
+        <p><strong>Step 2:</strong> Once the light turns green, <strong>come to the office for your paperwork.</strong></p>
       </div>
     );
     if (isRejected) return (
@@ -495,9 +433,9 @@ function StatusScreen({
         🚫 <strong>Your check-in has been denied.</strong> Please contact the facility for further assistance.
       </div>
     );
-    if (status === 'on_hold') return (
-      <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
-        ⏸️ <strong>Your load is on hold.</strong> Please come to the office for more information.
+    if (status === 'driver_left') return (
+      <div className="p-4 bg-gray-50 border-2 border-gray-300 rounded-lg text-sm text-gray-800">
+        This check-in is no longer active. If you need to check in again, please use the check-in form or see the office.
       </div>
     );
     return null;
@@ -507,17 +445,21 @@ function StatusScreen({
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
 
+        {/* Top banner */}
         <div className="bg-gray-900 text-white px-5 py-4 text-center">
-          <p className="text-xl font-extrabold tracking-tight leading-snug">📱 Leave this page open</p>
+          <p className="text-xl font-extrabold tracking-tight leading-snug">📱 DO NOT CLOSE</p>
           <p className="text-sm text-gray-300 mt-1">Load updates will appear below</p>
+          <p className="text-sm text-gray-300 mt-1">You may need to reload page if you do not see an update.</p>
         </div>
 
+        {/* Status header */}
         <div className={`${meta.headerBg} text-white p-6 text-center transition-colors duration-500`}>
           <div className="text-5xl mb-3">{meta.headerIcon}</div>
           <h2 className="text-2xl font-bold">{meta.headerTitle}</h2>
           <p className="text-white/80 text-sm mt-1">Welcome, {record.driver_name}!</p>
         </div>
 
+        {/* Status banner */}
         <div className={`mx-4 mt-4 p-4 rounded-lg border-2 ${meta.bannerBg} ${meta.bannerBorder} transition-all duration-500`}>
           <div className="flex items-center gap-2">
             {meta.bannerIcon}
@@ -531,7 +473,9 @@ function StatusScreen({
           )}
         </div>
 
+        {/* Detail section */}
         <div className="mx-4 mt-3 space-y-3">
+
           {actionBox}
 
           {hasDock && record.is_double_booked && (
@@ -579,15 +523,6 @@ function StatusScreen({
           {showInstructions && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               {record.load_type === 'inbound' ? <InboundInstructions /> : <OutboundInstructions />}
-            </div>
-          )}
-
-          {isCheckedOut && <CheckedOutNextSteps />}
-
-          {isComplete && record.end_time && (
-            <div className="p-4 bg-white border border-gray-200 rounded-lg">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Completed At</p>
-              <p className="text-sm font-medium text-gray-800">{formatDateTime(record.end_time)}</p>
             </div>
           )}
 
@@ -644,8 +579,10 @@ function StatusScreen({
               <p className="text-sm text-gray-700">{record.status_note}</p>
             </div>
           )}
+
         </div>
 
+        {/* Load info summary */}
         <div className="mx-4 mt-4 p-4 bg-gray-50 rounded-lg text-sm space-y-2">
           {filledRefs.length > 0 && (
             <div className="flex justify-between">
@@ -677,6 +614,7 @@ function StatusScreen({
           </div>
         </div>
 
+        {/* Connection indicator */}
         <div className="mx-4 mt-3 mb-4 flex items-center justify-between text-xs text-gray-400">
           <div className="flex items-center gap-1.5">
             <span className={`inline-block w-2 h-2 rounded-full ${
@@ -819,7 +757,7 @@ export default function DriverCheckInForm() {
 
       const normalisedFirstRef = normaliseRefForLookup(filledRefs[0]);
 
-      // ── Duplicate check ────────────────────────────────────────────────────
+      // ── Duplicate check ──────────────────────────────────────────────────
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: existing } = await supabase
         .from('check_ins')
@@ -836,7 +774,7 @@ export default function DriverCheckInForm() {
         setDuplicateCheckInId(existing.id);
         return;
       }
-      // ──────────────────────────────────────────────────────────────────────
+      // ────────────────────────────────────────────────────────────────────
 
       const { data: checkInData, error: insertError } = await supabase
         .from('check_ins')
