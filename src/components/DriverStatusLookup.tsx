@@ -80,7 +80,7 @@ const getStatusMeta = (status: string): StatusMeta => {
       return {
         headerBg: 'bg-amber-500', headerTitle: 'Submitted - Pending Dock Assignment', headerIcon: '',
         bannerBg: 'bg-amber-50', bannerBorder: 'border-amber-300', bannerText: 'text-amber-700',
-        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'We are processing your check-in, please note this may take several minutes.',
+        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'We are processing your check-in, please note this may take several minutes.Please wait in your truck for this page to update.',
       };
     case 'checked_in':
       return {
