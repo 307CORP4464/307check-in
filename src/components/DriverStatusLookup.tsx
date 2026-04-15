@@ -80,7 +80,7 @@ const getStatusMeta = (status: string): StatusMeta => {
       return {
         headerBg: 'bg-amber-500', headerTitle: 'Submitted - Pending Dock Assignment', headerIcon: '',
         bannerBg: 'bg-amber-50', bannerBorder: 'border-amber-300', bannerText: 'text-amber-700',
-        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'We are processing your check-in, please note this may take several minutes.Please wait in your truck for this page to update.',
+        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'We are processing your check-in, please note this may take several minutes. Please wait in your truck for this page to update.',
       };
     case 'checked_in':
       return {
@@ -88,12 +88,12 @@ const getStatusMeta = (status: string): StatusMeta => {
         bannerBg: 'bg-blue-50', bannerBorder: 'border-blue-300', bannerText: 'text-blue-700',
         bannerIcon: <Truck className="w-5 h-5 text-blue-500" />, bannerLabel: 'Dock Assigned — Please Proceed',
       };
-   case 'complete':
-  return {
-    headerBg: 'bg-orange-500', headerTitle: 'Almost Finished — Waiting to Be Sealed', headerIcon: '🟡',
-    bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
-    bannerIcon: <Clock className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed',
-  };
+    case 'complete':
+      return {
+        headerBg: 'bg-orange-500', headerTitle: 'Almost Finished — Waiting to Be Sealed', headerIcon: '🟡',
+        bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
+        bannerIcon: <Clock className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed',
+      };
     case 'rejected':
       return {
         headerBg: 'bg-red-700', headerTitle: 'Trailer Rejected', headerIcon: '⚠️',
@@ -273,7 +273,6 @@ function StatusScreen({
     <p><strong>Step 1:</strong> Watch for the dock light to change to <strong>GREEN</strong>.</p>
     <p><strong>Step 2:</strong> Once the light turns green, <strong>come to the office for your paperwork.</strong></p>
   </div>
-);
     );
     if (isRejected) return (
       <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
