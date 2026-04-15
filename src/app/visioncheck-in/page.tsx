@@ -93,75 +93,49 @@ const getStatusMeta = (status: string): StatusMeta => {
   switch (status) {
     case 'pending':
       return {
-        headerBg: 'bg-amber-500', headerTitle: 'Checked In', headerIcon: '✓',
+        headerBg: 'bg-amber-500', headerTitle: 'Submitted - Pending Dock Assignment', headerIcon: '',
         bannerBg: 'bg-amber-50', bannerBorder: 'border-amber-300', bannerText: 'text-amber-700',
-        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'Awaiting Dock Assignment',
-        badgeBg: 'bg-amber-100', badgeText: 'text-amber-700',
+        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'We are processing your check-in, please note this may take several minutes. Please wait in your truck for this page to update.',
       };
-    case 'dock_assigned':
     case 'checked_in':
       return {
         headerBg: 'bg-blue-600', headerTitle: 'Dock Assigned', headerIcon: '✓',
         bannerBg: 'bg-blue-50', bannerBorder: 'border-blue-300', bannerText: 'text-blue-700',
         bannerIcon: <Truck className="w-5 h-5 text-blue-500" />, bannerLabel: 'Dock Assigned — Please Proceed',
-        badgeBg: 'bg-blue-100', badgeText: 'text-blue-700',
-      };
-    case 'loading':
-      return {
-        headerBg: 'bg-purple-600', headerTitle: 'Loading in Progress', headerIcon: '🚛',
-        bannerBg: 'bg-purple-50', bannerBorder: 'border-purple-300', bannerText: 'text-purple-700',
-        bannerIcon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />, bannerLabel: 'Loading in Progress',
-        badgeBg: 'bg-purple-100', badgeText: 'text-purple-700',
-      };
-    case 'unloading':
-      return {
-        headerBg: 'bg-purple-600', headerTitle: 'Unloading in Progress', headerIcon: '📦',
-        bannerBg: 'bg-purple-50', bannerBorder: 'border-purple-300', bannerText: 'text-purple-700',
-        bannerIcon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />, bannerLabel: 'Unloading in Progress',
-        badgeBg: 'bg-purple-100', badgeText: 'text-purple-700',
       };
     case 'checked_out':
-      return {
-        headerBg: 'bg-orange-500', headerTitle: 'Almost Finished — Waiting to Be Sealed', headerIcon: '🟡',
-        bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
-        bannerIcon: <AlertCircle className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed',
-        badgeBg: 'bg-orange-100', badgeText: 'text-orange-700',
-      };
-    case 'complete':
-      return {
-        headerBg: 'bg-green-600', headerTitle: 'Load Complete — Ready to Depart', headerIcon: '✓',
-        bannerBg: 'bg-green-50', bannerBorder: 'border-green-300', bannerText: 'text-green-700',
-        bannerIcon: <CheckCircle className="w-5 h-5 text-green-500" />, bannerLabel: 'Load Complete — Ready to Depart',
-        badgeBg: 'bg-green-100', badgeText: 'text-green-700',
-      };
-    case 'on_hold':
-      return {
-        headerBg: 'bg-red-600', headerTitle: 'On Hold', headerIcon: '⚠️',
-        bannerBg: 'bg-red-50', bannerBorder: 'border-red-300', bannerText: 'text-red-700',
-        bannerIcon: <AlertCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'On Hold',
-        badgeBg: 'bg-red-100', badgeText: 'text-red-700',
-      };
+case 'complete':
+  return {
+    headerBg: 'bg-orange-500', headerTitle: 'Almost Finished — Waiting to Be Sealed', headerIcon: '🟡',
+    bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
+    bannerIcon: <Clock className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed',
+  };
     case 'rejected':
       return {
         headerBg: 'bg-red-700', headerTitle: 'Trailer Rejected', headerIcon: '⚠️',
         bannerBg: 'bg-red-50', bannerBorder: 'border-red-400', bannerText: 'text-red-700',
         bannerIcon: <XCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'Trailer Rejected',
-        badgeBg: 'bg-red-100', badgeText: 'text-red-700',
       };
     case 'check_in_denial':
-    case 'turned_away':
       return {
         headerBg: 'bg-red-700', headerTitle: 'Check-In Denied', headerIcon: '✕',
         bannerBg: 'bg-red-50', bannerBorder: 'border-red-400', bannerText: 'text-red-700',
         bannerIcon: <XCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'Check-In Denied',
-        badgeBg: 'bg-red-100', badgeText: 'text-red-700',
+      };
+    case 'driver_left':
+      return {
+        headerBg: 'bg-gray-600', headerTitle: 'Check-In Closed — Driver Departed', headerIcon: '✓',
+        bannerBg: 'bg-gray-50', bannerBorder: 'border-gray-300', bannerText: 'text-gray-700',
+        bannerIcon: <Package className="w-5 h-5 text-gray-500" />, bannerLabel: 'This check-in has been closed.',
       };
     default:
       return {
-        headerBg: 'bg-gray-600', headerTitle: status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), headerIcon: '✓',
+        headerBg: 'bg-gray-600',
+        headerTitle: status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        headerIcon: '✓',
         bannerBg: 'bg-gray-50', bannerBorder: 'border-gray-300', bannerText: 'text-gray-700',
-        bannerIcon: <Package className="w-5 h-5 text-gray-500" />, bannerLabel: status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-        badgeBg: 'bg-gray-100', badgeText: 'text-gray-700',
+        bannerIcon: <Package className="w-5 h-5 text-gray-500" />,
+        bannerLabel: status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
       };
   }
 };
@@ -351,6 +325,8 @@ function CarrierCheckInList({
 }) {
   const [records, setRecords] = useState<CheckInRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pulledIds, setPulledIds] = useState<Set<string>>(new Set());
+  const [pullingId, setPullingId] = useState<string | null>(null);
 
   const fetchRecords = useCallback(async () => {
     const { start, end } = getTodayAndNextWorkingDayRange();
@@ -373,6 +349,13 @@ function CarrierCheckInList({
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [fetchRecords, supabase]);
+
+  const handlePulled = useCallback(async (id: string) => {
+    setPullingId(id);
+    // Optimistic update
+    setPulledIds(prev => new Set([...prev, id]));
+    setPullingId(null);
+  }, []);
 
   if (loading) {
     return (
@@ -406,62 +389,115 @@ function CarrierCheckInList({
     return dateLabel;
   };
 
+  // Separate pulled vs active records
+  const activeRecords = records.filter(r => !pulledIds.has(r.id));
+  const pulledRecords = records.filter(r => pulledIds.has(r.id));
+
+  // Re-group only active records
+  const activeGrouped: Record<string, CheckInRecord[]> = {};
+  for (const r of activeRecords) {
+    const label = getLocalDateLabel(r.check_in_time);
+    if (!activeGrouped[label]) activeGrouped[label] = [];
+    activeGrouped[label].push(r);
+  }
+
+  const renderRecord = (r: CheckInRecord, isPulled = false) => {
+    const meta = getStatusMeta(r.status);
+    const isCurrentRecord = r.id === currentRecordId;
+    const dockDisplay = r.dock_number === 'Ramp' ? 'RAMP' : r.dock_number;
+    const canMarkPulled = r.status === 'complete' && !pulledIds.has(r.id);
+
+    return (
+      <div key={r.id} className={`bg-white rounded-lg border-2 p-4 transition-all ${
+        isPulled ? 'border-gray-200 opacity-70' :
+        isCurrentRecord ? 'border-indigo-400 shadow-md' : 'border-gray-200'
+      }`}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              {isCurrentRecord && !isPulled && (
+                <span className="text-xs bg-indigo-100 text-indigo-700 font-medium px-1.5 py-0.5 rounded">You</span>
+              )}
+              {isPulled && (
+                <span className="text-xs bg-green-100 text-green-700 font-medium px-1.5 py-0.5 rounded">✓ Pulled</span>
+              )}
+            </div>
+            <div className="text-xs text-gray-500 space-y-0.5">
+              <div><span className="font-medium">Ref:</span> {r.reference_number}</div>
+              <div>
+                <span className="font-medium">Trailer:</span> {r.trailer_number}
+                {r.trailer_length ? ` (${r.trailer_length})` : ''} · <span className="capitalize">{r.load_type}</span>
+              </div>
+              <div><span className="font-medium">Scheduled:</span> {formatDateTime(r.check_in_time)}</div>
+              {dockDisplay && <div className="text-blue-700 font-semibold">Dock: {dockDisplay}</div>}
+              {r.status === 'rejected' && r.rejection_reasons && r.rejection_reasons.length > 0 && (
+                <div className="text-red-600 mt-1">
+                  <span className="font-semibold">Rejected:</span> {r.rejection_reasons.join(', ')}
+                </div>
+              )}
+              {(r.status === 'check_in_denial' || r.status === 'turned_away') && r.denial_reason && (
+                <div className="text-red-600 mt-1">
+                  <span className="font-semibold">Denied:</span> {r.denial_reason}
+                </div>
+              )}
+              {r.status_note && <div className="text-gray-600 italic">"{r.status_note}"</div>}
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${meta.badgeBg} ${meta.badgeText}`}>
+              {meta.bannerIcon}
+              {meta.bannerLabel}
+            </div>
+            {canMarkPulled && (
+              <button
+                onClick={() => handlePulled(r.id)}
+                disabled={pullingId === r.id}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white text-xs font-semibold rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                <Truck className="w-3.5 h-3.5" />
+                Trailer Pulled
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="mt-6">
       <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
         Vision Check-Ins ({records.length})
       </h3>
-      {Object.entries(grouped).map(([dateLabel, dayRecords]) => (
+
+      {/* Active loads */}
+      {Object.entries(activeGrouped).map(([dateLabel, dayRecords]) => (
         <div key={dateLabel} className="mb-6">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
             {dayHeading(dateLabel)}
           </p>
           <div className="space-y-3">
-            {dayRecords.map((r) => {
-              const meta = getStatusMeta(r.status);
-              const isCurrentRecord = r.id === currentRecordId;
-              const dockDisplay = r.dock_number === 'Ramp' ? 'RAMP' : r.dock_number;
-              return (
-                <div key={r.id} className={`bg-white rounded-lg border-2 p-4 transition-all ${isCurrentRecord ? 'border-indigo-400 shadow-md' : 'border-gray-200'}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        {isCurrentRecord && (
-                          <span className="text-xs bg-indigo-100 text-indigo-700 font-medium px-1.5 py-0.5 rounded">You</span>
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-500 space-y-0.5">
-                        <div><span className="font-medium">Ref:</span> {r.reference_number}</div>
-                        <div>
-                          <span className="font-medium">Trailer:</span> {r.trailer_number}
-                          {r.trailer_length ? ` (${r.trailer_length})` : ''} · <span className="capitalize">{r.load_type}</span>
-                        </div>
-                        <div><span className="font-medium">Scheduled:</span> {formatDateTime(r.check_in_time)}</div>
-                        {dockDisplay && <div className="text-blue-700 font-semibold">Dock: {dockDisplay}</div>}
-                        {r.status === 'rejected' && r.rejection_reasons && r.rejection_reasons.length > 0 && (
-                          <div className="text-red-600 mt-1">
-                            <span className="font-semibold">Rejected:</span> {r.rejection_reasons.join(', ')}
-                          </div>
-                        )}
-                        {(r.status === 'check_in_denial' || r.status === 'turned_away') && r.denial_reason && (
-                          <div className="text-red-600 mt-1">
-                            <span className="font-semibold">Denied:</span> {r.denial_reason}
-                          </div>
-                        )}
-                        {r.status_note && <div className="text-gray-600 italic">"{r.status_note}"</div>}
-                      </div>
-                    </div>
-                    <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${meta.badgeBg} ${meta.badgeText}`}>
-                      {meta.bannerIcon}
-                      {meta.bannerLabel}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {dayRecords.map(r => renderRecord(r, false))}
           </div>
         </div>
       ))}
+
+      {/* Pulled trailers section */}
+      {pulledRecords.length > 0 && (
+        <div className="mt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex-1 h-px bg-green-200" />
+            <p className="text-xs font-bold text-green-600 uppercase tracking-widest px-2 flex items-center gap-1.5">
+              <Truck className="w-3.5 h-3.5" />
+              Pulled ({pulledRecords.length})
+            </p>
+            <div className="flex-1 h-px bg-green-200" />
+          </div>
+          <div className="space-y-3">
+            {pulledRecords.map(r => renderRecord(r, true))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
