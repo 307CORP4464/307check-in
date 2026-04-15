@@ -574,11 +574,11 @@ function StatusScreen({
     return [];
   })();
 
-  const actionBox = (() => {
+const actionBox = (() => {
     if (status === 'pending' && !hasDock) {
       return (
         <div className="p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg text-sm text-yellow-900">
-          🅿️ <strong>Park in the angled spaces</strong> in front of the office and <strong>stay with your truck.</strong> Your dock assignment will appear below — do not leave this page.
+          🅿️ <strong>Park in the angled spaces</strong> in front of the office and <strong>wait in your truck.</strong> Your dock assignment will appear below — do not leave this page.
         </div>
       );
     }
@@ -589,25 +589,12 @@ function StatusScreen({
         </div>
       );
     }
-    if (isLoading) return (
-      <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-900">
-        🔴 <strong>Stay at your dock.</strong> The dock light is red — your trailer is being loaded. The light will turn green when complete.
-      </div>
-    );
-    if (isUnloading) return (
-      <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-900">
-        🔴 <strong>Stay at your dock.</strong> The dock light is red — your trailer is being unloaded. The light will turn green when complete.
-      </div>
-    );
-    if (isCheckedOut) return (
-      <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg text-sm text-orange-900">
-        🟢 <strong>Watch for the dock light to turn GREEN,</strong> then come to the office for your paperwork.
-      </div>
-    );
     if (isComplete) return (
-      <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900">
-        ✅ <strong>You are clear to depart.</strong> Come to the office if you need paperwork signed. Safe travels!
-      </div>
+  <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900 space-y-2">
+    <p className="font-bold">✅ Next Steps — Please Read Carefully:</p>
+    <p><strong>Step 1:</strong> Watch for the dock light to change to <strong>GREEN</strong>.</p>
+    <p><strong>Step 2:</strong> Once the light turns green, <strong>come to the office for your paperwork.</strong></p>
+  </div>
     );
     if (isRejected) return (
       <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
@@ -619,194 +606,204 @@ function StatusScreen({
         🚫 <strong>Your check-in has been denied.</strong> Please contact the facility for further assistance.
       </div>
     );
-    if (status === 'on_hold') return (
-      <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
-        ⏸️ <strong>Your load is on hold.</strong> Please come to the office for more information.
+    if (status === 'driver_left') return (
+      <div className="p-4 bg-gray-50 border-2 border-gray-300 rounded-lg text-sm text-gray-800">
+        This check-in is no longer active. If you need to check in again, please use the check-in form or see the office.
       </div>
     );
     return null;
   })();
 
+
+ 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-md mx-auto">
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
 
-          <div className="bg-gray-900 text-white px-5 py-4 text-center">
-            <p className="text-xl font-extrabold tracking-tight leading-snug">📱 Leave this page open</p>
-            <p className="text-sm text-gray-300 mt-1">Load updates will appear below</p>
+        {/* Top banner */}
+        <div className="bg-gray-900 text-white px-5 py-4 text-center">
+          <p className="text-xl font-extrabold tracking-tight leading-snug">📱 DO NOT CLOSE</p>
+          <p className="text-sm text-gray-300 mt-1">Load updates will appear below</p>
+          <p className="text-sm text-gray-300 mt-1">You may need to reload page if you do not see an update.</p>
+        </div>
+
+        {/* Status header */}
+        <div className={`${meta.headerBg} text-white p-6 text-center transition-colors duration-500`}>
+          <div className="text-5xl mb-3">{meta.headerIcon}</div>
+          <h2 className="text-2xl font-bold">{meta.headerTitle}</h2>
+          <p className="text-white/80 text-sm mt-1">Welcome, {record.driver_name}!</p>
+        </div>
+
+        {/* Status banner */}
+        <div className={`mx-4 mt-4 p-4 rounded-lg border-2 ${meta.bannerBg} ${meta.bannerBorder} transition-all duration-500`}>
+          <div className="flex items-center gap-2">
+            {meta.bannerIcon}
+            <span className={`font-semibold text-sm ${meta.bannerText}`}>{meta.bannerLabel}</span>
           </div>
-
-          <div className={`${meta.headerBg} text-white p-6 text-center transition-colors duration-500`}>
-            <div className="text-5xl mb-3">{meta.headerIcon}</div>
-            <h2 className="text-2xl font-bold">{meta.headerTitle}</h2>
-            <p className="text-white/80 text-sm mt-1">Welcome, {record.driver_name}!</p>
-          </div>
-
-          <div className={`mx-4 mt-4 p-4 rounded-lg border-2 ${meta.bannerBg} ${meta.bannerBorder} transition-all duration-500`}>
-            <div className="flex items-center gap-2">
-              {meta.bannerIcon}
-              <span className={`font-semibold text-sm ${meta.bannerText}`}>{meta.bannerLabel}</span>
+          {dockDisplay && (
+            <div className="mt-3 text-center py-2">
+              <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Dock Assignment</p>
+              <p className="text-5xl font-extrabold text-blue-700">{dockDisplay}</p>
             </div>
-            {dockDisplay && (
-              <div className="mt-3 text-center py-2">
-                <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Dock Assignment</p>
-                <p className="text-5xl font-extrabold text-blue-700">{dockDisplay}</p>
-              </div>
-            )}
-          </div>
+          )}
+        </div>
 
-          <div className="mx-4 mt-3 space-y-3">
+        {/* Detail section */}
+        <div className="mx-4 mt-3 space-y-3">
 
-            {actionBox}
+          {actionBox}
 
-            {hasDock && record.is_double_booked && (
-              <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
-                <p className="text-sm font-bold text-orange-800 mb-1">⚠️ Important — Please Wait Before Pulling In</p>
-                <p className="text-sm text-orange-800">
-                  This dock is currently occupied by another truck.{' '}
-                  <strong>Do not pull into the dock until the first truck has fully pulled out.</strong>{' '}
-                  Once the dock is clear, proceed with your normal instructions below.
+          {hasDock && record.is_double_booked && (
+            <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
+              <p className="text-sm font-bold text-orange-800 mb-1">⚠️ Important — Please Wait Before Pulling In</p>
+              <p className="text-sm text-orange-800">
+                This dock is currently occupied by another truck.{' '}
+                <strong>Do not pull into the dock until the first truck has fully pulled out.</strong>{' '}
+                Once the dock is clear, proceed with your normal instructions below.
+              </p>
+            </div>
+          )}
+
+          {hasDock && record.gross_weight && (
+            <div className="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+              <p className="text-sm font-bold text-orange-700 mb-1">
+                ⚖️ Gross Weight: {Number(record.gross_weight).toLocaleString()} lbs
+              </p>
+              <p className="text-xs text-yellow-900">
+                If you have any concerns or disputes regarding this weight, please see us in the office
+                before proceeding to your assigned dock. By continuing to the dock you are accepting this weight.
+              </p>
+            </div>
+          )}
+
+          {record.appointment_time && (
+            <div className="p-4 bg-white border border-gray-200 rounded-lg">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Appointment Time</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-gray-800">
+                  {formatAppointmentTime(record.appointment_time)}
                 </p>
-              </div>
-            )}
-
-            {hasDock && record.gross_weight && (
-              <div className="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
-                <p className="text-sm font-bold text-orange-700 mb-1">
-                  ⚖️ Gross Weight: {Number(record.gross_weight).toLocaleString()} lbs
-                </p>
-                <p className="text-xs text-yellow-900">
-                  If you have any concerns or disputes regarding this weight, please see us in the office
-                  before proceeding to your assigned dock. By continuing to the dock you are accepting this weight.
-                </p>
-              </div>
-            )}
-
-            {record.appointment_time && (
-              <div className="p-4 bg-white border border-gray-200 rounded-lg">
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Appointment Time</p>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-gray-800">{formatDateTime(record.appointment_time)}</p>
-                  {record.appointment_status && (
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                      record.appointment_status === 'On Time' ? 'bg-green-100 text-green-700' :
-                      record.appointment_status === 'Early'   ? 'bg-blue-100 text-blue-700' :
-                      record.appointment_status === 'Late'    ? 'bg-orange-100 text-orange-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>
-                      {record.appointment_status}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {showInstructions && (
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                {record.load_type === 'inbound' ? <InboundInstructions /> : <OutboundInstructions />}
-              </div>
-            )}
-
-            {isCheckedOut && <CheckedOutNextSteps />}
-
-            {isComplete && record.end_time && (
-              <div className="p-4 bg-white border border-gray-200 rounded-lg">
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Completed At</p>
-                <p className="text-sm font-medium text-gray-800">{formatDateTime(record.end_time)}</p>
-              </div>
-            )}
-
-            {isRejected && (
-              <>
-                {rejectionReasons.length > 0 && (
-                  <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
-                    <p className="text-sm font-bold text-red-700 mb-3">
-                      ⚠️ Your trailer has been rejected for the following reason(s):
-                    </p>
-                    <ol className="space-y-2">
-                      {rejectionReasons.map((reason, i) => (
-                        <li key={i} className="flex gap-2 text-sm text-red-800">
-                          <span className="font-bold text-red-500 shrink-0">{i + 1}.</span>
-                          <span>{reason}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
+                {record.appointment_status && (
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                    record.appointment_status === 'On Time' ? 'bg-green-100 text-green-700' :
+                    record.appointment_status === 'Early'   ? 'bg-blue-100 text-blue-700' :
+                    record.appointment_status === 'Late'    ? 'bg-orange-100 text-orange-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>
+                    {record.appointment_status}
+                  </span>
                 )}
-                <div className={`p-4 rounded-lg border-2 ${
-                  record.resolution_action === 'new_trailer' ? 'bg-red-50 border-red-500' : 'bg-yellow-50 border-orange-400'
+              </div>
+            </div>
+          )}
+
+          {showInstructions && (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              {record.load_type === 'inbound' ? <InboundInstructions /> : <OutboundInstructions />}
+            </div>
+          )}
+
+          {isComplete && record.end_time && (
+            <div className="p-4 bg-white border border-gray-200 rounded-lg">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Completed At</p>
+              <p className="text-sm font-medium text-gray-800">{formatDateTime(record.end_time)}</p>
+            </div>
+          )}
+
+          {isRejected && (
+            <>
+              {rejectionReasons.length > 0 && (
+                <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
+                  <p className="text-sm font-bold text-red-700 mb-3">
+                    ⚠️ Your trailer has been rejected for the following reason(s):
+                  </p>
+                  <ol className="space-y-2">
+                    {rejectionReasons.map((reason, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-red-800">
+                        <span className="font-bold text-red-500 shrink-0">{i + 1}.</span>
+                        <span>{reason}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+              <div className={`p-4 rounded-lg border-2 ${
+                record.resolution_action === 'new_trailer' ? 'bg-red-50 border-red-500' : 'bg-yellow-50 border-orange-400'
+              }`}>
+                <p className={`text-sm font-bold mb-2 ${
+                  record.resolution_action === 'new_trailer' ? 'text-red-700' : 'text-orange-700'
                 }`}>
-                  <p className={`text-sm font-bold mb-2 ${
-                    record.resolution_action === 'new_trailer' ? 'text-red-700' : 'text-orange-700'
-                  }`}>
-                    {record.resolution_action === 'new_trailer' ? '🚫 Important Notice:' : '🔧 What You Need to Do:'}
-                  </p>
-                  <p className={`text-sm leading-relaxed ${
-                    record.resolution_action === 'new_trailer' ? 'text-red-800' : 'text-orange-800'
-                  }`}>
-                    {record.resolution_action === 'new_trailer'
-                      ? 'This trailer will not be loaded under any circumstances. A new, clean trailer that meets our requirements must be provided in order to proceed with this load.'
-                      : 'The trailer issues listed above must be corrected before re-entry. Once the trailer has been cleaned and/or repaired to meet our requirements, you may check back in.'}
-                  </p>
-                </div>
-                <p className="text-xs text-center text-gray-500 pb-1">If you have questions, please see us in the office.</p>
-              </>
-            )}
-
-            {isDenied && (
-              <>
-                {record.denial_reason && (
-                  <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
-                    <p className="text-xs text-red-600 uppercase tracking-wide mb-1 font-semibold">Reason for Denial</p>
-                    <p className="text-sm text-red-800">{record.denial_reason}</p>
-                  </div>
-                )}
-                <p className="text-sm text-red-700 text-center pb-1">
-                  Please contact the facility for further assistance or clarification.
+                  {record.resolution_action === 'new_trailer' ? '🚫 Important Notice:' : '🔧 What You Need to Do:'}
                 </p>
-              </>
-            )}
-
-            {record.status_note && (
-              <div className="p-4 bg-white border border-gray-200 rounded-lg">
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Note from Office</p>
-                <p className="text-sm text-gray-700">{record.status_note}</p>
+                <p className={`text-sm leading-relaxed ${
+                  record.resolution_action === 'new_trailer' ? 'text-red-800' : 'text-orange-800'
+                }`}>
+                  {record.resolution_action === 'new_trailer'
+                    ? 'This trailer will not be loaded under any circumstances. A new, clean trailer that meets our requirements must be provided in order to proceed with this load.'
+                    : 'The trailer issues listed above must be corrected before re-entry. Once the trailer has been cleaned and/or repaired to meet our requirements, you may check back in.'}
+                </p>
               </div>
-            )}
+              <p className="text-xs text-center text-gray-500 pb-1">If you have questions, please see us in the office.</p>
+            </>
+          )}
 
+          {isDenied && (
+            <>
+              {record.denial_reason && (
+                <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
+                  <p className="text-xs text-red-600 uppercase tracking-wide mb-1 font-semibold">Reason for Denial</p>
+                  <p className="text-sm text-red-800">{record.denial_reason}</p>
+                </div>
+              )}
+              <p className="text-sm text-red-700 text-center pb-1">
+                Please contact the facility for further assistance or clarification.
+              </p>
+            </>
+          )}
+
+          {record.status_note && (
+            <div className="p-4 bg-white border border-gray-200 rounded-lg">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Note from Office</p>
+              <p className="text-sm text-gray-700">{record.status_note}</p>
+            </div>
+          )}
+
+        </div>
+
+        {/* Load info summary */}
+        <div className="mx-4 mt-4 p-4 bg-gray-50 rounded-lg text-sm space-y-2">
+          <div className="flex justify-between">
+            <span className="text-gray-500">Reference(s)</span>
+            <div className="text-right max-w-[60%]">
+              <span className="font-medium text-gray-800">{record.reference_number}</span>
+              {record.companion_reference && (
+                <div className="text-xs text-gray-500 mt-0.5">Also: {record.companion_reference}</div>
+              )}
+            </div>
           </div>
-
-          <div className="mx-4 mt-4 p-4 bg-gray-50 rounded-lg text-sm space-y-2">
-            {filledRefs.length > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">Reference(s)</span>
-                <span className="font-medium text-gray-800 text-right max-w-[60%]">{filledRefs.join(', ')}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-gray-500">Load Type</span>
-              <span className="font-medium text-gray-800 capitalize">{record.load_type}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Carrier</span>
-              <span className="font-medium text-gray-800">{record.carrier_name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Trailer #</span>
-              <span className="font-medium text-gray-800">{record.trailer_number}</span>
-            </div>
-            {record.trailer_length && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">Trailer Length</span>
-                <span className="font-medium text-gray-800">{record.trailer_length}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-gray-500">Scheduled For</span>
-              <span className="font-medium text-gray-800">{formatDateTime(record.check_in_time)}</span>
-            </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Load Type</span>
+            <span className="font-medium text-gray-800 capitalize">{record.load_type}</span>
           </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Carrier</span>
+            <span className="font-medium text-gray-800">{record.carrier_name}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Trailer #</span>
+            <span className="font-medium text-gray-800">{record.trailer_number}</span>
+          </div>
+          {record.trailer_length && (
+            <div className="flex justify-between">
+              <span className="text-gray-500">Trailer Length</span>
+              <span className="font-medium text-gray-800">{record.trailer_length}</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="text-gray-500">Check-In Time</span>
+            <span className="font-medium text-gray-800">{formatTime(record.check_in_time)}</span>
+          </div>
+        </div>
 
           <div className="mx-4 mt-3 mb-4 flex items-center justify-between text-xs text-gray-400">
             <div className="flex items-center gap-1.5">
