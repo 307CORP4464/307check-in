@@ -43,6 +43,7 @@ interface CheckInRecord {
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const CARRIER_NAME = 'Vision';
+const PULLED_IDS_STORAGE_KEY = 'vision_checkin_pulled_ids';
 
 const INITIAL_FORM_DATA: FormData = {
   driverName: 'Alex',
@@ -315,6 +316,28 @@ const getNextWorkingDayButtonLabel = (): string => {
   return `🌅 Next Working Day (6:00 AM)`;
 };
 
+// ── localStorage helpers for pulled IDs ───────────────────────────────────
+
+const loadPulledIds = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem(PULLED_IDS_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return new Set<string>(parsed);
+  } catch {
+    // ignore parse errors
+  }
+  return new Set();
+};
+
+const savePulledIds = (ids: Set<string>): void => {
+  try {
+    localStorage.setItem(PULLED_IDS_STORAGE_KEY, JSON.stringify([...ids]));
+  } catch {
+    // ignore storage errors
+  }
+};
+
 // ── Carrier Daily Check-In List ────────────────────────────────────────────
 
 function CarrierCheckInList({
@@ -326,7 +349,8 @@ function CarrierCheckInList({
 }) {
   const [records, setRecords] = useState<CheckInRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pulledIds, setPulledIds] = useState<Set<string>>(new Set());
+  // FIX: initialise from localStorage so pulled state survives page reloads
+  const [pulledIds, setPulledIds] = useState<Set<string>>(() => loadPulledIds());
   const [pullingId, setPullingId] = useState<string | null>(null);
 
   const fetchRecords = useCallback(async () => {
@@ -351,9 +375,18 @@ function CarrierCheckInList({
     return () => { supabase.removeChannel(channel); };
   }, [fetchRecords, supabase]);
 
+  // FIX: persist to localStorage whenever pulledIds changes
+  useEffect(() => {
+    savePulledIds(pulledIds);
+  }, [pulledIds]);
+
   const handlePulled = useCallback((id: string) => {
     setPullingId(id);
-    setPulledIds(prev => { const next = new Set(prev); next.add(id); return next; });
+    setPulledIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
     setPullingId(null);
   }, []);
 
@@ -422,7 +455,23 @@ function CarrierCheckInList({
                 <span className="font-medium">Trailer:</span> {r.trailer_number}
                 {r.trailer_length ? ` (${r.trailer_length})` : ''} · <span className="capitalize">{r.load_type}</span>
               </div>
+              {/* FIX: Show scheduled check-in time separately from appointment time */}
               <div><span className="font-medium">Scheduled:</span> {formatDateTime(r.check_in_time)}</div>
+              {r.appointment_time && (
+                <div>
+                  <span className="font-medium">Appt:</span> {formatAppointmentTime(r.appointment_time)}
+                  {r.appointment_status && (
+                    <span className={`ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-semibold ${
+                      r.appointment_status === 'On Time' ? 'bg-green-100 text-green-700' :
+                      r.appointment_status === 'Early'   ? 'bg-blue-100 text-blue-700' :
+                      r.appointment_status === 'Late'    ? 'bg-orange-100 text-orange-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {r.appointment_status}
+                    </span>
+                  )}
+                </div>
+              )}
               {dockDisplay && <div className="text-blue-700 font-semibold">Dock: {dockDisplay}</div>}
               {r.status === 'rejected' && r.rejection_reasons && r.rejection_reasons.length > 0 && (
                 <div className="text-red-600 mt-1">
@@ -788,10 +837,17 @@ function StatusScreen({
               <span className="font-medium text-gray-800">{record.trailer_length}</span>
             </div>
           )}
+          {/* FIX: Show scheduled time (what driver entered) separately from appointment time (set by office) */}
           <div className="flex justify-between">
-            <span className="text-gray-500">Check-In Time</span>
-            <span className="font-medium text-gray-800">{formatTime(record.check_in_time)}</span>
+            <span className="text-gray-500">Scheduled Time</span>
+            <span className="font-medium text-gray-800">{formatDateTime(record.check_in_time)}</span>
           </div>
+          {record.appointment_time && (
+            <div className="flex justify-between">
+              <span className="text-gray-500">Appt Time</span>
+              <span className="font-medium text-gray-800">{formatAppointmentTime(record.appointment_time)}</span>
+            </div>
+          )}
         </div>
 
         {/* Connection indicator */}
