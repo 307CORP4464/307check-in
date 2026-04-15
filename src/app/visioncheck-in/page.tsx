@@ -332,7 +332,7 @@ const loadPulledIds = (): Set<string> => {
 
 const savePulledIds = (ids: Set<string>): void => {
   try {
-    localStorage.setItem(PULLED_IDS_STORAGE_KEY, JSON.stringify([...ids]));
+    localStorage.setItem(PULLED_IDS_STORAGE_KEY, JSON.stringify(Array.from(ids)));
   } catch {
     // ignore storage errors
   }
