@@ -159,12 +159,13 @@ const getStatusMeta = (status: string): StatusMeta => {
         bannerBg: 'bg-blue-50', bannerBorder: 'border-blue-300', bannerText: 'text-blue-700',
         bannerIcon: <Truck className="w-5 h-5 text-blue-500" />, bannerLabel: 'Dock Assigned — Please Proceed',
       };
-    case 'complete':
-      return {
-        headerBg: 'bg-orange-500', headerTitle: 'Almost Finished — Waiting to Be Sealed', headerIcon: '🟡',
-        bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
-        bannerIcon: <Clock className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed',
-      };
+    case 'checked_out':
+case 'complete':
+  return {
+    headerBg: 'bg-orange-500', headerTitle: 'Almost Finished — Waiting to Be Sealed', headerIcon: '🟡',
+    bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
+    bannerIcon: <Clock className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed',
+  };
     case 'rejected':
       return {
         headerBg: 'bg-red-700', headerTitle: 'Trailer Rejected', headerIcon: '⚠️',
