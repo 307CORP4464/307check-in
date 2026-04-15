@@ -88,12 +88,12 @@ const getStatusMeta = (status: string): StatusMeta => {
         bannerBg: 'bg-blue-50', bannerBorder: 'border-blue-300', bannerText: 'text-blue-700',
         bannerIcon: <Truck className="w-5 h-5 text-blue-500" />, bannerLabel: 'Dock Assigned — Please Proceed',
       };
-    case 'complete':
-      return {
-        headerBg: 'bg-green-600', headerTitle: 'Load Complete — Ready to Depart', headerIcon: '✓',
-        bannerBg: 'bg-green-50', bannerBorder: 'border-green-300', bannerText: 'text-green-700',
-        bannerIcon: <CheckCircle className="w-5 h-5 text-green-500" />, bannerLabel: 'Load Complete — Ready to Depart',
-      };
+   case 'complete':
+  return {
+    headerBg: 'bg-orange-500', headerTitle: 'Almost Finished — Waiting to Be Sealed', headerIcon: '🟡',
+    bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
+    bannerIcon: <Clock className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed',
+  };
     case 'rejected':
       return {
         headerBg: 'bg-red-700', headerTitle: 'Trailer Rejected', headerIcon: '⚠️',
@@ -256,7 +256,7 @@ function StatusScreen({
     if (status === 'pending' && !hasDock) {
       return (
         <div className="p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg text-sm text-yellow-900">
-          🅿️ <strong>Park in the angled spaces</strong> in front of the office and <strong>stay with your truck.</strong> Your dock assignment will appear below — do not leave this page.
+          🅿️ <strong>Park in the angled spaces</strong> in front of the office and <strong>wait in your truck.</strong> Your dock assignment will appear below — do not leave this page.
         </div>
       );
     }
@@ -268,9 +268,12 @@ function StatusScreen({
       );
     }
     if (isComplete) return (
-      <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900">
-        ✅ <strong>You are clear to depart.</strong> Come to the office if you need paperwork signed. Safe travels!
-      </div>
+  <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900 space-y-2">
+    <p className="font-bold">✅ Next Steps — Please Read Carefully:</p>
+    <p><strong>Step 1:</strong> Watch for the dock light to change to <strong>GREEN</strong>.</p>
+    <p><strong>Step 2:</strong> Once the light turns green, <strong>come to the office for your paperwork.</strong></p>
+  </div>
+);
     );
     if (isRejected) return (
       <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
