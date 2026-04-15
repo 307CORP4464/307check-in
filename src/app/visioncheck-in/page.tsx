@@ -351,7 +351,7 @@ function CarrierCheckInList({
     return () => { supabase.removeChannel(channel); };
   }, [fetchRecords, supabase]);
 
-  coconst handlePulled = useCallback((id: string) => {
+  const handlePulled = useCallback((id: string) => {
     setPullingId(id);
     setPulledIds(prev => { const next = new Set(prev); next.add(id); return next; });
     setPullingId(null);
