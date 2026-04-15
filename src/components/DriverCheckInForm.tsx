@@ -424,6 +424,17 @@ function StatusScreen({
         <p><strong>Step 2:</strong> Once the light turns green, <strong>come to the office for your paperwork.</strong></p>
       </div>
     );
+    // ADD THIS before the dockIsAssigned if block:
+    if (status === 'checked_out') {
+      return (
+        <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900 space-y-2">
+          <p className="font-bold">✅ Almost Done — Please Read Carefully:</p>
+          <p><strong>Step 1:</strong> Watch for the dock light to change to <strong>GREEN</strong>.</p>
+          <p><strong>Step 2:</strong> Once the light turns green, <strong>pull out of the dock</strong> and park in the angled spaces in front of the office.</p>
+          <p><strong>Step 3:</strong> Come to the <strong>office to pick up your paperwork.</strong></p>
+        </div>
+      );
+    }
     if (isRejected) return (
       <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
         ⚠️ <strong>Your trailer has been rejected.</strong> Review the details below and see us in the office if you have questions.
