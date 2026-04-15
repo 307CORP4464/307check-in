@@ -108,12 +108,9 @@ const getStatusMeta = (status: string): StatusMeta => {
       };
     case 'driver_left':
       return {
-        headerBg: 'bg-gray-600',
-        headerTitle: 'Check-In Closed — Driver Departed',
-        headerIcon: '✓',
+        headerBg: 'bg-gray-600', headerTitle: 'Check-In Closed — Driver Departed', headerIcon: '✓',
         bannerBg: 'bg-gray-50', bannerBorder: 'border-gray-300', bannerText: 'text-gray-700',
-        bannerIcon: <Package className="w-5 h-5 text-gray-500" />,
-        bannerLabel: 'This check-in has been closed.',
+        bannerIcon: <Package className="w-5 h-5 text-gray-500" />, bannerLabel: 'This check-in has been closed.',
       };
     default:
       return {
@@ -126,7 +123,6 @@ const getStatusMeta = (status: string): StatusMeta => {
       };
   }
 };
-
 // ── Load Instructions ──────────────────────────────────────────────────────
 
 function OutboundInstructions() {
