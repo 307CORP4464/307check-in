@@ -385,7 +385,7 @@ function StatusScreen({
   const dockDisplay = record.dock_number === 'Ramp' ? 'RAMP' : record.dock_number;
   const dockIsAssigned = hasDock || status === 'checked_in';
 
-  const STATUSES_WITHOUT_INSTRUCTIONS = ['complete', 'rejected', 'check_in_denial', 'driver_left'];
+  const STATUSES_WITHOUT_INSTRUCTIONS = ['complete', 'checked_out', 'rejected', 'check_in_denial', 'driver_left'];
   const showInstructions = dockIsAssigned && !STATUSES_WITHOUT_INSTRUCTIONS.includes(status);
 
   const isComplete = status === 'complete';
