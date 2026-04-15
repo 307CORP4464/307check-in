@@ -177,46 +177,21 @@ const getStatusMeta = (status: string): StatusMeta => {
   switch (status) {
     case 'pending':
       return {
-        headerBg: 'bg-amber-500', headerTitle: 'Checked In', headerIcon: '✓',
+        headerBg: 'bg-amber-500', headerTitle: 'Submitted - Pending Dock Assignment', headerIcon: '',
         bannerBg: 'bg-amber-50', bannerBorder: 'border-amber-300', bannerText: 'text-amber-700',
-        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'Awaiting Dock Assignment',
+        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'We are processing your check-in, please note this may take several minutes. Please wait in your truck for this page to update.',
       };
-    case 'dock_assigned':
     case 'checked_in':
       return {
         headerBg: 'bg-blue-600', headerTitle: 'Dock Assigned', headerIcon: '✓',
         bannerBg: 'bg-blue-50', bannerBorder: 'border-blue-300', bannerText: 'text-blue-700',
         bannerIcon: <Truck className="w-5 h-5 text-blue-500" />, bannerLabel: 'Dock Assigned — Please Proceed',
       };
-    case 'loading':
-      return {
-        headerBg: 'bg-purple-600', headerTitle: 'Loading in Progress', headerIcon: '🚛',
-        bannerBg: 'bg-purple-50', bannerBorder: 'border-purple-300', bannerText: 'text-purple-700',
-        bannerIcon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />, bannerLabel: 'Loading in Progress',
-      };
-    case 'unloading':
-      return {
-        headerBg: 'bg-purple-600', headerTitle: 'Unloading in Progress', headerIcon: '📦',
-        bannerBg: 'bg-purple-50', bannerBorder: 'border-purple-300', bannerText: 'text-purple-700',
-        bannerIcon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />, bannerLabel: 'Unloading in Progress',
-      };
-    case 'checked_out':
+    case 'complete':
       return {
         headerBg: 'bg-orange-500', headerTitle: 'Almost Finished — Waiting to Be Sealed', headerIcon: '🟡',
         bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
-        bannerIcon: <AlertCircle className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed',
-      };
-    case 'complete':
-      return {
-        headerBg: 'bg-green-600', headerTitle: 'Load Complete — Ready to Depart', headerIcon: '✓',
-        bannerBg: 'bg-green-50', bannerBorder: 'border-green-300', bannerText: 'text-green-700',
-        bannerIcon: <CheckCircle className="w-5 h-5 text-green-500" />, bannerLabel: 'Load Complete — Ready to Depart',
-      };
-    case 'on_hold':
-      return {
-        headerBg: 'bg-red-600', headerTitle: 'On Hold', headerIcon: '⚠️',
-        bannerBg: 'bg-red-50', bannerBorder: 'border-red-300', bannerText: 'text-red-700',
-        bannerIcon: <AlertCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'On Hold',
+        bannerIcon: <Clock className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed',
       };
     case 'rejected':
       return {
@@ -225,8 +200,6 @@ const getStatusMeta = (status: string): StatusMeta => {
         bannerIcon: <XCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'Trailer Rejected',
       };
     case 'check_in_denial':
-    case 'turned_away':
-    case 'denied':
       return {
         headerBg: 'bg-red-700', headerTitle: 'Check-In Denied', headerIcon: '✕',
         bannerBg: 'bg-red-50', bannerBorder: 'border-red-400', bannerText: 'text-red-700',
@@ -234,9 +207,9 @@ const getStatusMeta = (status: string): StatusMeta => {
       };
     case 'driver_left':
       return {
-        headerBg: 'bg-gray-500', headerTitle: 'Driver Left', headerIcon: '🚚',
+        headerBg: 'bg-gray-600', headerTitle: 'Check-In Closed — Driver Departed', headerIcon: '✓',
         bannerBg: 'bg-gray-50', bannerBorder: 'border-gray-300', bannerText: 'text-gray-700',
-        bannerIcon: <Package className="w-5 h-5 text-gray-500" />, bannerLabel: 'Driver Left',
+        bannerIcon: <Package className="w-5 h-5 text-gray-500" />, bannerLabel: 'This check-in has been closed.',
       };
     default:
       return {
