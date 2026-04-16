@@ -720,6 +720,13 @@ if (!companionReference) {
             isOpen={!!selectedForEdit}
           />
         )}
+        {selectedForPaidReceipt && (
+  <PaidReceiptModal
+    isOpen={!!selectedForPaidReceipt}
+    checkIn={selectedForPaidReceipt}
+    onClose={() => setSelectedForPaidReceipt(null)}
+  />
+)}
         {selectedForDeny && (
           <DenyCheckInModal
             checkIn={selectedForDeny}
