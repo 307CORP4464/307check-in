@@ -31,7 +31,7 @@ interface PaidReceiptModalProps {
   onClose: () => void;
 }
 
-type PaymentType = 'cash' | 'check' | 'money_order' | 'other';
+type PaymentType = 'cash' | 'check' | 'money_order';
 
 const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
   cash: 'Cash',
