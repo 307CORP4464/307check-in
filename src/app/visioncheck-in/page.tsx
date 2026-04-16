@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { Plus, Minus, Clock, Truck, XCircle, Package, Search } from 'lucide-react';
+import { Plus, Minus, CheckCircle, Clock, Truck, AlertCircle, Loader2, XCircle, Package } from 'lucide-react';
 import { isHoliday, getHoliday, todayString } from '@/lib/holidays';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -24,7 +24,6 @@ interface CheckInRecord {
   trailer_number: string;
   trailer_length: string | null;
   reference_number: string;
-  companion_reference: string | null;
   load_type: string;
   status: string;
   dock_number: string | null;
@@ -43,7 +42,6 @@ interface CheckInRecord {
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const CARRIER_NAME = 'Vision';
-const PULLED_IDS_STORAGE_KEY = 'vision_checkin_pulled_ids';
 
 const INITIAL_FORM_DATA: FormData = {
   driverName: 'Alex',
@@ -95,73 +93,74 @@ const getStatusMeta = (status: string): StatusMeta => {
   switch (status) {
     case 'pending':
       return {
-        headerBg: 'bg-amber-500',
-        headerTitle: 'Submitted - Pending Dock Assignment',
-        headerIcon: '',
+        headerBg: 'bg-amber-500', headerTitle: 'Checked In', headerIcon: '✓',
         bannerBg: 'bg-amber-50', bannerBorder: 'border-amber-300', bannerText: 'text-amber-700',
-        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />,
-        bannerLabel: 'We are processing your check-in.',
+        bannerIcon: <Clock className="w-5 h-5 text-amber-500" />, bannerLabel: 'Awaiting Dock Assignment',
         badgeBg: 'bg-amber-100', badgeText: 'text-amber-700',
       };
+    case 'dock_assigned':
     case 'checked_in':
       return {
-        headerBg: 'bg-blue-600',
-        headerTitle: 'Dock Assigned',
-        headerIcon: '✓',
+        headerBg: 'bg-blue-600', headerTitle: 'Dock Assigned', headerIcon: '✓',
         bannerBg: 'bg-blue-50', bannerBorder: 'border-blue-300', bannerText: 'text-blue-700',
-        bannerIcon: <Truck className="w-5 h-5 text-blue-500" />,
-        bannerLabel: 'Dock Assigned — Please Proceed',
+        bannerIcon: <Truck className="w-5 h-5 text-blue-500" />, bannerLabel: 'Dock Assigned — Please Proceed',
         badgeBg: 'bg-blue-100', badgeText: 'text-blue-700',
       };
+    case 'loading':
+      return {
+        headerBg: 'bg-purple-600', headerTitle: 'Loading in Progress', headerIcon: '🚛',
+        bannerBg: 'bg-purple-50', bannerBorder: 'border-purple-300', bannerText: 'text-purple-700',
+        bannerIcon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />, bannerLabel: 'Loading in Progress',
+        badgeBg: 'bg-purple-100', badgeText: 'text-purple-700',
+      };
+    case 'unloading':
+      return {
+        headerBg: 'bg-purple-600', headerTitle: 'Unloading in Progress', headerIcon: '📦',
+        bannerBg: 'bg-purple-50', bannerBorder: 'border-purple-300', bannerText: 'text-purple-700',
+        bannerIcon: <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />, bannerLabel: 'Unloading in Progress',
+        badgeBg: 'bg-purple-100', badgeText: 'text-purple-700',
+      };
     case 'checked_out':
+      return {
+        headerBg: 'bg-orange-500', headerTitle: 'Almost Finished — Waiting to Be Sealed', headerIcon: '🟡',
+        bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
+        bannerIcon: <AlertCircle className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed',
+        badgeBg: 'bg-orange-100', badgeText: 'text-orange-700',
+      };
     case 'complete':
       return {
-        headerBg: 'bg-orange-500',
-        headerTitle: 'Almost Finished — Waiting to Be Sealed',
-        headerIcon: '🟡',
-        bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
-        bannerIcon: <Clock className="w-5 h-5 text-orange-500" />,
-        bannerLabel: 'Almost Finished — Waiting to Be Sealed',
-        badgeBg: 'bg-orange-100', badgeText: 'text-orange-700',
+        headerBg: 'bg-green-600', headerTitle: 'Load Complete — Ready to Depart', headerIcon: '✓',
+        bannerBg: 'bg-green-50', bannerBorder: 'border-green-300', bannerText: 'text-green-700',
+        bannerIcon: <CheckCircle className="w-5 h-5 text-green-500" />, bannerLabel: 'Load Complete — Ready to Depart',
+        badgeBg: 'bg-green-100', badgeText: 'text-green-700',
+      };
+    case 'on_hold':
+      return {
+        headerBg: 'bg-red-600', headerTitle: 'On Hold', headerIcon: '⚠️',
+        bannerBg: 'bg-red-50', bannerBorder: 'border-red-300', bannerText: 'text-red-700',
+        bannerIcon: <AlertCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'On Hold',
+        badgeBg: 'bg-red-100', badgeText: 'text-red-700',
       };
     case 'rejected':
       return {
-        headerBg: 'bg-red-700',
-        headerTitle: 'Trailer Rejected',
-        headerIcon: '⚠️',
+        headerBg: 'bg-red-700', headerTitle: 'Trailer Rejected', headerIcon: '⚠️',
         bannerBg: 'bg-red-50', bannerBorder: 'border-red-400', bannerText: 'text-red-700',
-        bannerIcon: <XCircle className="w-5 h-5 text-red-500" />,
-        bannerLabel: 'Trailer Rejected',
+        bannerIcon: <XCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'Trailer Rejected',
         badgeBg: 'bg-red-100', badgeText: 'text-red-700',
       };
     case 'check_in_denial':
+    case 'turned_away':
       return {
-        headerBg: 'bg-red-700',
-        headerTitle: 'Check-In Denied',
-        headerIcon: '✕',
+        headerBg: 'bg-red-700', headerTitle: 'Check-In Denied', headerIcon: '✕',
         bannerBg: 'bg-red-50', bannerBorder: 'border-red-400', bannerText: 'text-red-700',
-        bannerIcon: <XCircle className="w-5 h-5 text-red-500" />,
-        bannerLabel: 'Check-In Denied',
+        bannerIcon: <XCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'Check-In Denied',
         badgeBg: 'bg-red-100', badgeText: 'text-red-700',
-      };
-    case 'driver_left':
-      return {
-        headerBg: 'bg-gray-600',
-        headerTitle: 'Check-In Closed — Driver Departed',
-        headerIcon: '✓',
-        bannerBg: 'bg-gray-50', bannerBorder: 'border-gray-300', bannerText: 'text-gray-700',
-        bannerIcon: <Package className="w-5 h-5 text-gray-500" />,
-        bannerLabel: 'This check-in has been closed.',
-        badgeBg: 'bg-gray-100', badgeText: 'text-gray-600',
       };
     default:
       return {
-        headerBg: 'bg-gray-600',
-        headerTitle: status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-        headerIcon: '✓',
+        headerBg: 'bg-gray-600', headerTitle: status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), headerIcon: '✓',
         bannerBg: 'bg-gray-50', bannerBorder: 'border-gray-300', bannerText: 'text-gray-700',
-        bannerIcon: <Package className="w-5 h-5 text-gray-500" />,
-        bannerLabel: status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        bannerIcon: <Package className="w-5 h-5 text-gray-500" />, bannerLabel: status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
         badgeBg: 'bg-gray-100', badgeText: 'text-gray-700',
       };
   }
@@ -171,7 +170,7 @@ const getStatusMeta = (status: string): StatusMeta => {
 
 function OutboundInstructions() {
   return (
-    <div>
+    <div className="mt-4 pt-4 border-t border-blue-200">
       <p className="text-sm font-bold text-blue-700 mb-3">🚚 Loading Instructions:</p>
       <ol className="space-y-2">
         {[
@@ -195,7 +194,7 @@ function OutboundInstructions() {
 
 function InboundInstructions() {
   return (
-    <div>
+    <div className="mt-4 pt-4 border-t border-blue-200">
       <p className="text-sm font-bold text-blue-700 mb-3">📦 Unloading Instructions:</p>
       <ol className="space-y-2">
         {[
@@ -211,6 +210,24 @@ function InboundInstructions() {
             {step}
           </li>
         ))}
+      </ol>
+    </div>
+  );
+}
+
+function CheckedOutNextSteps() {
+  return (
+    <div className="mt-3 p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
+      <p className="text-sm font-bold text-orange-700 mb-3">📋 Next Steps — Please Read Carefully:</p>
+      <ol className="space-y-2">
+        <li className="flex gap-2 text-sm text-gray-700">
+          <span className="shrink-0">🟢</span>
+          <span><strong>Step 1:</strong> Watch for the <strong>dock light to change to GREEN</strong>.</span>
+        </li>
+        <li className="flex gap-2 text-sm text-gray-700">
+          <span className="shrink-0">🏢</span>
+          <span><strong>Step 2:</strong> Once the light turns green, <strong>come to the office for your paperwork</strong>.</span>
+        </li>
       </ol>
     </div>
   );
@@ -242,6 +259,7 @@ const formatPhoneNumber = (value: string): string => {
   return value;
 };
 
+/** Zero-padded 'YYYY-MM-DD' from a Date object using local time. */
 const toLocalDateString = (d: Date): string => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -249,14 +267,19 @@ const toLocalDateString = (d: Date): string => {
   return `${y}-${m}-${day}`;
 };
 
+/**
+ * Returns the next working day after `from`, skipping weekends AND holidays.
+ * Advances one day at a time until it finds a Monday–Friday that is not a
+ * company holiday (as defined in holidays.ts).
+ */
 const getNextWorkingDay = (from: Date): Date => {
   const next = new Date(from);
   next.setHours(0, 0, 0, 0);
   while (true) {
     next.setDate(next.getDate() + 1);
-    const dow = next.getDay();
-    if (dow === 0 || dow === 6) continue;
-    if (isHoliday(toLocalDateString(next))) continue;
+    const dow = next.getDay(); // 0 = Sun, 6 = Sat
+    if (dow === 0 || dow === 6) continue;           // skip weekends
+    if (isHoliday(toLocalDateString(next))) continue; // skip holidays
     return next;
   }
 };
@@ -288,18 +311,15 @@ const formatTime = (iso: string) =>
 const formatDateTime = (iso: string) =>
   new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
-// Safely format appointment_time — if it's not a real date (e.g. "Work In"), display as-is
-const formatAppointmentTime = (value: string): string => {
-  const d = new Date(value);
-  return isNaN(d.getTime()) ? value : formatDateTime(value);
-};
-
 const getLocalDateLabel = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-US', { dateStyle: 'long' });
 
 const getTodayLabel = (): string =>
   new Date().toLocaleDateString('en-US', { dateStyle: 'long' });
 
+// ── Next Working Day button label ──────────────────────────────────────────
+// Shows the holiday name if the calendar-tomorrow would have been skipped,
+// so the driver understands why the date jumped further than expected.
 const getNextWorkingDayButtonLabel = (): string => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -311,31 +331,13 @@ const getNextWorkingDayButtonLabel = (): string => {
   const isWeekend = tomorrowDow === 0 || tomorrowDow === 6;
   const holiday = getHoliday(tomorrowStr);
 
-  if (holiday) return `🌅 Next Working Day (skip ${holiday.name})`;
-  if (isWeekend) return `🌅 Next Working Day (6:00 AM)`;
+  if (holiday) {
+    return `🌅 Next Working Day (skip ${holiday.name})`;
+  }
+  if (isWeekend) {
+    return `🌅 Next Working Day (6:00 AM)`;
+  }
   return `🌅 Next Working Day (6:00 AM)`;
-};
-
-// ── localStorage helpers for pulled IDs ───────────────────────────────────
-
-const loadPulledIds = (): Set<string> => {
-  try {
-    const raw = localStorage.getItem(PULLED_IDS_STORAGE_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return new Set<string>(parsed);
-  } catch {
-    // ignore parse errors
-  }
-  return new Set();
-};
-
-const savePulledIds = (ids: Set<string>): void => {
-  try {
-    localStorage.setItem(PULLED_IDS_STORAGE_KEY, JSON.stringify(Array.from(ids)));
-  } catch {
-    // ignore storage errors
-  }
 };
 
 // ── Carrier Daily Check-In List ────────────────────────────────────────────
@@ -349,9 +351,6 @@ function CarrierCheckInList({
 }) {
   const [records, setRecords] = useState<CheckInRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  // FIX: initialise from localStorage so pulled state survives page reloads
-  const [pulledIds, setPulledIds] = useState<Set<string>>(() => loadPulledIds());
-  const [pullingId, setPullingId] = useState<string | null>(null);
 
   const fetchRecords = useCallback(async () => {
     const { start, end } = getTodayAndNextWorkingDayRange();
@@ -375,21 +374,6 @@ function CarrierCheckInList({
     return () => { supabase.removeChannel(channel); };
   }, [fetchRecords, supabase]);
 
-  // FIX: persist to localStorage whenever pulledIds changes
-  useEffect(() => {
-    savePulledIds(pulledIds);
-  }, [pulledIds]);
-
-  const handlePulled = useCallback((id: string) => {
-    setPullingId(id);
-    setPulledIds(prev => {
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
-    setPullingId(null);
-  }, []);
-
   if (loading) {
     return (
       <div className="mt-6 p-4 bg-white rounded-lg border border-gray-200 text-center text-sm text-gray-400">
@@ -409,102 +393,17 @@ function CarrierCheckInList({
   const todayLabel = getTodayLabel();
   const nextWorkingLabel = getLocalDateLabel(getNextWorkingDay(new Date()).toISOString());
 
+  const grouped: Record<string, CheckInRecord[]> = {};
+  for (const r of records) {
+    const label = getLocalDateLabel(r.check_in_time);
+    if (!grouped[label]) grouped[label] = [];
+    grouped[label].push(r);
+  }
+
   const dayHeading = (dateLabel: string): string => {
     if (dateLabel === todayLabel) return `Today — ${dateLabel}`;
     if (dateLabel === nextWorkingLabel) return `Next Working Day — ${dateLabel}`;
     return dateLabel;
-  };
-
-  const activeRecords = records.filter(r => !pulledIds.has(r.id));
-  const pulledRecords = records.filter(r => pulledIds.has(r.id));
-
-  const activeGrouped: Record<string, CheckInRecord[]> = {};
-  for (const r of activeRecords) {
-    const label = getLocalDateLabel(r.check_in_time);
-    if (!activeGrouped[label]) activeGrouped[label] = [];
-    activeGrouped[label].push(r);
-  }
-
-  const renderRecord = (r: CheckInRecord, isPulled = false) => {
-    const meta = getStatusMeta(r.status);
-    const isCurrentRecord = r.id === currentRecordId;
-    const dockDisplay = r.dock_number === 'Ramp' ? 'RAMP' : r.dock_number;
-    const canMarkPulled = (r.status === 'complete' || r.status === 'checked_out') && !pulledIds.has(r.id);
-
-    return (
-      <div key={r.id} className={`bg-white rounded-lg border-2 p-4 transition-all ${
-        isPulled ? 'border-gray-200 opacity-70' :
-        isCurrentRecord ? 'border-indigo-400 shadow-md' : 'border-gray-200'
-      }`}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              {isCurrentRecord && !isPulled && (
-                <span className="text-xs bg-indigo-100 text-indigo-700 font-medium px-1.5 py-0.5 rounded">You</span>
-              )}
-              {isPulled && (
-                <span className="text-xs bg-green-100 text-green-700 font-medium px-1.5 py-0.5 rounded">✓ Pulled</span>
-              )}
-            </div>
-            <div className="text-xs text-gray-500 space-y-0.5">
-              <div><span className="font-medium">Ref:</span> {r.reference_number}</div>
-              {r.companion_reference && (
-                <div><span className="font-medium">Also:</span> {r.companion_reference}</div>
-              )}
-              <div>
-                <span className="font-medium">Trailer:</span> {r.trailer_number}
-                {r.trailer_length ? ` (${r.trailer_length})` : ''} · <span className="capitalize">{r.load_type}</span>
-              </div>
-              {/* FIX: Show scheduled check-in time separately from appointment time */}
-              <div><span className="font-medium">Scheduled:</span> {formatDateTime(r.check_in_time)}</div>
-              {r.appointment_time && (
-                <div>
-                  <span className="font-medium">Appt:</span> {formatAppointmentTime(r.appointment_time)}
-                  {r.appointment_status && (
-                    <span className={`ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-semibold ${
-                      r.appointment_status === 'On Time' ? 'bg-green-100 text-green-700' :
-                      r.appointment_status === 'Early'   ? 'bg-blue-100 text-blue-700' :
-                      r.appointment_status === 'Late'    ? 'bg-orange-100 text-orange-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>
-                      {r.appointment_status}
-                    </span>
-                  )}
-                </div>
-              )}
-              {dockDisplay && <div className="text-blue-700 font-semibold">Dock: {dockDisplay}</div>}
-              {r.status === 'rejected' && r.rejection_reasons && r.rejection_reasons.length > 0 && (
-                <div className="text-red-600 mt-1">
-                  <span className="font-semibold">Rejected:</span> {r.rejection_reasons.join(', ')}
-                </div>
-              )}
-              {r.status === 'check_in_denial' && r.denial_reason && (
-                <div className="text-red-600 mt-1">
-                  <span className="font-semibold">Denied:</span> {r.denial_reason}
-                </div>
-              )}
-              {r.status_note && <div className="text-gray-600 italic">"{r.status_note}"</div>}
-            </div>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${meta.badgeBg} ${meta.badgeText}`}>
-              {meta.bannerIcon}
-              {meta.bannerLabel}
-            </div>
-            {canMarkPulled && (
-              <button
-                onClick={() => handlePulled(r.id)}
-                disabled={pullingId === r.id}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 active:scale-95 text-white text-xs font-semibold rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-              >
-                <Truck className="w-3.5 h-3.5" />
-                Trailer Pulled
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -512,33 +411,57 @@ function CarrierCheckInList({
       <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
         Vision Check-Ins ({records.length})
       </h3>
-
-      {Object.entries(activeGrouped).map(([dateLabel, dayRecords]) => (
+      {Object.entries(grouped).map(([dateLabel, dayRecords]) => (
         <div key={dateLabel} className="mb-6">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">
             {dayHeading(dateLabel)}
           </p>
           <div className="space-y-3">
-            {dayRecords.map(r => renderRecord(r, false))}
+            {dayRecords.map((r) => {
+              const meta = getStatusMeta(r.status);
+              const isCurrentRecord = r.id === currentRecordId;
+              const dockDisplay = r.dock_number === 'Ramp' ? 'RAMP' : r.dock_number;
+              return (
+                <div key={r.id} className={`bg-white rounded-lg border-2 p-4 transition-all ${isCurrentRecord ? 'border-indigo-400 shadow-md' : 'border-gray-200'}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        {isCurrentRecord && (
+                          <span className="text-xs bg-indigo-100 text-indigo-700 font-medium px-1.5 py-0.5 rounded">You</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500 space-y-0.5">
+                        <div><span className="font-medium">Ref:</span> {r.reference_number}</div>
+                        <div>
+                          <span className="font-medium">Trailer:</span> {r.trailer_number}
+                          {r.trailer_length ? ` (${r.trailer_length})` : ''} · <span className="capitalize">{r.load_type}</span>
+                        </div>
+                        <div><span className="font-medium">Scheduled:</span> {formatDateTime(r.check_in_time)}</div>
+                        {dockDisplay && <div className="text-blue-700 font-semibold">Dock: {dockDisplay}</div>}
+                        {r.status === 'rejected' && r.rejection_reasons && r.rejection_reasons.length > 0 && (
+                          <div className="text-red-600 mt-1">
+                            <span className="font-semibold">Rejected:</span> {r.rejection_reasons.join(', ')}
+                          </div>
+                        )}
+                        {(r.status === 'check_in_denial' || r.status === 'turned_away') && r.denial_reason && (
+                          <div className="text-red-600 mt-1">
+                            <span className="font-semibold">Denied:</span> {r.denial_reason}
+                          </div>
+                        )}
+                        {r.status_note && <div className="text-gray-600 italic">"{r.status_note}"</div>}
+                      </div>
+                    </div>
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${meta.badgeBg} ${meta.badgeText}`}>
+                      {meta.bannerIcon}
+                      {meta.bannerLabel}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       ))}
-
-      {pulledRecords.length > 0 && (
-        <div className="mt-6">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="flex-1 h-px bg-green-200" />
-            <p className="text-xs font-bold text-green-600 uppercase tracking-widest px-2 flex items-center gap-1.5">
-              <Truck className="w-3.5 h-3.5" />
-              Pulled ({pulledRecords.length})
-            </p>
-            <div className="flex-1 h-px bg-green-200" />
-          </div>
-          <div className="space-y-3">
-            {pulledRecords.map(r => renderRecord(r, true))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -593,14 +516,17 @@ function StatusScreen({
 
   const hasDock = !!record.dock_number;
   const dockDisplay = record.dock_number === 'Ramp' ? 'RAMP' : record.dock_number;
-  const dockIsAssigned = hasDock || status === 'checked_in';
+  const dockIsAssigned = hasDock || status === 'dock_assigned' || status === 'checked_in';
 
-  const STATUSES_WITHOUT_INSTRUCTIONS = ['checked_out', 'complete', 'rejected', 'check_in_denial', 'driver_left'];
+  const STATUSES_WITHOUT_INSTRUCTIONS = ['loading', 'unloading', 'checked_out', 'complete', 'rejected', 'check_in_denial', 'turned_away', 'driver_left', 'on_hold'];
   const showInstructions = dockIsAssigned && !STATUSES_WITHOUT_INSTRUCTIONS.includes(status);
 
-  const isComplete  = status === 'complete' || status === 'checked_out';
-  const isRejected  = status === 'rejected';
-  const isDenied    = status === 'check_in_denial';
+  const isLoading    = status === 'loading';
+  const isUnloading  = status === 'unloading';
+  const isCheckedOut = status === 'checked_out';
+  const isComplete   = status === 'complete';
+  const isRejected   = status === 'rejected';
+  const isDenied     = status === 'check_in_denial' || status === 'turned_away' || status === 'denied';
 
   const rejectionReasons: string[] = (() => {
     const raw = record.rejection_reasons;
@@ -616,7 +542,7 @@ function StatusScreen({
     if (status === 'pending' && !hasDock) {
       return (
         <div className="p-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg text-sm text-yellow-900">
-          🅿️ <strong>Park in the angled spaces</strong> in front of the office and <strong>wait in your truck.</strong> Your dock assignment will appear below — do not leave this page.
+          🅿️ <strong>Park in the angled spaces</strong> in front of the office and <strong>stay with your truck.</strong> Your dock assignment will appear below — do not leave this page.
         </div>
       );
     }
@@ -627,11 +553,24 @@ function StatusScreen({
         </div>
       );
     }
+    if (isLoading) return (
+      <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-900">
+        🔴 <strong>Stay at your dock.</strong> The dock light is red — your trailer is being loaded. The light will turn green when complete.
+      </div>
+    );
+    if (isUnloading) return (
+      <div className="p-4 bg-purple-50 border-2 border-purple-400 rounded-lg text-sm text-purple-900">
+        🔴 <strong>Stay at your dock.</strong> The dock light is red — your trailer is being unloaded. The light will turn green when complete.
+      </div>
+    );
+    if (isCheckedOut) return (
+      <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg text-sm text-orange-900">
+        🟢 <strong>Watch for the dock light to turn GREEN,</strong> then come to the office for your paperwork.
+      </div>
+    );
     if (isComplete) return (
-      <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900 space-y-2">
-        <p className="font-bold">✅ Next Steps — Please Read Carefully:</p>
-        <p><strong>Step 1:</strong> Watch for the dock light to change to <strong>GREEN</strong>.</p>
-        <p><strong>Step 2:</strong> Once the light turns green, <strong>come to the office for your paperwork.</strong></p>
+      <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900">
+        ✅ <strong>You are clear to depart.</strong> Come to the office if you need paperwork signed. Safe travels!
       </div>
     );
     if (isRejected) return (
@@ -644,243 +583,227 @@ function StatusScreen({
         🚫 <strong>Your check-in has been denied.</strong> Please contact the facility for further assistance.
       </div>
     );
-    if (status === 'driver_left') return (
-      <div className="p-4 bg-gray-50 border-2 border-gray-300 rounded-lg text-sm text-gray-800">
-        This check-in is no longer active. If you need to check in again, please use the check-in form or see the office.
+    if (status === 'on_hold') return (
+      <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
+        ⏸️ <strong>Your load is on hold.</strong> Please come to the office for more information.
       </div>
     );
     return null;
   })();
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md overflow-hidden">
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="max-w-md mx-auto">
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
 
-        {/* Top banner */}
-        <div className="bg-gray-900 text-white px-5 py-4 text-center">
-          <p className="text-xl font-extrabold tracking-tight leading-snug">📱 DO NOT CLOSE</p>
-          <p className="text-sm text-gray-300 mt-1">Load updates will appear below</p>
-          <p className="text-sm text-gray-300 mt-1">You may need to reload page if you do not see an update.</p>
-        </div>
-
-        {/* Status header */}
-        <div className={`${meta.headerBg} text-white p-6 text-center transition-colors duration-500`}>
-          <div className="text-5xl mb-3">{meta.headerIcon}</div>
-          <h2 className="text-2xl font-bold">{meta.headerTitle}</h2>
-          <p className="text-white/80 text-sm mt-1">Welcome, {record.driver_name}!</p>
-        </div>
-
-        {/* Status banner */}
-        <div className={`mx-4 mt-4 p-4 rounded-lg border-2 ${meta.bannerBg} ${meta.bannerBorder} transition-all duration-500`}>
-          <div className="flex items-center gap-2">
-            {meta.bannerIcon}
-            <span className={`font-semibold text-sm ${meta.bannerText}`}>{meta.bannerLabel}</span>
+          <div className="bg-gray-900 text-white px-5 py-4 text-center">
+            <p className="text-xl font-extrabold tracking-tight leading-snug">📱 Leave this page open</p>
+            <p className="text-sm text-gray-300 mt-1">Load updates will appear below</p>
           </div>
-          {dockDisplay && (
-            <div className="mt-3 text-center py-2">
-              <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Dock Assignment</p>
-              <p className="text-5xl font-extrabold text-blue-700">{dockDisplay}</p>
+
+          <div className={`${meta.headerBg} text-white p-6 text-center transition-colors duration-500`}>
+            <div className="text-5xl mb-3">{meta.headerIcon}</div>
+            <h2 className="text-2xl font-bold">{meta.headerTitle}</h2>
+            <p className="text-white/80 text-sm mt-1">Welcome, {record.driver_name}!</p>
+          </div>
+
+          <div className={`mx-4 mt-4 p-4 rounded-lg border-2 ${meta.bannerBg} ${meta.bannerBorder} transition-all duration-500`}>
+            <div className="flex items-center gap-2">
+              {meta.bannerIcon}
+              <span className={`font-semibold text-sm ${meta.bannerText}`}>{meta.bannerLabel}</span>
             </div>
-          )}
-        </div>
+            {dockDisplay && (
+              <div className="mt-3 text-center py-2">
+                <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Dock Assignment</p>
+                <p className="text-5xl font-extrabold text-blue-700">{dockDisplay}</p>
+              </div>
+            )}
+          </div>
 
-        {/* Detail section */}
-        <div className="mx-4 mt-3 space-y-3">
+          <div className="mx-4 mt-3 space-y-3">
 
-          {actionBox}
+            {actionBox}
 
-          {hasDock && record.is_double_booked && (
-            <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
-              <p className="text-sm font-bold text-orange-800 mb-1">⚠️ Important — Please Wait Before Pulling In</p>
-              <p className="text-sm text-orange-800">
-                This dock is currently occupied by another truck.{' '}
-                <strong>Do not pull into the dock until the first truck has fully pulled out.</strong>{' '}
-                Once the dock is clear, proceed with your normal instructions below.
-              </p>
-            </div>
-          )}
-
-          {hasDock && record.gross_weight && (
-            <div className="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
-              <p className="text-sm font-bold text-orange-700 mb-1">
-                ⚖️ Gross Weight: {Number(record.gross_weight).toLocaleString()} lbs
-              </p>
-              <p className="text-xs text-yellow-900">
-                If you have any concerns or disputes regarding this weight, please see us in the office
-                before proceeding to your assigned dock. By continuing to the dock you are accepting this weight.
-              </p>
-            </div>
-          )}
-
-          {record.appointment_time && (
-            <div className="p-4 bg-white border border-gray-200 rounded-lg">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Appointment Time</p>
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-gray-800">
-                  {formatAppointmentTime(record.appointment_time)}
+            {hasDock && record.is_double_booked && (
+              <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg">
+                <p className="text-sm font-bold text-orange-800 mb-1">⚠️ Important — Please Wait Before Pulling In</p>
+                <p className="text-sm text-orange-800">
+                  This dock is currently occupied by another truck.{' '}
+                  <strong>Do not pull into the dock until the first truck has fully pulled out.</strong>{' '}
+                  Once the dock is clear, proceed with your normal instructions below.
                 </p>
-                {record.appointment_status && (
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                    record.appointment_status === 'On Time' ? 'bg-green-100 text-green-700' :
-                    record.appointment_status === 'Early'   ? 'bg-blue-100 text-blue-700' :
-                    record.appointment_status === 'Late'    ? 'bg-orange-100 text-orange-700' :
-                    'bg-gray-100 text-gray-600'
+              </div>
+            )}
+
+            {hasDock && record.gross_weight && (
+              <div className="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+                <p className="text-sm font-bold text-orange-700 mb-1">
+                  ⚖️ Gross Weight: {Number(record.gross_weight).toLocaleString()} lbs
+                </p>
+                <p className="text-xs text-yellow-900">
+                  If you have any concerns or disputes regarding this weight, please see us in the office
+                  before proceeding to your assigned dock. By continuing to the dock you are accepting this weight.
+                </p>
+              </div>
+            )}
+
+            {record.appointment_time && (
+              <div className="p-4 bg-white border border-gray-200 rounded-lg">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Appointment Time</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-gray-800">{formatDateTime(record.appointment_time)}</p>
+                  {record.appointment_status && (
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                      record.appointment_status === 'On Time' ? 'bg-green-100 text-green-700' :
+                      record.appointment_status === 'Early'   ? 'bg-blue-100 text-blue-700' :
+                      record.appointment_status === 'Late'    ? 'bg-orange-100 text-orange-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {record.appointment_status}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {showInstructions && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                {record.load_type === 'inbound' ? <InboundInstructions /> : <OutboundInstructions />}
+              </div>
+            )}
+
+            {isCheckedOut && <CheckedOutNextSteps />}
+
+            {isComplete && record.end_time && (
+              <div className="p-4 bg-white border border-gray-200 rounded-lg">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Completed At</p>
+                <p className="text-sm font-medium text-gray-800">{formatDateTime(record.end_time)}</p>
+              </div>
+            )}
+
+            {isRejected && (
+              <>
+                {rejectionReasons.length > 0 && (
+                  <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
+                    <p className="text-sm font-bold text-red-700 mb-3">
+                      ⚠️ Your trailer has been rejected for the following reason(s):
+                    </p>
+                    <ol className="space-y-2">
+                      {rejectionReasons.map((reason, i) => (
+                        <li key={i} className="flex gap-2 text-sm text-red-800">
+                          <span className="font-bold text-red-500 shrink-0">{i + 1}.</span>
+                          <span>{reason}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+                <div className={`p-4 rounded-lg border-2 ${
+                  record.resolution_action === 'new_trailer' ? 'bg-red-50 border-red-500' : 'bg-yellow-50 border-orange-400'
+                }`}>
+                  <p className={`text-sm font-bold mb-2 ${
+                    record.resolution_action === 'new_trailer' ? 'text-red-700' : 'text-orange-700'
                   }`}>
-                    {record.appointment_status}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {showInstructions && (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              {record.load_type === 'inbound' ? <InboundInstructions /> : <OutboundInstructions />}
-            </div>
-          )}
-
-          {isComplete && record.end_time && (
-            <div className="p-4 bg-white border border-gray-200 rounded-lg">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Completed At</p>
-              <p className="text-sm font-medium text-gray-800">{formatDateTime(record.end_time)}</p>
-            </div>
-          )}
-
-          {isRejected && (
-            <>
-              {rejectionReasons.length > 0 && (
-                <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
-                  <p className="text-sm font-bold text-red-700 mb-3">
-                    ⚠️ Your trailer has been rejected for the following reason(s):
+                    {record.resolution_action === 'new_trailer' ? '🚫 Important Notice:' : '🔧 What You Need to Do:'}
                   </p>
-                  <ol className="space-y-2">
-                    {rejectionReasons.map((reason, i) => (
-                      <li key={i} className="flex gap-2 text-sm text-red-800">
-                        <span className="font-bold text-red-500 shrink-0">{i + 1}.</span>
-                        <span>{reason}</span>
-                      </li>
-                    ))}
-                  </ol>
+                  <p className={`text-sm leading-relaxed ${
+                    record.resolution_action === 'new_trailer' ? 'text-red-800' : 'text-orange-800'
+                  }`}>
+                    {record.resolution_action === 'new_trailer'
+                      ? 'This trailer will not be loaded under any circumstances. A new, clean trailer that meets our requirements must be provided in order to proceed with this load.'
+                      : 'The trailer issues listed above must be corrected before re-entry. Once the trailer has been cleaned and/or repaired to meet our requirements, you may check back in.'}
+                  </p>
                 </div>
-              )}
-              <div className={`p-4 rounded-lg border-2 ${
-                record.resolution_action === 'new_trailer' ? 'bg-red-50 border-red-500' : 'bg-yellow-50 border-orange-400'
-              }`}>
-                <p className={`text-sm font-bold mb-2 ${
-                  record.resolution_action === 'new_trailer' ? 'text-red-700' : 'text-orange-700'
-                }`}>
-                  {record.resolution_action === 'new_trailer' ? '🚫 Important Notice:' : '🔧 What You Need to Do:'}
-                </p>
-                <p className={`text-sm leading-relaxed ${
-                  record.resolution_action === 'new_trailer' ? 'text-red-800' : 'text-orange-800'
-                }`}>
-                  {record.resolution_action === 'new_trailer'
-                    ? 'This trailer will not be loaded under any circumstances. A new, clean trailer that meets our requirements must be provided in order to proceed with this load.'
-                    : 'The trailer issues listed above must be corrected before re-entry. Once the trailer has been cleaned and/or repaired to meet our requirements, you may check back in.'}
-                </p>
-              </div>
-              <p className="text-xs text-center text-gray-500 pb-1">If you have questions, please see us in the office.</p>
-            </>
-          )}
+                <p className="text-xs text-center text-gray-500 pb-1">If you have questions, please see us in the office.</p>
+              </>
+            )}
 
-          {isDenied && (
-            <>
-              {record.denial_reason && (
-                <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
-                  <p className="text-xs text-red-600 uppercase tracking-wide mb-1 font-semibold">Reason for Denial</p>
-                  <p className="text-sm text-red-800">{record.denial_reason}</p>
-                </div>
-              )}
-              <p className="text-sm text-red-700 text-center pb-1">
-                Please contact the facility for further assistance or clarification.
-              </p>
-            </>
-          )}
-
-          {record.status_note && (
-            <div className="p-4 bg-white border border-gray-200 rounded-lg">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Note from Office</p>
-              <p className="text-sm text-gray-700">{record.status_note}</p>
-            </div>
-          )}
-
-        </div>
-
-        {/* Load info summary */}
-        <div className="mx-4 mt-4 p-4 bg-gray-50 rounded-lg text-sm space-y-2">
-          {filledRefs.length > 0 && (
-            <div className="flex justify-between">
-              <span className="text-gray-500">Reference(s)</span>
-              <div className="text-right max-w-[60%]">
-                <span className="font-medium text-gray-800">{filledRefs.join(', ')}</span>
-                {record.companion_reference && (
-                  <div className="text-xs text-gray-500 mt-0.5">Also: {record.companion_reference}</div>
+            {isDenied && (
+              <>
+                {record.denial_reason && (
+                  <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
+                    <p className="text-xs text-red-600 uppercase tracking-wide mb-1 font-semibold">Reason for Denial</p>
+                    <p className="text-sm text-red-800">{record.denial_reason}</p>
+                  </div>
                 )}
+                <p className="text-sm text-red-700 text-center pb-1">
+                  Please contact the facility for further assistance or clarification.
+                </p>
+              </>
+            )}
+
+            {record.status_note && (
+              <div className="p-4 bg-white border border-gray-200 rounded-lg">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Note from Office</p>
+                <p className="text-sm text-gray-700">{record.status_note}</p>
               </div>
-            </div>
-          )}
-          <div className="flex justify-between">
-            <span className="text-gray-500">Load Type</span>
-            <span className="font-medium text-gray-800 capitalize">{record.load_type}</span>
+            )}
+
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Carrier</span>
-            <span className="font-medium text-gray-800">{record.carrier_name}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500">Trailer #</span>
-            <span className="font-medium text-gray-800">{record.trailer_number}</span>
-          </div>
-          {record.trailer_length && (
+
+          <div className="mx-4 mt-4 p-4 bg-gray-50 rounded-lg text-sm space-y-2">
+            {filledRefs.length > 0 && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Reference(s)</span>
+                <span className="font-medium text-gray-800 text-right max-w-[60%]">{filledRefs.join(', ')}</span>
+              </div>
+            )}
             <div className="flex justify-between">
-              <span className="text-gray-500">Trailer Length</span>
-              <span className="font-medium text-gray-800">{record.trailer_length}</span>
+              <span className="text-gray-500">Load Type</span>
+              <span className="font-medium text-gray-800 capitalize">{record.load_type}</span>
             </div>
-          )}
-          {/* FIX: Show scheduled time (what driver entered) separately from appointment time (set by office) */}
-          <div className="flex justify-between">
-            <span className="text-gray-500">Scheduled Time</span>
-            <span className="font-medium text-gray-800">{formatDateTime(record.check_in_time)}</span>
-          </div>
-          {record.appointment_time && (
             <div className="flex justify-between">
-              <span className="text-gray-500">Appt Time</span>
-              <span className="font-medium text-gray-800">{formatAppointmentTime(record.appointment_time)}</span>
+              <span className="text-gray-500">Carrier</span>
+              <span className="font-medium text-gray-800">{record.carrier_name}</span>
             </div>
-          )}
+            <div className="flex justify-between">
+              <span className="text-gray-500">Trailer #</span>
+              <span className="font-medium text-gray-800">{record.trailer_number}</span>
+            </div>
+            {record.trailer_length && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Trailer Length</span>
+                <span className="font-medium text-gray-800">{record.trailer_length}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-gray-500">Scheduled For</span>
+              <span className="font-medium text-gray-800">{formatDateTime(record.check_in_time)}</span>
+            </div>
+          </div>
+
+          <div className="mx-4 mt-3 mb-4 flex items-center justify-between text-xs text-gray-400">
+            <div className="flex items-center gap-1.5">
+              <span className={`inline-block w-2 h-2 rounded-full ${
+                connectionStatus === 'connected' ? 'bg-green-400 animate-pulse' :
+                connectionStatus === 'error'     ? 'bg-red-400' :
+                'bg-yellow-400 animate-pulse'
+              }`} />
+              <span>
+                {connectionStatus === 'connected' ? 'Live updates active' :
+                 connectionStatus === 'error'     ? 'Connection error — refresh page' :
+                 'Connecting...'}
+              </span>
+            </div>
+            {lastUpdated && <span>Updated {formatTime(lastUpdated.toISOString())}</span>}
+          </div>
+
+          <div className="px-4 pb-6">
+            <button
+              onClick={onNewCheckIn}
+              className="w-full py-2.5 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              New Check-In
+            </button>
+          </div>
         </div>
 
-        {/* Connection indicator */}
-        <div className="mx-4 mt-3 mb-4 flex items-center justify-between text-xs text-gray-400">
-          <div className="flex items-center gap-1.5">
-            <span className={`inline-block w-2 h-2 rounded-full ${
-              connectionStatus === 'connected' ? 'bg-green-400 animate-pulse' :
-              connectionStatus === 'error'     ? 'bg-red-400' :
-              'bg-yellow-400 animate-pulse'
-            }`} />
-            <span>
-              {connectionStatus === 'connected' ? 'Live updates active' :
-               connectionStatus === 'error'     ? 'Connection error — refresh page' :
-               'Connecting...'}
-            </span>
-          </div>
-          {lastUpdated && <span>Updated {formatTime(lastUpdated.toISOString())}</span>}
-        </div>
-
-        <div className="px-4 pb-6">
-          <button
-            onClick={onNewCheckIn}
-            className="w-full py-2.5 border-2 border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-          >
-            New Check-In
-          </button>
-        </div>
+        <CarrierCheckInList supabase={supabase} currentRecordId={record.id} />
       </div>
-
-      <CarrierCheckInList supabase={supabase} currentRecordId={record.id} />
     </div>
   );
 }
+
 
 // ── Main Form ──────────────────────────────────────────────────────────────
 
@@ -896,6 +819,7 @@ export default function CarrierEarlyCheckInForm() {
   const [error, setError] = useState<string | null>(null);
   const [checkInRecord, setCheckInRecord] = useState<CheckInRecord | null>(null);
 
+  // Pre-compute the button label once on render (avoids recalculating on every keystroke)
   const nextWorkingDayLabel = getNextWorkingDayButtonLabel();
   const nextWorkingDayValue = getNextWorkingDayAt0600();
 
