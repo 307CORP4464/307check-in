@@ -8,6 +8,7 @@ import StatusChangeModal from './StatusChangeModal';
 import EditCheckInModal from './EditCheckInModal';
 import Header from './Header';
 import { matchAppointmentToCheckIn } from '@/lib/appointmentMatcher';
+import PaidReceiptModal from './PaidReceiptModal';
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -607,6 +608,7 @@ export default function DailyLog() {
   const [showInProgressOnly, setShowInProgressOnly] = useState(false);
   const [statusDetailCheckIn, setStatusDetailCheckIn] = useState<CheckIn | null>(null);
   const [denialsExpanded, setDenialsExpanded] = useState(false);
+  const [selectedForPaidReceipt, setSelectedForPaidReceipt] = useState<CheckIn | null>(null);
 
   // ── Detention warning state ────────────────────────────────────────────────
   const [detentionWarnings, setDetentionWarnings] = useState<
@@ -1022,6 +1024,14 @@ if (!companionReference) {
         <div className="flex flex-col gap-1">
           <button onClick={() => handleEdit(checkIn)} className="text-blue-600 hover:text-blue-900 font-medium text-left">Edit</button>
           <button onClick={() => handleStatusChange(checkIn)} className="text-green-600 hover:text-green-800 font-medium text-left">Status</button>
+          {checkIn.appointment_time === 'Paid' && (
+  <button
+    onClick={() => setSelectedForPaidReceipt(checkIn)}
+    className="text-green-600 hover:text-green-800 font-medium text-left flex items-center gap-1"
+  >
+    💵 Paid Receipt
+  </button>
+)}
           <button
             onClick={() => reprintReceipt(checkIn)}
             className="text-gray-500 hover:text-gray-800 font-medium text-left flex items-center gap-1"
@@ -1329,6 +1339,13 @@ if (!companionReference) {
           onSuccess={handleStatusChangeSuccess}
         />
       )}
+      {selectedForPaidReceipt && (
+  <PaidReceiptModal
+    isOpen={!!selectedForPaidReceipt}
+    checkIn={selectedForPaidReceipt}
+    onClose={() => setSelectedForPaidReceipt(null)}
+  />
+)}
       {selectedForEdit && (
         <EditCheckInModal
           isOpen={true}
