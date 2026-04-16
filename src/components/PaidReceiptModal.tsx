@@ -36,8 +36,7 @@ type PaymentType = 'cash' | 'check' | 'money_order' | 'other';
 const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
   cash: 'Cash',
   check: 'Check',
-  money_order: 'Money Order',
-  other: 'Other',
+  money_order: 'Venmo',
 };
 
 const formatTimeInIndianapolis = (isoString: string): string => {
