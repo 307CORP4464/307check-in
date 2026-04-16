@@ -11,6 +11,7 @@ import DenyCheckInModal from './DenyCheckInModal';
 import ManualCheckInModal from './ManualCheckInModal';
 import Header from './Header';
 import { matchAppointmentToCheckIn } from '@/lib/appointmentMatcher';
+import PaidReceiptModal from './PaidReceiptModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
@@ -256,6 +257,7 @@ export default function CSRDashboard() {
   const [selectedForEdit, setSelectedForEdit] = useState<CheckIn | null>(null);
   const [selectedForDeny, setSelectedForDeny] = useState<CheckIn | null>(null);
   const [showManualCheckIn, setShowManualCheckIn] = useState(false);
+  const [selectedForPaidReceipt, setSelectedForPaidReceipt] = useState<CheckIn | null>(null);
 
   const router = useRouter();
   const supabase = createBrowserClient(
@@ -685,6 +687,14 @@ if (!companionReference) {
                         <button onClick={() => setSelectedForDeny(checkIn)} className="text-red-600 hover:text-red-900">
                           Deny
                         </button>
+                        {checkIn.appointment_time === 'Paid' && (
+  <button
+    onClick={() => setSelectedForPaidReceipt(checkIn)}
+    className="text-green-600 hover:text-green-800 font-medium text-left flex items-center gap-1"
+  >
+    💵 Paid Receipt
+  </button>
+)}
                       </td>
                     </tr>
                   ))}
