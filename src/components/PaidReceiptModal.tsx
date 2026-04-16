@@ -3,6 +3,7 @@
 import { useState } from 'react';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
+const FIXED_AMOUNT = '$204.00';
 
 interface CheckIn {
   id: string;
@@ -67,33 +68,20 @@ const formatPhoneNumber = (phone: string | null | undefined): string => {
 };
 
 export default function PaidReceiptModal({ isOpen, checkIn, onClose }: PaidReceiptModalProps) {
-  const [amount, setAmount] = useState('');
   const [paymentType, setPaymentType] = useState<PaymentType>('cash');
   const [checkNumber, setCheckNumber] = useState('');
   const [receivedBy, setReceivedBy] = useState('');
   const [notes, setNotes] = useState('');
-  const [amountError, setAmountError] = useState('');
+  const [checkError, setCheckError] = useState('');
 
   if (!isOpen) return null;
 
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    // Allow digits and one decimal point
-    if (/^\d*\.?\d{0,2}$/.test(val)) {
-      setAmount(val);
-      setAmountError('');
-    }
-  };
-
   const handlePrint = () => {
-    if (!amount || parseFloat(amount) <= 0) {
-      setAmountError('Please enter a valid amount.');
-      return;
-    }
     if (paymentType === 'check' && !checkNumber.trim()) {
-      setAmountError('Please enter the check number.');
+      setCheckError('Please enter the check number.');
       return;
     }
+    setCheckError('');
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -101,42 +89,21 @@ export default function PaidReceiptModal({ isOpen, checkIn, onClose }: PaidRecei
       return;
     }
 
-    const printedAt = new Date().toLocaleString('en-US', {
-      timeZone: TIMEZONE,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true,
-    });
-
-    const dockDisplay = checkIn.dock_number === 'Ramp'
-      ? 'Ramp'
-      : checkIn.dock_number
-        ? `Dock ${checkIn.dock_number}`
-        : 'Not Assigned';
-
+    const checkInTime = formatTimeInIndianapolis(checkIn.check_in_time);
     const loadTypeLabel = checkIn.load_type === 'inbound' ? 'Inbound' : 'Outbound';
-
     const paymentLabel = PAYMENT_TYPE_LABELS[paymentType];
+
     const checkLine = paymentType === 'check'
       ? `<div class="row"><span class="label">Check #:</span><span class="value">${checkNumber}</span></div>`
-      : '';
-
-    const notesLine = notes.trim()
-      ? `<div class="notes-section"><div class="label">Notes:</div><div class="notes-text">${notes}</div></div>`
       : '';
 
     const receivedByLine = receivedBy.trim()
       ? `<div class="row"><span class="label">Received By:</span><span class="value">${receivedBy}</span></div>`
       : '';
 
-    const formattedAmount = parseFloat(amount).toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    });
+    const notesLine = notes.trim()
+      ? `<div class="notes-box"><span class="label">Notes:</span> <span class="notes-text">${notes}</span></div>`
+      : '';
 
     const receiptHTML = `
       <!DOCTYPE html>
@@ -147,78 +114,208 @@ export default function PaidReceiptModal({ isOpen, checkIn, onClose }: PaidRecei
             @media print {
               body { margin: 0; padding: 0; }
               .no-print { display: none; }
-              @page { margin: 0.4in; size: 4in 6in; }
+              @page { margin: 0.4in; size: letter portrait; }
             }
             * { box-sizing: border-box; }
-            body { font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #fff; color: #111; margin: 0; padding: 0; }
-            .page { max-width: 380px; margin: 0 auto; padding: 20px 16px; }
+            body {
+              font-family: 'Courier New', Courier, monospace;
+              font-size: 12px;
+              background: #fff;
+              color: #111;
+              margin: 0;
+              padding: 0;
+            }
+            .page {
+              max-width: 420px;
+              margin: 0 auto;
+              padding: 24px 20px;
+            }
 
             /* Header */
-            .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 12px; }
-            .header .company { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: #555; margin-bottom: 4px; }
-            .header h1 { margin: 0 0 2px; font-size: 20px; font-weight: 900; letter-spacing: -0.5px; text-transform: uppercase; }
-            .header .subtitle { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #777; }
+            .header {
+              text-align: center;
+              border-bottom: 3px double #000;
+              padding-bottom: 14px;
+              margin-bottom: 14px;
+            }
+            .header .company {
+              font-size: 9px;
+              letter-spacing: 3px;
+              text-transform: uppercase;
+              color: #555;
+              margin-bottom: 5px;
+            }
+            .header h1 {
+              margin: 0 0 3px;
+              font-size: 22px;
+              font-weight: 900;
+              letter-spacing: -0.5px;
+              text-transform: uppercase;
+            }
+            .header .subtitle {
+              font-size: 9px;
+              letter-spacing: 2px;
+              text-transform: uppercase;
+              color: #777;
+            }
 
-            /* Receipt ID */
-            .receipt-meta { display: flex; justify-content: space-between; font-size: 9px; color: #666; margin-bottom: 12px; }
+            /* Meta row */
+            .receipt-meta {
+              font-size: 9px;
+              color: #666;
+              margin-bottom: 14px;
+              text-align: right;
+            }
 
-            /* Sections */
-            .section { border: 1px solid #ddd; border-radius: 3px; padding: 8px 10px; margin-bottom: 8px; }
-            .section-title { font-size: 8px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; color: #888; margin-bottom: 6px; border-bottom: 1px dashed #ccc; padding-bottom: 4px; }
-            .row { display: flex; justify-content: space-between; align-items: baseline; margin: 4px 0; gap: 8px; }
-            .label { font-weight: bold; font-size: 10px; color: #555; white-space: nowrap; }
-            .value { font-size: 11px; text-align: right; word-break: break-word; }
+            /* Reason banner */
+            .reason-banner {
+              border: 1px solid #bbb;
+              border-left: 4px solid #111;
+              background: #f7f7f7;
+              padding: 8px 12px;
+              margin-bottom: 12px;
+              font-size: 10px;
+              line-height: 1.5;
+              color: #333;
+            }
+            .reason-banner strong {
+              display: block;
+              font-size: 8px;
+              letter-spacing: 2px;
+              text-transform: uppercase;
+              color: #888;
+              margin-bottom: 3px;
+            }
 
             /* Payment highlight box */
-            .payment-box { background: #111; color: #fff; border-radius: 4px; padding: 12px; margin: 10px 0; text-align: center; }
-            .payment-box .amount-label { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: #aaa; margin-bottom: 4px; }
-            .payment-box .amount { font-size: 32px; font-weight: 900; letter-spacing: -1px; line-height: 1; }
-            .payment-box .type { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #ccc; margin-top: 4px; }
+            .payment-box {
+              background: #111;
+              color: #fff;
+              border-radius: 4px;
+              padding: 14px 12px;
+              margin: 12px 0;
+              text-align: center;
+            }
+            .payment-box .amount-label {
+              font-size: 8px;
+              letter-spacing: 3px;
+              text-transform: uppercase;
+              color: #aaa;
+              margin-bottom: 5px;
+            }
+            .payment-box .amount {
+              font-size: 36px;
+              font-weight: 900;
+              letter-spacing: -1px;
+              line-height: 1;
+            }
+            .payment-box .type {
+              font-size: 10px;
+              letter-spacing: 2px;
+              text-transform: uppercase;
+              color: #ccc;
+              margin-top: 5px;
+            }
+
+            /* Sections */
+            .section {
+              border: 1px solid #ddd;
+              border-radius: 3px;
+              padding: 8px 10px;
+              margin-bottom: 8px;
+            }
+            .section-title {
+              font-size: 8px;
+              font-weight: bold;
+              letter-spacing: 2px;
+              text-transform: uppercase;
+              color: #888;
+              margin-bottom: 6px;
+              border-bottom: 1px dashed #ccc;
+              padding-bottom: 4px;
+            }
+            .row {
+              display: flex;
+              justify-content: space-between;
+              align-items: baseline;
+              margin: 4px 0;
+              gap: 8px;
+            }
+            .label {
+              font-weight: bold;
+              font-size: 10px;
+              color: #555;
+              white-space: nowrap;
+            }
+            .value {
+              font-size: 11px;
+              text-align: right;
+              word-break: break-word;
+            }
 
             /* Notes */
-            .notes-section { margin-top: 6px; }
-            .notes-text { font-size: 10px; color: #555; margin-top: 2px; font-style: italic; }
-
-            /* Signature block */
-            .sig-block { margin-top: 14px; display: flex; justify-content: space-between; gap: 16px; }
-            .sig-item { flex: 1; }
-            .sig-line { border-bottom: 1px solid #000; height: 24px; margin-bottom: 3px; }
-            .sig-label { font-size: 8px; color: #888; text-align: center; letter-spacing: 1px; }
+            .notes-box {
+              margin-top: 8px;
+              font-size: 10px;
+              color: #555;
+              border-top: 1px dashed #ccc;
+              padding-top: 6px;
+            }
+            .notes-text { font-style: italic; }
 
             /* Footer */
-            .footer { margin-top: 14px; border-top: 1px dashed #ccc; padding-top: 10px; text-align: center; }
-            .footer p { font-size: 8px; color: #888; margin: 2px 0; }
-
-            /* Copy marker */
-            .copy-badge { display: inline-block; border: 1px solid #000; padding: 1px 6px; font-size: 8px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+            .footer {
+              margin-top: 16px;
+              border-top: 1px dashed #ccc;
+              padding-top: 10px;
+              text-align: center;
+            }
+            .footer p {
+              font-size: 8px;
+              color: #888;
+              margin: 2px 0;
+            }
 
             /* Print button */
-            .print-btn { display: block; width: 100%; margin-top: 20px; padding: 12px; background: #111; color: #fff; border: none; border-radius: 4px; font-size: 14px; font-family: inherit; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; }
+            .print-btn {
+              display: block;
+              width: 100%;
+              margin-top: 20px;
+              padding: 12px;
+              background: #111;
+              color: #fff;
+              border: none;
+              border-radius: 4px;
+              font-size: 14px;
+              font-family: inherit;
+              cursor: pointer;
+              letter-spacing: 1px;
+              text-transform: uppercase;
+            }
             .print-btn:hover { background: #333; }
-
-            /* Page break between copies */
-            .page-break { page-break-before: always; }
           </style>
         </head>
         <body>
-
-          <!-- FACILITY COPY -->
           <div class="page">
+
             <div class="header">
               <div class="company">Warehouse Operations</div>
               <h1>Paid to Load</h1>
               <div class="subtitle">Payment Receipt</div>
             </div>
 
-            <div class="receipt-meta">
-              <span>Printed: ${printedAt}</span>
-              <span class="copy-badge">Facility Copy</span>
+            <div class="receipt-meta">Check-In: ${checkInTime}</div>
+
+            <!-- Reason -->
+            <div class="reason-banner">
+              <strong>Reason for Charge</strong>
+              This fee of ${FIXED_AMOUNT} is charged for same-day loading services provided without a scheduled appointment.
             </div>
 
-            <!-- Payment Amount -->
+            <!-- Amount -->
             <div class="payment-box">
               <div class="amount-label">Amount Collected</div>
-              <div class="amount">${formattedAmount}</div>
+              <div class="amount">${FIXED_AMOUNT}</div>
               <div class="type">${paymentLabel}</div>
             </div>
 
@@ -236,7 +333,6 @@ export default function PaidReceiptModal({ isOpen, checkIn, onClose }: PaidRecei
               <div class="row"><span class="label">Type:</span><span class="value">${loadTypeLabel}</span></div>
               <div class="row"><span class="label">Reference #:</span><span class="value">${checkIn.reference_number || 'N/A'}</span></div>
               ${checkIn.companion_reference ? `<div class="row"><span class="label">Companion Ref:</span><span class="value">${checkIn.companion_reference}</span></div>` : ''}
-              <div class="row"><span class="label">Dock:</span><span class="value">${dockDisplay}</span></div>
               ${checkIn.customer ? `<div class="row"><span class="label">Customer:</span><span class="value">${checkIn.customer}</span></div>` : ''}
               ${checkIn.ship_to_city || checkIn.ship_to_state ? `<div class="row"><span class="label">Destination:</span><span class="value">${[checkIn.ship_to_city, checkIn.ship_to_state].filter(Boolean).join(', ')}</span></div>` : ''}
               ${checkIn.requested_ship_date ? `<div class="row"><span class="label">Ship Date:</span><span class="value">${checkIn.requested_ship_date}</span></div>` : ''}
@@ -249,97 +345,15 @@ export default function PaidReceiptModal({ isOpen, checkIn, onClose }: PaidRecei
               <div class="row"><span class="label">Phone:</span><span class="value">${formatPhoneNumber(checkIn.driver_phone)}</span></div>
               <div class="row"><span class="label">Carrier:</span><span class="value">${checkIn.carrier_name || 'N/A'}</span></div>
               <div class="row"><span class="label">Trailer #:</span><span class="value">${checkIn.trailer_number || 'N/A'}${checkIn.trailer_length ? ` (${checkIn.trailer_length}')` : ''}</span></div>
-              <div class="row"><span class="label">Check-In:</span><span class="value">${formatTimeInIndianapolis(checkIn.check_in_time)}</span></div>
-            </div>
-
-            ${notesLine}
-
-            <!-- Signature -->
-            <div class="sig-block">
-              <div class="sig-item">
-                <div class="sig-line"></div>
-                <div class="sig-label">Driver Signature</div>
-              </div>
-              <div class="sig-item">
-                <div class="sig-line"></div>
-                <div class="sig-label">Received By</div>
-              </div>
-            </div>
-
-            <div class="footer">
-              <p>This receipt confirms payment was collected for loading services.</p>
-              <p>Keep this copy for your records.</p>
-            </div>
-
-            <button class="print-btn no-print" onclick="window.print()">Print Receipt</button>
-          </div>
-
-          <!-- DRIVER COPY -->
-          <div class="page page-break">
-            <div class="header">
-              <div class="company">Warehouse Operations</div>
-              <h1>Paid to Load</h1>
-              <div class="subtitle">Payment Receipt</div>
-            </div>
-
-            <div class="receipt-meta">
-              <span>Printed: ${printedAt}</span>
-              <span class="copy-badge">Driver Copy</span>
-            </div>
-
-            <!-- Payment Amount -->
-            <div class="payment-box">
-              <div class="amount-label">Amount Collected</div>
-              <div class="amount">${formattedAmount}</div>
-              <div class="type">${paymentLabel}</div>
-            </div>
-
-            <!-- Payment Details -->
-            <div class="section">
-              <div class="section-title">Payment Details</div>
-              <div class="row"><span class="label">Payment Type:</span><span class="value">${paymentLabel}</span></div>
-              ${checkLine}
-              ${receivedByLine}
-            </div>
-
-            <!-- Load Info -->
-            <div class="section">
-              <div class="section-title">Load Information</div>
-              <div class="row"><span class="label">Type:</span><span class="value">${loadTypeLabel}</span></div>
-              <div class="row"><span class="label">Reference #:</span><span class="value">${checkIn.reference_number || 'N/A'}</span></div>
-              ${checkIn.companion_reference ? `<div class="row"><span class="label">Companion Ref:</span><span class="value">${checkIn.companion_reference}</span></div>` : ''}
-              <div class="row"><span class="label">Dock:</span><span class="value">${dockDisplay}</span></div>
-              ${checkIn.customer ? `<div class="row"><span class="label">Customer:</span><span class="value">${checkIn.customer}</span></div>` : ''}
-              ${checkIn.ship_to_city || checkIn.ship_to_state ? `<div class="row"><span class="label">Destination:</span><span class="value">${[checkIn.ship_to_city, checkIn.ship_to_state].filter(Boolean).join(', ')}</span></div>` : ''}
-            </div>
-
-            <!-- Driver / Carrier Info -->
-            <div class="section">
-              <div class="section-title">Driver & Carrier</div>
-              <div class="row"><span class="label">Driver:</span><span class="value">${checkIn.driver_name || 'N/A'}</span></div>
-              <div class="row"><span class="label">Carrier:</span><span class="value">${checkIn.carrier_name || 'N/A'}</span></div>
-              <div class="row"><span class="label">Trailer #:</span><span class="value">${checkIn.trailer_number || 'N/A'}${checkIn.trailer_length ? ` (${checkIn.trailer_length}')` : ''}</span></div>
-              <div class="row"><span class="label">Check-In:</span><span class="value">${formatTimeInIndianapolis(checkIn.check_in_time)}</span></div>
-            </div>
-
-            ${notesLine}
-
-            <!-- Signature -->
-            <div class="sig-block">
-              <div class="sig-item">
-                <div class="sig-line"></div>
-                <div class="sig-label">Driver Signature</div>
-              </div>
-              <div class="sig-item">
-                <div class="sig-line"></div>
-                <div class="sig-label">Received By</div>
-              </div>
+              ${notesLine}
             </div>
 
             <div class="footer">
               <p>This receipt confirms payment was collected for loading services.</p>
               <p>Present this copy to the guard upon exit.</p>
             </div>
+
+            <button class="print-btn no-print" onclick="window.print()">Print Receipt</button>
           </div>
 
           <script>
@@ -361,7 +375,7 @@ export default function PaidReceiptModal({ isOpen, checkIn, onClose }: PaidRecei
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -387,6 +401,13 @@ export default function PaidReceiptModal({ isOpen, checkIn, onClose }: PaidRecei
 
         <div className="p-6 space-y-5">
 
+          {/* Fixed amount callout */}
+          <div className="bg-gray-900 text-white rounded-lg px-5 py-4 text-center">
+            <p className="text-xs tracking-widest uppercase text-gray-400 mb-1">Amount</p>
+            <p className="text-4xl font-black">{FIXED_AMOUNT}</p>
+            <p className="text-xs text-gray-400 mt-1.5">Same-day loading — no scheduled appointment</p>
+          </div>
+
           {/* Load Info Summary (read-only) */}
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Load Information</p>
@@ -396,10 +417,8 @@ export default function PaidReceiptModal({ isOpen, checkIn, onClose }: PaidRecei
                 <span className="font-medium text-gray-900 capitalize">{checkIn.load_type || 'N/A'}</span>
               </div>
               <div>
-                <span className="text-gray-500">Dock: </span>
-                <span className="font-medium text-gray-900">
-                  {checkIn.dock_number === 'Ramp' ? 'Ramp' : checkIn.dock_number ? `Dock ${checkIn.dock_number}` : 'N/A'}
-                </span>
+                <span className="text-gray-500">Check-In: </span>
+                <span className="font-medium text-gray-900">{formatTimeInIndianapolis(checkIn.check_in_time)}</span>
               </div>
               <div>
                 <span className="text-gray-500">Driver: </span>
@@ -433,29 +452,6 @@ export default function PaidReceiptModal({ isOpen, checkIn, onClose }: PaidRecei
             </div>
           </div>
 
-          {/* Amount */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-              Amount Collected <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-base">$</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={amount}
-                onChange={handleAmountChange}
-                placeholder="0.00"
-                className={`w-full pl-7 pr-4 py-2.5 border rounded-lg text-base font-semibold focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  amountError ? 'border-red-400 bg-red-50' : 'border-gray-300'
-                }`}
-              />
-            </div>
-            {amountError && (
-              <p className="text-xs text-red-600 mt-1">{amountError}</p>
-            )}
-          </div>
-
           {/* Payment Type */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">
@@ -468,7 +464,7 @@ export default function PaidReceiptModal({ isOpen, checkIn, onClose }: PaidRecei
                   type="button"
                   onClick={() => {
                     setPaymentType(type);
-                    setAmountError('');
+                    setCheckError('');
                     if (type !== 'check') setCheckNumber('');
                   }}
                   className={`py-2 px-3 rounded-lg border-2 text-sm font-medium transition-all ${
@@ -494,14 +490,15 @@ export default function PaidReceiptModal({ isOpen, checkIn, onClose }: PaidRecei
                 value={checkNumber}
                 onChange={(e) => {
                   setCheckNumber(e.target.value);
-                  setAmountError('');
+                  setCheckError('');
                 }}
                 placeholder="e.g., 1042"
                 className={`w-full border rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  amountError && !checkNumber.trim() ? 'border-red-400 bg-red-50' : 'border-gray-300'
+                  checkError ? 'border-red-400 bg-red-50' : 'border-gray-300'
                 }`}
                 autoFocus
               />
+              {checkError && <p className="text-xs text-red-600 mt-1">{checkError}</p>}
             </div>
           )}
 
