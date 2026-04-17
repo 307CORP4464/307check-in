@@ -8,7 +8,7 @@ import StatusChangeModal from './StatusChangeModal';
 import EditCheckInModal from './EditCheckInModal';
 import Header from './Header';
 import { matchAppointmentToCheckIn } from '@/lib/appointmentMatcher';
-import PaidReceiptModal from './PaidReceiptModal';
+import PaidReceiptModal, { type PaidReceiptSnapshot } from './PaidReceiptModal';
 
 const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -241,6 +241,7 @@ interface CheckIn {
   denial_reason?: string | null;
   rejection_reasons?: string[] | null;
   resolution_action?: string | null;
+  paid_receipt_snapshot?: PaidReceiptSnapshot | null;
 }
 
 const calculateDetention = (
@@ -711,38 +712,37 @@ export default function DailyLog() {
         const checkInHasManualType = checkIn.appointment_time &&
           MANUAL_APPOINTMENT_TYPES.includes(checkIn.appointment_time);
 
-      // ── Derive companion reference ─────────────────────────────────────
-let companionReference: string | null = checkIn.companion_reference ?? null;
-if (!companionReference) {
-  const matchedApt = allDateAppointments.find((apt: any) => {
-    const soMatch = apt.sales_order && expandedRefs.some((r: string) =>
-      apt.sales_order.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(apt.sales_order.toLowerCase())
-    );
-    const delMatch = apt.delivery && expandedRefs.some((r: string) =>
-      apt.delivery.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(apt.delivery.toLowerCase())
-    );
-    return soMatch || delMatch;
-  });
+        let companionReference: string | null = checkIn.companion_reference ?? null;
+        if (!companionReference) {
+          const matchedApt = allDateAppointments.find((apt: any) => {
+            const soMatch = apt.sales_order && expandedRefs.some((r: string) =>
+              apt.sales_order.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(apt.sales_order.toLowerCase())
+            );
+            const delMatch = apt.delivery && expandedRefs.some((r: string) =>
+              apt.delivery.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(apt.delivery.toLowerCase())
+            );
+            return soMatch || delMatch;
+          });
 
-  if (matchedApt?.sales_order && matchedApt?.delivery) {
-    const primaryLower = (checkIn.reference_number || '').toLowerCase();
-    const soLower = matchedApt.sales_order.toLowerCase();
-    if (primaryLower.includes(soLower) || soLower.includes(primaryLower)) {
-      companionReference = matchedApt.delivery;
-    } else {
-      companionReference = matchedApt.sales_order;
-    }
-  }
+          if (matchedApt?.sales_order && matchedApt?.delivery) {
+            const primaryLower = (checkIn.reference_number || '').toLowerCase();
+            const soLower = matchedApt.sales_order.toLowerCase();
+            if (primaryLower.includes(soLower) || soLower.includes(primaryLower)) {
+              companionReference = matchedApt.delivery;
+            } else {
+              companionReference = matchedApt.sales_order;
+            }
+          }
 
-  if (companionReference) {
-    supabase
-      .from('check_ins')
-      .update({ companion_reference: companionReference })
-      .eq('id', checkIn.id)
-      .is('companion_reference', null)
-      .then(() => {});
-  }
-}
+          if (companionReference) {
+            supabase
+              .from('check_ins')
+              .update({ companion_reference: companionReference })
+              .eq('id', checkIn.id)
+              .is('companion_reference', null)
+              .then(() => {});
+          }
+        }
 
         return {
           ...checkIn,
@@ -848,7 +848,7 @@ if (!companionReference) {
     setDismissedWarnings(new Set());
   }, [selectedDate]);
 
-  // ── Search: also matches companion_reference ───────────────────────────────
+  // ── Search ─────────────────────────────────────────────────────────────────
   const filteredCheckIns = checkIns.filter((checkIn) => {
     if (!searchTerm.trim()) return true;
     const searchLower = searchTerm.toLowerCase().trim();
@@ -930,12 +930,11 @@ if (!companionReference) {
         <div className="text-gray-500">{checkIn.trailer_length ? `${checkIn.trailer_length}'` : ''}</div>
       </td>
 
-      {/* Reference # — with companion reference underneath */}
       <td className="px-4 py-3 text-sm">
         <div className="font-bold text-gray-900">{checkIn.reference_number || 'N/A'}</div>
         {checkIn.companion_reference && (
           <div className="text-xs font-normal text-gray-500 mt-0.5">
-             {checkIn.companion_reference}
+            {checkIn.companion_reference}
           </div>
         )}
       </td>
@@ -1024,14 +1023,20 @@ if (!companionReference) {
         <div className="flex flex-col gap-1">
           <button onClick={() => handleEdit(checkIn)} className="text-blue-600 hover:text-blue-900 font-medium text-left">Edit</button>
           <button onClick={() => handleStatusChange(checkIn)} className="text-green-600 hover:text-green-800 font-medium text-left">Status</button>
+
+          {/* 
+            Paid Receipt button — always opens in reprint mode in the Daily Log.
+            The snapshot was saved during the original print from the CSR Dashboard.
+          */}
           {checkIn.appointment_time === 'Paid' && (
-  <button
-    onClick={() => setSelectedForPaidReceipt(checkIn)}
-    className="text-green-600 hover:text-green-800 font-medium text-left flex items-center gap-1"
-  >
-    💵 Paid Receipt
-  </button>
-)}
+            <button
+              onClick={() => setSelectedForPaidReceipt(checkIn)}
+              className="text-green-600 hover:text-green-800 font-medium text-left flex items-center gap-1"
+            >
+              💵 Paid Receipt
+            </button>
+          )}
+
           <button
             onClick={() => reprintReceipt(checkIn)}
             className="text-gray-500 hover:text-gray-800 font-medium text-left flex items-center gap-1"
@@ -1099,53 +1104,23 @@ if (!companionReference) {
                 className="flex items-center justify-between gap-3 bg-amber-100 border border-amber-400 rounded-lg px-4 py-2"
               >
                 <div className="flex items-center gap-2 flex-wrap">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 text-amber-700 shrink-0"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-amber-700 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                   </svg>
-                  <span className="text-sm font-semibold text-amber-900">
-                    Detention in {warning.minutesUntilDetention} min
-                  </span>
+                  <span className="text-sm font-semibold text-amber-900">Detention in {warning.minutesUntilDetention} min</span>
                   <span className="text-sm text-amber-800">
-                    — Ref{' '}
-                    <span className="font-mono font-bold">{warning.referenceNumber}</span>
-                    {warning.dockNumber && (
-                      <>
-                        {' '}at{' '}
-                        <span className="font-mono font-bold">
-                          {warning.dockNumber === 'Ramp' ? 'Ramp' : `Dock ${warning.dockNumber}`}
-                        </span>
-                      </>
-                    )}
+                    — Ref <span className="font-mono font-bold">{warning.referenceNumber}</span>
+                    {warning.dockNumber && <> at <span className="font-mono font-bold">{warning.dockNumber === 'Ramp' ? 'Ramp' : `Dock ${warning.dockNumber}`}</span></>}
                     {' '}has not been checked out
                   </span>
                 </div>
                 <button
-                  onClick={() =>
-                    setDismissedWarnings(prev => new Set(prev).add(warning.id))
-                  }
+                  onClick={() => setDismissedWarnings(prev => new Set(prev).add(warning.id))}
                   className="text-amber-600 hover:text-amber-900 shrink-0 p-1 rounded hover:bg-amber-200 transition-colors"
                   aria-label="Dismiss warning"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
                 </button>
               </div>
@@ -1158,13 +1133,9 @@ if (!companionReference) {
 
         <div className="mb-4 flex flex-wrap gap-3 items-center justify-between">
 
-          {/* Date selector with prev/next arrows */}
+          {/* Date selector */}
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => changeDateByDays(-1)}
-              className="p-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-              aria-label="Previous day"
-            >
+            <button onClick={() => changeDateByDays(-1)} className="p-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors" aria-label="Previous day">
               <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
@@ -1175,18 +1146,14 @@ if (!companionReference) {
               onChange={(e) => setSelectedDate(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-            <button
-              onClick={() => changeDateByDays(1)}
-              className="p-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-              aria-label="Next day"
-            >
+            <button onClick={() => changeDateByDays(1)} className="p-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors" aria-label="Next day">
               <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
           </div>
 
-          {/* Search — now includes companion_reference */}
+          {/* Search */}
           <div className="flex-1 min-w-48 max-w-sm">
             <div className="relative">
               <input
@@ -1200,11 +1167,7 @@ if (!companionReference) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
-                  aria-label="Clear search"
-                >
+                <button onClick={() => setSearchTerm('')} className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600" aria-label="Clear search">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
@@ -1226,9 +1189,7 @@ if (!companionReference) {
             <button
               onClick={() => setShowInProgressOnly(!showInProgressOnly)}
               className={`rounded-lg px-4 py-2 transition-colors border text-left ${
-                showInProgressOnly
-                  ? 'bg-yellow-400 border-yellow-500 ring-2 ring-yellow-300'
-                  : 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
+                showInProgressOnly ? 'bg-yellow-400 border-yellow-500 ring-2 ring-yellow-300' : 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
               }`}
             >
               <div className="text-xs font-medium text-yellow-700 uppercase tracking-wider mb-1">In Progress</div>
@@ -1282,19 +1243,10 @@ if (!companionReference) {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524L13.477 14.89zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clipRule="evenodd" />
                 </svg>
-                <span className="font-semibold text-red-800 text-sm uppercase tracking-wide">
-                  Denials &amp; Turned Away
-                </span>
-                <span className="bg-red-200 text-red-800 text-xs font-bold px-2 py-0.5 rounded-full">
-                  {denialCheckIns.length}
-                </span>
+                <span className="font-semibold text-red-800 text-sm uppercase tracking-wide">Denials &amp; Turned Away</span>
+                <span className="bg-red-200 text-red-800 text-xs font-bold px-2 py-0.5 rounded-full">{denialCheckIns.length}</span>
               </div>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={`h-5 w-5 text-red-500 transition-transform duration-200 ${denialsExpanded ? 'rotate-180' : ''}`}
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-red-500 transition-transform duration-200 ${denialsExpanded ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
             </button>
@@ -1339,13 +1291,17 @@ if (!companionReference) {
           onSuccess={handleStatusChangeSuccess}
         />
       )}
+
+      {/* Daily Log: always reprint mode — uses saved snapshot */}
       {selectedForPaidReceipt && (
-  <PaidReceiptModal
-    isOpen={!!selectedForPaidReceipt}
-    checkIn={selectedForPaidReceipt}
-    onClose={() => setSelectedForPaidReceipt(null)}
-  />
-)}
+        <PaidReceiptModal
+          isOpen={!!selectedForPaidReceipt}
+          checkIn={selectedForPaidReceipt}
+          onClose={() => setSelectedForPaidReceipt(null)}
+          reprintMode={true}
+        />
+      )}
+
       {selectedForEdit && (
         <EditCheckInModal
           isOpen={true}
