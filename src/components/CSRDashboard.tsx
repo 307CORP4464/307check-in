@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
@@ -11,7 +10,7 @@ import DenyCheckInModal from './DenyCheckInModal';
 import ManualCheckInModal from './ManualCheckInModal';
 import Header from './Header';
 import { matchAppointmentToCheckIn } from '@/lib/appointmentMatcher';
-import PaidReceiptModal from './PaidReceiptModal';
+import PaidReceiptModal, { type PaidReceiptSnapshot } from './PaidReceiptModal';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
@@ -196,8 +195,6 @@ const getAppointmentStatus = (
   }
 };
 
-// ─── Leading-zero normalization ───────────────────────────────────────────────
-
 const stripLeadingZeros = (value: string): string =>
   /^\d+$/.test(value) ? value.replace(/^0+/, '') || '0' : value;
 
@@ -217,7 +214,6 @@ const expandRefsWithNormalized = (refs: string[]): string[] => {
   return result;
 };
 
-// ─── Types ───────────────────────────────────────────────────────────────────
 interface CheckIn {
   id: string;
   check_in_time: string;
@@ -246,6 +242,7 @@ interface CheckIn {
   has_duplicate_in_progress?: boolean;
   has_duplicate_checked_out?: boolean;
   has_duplicate_denied?: boolean;
+  paid_receipt_snapshot?: PaidReceiptSnapshot | null;
 }
 
 export default function CSRDashboard() {
@@ -285,14 +282,12 @@ export default function CSRDashboard() {
 
       if (checkInsError) throw checkInsError;
 
-      // ── Build normalized reference number list for querying ──────────────
       const rawReferenceNumbers = Array.from(new Set(
         (checkInsData || [])
           .flatMap((ci: any) => parseReferenceNumbers(ci.reference_number))
       ));
       const referenceNumbers = expandRefsWithNormalized(rawReferenceNumbers);
 
-      // ── Query in-progress, checked-out, and denied using expanded refs ───
       const inProgressRefs = new Set<string>();
       const checkedOutRefs = new Set<string>();
       const deniedRefs = new Set<string>();
@@ -349,7 +344,6 @@ export default function CSRDashboard() {
         });
       }
 
-      // ── Fetch appointments using expanded refs ───────────────────────────
       let allTodayAppointments: any[] = [];
 
       if (referenceNumbers.length > 0) {
@@ -387,50 +381,44 @@ export default function CSRDashboard() {
         });
       }
 
-      // ── Enrich each check-in with appointment data + companion reference ─
       const processedCheckIns = (checkInsData || []).map((ci: any) => {
         const refs = parseReferenceNumbers(ci.reference_number);
         const expandedRefs = expandRefsWithNormalized(refs);
 
         const aptInfo = matchAppointmentToCheckIn(expandedRefs, allTodayAppointments);
 
-        // ── Derive companion reference from the matched appointment ────────
-let companionReference: string | null = ci.companion_reference ?? null;
-if (!companionReference) {
-  // Find the raw appointment that matched this check-in
-  const matchedApt = allTodayAppointments.find(apt => {
-    const soMatch = apt.sales_order && expandedRefs.some((r: string) =>
-      apt.sales_order.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(apt.sales_order.toLowerCase())
-    );
-    const delMatch = apt.delivery && expandedRefs.some((r: string) =>
-      apt.delivery.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(apt.delivery.toLowerCase())
-    );
-    return soMatch || delMatch;
-  });
+        let companionReference: string | null = ci.companion_reference ?? null;
+        if (!companionReference) {
+          const matchedApt = allTodayAppointments.find(apt => {
+            const soMatch = apt.sales_order && expandedRefs.some((r: string) =>
+              apt.sales_order.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(apt.sales_order.toLowerCase())
+            );
+            const delMatch = apt.delivery && expandedRefs.some((r: string) =>
+              apt.delivery.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(apt.delivery.toLowerCase())
+            );
+            return soMatch || delMatch;
+          });
 
-  if (matchedApt?.sales_order && matchedApt?.delivery) {
-    const primaryLower = (ci.reference_number || '').toLowerCase();
-    const soLower = matchedApt.sales_order.toLowerCase();
-    const delLower = matchedApt.delivery.toLowerCase();
-    // Whichever one the driver didn't check in with becomes the companion
-    if (primaryLower.includes(soLower) || soLower.includes(primaryLower)) {
-      companionReference = matchedApt.delivery;
-    } else {
-      companionReference = matchedApt.sales_order;
-    }
-  }
+          if (matchedApt?.sales_order && matchedApt?.delivery) {
+            const primaryLower = (ci.reference_number || '').toLowerCase();
+            const soLower = matchedApt.sales_order.toLowerCase();
+            if (primaryLower.includes(soLower) || soLower.includes(primaryLower)) {
+              companionReference = matchedApt.delivery;
+            } else {
+              companionReference = matchedApt.sales_order;
+            }
+          }
 
-  if (companionReference) {
-    supabase
-      .from('check_ins')
-      .update({ companion_reference: companionReference })
-      .eq('id', ci.id)
-      .is('companion_reference', null)
-      .then(() => {});
-  }
-}
+          if (companionReference) {
+            supabase
+              .from('check_ins')
+              .update({ companion_reference: companionReference })
+              .eq('id', ci.id)
+              .is('companion_reference', null)
+              .then(() => {});
+          }
+        }
 
-        // Use all expanded refs when checking duplicate sets
         const hasDuplicateInProgress = expandedRefs.some((ref: string) => inProgressRefs.has(ref));
         const hasDuplicateCheckedOut = expandedRefs.some((ref: string) => checkedOutRefs.has(ref));
         const hasDuplicateDenied = expandedRefs.some((ref: string) => deniedRefs.has(ref));
@@ -477,25 +465,10 @@ if (!companionReference) {
     };
   }, []);
 
-  const handleDockAssignSuccess = () => {
-    setSelectedForDock(null);
-    fetchAllData();
-  };
-
-  const handleEditSuccess = () => {
-    setSelectedForEdit(null);
-    fetchAllData();
-  };
-
-  const handleDenySuccess = () => {
-    setSelectedForDeny(null);
-    fetchAllData();
-  };
-
-  const handleManualCheckInSuccess = () => {
-    setShowManualCheckIn(false);
-    fetchAllData();
-  };
+  const handleDockAssignSuccess = () => { setSelectedForDock(null); fetchAllData(); };
+  const handleEditSuccess = () => { setSelectedForEdit(null); fetchAllData(); };
+  const handleDenySuccess = () => { setSelectedForDeny(null); fetchAllData(); };
+  const handleManualCheckInSuccess = () => { setShowManualCheckIn(false); fetchAllData(); };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -535,9 +508,7 @@ if (!companionReference) {
           </div>
 
           {checkIns.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              No pending check-ins at this time
-            </div>
+            <div className="p-8 text-center text-gray-500">No pending check-ins at this time</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -583,7 +554,7 @@ if (!companionReference) {
                         </div>
                       </td>
 
-                      {/* Reference # — with companion reference + duplicate flags */}
+                      {/* Reference # with companion + duplicate flags */}
                       <td className="px-4 py-3 text-sm font-bold text-gray-900">
                         <div>{checkIn.reference_number || 'N/A'}</div>
                         {checkIn.companion_reference && (
@@ -687,14 +658,18 @@ if (!companionReference) {
                         <button onClick={() => setSelectedForDeny(checkIn)} className="text-red-600 hover:text-red-900">
                           Deny
                         </button>
+                        {/*
+                          CSR Dashboard: first-print mode (no reprintMode prop).
+                          Fills out payment details, saves snapshot, prints.
+                        */}
                         {checkIn.appointment_time === 'Paid' && (
-  <button
-    onClick={() => setSelectedForPaidReceipt(checkIn)}
-    className="text-green-600 hover:text-green-800 font-medium text-left flex items-center gap-1"
-  >
-    💵 Paid Receipt
-  </button>
-)}
+                          <button
+                            onClick={() => setSelectedForPaidReceipt(checkIn)}
+                            className="text-green-600 hover:text-green-800 font-medium flex items-center gap-1"
+                          >
+                            💵 Paid Receipt
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -720,13 +695,16 @@ if (!companionReference) {
             isOpen={!!selectedForEdit}
           />
         )}
+
+        {/* CSR Dashboard: first-print mode — editable fields, saves snapshot on print */}
         {selectedForPaidReceipt && (
-  <PaidReceiptModal
-    isOpen={!!selectedForPaidReceipt}
-    checkIn={selectedForPaidReceipt}
-    onClose={() => setSelectedForPaidReceipt(null)}
-  />
-)}
+          <PaidReceiptModal
+            isOpen={!!selectedForPaidReceipt}
+            checkIn={selectedForPaidReceipt}
+            onClose={() => setSelectedForPaidReceipt(null)}
+          />
+        )}
+
         {selectedForDeny && (
           <DenyCheckInModal
             checkIn={selectedForDeny}
