@@ -35,7 +35,7 @@ interface CheckIn {
 export interface PaidReceiptSnapshot {
   paymentType: PaymentType;
   checkNumber: string;
-  receivedBy: string;
+  csrInitials: string;
   notes: string;
   printedAt: string;
   // Frozen check-in fields at time of original print
@@ -116,9 +116,7 @@ const buildReceiptHTML = (
     ? `<div class="row"><span class="label">Check #:</span><span class="value">${snapshot.checkNumber}</span></div>`
     : '';
 
-  const receivedByLine = snapshot.receivedBy.trim()
-    ? `<div class="row"><span class="label">Received By:</span><span class="value">${snapshot.receivedBy}</span></div>`
-    : '';
+  const receivedByLine = `<div class="row"><span class="label">Received By:</span><span class="value">307 Corporation (${snapshot.csrInitials.toUpperCase()})</span></div>`;
 
   const notesLine = snapshot.notes.trim()
     ? `<div class="notes-box"><span class="label">Notes:</span> <span class="notes-text">${snapshot.notes}</span></div>`
@@ -370,9 +368,10 @@ const buildReceiptHTML = (
 export default function PaidReceiptModal({ isOpen, checkIn, onClose, reprintMode = false }: PaidReceiptModalProps) {
   const [paymentType, setPaymentType] = useState<PaymentType>('cash');
   const [checkNumber, setCheckNumber] = useState('');
-  const [receivedBy, setReceivedBy] = useState('');
+  const [csrInitials, setCsrInitials] = useState('');
   const [notes, setNotes] = useState('');
   const [checkError, setCheckError] = useState('');
+  const [initialsError, setInitialsError] = useState('');
   const [saving, setSaving] = useState(false);
 
   if (!isOpen) return null;
@@ -450,9 +449,7 @@ export default function PaidReceiptModal({ isOpen, checkIn, onClose, reprintMode
                     {snapshot.paymentType === 'check' && snapshot.checkNumber && (
                       <div><span className="text-gray-500">Check #: </span><span className="font-medium">{snapshot.checkNumber}</span></div>
                     )}
-                    {snapshot.receivedBy && (
-                      <div><span className="text-gray-500">Received by: </span><span className="font-medium">{snapshot.receivedBy}</span></div>
-                    )}
+                    <div className="col-span-2"><span className="text-gray-500">Received by: </span><span className="font-medium">307 Corporation ({snapshot.csrInitials.toUpperCase()})</span></div>
                     <div><span className="text-gray-500">Driver: </span><span className="font-medium">{snapshot.driver_name || 'N/A'}</span></div>
                     <div><span className="text-gray-500">Carrier: </span><span className="font-medium">{snapshot.carrier_name || 'N/A'}</span></div>
                     <div><span className="text-gray-500">Trailer: </span><span className="font-medium">{snapshot.trailer_number || 'N/A'}</span></div>
@@ -502,18 +499,27 @@ export default function PaidReceiptModal({ isOpen, checkIn, onClose, reprintMode
 
   // ── First-print mode: editable fields, saves snapshot on print ───────────
   const handlePrint = async () => {
+    let hasError = false;
     if (paymentType === 'check' && !checkNumber.trim()) {
       setCheckError('Please enter the check number.');
-      return;
+      hasError = true;
+    } else {
+      setCheckError('');
     }
-    setCheckError('');
+    if (!csrInitials.trim()) {
+      setInitialsError('Please enter your initials.');
+      hasError = true;
+    } else {
+      setInitialsError('');
+    }
+    if (hasError) return;
     setSaving(true);
 
     // Build the snapshot from current check-in state + user inputs
     const snapshot: PaidReceiptSnapshot = {
       paymentType,
       checkNumber,
-      receivedBy,
+      csrInitials: csrInitials.trim().toUpperCase(),
       notes,
       printedAt: new Date().toISOString(),
       check_in_time: checkIn.check_in_time,
@@ -690,18 +696,34 @@ export default function PaidReceiptModal({ isOpen, checkIn, onClose, reprintMode
             </div>
           )}
 
-          {/* Received By */}
+          {/* Received By — fixed to 307 Corporation + CSR initials */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-              Received By <span className="text-gray-400 font-normal">(optional)</span>
+              Received By
             </label>
-            <input
-              type="text"
-              value={receivedBy}
-              onChange={(e) => setReceivedBy(e.target.value)}
-              placeholder="Your name"
-              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+            <div className="flex items-stretch gap-2">
+              {/* Fixed company name */}
+              <div className="flex-1 border border-gray-200 rounded-lg px-4 py-2.5 text-sm bg-gray-50 text-gray-500 select-none">
+                307 Corporation
+              </div>
+              {/* CSR initials */}
+              <div className="w-28">
+                <input
+                  type="text"
+                  value={csrInitials}
+                  onChange={(e) => {
+                    setCsrInitials(e.target.value.toUpperCase());
+                    setInitialsError('');
+                  }}
+                  placeholder="Initials *"
+                  maxLength={5}
+                  className={`w-full border rounded-lg px-3 py-2.5 text-sm text-center font-bold tracking-widest uppercase focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    initialsError ? 'border-red-400 bg-red-50' : 'border-gray-300'
+                  }`}
+                />
+              </div>
+            </div>
+            {initialsError && <p className="text-xs text-red-600 mt-1">{initialsError}</p>}
           </div>
 
           {/* Notes */}
