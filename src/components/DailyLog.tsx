@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import { zonedTimeToUtc } from 'date-fns-tz';
@@ -499,7 +499,7 @@ const reprintReceipt = (checkIn: CheckIn) => {
         </div>
         <div class="page-break"></div>
         ${isInbound ? getInboundInspectionForm() : getOutboundInspectionForm()}
-        <script>window.onload = function() { setTimeout(function() { window.print(); }, 250); };</script>
+        <script>window.onload = function() { setTimeout(function() { window.print(); }, 250); };<\/script>
       </body>
     </html>
   `;
@@ -767,21 +767,32 @@ export default function DailyLog() {
     }
   }, [selectedDate]);
 
+  // ── Stable ref so the subscription callback always calls the latest fetch ──
+  const fetchRef = useRef<() => void>(() => {});
   useEffect(() => {
-    fetchCheckInsForDate();
+    fetchRef.current = fetchCheckInsForDate;
+  }, [fetchCheckInsForDate]);
+
+  // ── Initial fetch + real-time subscription ─────────────────────────────────
+  // NOTE: fetchCheckInsForDate is intentionally NOT in this effect's dep array.
+  // The fetchRef pattern above ensures the callback always calls the latest
+  // version of the function without causing the channel to be recreated on
+  // every render, which was dropping real-time events.
+  useEffect(() => {
+    fetchRef.current(); // initial load when date changes
 
     const channel = supabase
       .channel(`daily_log_realtime_${selectedDate}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, () => {
-        fetchCheckInsForDate();
+        fetchRef.current();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
-        fetchCheckInsForDate();
+        fetchRef.current();
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [selectedDate, fetchCheckInsForDate]);
+  }, [selectedDate]); // ← selectedDate only, NOT fetchCheckInsForDate
 
   // ── Approaching-detention checker ──────────────────────────────────────────
   const checkApproachingDetention = useCallback(() => {
@@ -1024,10 +1035,6 @@ export default function DailyLog() {
           <button onClick={() => handleEdit(checkIn)} className="text-blue-600 hover:text-blue-900 font-medium text-left">Edit</button>
           <button onClick={() => handleStatusChange(checkIn)} className="text-green-600 hover:text-green-800 font-medium text-left">Status</button>
 
-          {/* 
-            Paid Receipt button — always opens in reprint mode in the Daily Log.
-            The snapshot was saved during the original print from the CSR Dashboard.
-          */}
           {checkIn.appointment_time === 'Paid' && (
             <button
               onClick={() => setSelectedForPaidReceipt(checkIn)}
@@ -1292,7 +1299,6 @@ export default function DailyLog() {
         />
       )}
 
-      {/* Daily Log: always reprint mode — uses saved snapshot */}
       {selectedForPaidReceipt && (
         <PaidReceiptModal
           isOpen={!!selectedForPaidReceipt}
