@@ -182,21 +182,29 @@ export default function DockStatusPage() {
     if (showLoadingSpinner) setLoading(false);
   };
 
-  const formatAppointmentTime = (timeStr: string | null | undefined) => {
-    if (!timeStr) return null;
-    try {
-      if (/^\d{2}:\d{2}(:\d{2})?$/.test(timeStr)) {
-        const [hours, minutes] = timeStr.split(':');
-        const date = new Date();
-        date.setHours(parseInt(hours), parseInt(minutes), 0);
-        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-      }
-      const date = new Date(timeStr);
+ const formatAppointmentTime = (timeStr: string | null | undefined) => {
+  if (!timeStr) return null;
+  
+  // Return special appointment type labels as-is
+  const specialTypes = ['Work In', 'LTL', 'Paid', 'Charge'];
+  if (specialTypes.some(type => timeStr.toLowerCase() === type.toLowerCase())) {
+    return timeStr;
+  }
+  
+  try {
+    if (/^\d{2}:\d{2}(:\d{2})?$/.test(timeStr)) {
+      const [hours, minutes] = timeStr.split(':');
+      const date = new Date();
+      date.setHours(parseInt(hours), parseInt(minutes), 0);
       return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    } catch {
-      return null;
     }
-  };
+    const date = new Date(timeStr);
+    if (isNaN(date.getTime())) return timeStr; // fallback: return raw value
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  } catch {
+    return timeStr; // fallback: return raw value instead of null
+  }
+};
 
   const handleBlockDock = (dockNumber: string) => {
     setSelectedDock(dockNumber);
