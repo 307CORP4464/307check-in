@@ -349,7 +349,6 @@ const buildReceiptHTML = (
 
           <div class="footer">
             <p>This receipt confirms payment was collected for loading services.</p>
-            <p>Present this copy to the guard upon exit.</p>
           </div>
 
           <button class="print-btn no-print" onclick="window.print()">Print Receipt</button>
