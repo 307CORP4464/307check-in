@@ -238,7 +238,7 @@ interface CheckIn {
   customer?: string | null;
   mode?: string | null;
   requested_ship_date?: string | null;
-  notes?: string;
+  notes?: string | null;
   has_duplicate_in_progress?: boolean;
   has_duplicate_checked_out?: boolean;
   has_duplicate_denied?: boolean;
@@ -359,7 +359,7 @@ export default function CSRDashboard() {
 
           const { data: appointmentsData, error: appointmentsError } = await supabase
             .from('appointments')
-            .select('sales_order, delivery, appointment_time, appointment_date, carrier, mode, ship_to_city, ship_to_state, requested_ship_date, customer')
+            .select('sales_order, delivery, appointment_time, appointment_date, carrier, mode, ship_to_city, ship_to_state, requested_ship_date, customer, notes')
             .eq('appointment_date', today)
             .or(orFilter);
 
@@ -435,6 +435,7 @@ export default function CSRDashboard() {
           carrier: aptInfo?.carrier ?? ci.carrier ?? null,
           mode: aptInfo?.mode ?? ci.mode ?? null,
           requested_ship_date: aptInfo?.requested_ship_date ?? ci.requested_ship_date ?? null,
+          notes: aptInfo?.notes ?? ci.notes ?? null,
           has_duplicate_in_progress: hasDuplicateInProgress,
           has_duplicate_checked_out: hasDuplicateCheckedOut,
           has_duplicate_denied: hasDuplicateDenied,
@@ -522,6 +523,7 @@ export default function CSRDashboard() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-In Time</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Req. Date and Dest.</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SCAC and Mode</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wait Time</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -638,6 +640,20 @@ export default function CSRDashboard() {
                         </div>
                       </td>
 
+                      {/* Notes */}
+                      <td className="px-4 py-3 text-sm max-w-[180px]">
+                        {checkIn.notes ? (
+                          <span
+                            className="inline-block text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1 leading-snug"
+                            title={checkIn.notes}
+                          >
+                            {checkIn.notes}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+
                       {/* Wait Time */}
                       <td className="px-4 py-3 whitespace-nowrap text-sm">
                         <span className={`font-medium ${
@@ -658,10 +674,6 @@ export default function CSRDashboard() {
                         <button onClick={() => setSelectedForDeny(checkIn)} className="text-red-600 hover:text-red-900">
                           Deny
                         </button>
-                        {/*
-                          CSR Dashboard: first-print mode (no reprintMode prop).
-                          Fills out payment details, saves snapshot, prints.
-                        */}
                         {checkIn.appointment_time === 'Paid' && (
                           <button
                             onClick={() => setSelectedForPaidReceipt(checkIn)}
@@ -678,48 +690,47 @@ export default function CSRDashboard() {
             </div>
           )}
         </div>
-
-        {selectedForDock && (
-          <AssignDockModal
-            isOpen={!!selectedForDock}
-            checkIn={selectedForDock}
-            onClose={() => setSelectedForDock(null)}
-            onSuccess={handleDockAssignSuccess}
-          />
-        )}
-        {selectedForEdit && (
-          <EditCheckInModal
-            checkIn={selectedForEdit}
-            onClose={() => setSelectedForEdit(null)}
-            onSuccess={handleEditSuccess}
-            isOpen={!!selectedForEdit}
-          />
-        )}
-
-        {/* CSR Dashboard: first-print mode — editable fields, saves snapshot on print */}
-        {selectedForPaidReceipt && (
-          <PaidReceiptModal
-            isOpen={!!selectedForPaidReceipt}
-            checkIn={selectedForPaidReceipt}
-            onClose={() => setSelectedForPaidReceipt(null)}
-          />
-        )}
-
-        {selectedForDeny && (
-          <DenyCheckInModal
-            checkIn={selectedForDeny}
-            onClose={() => setSelectedForDeny(null)}
-            onDeny={handleDenySuccess}
-          />
-        )}
-        {showManualCheckIn && (
-          <ManualCheckInModal
-            isOpen={showManualCheckIn}
-            onClose={() => setShowManualCheckIn(false)}
-            onSuccess={handleManualCheckInSuccess}
-          />
-        )}
       </div>
+
+      {selectedForDock && (
+        <AssignDockModal
+          isOpen={!!selectedForDock}
+          checkIn={selectedForDock}
+          onClose={() => setSelectedForDock(null)}
+          onSuccess={handleDockAssignSuccess}
+        />
+      )}
+      {selectedForEdit && (
+        <EditCheckInModal
+          checkIn={selectedForEdit}
+          onClose={() => setSelectedForEdit(null)}
+          onSuccess={handleEditSuccess}
+          isOpen={!!selectedForEdit}
+        />
+      )}
+
+      {selectedForPaidReceipt && (
+        <PaidReceiptModal
+          isOpen={!!selectedForPaidReceipt}
+          checkIn={selectedForPaidReceipt}
+          onClose={() => setSelectedForPaidReceipt(null)}
+        />
+      )}
+
+      {selectedForDeny && (
+        <DenyCheckInModal
+          checkIn={selectedForDeny}
+          onClose={() => setSelectedForDeny(null)}
+          onDeny={handleDenySuccess}
+        />
+      )}
+      {showManualCheckIn && (
+        <ManualCheckInModal
+          isOpen={showManualCheckIn}
+          onClose={() => setShowManualCheckIn(false)}
+          onSuccess={handleManualCheckInSuccess}
+        />
+      )}
     </div>
   );
 }
