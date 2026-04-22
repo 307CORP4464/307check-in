@@ -1,4 +1,4 @@
- 'use client';
+'use client';
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 
@@ -18,6 +18,7 @@ interface AssignDockModalProps {
     ship_to_state?: string | null;
     check_in_time?: string | null;
     load_type?: 'inbound' | 'outbound';
+    notes?: string | null;
   };
   onClose: () => void;
   onSuccess: () => void;
@@ -57,11 +58,9 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
   const [showDoubleBookConfirm, setShowDoubleBookConfirm] = useState(false);
   const [pendingDockNumber, setPendingDockNumber] = useState<string | null>(null);
 
-  // Gross weight state
   const [grossWeight, setGrossWeight] = useState('');
   const [grossWeightTouched, setGrossWeightTouched] = useState(false);
 
-  // Reference number verification state
   const [paperRefNumber, setPaperRefNumber] = useState('');
   const [paperRefTouched, setPaperRefTouched] = useState(false);
   const [refMismatch, setRefMismatch] = useState(false);
@@ -133,7 +132,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
 
   const normalizeRef = (val: string) => val.trim().toLowerCase().replace(/\s+/g, '');
 
-  // ── Match against primary reference OR companion reference ────────────────
   const refNumberMatches =
     paperRefNumber.trim() === '' ||
     normalizeRef(paperRefNumber) === normalizeRef(checkIn.reference_number || '') ||
@@ -295,7 +293,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
       return;
     }
 
-    // Check against both primary and companion reference
     const enteredNormalized = normalizeRef(paperRefNumber);
     const primaryMatches = enteredNormalized === normalizeRef(checkIn.reference_number || '');
     const companionMatches =
@@ -312,7 +309,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
       return;
     }
 
-    // Hard block re-check at submission time
     if (dockNumber !== 'Ramp') {
       const { data: blockedCheck } = await supabase
         .from('blocked_docks')
@@ -401,6 +397,9 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
           .reference-box .reference-number { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
           .reference-box .companion-number { font-size: 13px; color: #555; margin-bottom: 4px; }
           .reference-box .dock-number { font-size: 16px; font-weight: bold; }
+          .notes-box { background-color: #fff8e1; border: 1px solid #f59e0b; border-radius: 4px; padding: 8px 10px; margin: 8px 0; font-size: 13px; }
+          .notes-box .notes-label { font-weight: bold; font-size: 11px; text-transform: uppercase; color: #92400e; margin-bottom: 3px; }
+          .notes-box .notes-text { color: #1c1917; line-height: 1.4; }
           .print-button { display: block; margin: 20px auto; padding: 12px 24px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
           .inspection-page { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 10pt; }
           .title { text-align: center; font-weight: bold; font-size: 14pt; margin-bottom: 10px; }
@@ -429,6 +428,11 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
             ${checkIn.companion_reference ? `<div class="companion-number">Also: ${checkIn.companion_reference}</div>` : ''}
             <div class="dock-number">ASSIGNED TO: ${dockDisplay}</div>
           </div>
+          ${checkIn.notes ? `
+          <div class="notes-box">
+            <div class="notes-label">📋 Appointment Notes</div>
+            <div class="notes-text">${checkIn.notes}</div>
+          </div>` : ''}
           <div class="section">
             <div class="row"><span class="label">Driver:</span><span class="value">${checkIn.driver_name || 'N/A'}</span></div>
             <div class="row"><span class="label">Phone#:</span><span class="value">${checkIn.driver_phone || 'N/A'}</span></div>
@@ -596,11 +600,6 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
 
   const selectedDockData = dockStatuses.find(d => d.dock_number === dockNumber);
 
-  // Build a hint string showing which ref numbers are accepted
-  const acceptedRefsHint = [checkIn.reference_number, checkIn.companion_reference]
-    .filter(Boolean)
-    .join(' or ');
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col">
@@ -628,6 +627,17 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
 
         {/* Scrollable Body */}
         <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
+
+          {/* Appointment Notes banner — shown when notes exist */}
+          {checkIn.notes && (
+            <div className="flex items-start gap-2 px-4 py-3 bg-amber-50 border border-amber-300 rounded-lg">
+              <span className="text-amber-500 text-lg shrink-0">📋</span>
+              <div>
+                <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide mb-0.5">Appointment Notes</p>
+                <p className="text-sm text-amber-900">{checkIn.notes}</p>
+              </div>
+            </div>
+          )}
 
           {/* Legend */}
           <div className="flex flex-wrap gap-3 text-xs font-medium text-gray-600">
@@ -780,9 +790,9 @@ export default function AssignDockModal({ checkIn, onClose, onSuccess, isOpen }:
               <label htmlFor="paperRefNumber" className="block text-sm font-medium text-gray-700">
                 Reference # from Paper Bill <span className="text-red-500">*</span>
               </label>
-           <p className="text-xs text-gray-400 mb-1">
-  Enter the ref # exactly as shown on the physical bill
-</p>
+              <p className="text-xs text-gray-400 mb-1">
+                Enter the ref # exactly as shown on the physical bill
+              </p>
               <div className="relative">
                 <input
                   id="paperRefNumber"
