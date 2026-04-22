@@ -296,52 +296,63 @@ export default function CSRDashboard() {
         const todayStart = `${today}T00:00:00.000Z`;
         const todayEnd = `${today}T23:59:59.999Z`;
 
-        const { data: inProgressData } = await supabase
-          .from('check_ins')
-          .select('id, reference_number, start_time, end_time')
-          .in('reference_number', referenceNumbers)
-          .not('start_time', 'is', null)
-          .is('end_time', null)
-          .gte('check_in_time', todayStart)
-          .lte('check_in_time', todayEnd);
+        // Use ilike batches — .in() does exact column match and misses
+        // multi-value reference_number strings like "24001, 80012345"
+        const BATCH_SIZE = 20;
 
-        (inProgressData || []).forEach((ci: any) => {
-          if (ci.reference_number) {
-            expandRefsWithNormalized(parseReferenceNumbers(ci.reference_number))
-              .forEach((ref: string) => inProgressRefs.add(ref));
-          }
-        });
+        for (let i = 0; i < referenceNumbers.length; i += BATCH_SIZE) {
+          const batch = referenceNumbers.slice(i, i + BATCH_SIZE);
+          const orFilter = batch
+            .map((ref: string) => `reference_number.ilike.%${ref}%`)
+            .join(',');
 
-        const { data: checkedOutData } = await supabase
-          .from('check_ins')
-          .select('id, reference_number, end_time')
-          .in('reference_number', referenceNumbers)
-          .not('end_time', 'is', null)
-          .not('status', 'in', '("check_in_denial","denied","turned_away","driver_left","rejected")')
-          .gte('check_in_time', todayStart)
-          .lte('check_in_time', todayEnd);
+          const { data: inProgressData } = await supabase
+            .from('check_ins')
+            .select('id, reference_number, start_time, end_time')
+            .or(orFilter)
+            .not('start_time', 'is', null)
+            .is('end_time', null)
+            .gte('check_in_time', todayStart)
+            .lte('check_in_time', todayEnd);
 
-        (checkedOutData || []).forEach((ci: any) => {
-          if (ci.reference_number) {
-            expandRefsWithNormalized(parseReferenceNumbers(ci.reference_number))
-              .forEach((ref: string) => checkedOutRefs.add(ref));
-          }
-        });
+          (inProgressData || []).forEach((ci: any) => {
+            if (ci.reference_number) {
+              expandRefsWithNormalized(parseReferenceNumbers(ci.reference_number))
+                .forEach((ref: string) => inProgressRefs.add(ref));
+            }
+          });
 
-        const { data: deniedData } = await supabase
-          .from('check_ins')
-          .select('id, reference_number, status')
-          .in('reference_number', referenceNumbers)
-          .in('status', ['check_in_denial', 'denied', 'turned_away'])
-          .gte('check_in_time', todayStart)
-          .lte('check_in_time', todayEnd);
+          const { data: checkedOutData } = await supabase
+            .from('check_ins')
+            .select('id, reference_number, end_time, status')
+            .or(orFilter)
+            .not('end_time', 'is', null)
+            .not('status', 'in', '("check_in_denial","denied","turned_away","driver_left","rejected")')
+            .gte('check_in_time', todayStart)
+            .lte('check_in_time', todayEnd);
 
-        (deniedData || []).forEach((ci: any) => {
-          if (ci.reference_number) {
-            expandRefsWithNormalized(parseReferenceNumbers(ci.reference_number))
-              .forEach((ref: string) => deniedRefs.add(ref));
-          }
-        });
+          (checkedOutData || []).forEach((ci: any) => {
+            if (ci.reference_number) {
+              expandRefsWithNormalized(parseReferenceNumbers(ci.reference_number))
+                .forEach((ref: string) => checkedOutRefs.add(ref));
+            }
+          });
+
+          const { data: deniedData } = await supabase
+            .from('check_ins')
+            .select('id, reference_number, status')
+            .or(orFilter)
+            .in('status', ['check_in_denial', 'denied', 'turned_away'])
+            .gte('check_in_time', todayStart)
+            .lte('check_in_time', todayEnd);
+
+          (deniedData || []).forEach((ci: any) => {
+            if (ci.reference_number) {
+              expandRefsWithNormalized(parseReferenceNumbers(ci.reference_number))
+                .forEach((ref: string) => deniedRefs.add(ref));
+            }
+          });
+        }
       }
 
       let allTodayAppointments: any[] = [];
