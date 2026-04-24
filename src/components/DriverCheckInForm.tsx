@@ -157,14 +157,14 @@ const getStatusMeta = (status: string): StatusMeta => {
       return {
         headerBg: 'bg-blue-600', headerTitle: 'Dock Assigned', headerIcon: '✓',
         bannerBg: 'bg-blue-50', bannerBorder: 'border-blue-300', bannerText: 'text-blue-700',
-        bannerIcon: <Truck className="w-5 h-5 text-blue-500" />, bannerLabel: 'Dock Assigned — Please Proceed',
+        bannerIcon: <Truck className="w-5 h-5 text-blue-500" />, bannerLabel: 'Dock Assigned — Please Proceed, Follow Instructions Below',
       };
     case 'checked_out':
 case 'complete':
   return {
     headerBg: 'bg-orange-500', headerTitle: 'Almost Finished — Waiting to Be Sealed', headerIcon: '🟡',
     bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
-    bannerIcon: <Clock className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed',
+    bannerIcon: <Clock className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed, Wait for Green Light',
   };
     case 'rejected':
       return {
@@ -176,7 +176,7 @@ case 'complete':
       return {
         headerBg: 'bg-red-700', headerTitle: 'Check-In Denied', headerIcon: '✕',
         bannerBg: 'bg-red-50', bannerBorder: 'border-red-400', bannerText: 'text-red-700',
-        bannerIcon: <XCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'Check-In Denied',
+        bannerIcon: <XCircle className="w-5 h-5 text-red-500" />, bannerLabel: 'Check-In Denied, Reason Listed Below',
       };
     case 'driver_left':
       return {
@@ -459,7 +459,7 @@ function StatusScreen({
 
         {/* Top banner */}
         <div className="bg-gray-900 text-white px-5 py-4 text-center">
-          <p className="text-xl font-extrabold tracking-tight leading-snug">📱 DO NOT CLOSE</p>
+          <p className="text-x2 font-extrabold tracking-tight leading-snug">DO NOT CLOSE</p>
           <p className="text-sm text-gray-300 mt-1">Load updates will appear below</p>
           <p className="text-sm text-gray-300 mt-1">You may need to reload page if you do not see an update.</p>
         </div>
@@ -947,6 +947,7 @@ export default function DriverCheckInForm() {
                   <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-md">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Accepted formats:</p>
                     <ul className="space-y-1 text-xs text-gray-600">
+                       <li><span className="font-mono bg-gray-100 px-1 rounded">Numbers may have 00 or 000 in front to start.</li>
                       <li><span className="font-mono bg-gray-100 px-1 rounded">26xxxxx</span> — 7 digits starting with 26</li>
                       <li><span className="font-mono bg-gray-100 px-1 rounded">41xxxxx</span> — 7 digits starting with 41</li>
                       <li><span className="font-mono bg-gray-100 px-1 rounded">86xxxxxxx</span> — 8 digits starting with 86</li>
@@ -970,7 +971,7 @@ export default function DriverCheckInForm() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Trailer Number <span className="text-red-500">*</span></label>
-                  <input type="text" name="trailerNumber" value={formData.trailerNumber} onChange={handleInputChange} required placeholder="e.g., TRL-12345"
+                  <input type="text" name="trailerNumber" value={formData.trailerNumber} onChange={handleInputChange} required placeholder="e.g., 12345"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div className="md:col-span-2">
