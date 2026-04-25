@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
-import { Plus, Minus, Clock, Truck, XCircle, Package } from 'lucide-react';
+import { Plus, Minus, Clock, Truck, XCircle, Package, Bell, BellOff } from 'lucide-react';
 import { getHoliday, isHoliday, todayString } from '@/lib/holidays';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -160,12 +160,12 @@ const getStatusMeta = (status: string): StatusMeta => {
         bannerIcon: <Truck className="w-5 h-5 text-blue-500" />, bannerLabel: 'Dock Assigned — Please Proceed, Follow Instructions Below',
       };
     case 'checked_out':
-case 'complete':
-  return {
-    headerBg: 'bg-orange-500', headerTitle: 'Almost Finished — Waiting to Be Sealed', headerIcon: '🟡',
-    bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
-    bannerIcon: <Clock className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed, Wait for Green Light',
-  };
+    case 'complete':
+      return {
+        headerBg: 'bg-orange-500', headerTitle: 'Almost Finished — Waiting to Be Sealed', headerIcon: '🟡',
+        bannerBg: 'bg-orange-50', bannerBorder: 'border-orange-300', bannerText: 'text-orange-700',
+        bannerIcon: <Clock className="w-5 h-5 text-orange-500" />, bannerLabel: 'Almost Finished — Waiting to Be Sealed, Wait for Green Light',
+      };
     case 'rejected':
       return {
         headerBg: 'bg-red-700', headerTitle: 'Trailer Rejected', headerIcon: '⚠️',
@@ -324,6 +324,61 @@ const getStoredCheckInId = (): string | null => {
   }
 };
 
+// ── Alert helpers ──────────────────────────────────────────────────────────
+
+const playAlertSound = () => {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+
+    // Play three rising tones so it's clearly an alert, not ambient noise
+    const tones = [660, 880, 1100];
+    tones.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const startTime = ctx.currentTime + i * 0.18;
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.35, startTime + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.35);
+      osc.start(startTime);
+      osc.stop(startTime + 0.35);
+    });
+  } catch {
+    // Audio not supported — fail silently
+  }
+};
+
+const vibrateDevice = () => {
+  try {
+    if ('vibrate' in navigator) {
+      // Long-short-long pattern — noticeable but not alarming
+      navigator.vibrate([400, 100, 400, 100, 600]);
+    }
+  } catch {
+    // Vibration not supported — fail silently
+  }
+};
+
+const sendBrowserNotification = (status: string, driverName: string) => {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const label = status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    new Notification('Load Status Update', {
+      body: `${driverName} — Status changed to: ${label}. Please check the page.`,
+      icon: '/favicon.ico',
+      tag: 'load-status', // Replaces previous notification instead of stacking
+      requireInteraction: true, // Keeps the notification visible until dismissed
+    });
+  } catch {
+    // Notifications not supported — fail silently
+  }
+};
+
 // ── Status Screen ──────────────────────────────────────────────────────────
 
 function StatusScreen({
@@ -341,6 +396,80 @@ function StatusScreen({
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
+  // ── Notification state ─────────────────────────────────────────────────
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | 'unsupported'>('default');
+  const [showAlertBanner, setShowAlertBanner] = useState(true);
+  const [statusFlash, setStatusFlash] = useState(false);
+  const prevStatusRef = useRef<string>(initialRecord.status);
+  const audioUnlockedRef = useRef(false);
+
+  // Request notification permission and set initial permission state
+  useEffect(() => {
+    if (!('Notification' in window)) {
+      setNotifPermission('unsupported');
+      return;
+    }
+    setNotifPermission(Notification.permission);
+  }, []);
+
+  // Unlock audio context on first user interaction (required by browsers)
+  const unlockAudio = useCallback(() => {
+    if (audioUnlockedRef.current) return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      // Play a silent buffer to unlock audio
+      const buf = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(0);
+      ctx.resume().then(() => {
+        audioUnlockedRef.current = true;
+        setSoundEnabled(true);
+      });
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleEnableAlerts = useCallback(async () => {
+    // Unlock audio
+    unlockAudio();
+
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      const result = await Notification.requestPermission();
+      setNotifPermission(result);
+    }
+
+    setShowAlertBanner(false);
+  }, [unlockAudio]);
+
+  const handleDismissAlerts = useCallback(() => {
+    setShowAlertBanner(false);
+  }, []);
+
+  // Trigger all alerts when status changes
+  const fireAlerts = useCallback((newStatus: string, driverName: string) => {
+    // Visual flash
+    setStatusFlash(true);
+    setTimeout(() => setStatusFlash(false), 1500);
+
+    // Sound (only if user enabled it)
+    if (soundEnabled || audioUnlockedRef.current) {
+      playAlertSound();
+    }
+
+    // Vibration
+    vibrateDevice();
+
+    // Browser notification
+    sendBrowserNotification(newStatus, driverName);
+  }, [soundEnabled]);
+
   useEffect(() => {
     const fetchFull = async () => {
       const { data } = await supabase
@@ -349,9 +478,18 @@ function StatusScreen({
         .eq('id', initialRecord.id)
         .single();
       if (data) {
-        setRecord(data as CheckInRecord);
+        const incoming = data as CheckInRecord;
+
+        // Detect status change and fire alerts
+        if (incoming.status !== prevStatusRef.current) {
+          fireAlerts(incoming.status, incoming.driver_name);
+          prevStatusRef.current = incoming.status;
+        }
+
+        setRecord(incoming);
         setLastUpdated(new Date());
-        if (NON_REDIRECT_STATUSES.includes(data.status)) {
+
+        if (NON_REDIRECT_STATUSES.includes(incoming.status)) {
           clearActiveCheckIn();
         }
       }
@@ -364,7 +502,15 @@ function StatusScreen({
         { event: 'UPDATE', schema: 'public', table: 'check_ins', filter: `id=eq.${initialRecord.id}` },
         (payload) => {
           if (payload.new) {
-            setRecord(payload.new as CheckInRecord);
+            const incoming = payload.new as CheckInRecord;
+
+            // Detect status change and fire alerts
+            if (incoming.status !== prevStatusRef.current) {
+              fireAlerts(incoming.status, incoming.driver_name);
+              prevStatusRef.current = incoming.status;
+            }
+
+            setRecord(incoming);
             setLastUpdated(new Date());
           }
           fetchFull();
@@ -374,8 +520,9 @@ function StatusScreen({
         if (status === 'SUBSCRIBED') setConnectionStatus('connected');
         else if (status === 'CHANNEL_ERROR') setConnectionStatus('error');
       });
+
     return () => { supabase.removeChannel(channel); };
-  }, [initialRecord.id, supabase]);
+  }, [initialRecord.id, supabase, fireAlerts]);
 
   const status = record.status;
   const meta = getStatusMeta(status);
@@ -389,6 +536,7 @@ function StatusScreen({
   const showInstructions = dockIsAssigned && !STATUSES_WITHOUT_INSTRUCTIONS.includes(status);
 
   const isComplete = status === 'complete';
+  const isCheckedOut = status === 'checked_out';
   const isRejected = status === 'rejected';
   const isDenied   = status === 'check_in_denial';
 
@@ -402,6 +550,7 @@ function StatusScreen({
     return [];
   })();
 
+  // ── Action box — order matters: more specific statuses first ─────────────
   const actionBox = (() => {
     if (status === 'pending' && !hasDock) {
       return (
@@ -410,22 +559,8 @@ function StatusScreen({
         </div>
       );
     }
-    if (dockIsAssigned && !STATUSES_WITHOUT_INSTRUCTIONS.includes(status)) {
-      return (
-        <div className="p-4 bg-blue-50 border-2 border-blue-400 rounded-lg text-sm text-blue-900">
-          🚛 <strong>Proceed to Dock {dockDisplay}</strong> now. Follow the {record.load_type === 'inbound' ? 'unloading' : 'loading'} instructions below.
-        </div>
-      );
-    }
-    if (isComplete) return (
-      <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900 space-y-2">
-        <p className="font-bold">✅ Next Steps — Please Read Carefully:</p>
-        <p><strong>Step 1:</strong> Watch for the dock light to change to <strong>GREEN</strong>.</p>
-        <p><strong>Step 2:</strong> Once the light turns green, <strong>come to the office for your paperwork.</strong></p>
-      </div>
-    );
-    // ADD THIS before the dockIsAssigned if block:
-    if (status === 'checked_out') {
+
+    if (isCheckedOut) {
       return (
         <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900 space-y-2">
           <p className="font-bold">✅ Almost Done — Please Read Carefully:</p>
@@ -435,21 +570,49 @@ function StatusScreen({
         </div>
       );
     }
-    if (isRejected) return (
-      <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
-        ⚠️ <strong>Your trailer has been rejected.</strong> Review the details below and see us in the office if you have questions.
-      </div>
-    );
-    if (isDenied) return (
-      <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
-        🚫 <strong>Your check-in has been denied.</strong> Please contact the facility for further assistance.
-      </div>
-    );
-    if (status === 'driver_left') return (
-      <div className="p-4 bg-gray-50 border-2 border-gray-300 rounded-lg text-sm text-gray-800">
-        This check-in is no longer active. If you need to check in again, please use the check-in form or see the office.
-      </div>
-    );
+
+    if (isComplete) {
+      return (
+        <div className="p-4 bg-green-50 border-2 border-green-400 rounded-lg text-sm text-green-900 space-y-2">
+          <p className="font-bold">✅ Next Steps — Please Read Carefully:</p>
+          <p><strong>Step 1:</strong> Watch for the dock light to change to <strong>GREEN</strong>.</p>
+          <p><strong>Step 2:</strong> Once the light turns green, <strong>come to the office for your paperwork.</strong></p>
+        </div>
+      );
+    }
+
+    if (dockIsAssigned && !STATUSES_WITHOUT_INSTRUCTIONS.includes(status)) {
+      return (
+        <div className="p-4 bg-blue-50 border-2 border-blue-400 rounded-lg text-sm text-blue-900">
+          🚛 <strong>Proceed to Dock {dockDisplay}</strong> now. Follow the {record.load_type === 'inbound' ? 'unloading' : 'loading'} instructions below.
+        </div>
+      );
+    }
+
+    if (isRejected) {
+      return (
+        <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
+          ⚠️ <strong>Your trailer has been rejected.</strong> Review the details below and see us in the office if you have questions.
+        </div>
+      );
+    }
+
+    if (isDenied) {
+      return (
+        <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg text-sm text-red-900">
+          🚫 <strong>Your check-in has been denied.</strong> Please contact the facility for further assistance.
+        </div>
+      );
+    }
+
+    if (status === 'driver_left') {
+      return (
+        <div className="p-4 bg-gray-50 border-2 border-gray-300 rounded-lg text-sm text-gray-800">
+          This check-in is no longer active. If you need to check in again, please use the check-in form or see the office.
+        </div>
+      );
+    }
+
     return null;
   })();
 
@@ -464,12 +627,62 @@ function StatusScreen({
           <p className="text-sm text-gray-300 mt-1">You may need to reload page if you do not see an update.</p>
         </div>
 
-        {/* Status header */}
-        <div className={`${meta.headerBg} text-white p-6 text-center transition-colors duration-500`}>
+        {/* ── Alert enable banner ─────────────────────────────────────────── */}
+        {showAlertBanner && (
+          <div className="mx-4 mt-4 p-4 bg-blue-50 border-2 border-blue-400 rounded-lg">
+            <p className="text-sm font-bold text-blue-800 mb-1">🔔 Enable Status Alerts</p>
+            <p className="text-xs text-blue-700 mb-3">
+              Tap below to receive a sound, vibration, and notification when your load status changes — even if this tab is in the background.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={handleEnableAlerts}
+                className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 active:scale-95 transition-all"
+              >
+                <Bell size={15} />
+                Enable Alerts
+              </button>
+              <button
+                onClick={handleDismissAlerts}
+                className="py-2 px-3 border-2 border-blue-300 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                No thanks
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Alert indicators (shown after banner is dismissed) */}
+        {!showAlertBanner && (
+          <div className="mx-4 mt-3 flex items-center gap-3 text-xs text-gray-500">
+            <span className={`flex items-center gap-1 ${soundEnabled || audioUnlockedRef.current ? 'text-green-600' : 'text-gray-400'}`}>
+              {soundEnabled || audioUnlockedRef.current ? <Bell size={12} /> : <BellOff size={12} />}
+              Sound {soundEnabled || audioUnlockedRef.current ? 'on' : 'off'}
+            </span>
+            {notifPermission !== 'unsupported' && (
+              <span className={`flex items-center gap-1 ${notifPermission === 'granted' ? 'text-green-600' : 'text-gray-400'}`}>
+                🔔 Notifications {notifPermission === 'granted' ? 'on' : 'off'}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Status header — flashes on update */}
+        <div className={`${meta.headerBg} text-white p-6 text-center transition-colors duration-500 ${statusFlash ? 'animate-pulse' : ''}`}>
           <div className="text-5xl mb-3">{meta.headerIcon}</div>
           <h2 className="text-2xl font-bold">{meta.headerTitle}</h2>
           <p className="text-white/80 text-sm mt-1">Welcome, {record.driver_name}!</p>
         </div>
+
+        {/* Flash overlay — briefly highlights the whole card on update */}
+        {statusFlash && (
+          <div
+            className="mx-4 mt-2 p-3 bg-yellow-100 border-2 border-yellow-400 rounded-lg text-center text-sm font-bold text-yellow-800 animate-pulse"
+            aria-live="assertive"
+          >
+            ⚡ Status Updated — Please Read Below
+          </div>
+        )}
 
         {/* Status banner */}
         <div className={`mx-4 mt-4 p-4 rounded-lg border-2 ${meta.bannerBg} ${meta.bannerBorder} transition-all duration-500`}>
@@ -947,7 +1160,7 @@ export default function DriverCheckInForm() {
                   <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-md">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Accepted formats:</p>
                     <ul className="space-y-1 text-xs text-gray-600">
-                       <li><span className="font-mono bg-gray-100 px-1 rounded">Numbers may have 00 or 000 in front to start.</li>
+                      <li><span className="font-mono bg-gray-100 px-1 rounded">Numbers may have 00 or 000 in front to start.</span></li>
                       <li><span className="font-mono bg-gray-100 px-1 rounded">26xxxxx</span> — 7 digits starting with 26</li>
                       <li><span className="font-mono bg-gray-100 px-1 rounded">41xxxxx</span> — 7 digits starting with 41</li>
                       <li><span className="font-mono bg-gray-100 px-1 rounded">86xxxxxxx</span> — 8 digits starting with 86</li>
