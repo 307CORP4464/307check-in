@@ -23,6 +23,8 @@ interface EditCheckInModalProps {
     carrier?: string | null;
     mode?: string | null;
     notes?: string | null;
+    companion_number?: string | null;
+    gross_weight?: string | null;
   };
   onClose: () => void;
   onSuccess: () => void;
@@ -64,6 +66,8 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     carrier: checkIn.carrier || '',
     mode: checkIn.mode || '',
     notes: checkIn.notes || '',
+    companion_number: checkIn.companion_number || '',
+    gross_weight: checkIn.gross_weight || '',
   });
 
   const US_STATES = [
@@ -110,6 +114,13 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
     setError(null);
     setSaving(true);
 
+    // Validate gross weight if provided
+    if (formData.gross_weight && isNaN(Number(formData.gross_weight))) {
+      setError('Gross weight must be a valid number');
+      setSaving(false);
+      return;
+    }
+
     const combinedReferenceNumber = referenceNumbers
       .map(r => r.trim())
       .filter(Boolean)
@@ -134,6 +145,8 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
         carrier: formData.carrier || null,
         mode: formData.mode || null,
         notes: formData.notes,
+        companion_number: formData.companion_number || null,
+        gross_weight: formData.gross_weight || null,
       };
 
       const { error: updateError } = await supabase
@@ -220,6 +233,38 @@ export default function EditCheckInModal({ checkIn, onClose, onSuccess, isOpen }
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Companion Number */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Companion Number <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                name="companion_number"
+                value={formData.companion_number}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g., 2xxxxxx"
+              />
+            </div>
+
+            {/* Gross Weight */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Gross Weight (lbs) <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="number"
+                name="gross_weight"
+                value={formData.gross_weight}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g., 44000"
+                min="0"
+                step="1"
+              />
             </div>
 
             {/* Appointment Type Override */}
